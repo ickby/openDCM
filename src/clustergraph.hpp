@@ -116,6 +116,20 @@ public:
         //TODO: if parent exists all vertices have to be transfered to it;
     };
 
+    template<typename T>
+    bool operator==(const T &other) const {
+        return this == &other;
+    };
+
+    template<typename T>
+    bool operator!=(const T &other) const {
+        return !(this == &other);
+    };
+
+    
+    /* *******************************************************
+     * Subclustering
+     * *******************************************************/
 
     ClusterGraph& 	createCluster() {
         LocalVertex v = boost::add_vertex ( *this );
@@ -320,30 +334,57 @@ public:
 	//TODO: check if global edge already exists
     };
 
+    /**
+     * @brief Get the local edges global descriptor
+     * 
+     * Gives the global descriptor of the local edge. Note that local edges can connect to atleast one cluster,
+     * in which case they can have multiple global descriptors. In this case the first one will be returned. 
+     *
+     * @param e the local edge for which the global descriptor is wanted
+     * @return GlobalEdge
+     **/
     GlobalEdge getGlobalEdge(LocalEdge e) {
 	edge_bundle vec = (*this)[e];
 	if(vec.empty()) return GlobalEdge();
         return fusion::at_c<2>(*((*this)[e]).begin());
     };
-    std::pair<LocalEdge, bool> getLocalEdge(GlobalEdge e, bool recursive = true) {
-        return getContainingEdge(e, recursive);
+    /**
+     * @brief Get the local edge which holds the specified global edge.
+     *
+     * Note that GlobalEdge must be in a local edge of this cluster, means the connected vertices must be in this 
+     * ore one of it's subclusters. Also if the containing LocalEdge is no in this cluster, but in one of it's 
+     * subclusters, the function fails and the returned edge is invalid.
+     * 
+     * @param e GlobalEdge for which the containing local one is wanted
+     * @return std:pair< LocalEdge, bool > whith the containing LocalEdge and a bool indicator if function was successful.
+     **/    
+    std::pair<LocalEdge, bool> getLocalEdge(GlobalEdge e) {
+        return getContainingEdge(e, true);
     };
+    
+    /**
+     * @brief Get the GlobalVertex assiociated with this local one. 
+     *
+     * @param e LocalVertex
+     * @return GlobalVertex
+     **/
+    
     GlobalVertex getGlobalVertex(LocalVertex e) {
         return fusion::at_c<2>((*this)[e]);
     };
-    std::pair<LocalVertex,bool> getLocalVertex(GlobalVertex e, bool recursive = true) {
+    /**
+     * @brief Get the LocalVertex which corresponds to the golab one
+     * 
+     * The GlobalVertex has to be in this cluster or any of it's subclusters. If its in a subcluster, the returned 
+     * LocalVertex will represent this cluster. If the GlobalVertex is not in this clusters scope the function fails.
+     *
+     * @param GlobalVertex
+     * @return std::pair< LocalVertex, bool > The LocalVertex containing the global one and an success indicator
+     **/    
+    std::pair<LocalVertex,bool> getLocalVertex(GlobalVertex e) {
         return getContainingVertex(e);
     };
 
-    template<typename T>
-    bool operator==(const T &other) const {
-        return this == &other;
-    };
-
-    template<typename T>
-    bool operator!=(const T &other) const {
-        return !(this == &other);
-    };
 
     /* *******************************************************
      * Object Handling
