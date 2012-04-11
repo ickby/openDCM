@@ -31,7 +31,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace ns2 {
+namespace dcm {
   
   struct vertex_property_tag {};
   struct edge_property_tag {};
@@ -68,13 +68,13 @@ template <typename Property, typename Graph>
 class fusion_property_map  {
   
   public:
-    typedef typename ns2::details::property_selector<typename Property::kind, Graph>::key_type key_type; 
+    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::key_type key_type; 
     typedef typename Property::type value_type;
     typedef typename Property::type&  reference;
     typedef boost::lvalue_property_map_tag category;
     
     typedef Property property;
-    typedef typename ns2::details::property_selector<typename Property::kind, Graph>::bundle_type bundle;
+    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::bundle_type bundle;
 
     fusion_property_map(Graph& g) 
       : m_graph(g) { }

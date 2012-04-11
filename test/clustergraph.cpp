@@ -25,16 +25,16 @@
 #define BOOST_TEST_MODULE ClusterGraph
 #include <boost/test/unit_test.hpp>
 
-using namespace ns2;
+using namespace dcm;
 namespace mpl = boost::mpl;
 
 struct test_edge_property {
-    typedef ns2::edge_property_tag kind;
+    typedef dcm::edge_property_tag kind;
     typedef int type;
 };
 
 struct test_vertex_property {
-    typedef ns2::vertex_property_tag kind;
+    typedef dcm::vertex_property_tag kind;
     typedef int type;
 };
 

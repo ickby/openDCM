@@ -20,7 +20,7 @@
 #ifndef NS2_GEOMETRY3D_H
 #define NS2_GEOMETRY3D_H
 
-namespace ns2 {
+namespace dcm {
   
 
   

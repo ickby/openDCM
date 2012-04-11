@@ -37,7 +37,7 @@
 namespace mpl = boost::mpl;
 
 
-namespace ns2 {
+namespace dcm {
 
 template<typename seq, typename state>
 struct edge_fold : mpl::fold< seq, state,

@@ -30,7 +30,7 @@
 #include "clustergraph.hpp"
 #include "variant.hpp"
 
-namespace ns2 {
+namespace dcm {
 
   struct undefined{};
   struct tag_point{};

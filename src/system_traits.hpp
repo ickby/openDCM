@@ -20,7 +20,7 @@
 #ifndef NS2_SYSTEM_TRAITS_H
 #define NS2_SYSTEM_TRAITS_H
 
-namespace ns2 {
+namespace dcm {
 
 
 

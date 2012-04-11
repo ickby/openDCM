@@ -20,7 +20,7 @@
 #ifndef NS2_CONSTRAINT_H
 #define NS2_CONSTRAINT_H
 
-namespace ns2 {
+namespace dcm {
 
 template< typename T>
 class Constraint {

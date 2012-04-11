@@ -34,7 +34,7 @@
 
 #include "geometry.hpp"
 
-namespace ns2  {
+namespace dcm  {
 
 template< typename Tlist >
 class Variant  {
@@ -195,14 +195,14 @@ template<typename Visitor, typename Visitable1, typename Visitable2>
 inline typename Visitor::result_type apply_visitor(const Visitor& visitor, Visitable1& visitable1, Visitable2& visitable2)
 {
     //in 3 stappen doen; eerst visitable1 en visitable2 meegeven en daarna visit op visitable2 doen en resultaat v/d eerste meegeven, dan visit op de laatste
-    ns2::CBinaryUnwrap1<const Visitor, Visitable2> unwrapper(visitor, visitable2);
+    dcm::CBinaryUnwrap1<const Visitor, Visitable2> unwrapper(visitor, visitable2);
     return apply_visitor(unwrapper, visitable1);
 }
 
 template<typename Visitor, typename Visitable1, typename Visitable2>
 inline typename Visitor::result_type apply_visitor(Visitor& visitor, Visitable1& visitable1, Visitable2& visitable2)
 {
-    ns2::CBinaryUnwrap1<Visitor, Visitable2> unwrapper(visitor, visitable2);
+    dcm::CBinaryUnwrap1<Visitor, Visitable2> unwrapper(visitor, visitable2);
     return apply_visitor(unwrapper, visitable1);
 }
 
