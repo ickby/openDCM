@@ -38,7 +38,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace ns2 {
+namespace dcm {
 
 typedef boost::adjacency_list_traits<boost::slistS, boost::slistS, boost::undirectedS> list_traits;
 typedef typename list_traits::vertex_descriptor LocalVertex;
@@ -217,7 +217,12 @@ public:
      * Creation Handling
      * *******************************************************/
 
-    fusion::vector<LocalVertex, GlobalVertex> addVertex() {
+     /**
+      * @brief Add a vertex to the local cluster
+      *
+      * @return fusion:vector< LocalVertex, GlobalVertex > with the local and global vertex descriptor
+      **/
+     fusion::vector<LocalVertex, GlobalVertex> addVertex() {
 
         vertex_bundle vp;
         fusion::at_c<2>(vp) = m_id->generate();
@@ -230,36 +235,89 @@ public:
      * @brief Add a edge between two vertices, defined by local descriptors.
      * 
      * Add an edge that connects the two vertices and in the local clustergraph and assign the GlobalEdge to it. The
-     * LocalVertex parameters should not represent a cluster. Also there should not exist a edge between the vertices, 
-     * which would result in the functions failure. Failure will be recocnisable by a false value in the returned type 
-     * sequence.
+     * LocalVertex parameters should not represent a cluster which would result in the functions failure. If ther's
+     * already a edge between the vertices the existing local and global descriptors are returnd. This counts as 
+     * successful creation and will therefore not be indicated. Failure will be recocnisable by a false value in the 
+     * returned type sequence.
      *
-     * @return fusion::vector<LocalEdge, GlobalEdge, bool>
+     * @param source The first vertex the edge should connect
+     * @param target The second vertex the edge should connect
+     * @return fusion::vector<LocalEdge, GlobalEdge, success> with the local and global descriptors of the edge and an bool
+     * value indicationg the successful creation.
      **/
     fusion::vector<LocalEdge, GlobalEdge, bool> addEdge(LocalVertex source, LocalVertex target) {
 
+	//manual edge creation with cluster is not allowed
+	if( (source==target) || isCluster(source) || isCluster(target) ) 
+	  return fusion::make_vector(LocalEdge(), GlobalEdge(), false);
+	
         LocalEdge e;
         bool done;
         boost::tie(e,done) = boost::add_edge(source, target, *this);
+	
+	//if done=false the edge alredy existed
+	if(!done) {
+	  edge_bundle& vec = (*this)[e];
+	  //if a non-cluster edge has more than one property attached something has gone terribly wrong
+	  return fusion::make_vector(e, fusion::at_c<2>(vec.front()), vec.size()==1);
+	}
+	
+	//init the bundle corecctly for new edge
 	GlobalEdge global = std::make_pair(fusion::at_c<2>((*this)[source]),fusion::at_c<2>((*this)[target]));
 	edge_bundle_single s;
 	fusion::at_c<2>(s) = global;
 	(*this)[e].push_back(s);
-        return fusion::make_vector(e, global, done);
+        return fusion::make_vector(e, global, true);
     };
 
-    fusion::vector<LocalEdge, GlobalEdge, bool> addEdge(GlobalVertex source, GlobalVertex target) {
+    /**
+     * @brief Add a edge between two vertices, defined by global descriptors.
+     * 
+     * Adds an edge between vertices which are not nesseccarily in this local cluster and have therefore to be 
+     * identified with global descriptors. The only condition for source and tearget vertex is that both must be
+     * in the local cluster or any of its child clusters. If thats not the case, the function will fail. On success
+     * a new GlobalEdge will be created, but not neccessarily a local one. If the vertices are in different cluster
+     * which are already connected the global edge will be added to this connecting local edge. Thats the one returned
+     * in the seqence. Note that it's possible that the local edge belongs to another subcluster and therefore can't be
+     * used in the local cluster. This case is indicated by the scope return value. 
+     * In the case of an alredy existing global edge this one will be returned. Note that parent globaledges are not 
+     * checked which may lead to existane of double edges, which would be a serious error.
+     * 
+     *
+     * @param source The first vertex the edge should connect
+     * @param target The second vertex the edge should connect
+     * @return fusion:vector< LocalEdge, GlobalEdge, success, scope > with the new global edge descriptor and the local
+     * one where it was added. Success indicates if the function was successful and scope shows the validy of the local
+     * descriptor in this cluster (true means the edge is in this cluster).
+     **/
+    
+    fusion::vector<LocalEdge, GlobalEdge, bool, bool> addEdge(GlobalVertex source, GlobalVertex target) {
 
         LocalVertex v1,v2;
         LocalEdge e;
         bool d1,d2,d3;
         boost::tie(v1,d1) = getContainingVertex(source);
         boost::tie(v2,d2) = getContainingVertex(target);
-
-        if (!(d1&&d2) || (v1==v2)) return fusion::make_vector(LocalEdge(), GlobalEdge(), false);
-
+	
+	//if one vertex is not accessible from here this function fails
+	if (!(d1&&d2)) return fusion::make_vector(LocalEdge(), GlobalEdge(), false, false);
+	
+	//if both vertices are in a subcluster this one must do the job as we cant access the local edge from here
+	if(v1==v2 && isCluster(v1)) {
+	  fusion::vector<LocalEdge, GlobalEdge, bool, bool> res = getVertexCluster(v1)->addEdge(source, target);
+	  fusion::at_c<3>(res)=false;
+	  return res;
+	}
+	
         boost::tie(e,d3) = boost::add_edge(v1, v2, *this);
-        return fusion::make_vector(e, std::make_pair(source, target), d3);
+        //init the bundle corectly for new edge
+	GlobalEdge global = std::make_pair(source, target);
+	edge_bundle_single s;
+	fusion::at_c<2>(s) = global;
+	(*this)[e].push_back(s);
+        return fusion::make_vector(e, global, true, true);
+	
+	//TODO: check if global edge already exists
     };
 
     GlobalEdge getGlobalEdge(LocalEdge e) {
