@@ -20,7 +20,9 @@
 #include "clustergraph.hpp"
 #include "property.hpp"
 
+#include <boost/fusion/sequence.hpp>
 #include <boost/mpl/vector.hpp>
+#include <utility>
 
 #define BOOST_TEST_MODULE ClusterGraph
 #include <boost/test/unit_test.hpp>
@@ -48,27 +50,49 @@ struct test_object2 {
 typedef ClusterGraph<mpl::vector<test_edge_property>,
 mpl::vector<test_vertex_property>, mpl::vector<test_object1, test_object2> > Graph;
 
-BOOST_AUTO_TEST_CASE(vertex_edge_creation) {
+BOOST_AUTO_TEST_CASE(subclustering) {
+
+    Graph g1;
+    BOOST_CHECK( g1.isRoot() );
+
+    Graph g2 = g1.createCluster();
+    BOOST_CHECK(!g2.isRoot());
+    BOOST_CHECK(g1==g2.parent());
+
+    Graph g3 = g2.createCluster();
+    BOOST_CHECK(g1==g3.root());
+    BOOST_CHECK(g3.numClusters() == 0);
+    BOOST_CHECK(g3.clusters().first == g3.clusters().second);
+
+    Graph g4 = g2.createCluster();
+    Graph::cluster_iterator it,end;
+    boost::tie(it,end) = g2.clusters();
+    BOOST_CHECK(it != end);
+    BOOST_CHECK(it->second->parent() == (it++)->second->parent());
+    BOOST_CHECK(g2.numClusters() == 2);
+}
+
+BOOST_AUTO_TEST_CASE(creation_handling) {
   
   Graph g1;
   fusion::vector<LocalVertex, GlobalVertex> res1 = g1.addVertex();
   fusion::vector<LocalVertex, GlobalVertex> res2 = g1.addVertex();
   BOOST_CHECK(fusion::at_c<0>(res1) != fusion::at_c<0>(res2));
   BOOST_CHECK(fusion::at_c<1>(res1) != fusion::at_c<1>(res2));
-  std::pair<LocalVertex, bool> loc = g1.getLocalVertex(fusion::at_c<1>(res1));
+  std::pair<LocalVertex, bool> loc = g1.getLocalVertex( fusion::at_c<1>(res1) );
   BOOST_CHECK(loc.second);
   BOOST_CHECK(fusion::at_c<0>(res1) == loc.first);
   BOOST_CHECK(fusion::at_c<1>(res1) == g1.getGlobalVertex(fusion::at_c<0>(res1)));
   
-  fusion::vector<LocalEdge, GlobalEdge, bool> edge1 = g1.addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
-  fusion::vector<LocalEdge, GlobalEdge, bool> edge2 = g1.addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
+  fusion::vector<LocalEdge, GlobalEdge, bool> edge1 = g1.addEdge( fusion::at_c<0>(res1), fusion::at_c<0>(res2) );
+  fusion::vector<LocalEdge, GlobalEdge, bool> edge2 = g1.addEdge( fusion::at_c<0>(res1), fusion::at_c<0>(res2) );
   BOOST_CHECK(fusion::at_c<2>(edge1));
   std::pair<LocalEdge, bool> loc2 = g1.getLocalEdge(fusion::at_c<1>(edge1));
   BOOST_CHECK(loc2.second);
   BOOST_CHECK(fusion::at_c<0>(edge1) == loc2.first);
-  BOOST_CHECK(fusion::at_c<1>(edge1) == g1.getGlobalEdge(fusion::at_c<0>(edge1)));
+  BOOST_CHECK(fusion::at_c<1>(edge1) == *(g1.getGlobalEdges(fusion::at_c<0>(edge1)).first));
   
-  BOOST_CHECK(!fusion::at_c<2>(edge2));
+  BOOST_CHECK(fusion::at_c<2>(edge2));
   BOOST_CHECK(fusion::at_c<0>(edge2) == fusion::at_c<0>(edge1));
   BOOST_CHECK(fusion::at_c<1>(edge2) == fusion::at_c<1>(edge1));
 };
@@ -120,29 +144,6 @@ BOOST_AUTO_TEST_CASE(object_property_handling) {
     BOOST_CHECK( g1.getObject<test_object2>(e1));
     BOOST_CHECK( o2 == g1.getObject<test_object2>(e1));
     
-}
-
-BOOST_AUTO_TEST_CASE(subcluster) {
-
-    Graph g1;
-    BOOST_CHECK( g1.isRoot() );
-
-    Graph g2 = g1.createCluster();
-    BOOST_CHECK(!g2.isRoot());
-    BOOST_CHECK(g1==g2.parent());
-
-    Graph g3 = g2.createCluster();
-    BOOST_CHECK(g1==g3.root());
-    BOOST_CHECK(g3.numClusters() == 0);
-    BOOST_CHECK(g3.clusters().first == g3.clusters().second);
-
-    Graph g4 = g2.createCluster();
-    Graph::cluster_iterator it,end;
-    boost::tie(it,end) = g2.clusters();
-    BOOST_CHECK(it != end);
-    BOOST_CHECK(it->second->parent() == (it++)->second->parent());
-    BOOST_CHECK(g2.numClusters() == 2);
-
 }
 
 BOOST_AUTO_TEST_CASE(movevertex) {
