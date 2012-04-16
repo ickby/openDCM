@@ -84,13 +84,13 @@ struct sps { //shared_ptr sequence
 
 template<typename T>
 struct prop_type {
-  typedef typename T::type type;
+    typedef typename T::type type;
 };
 
 template<typename T>
 struct pts {
-  typedef typename mpl::transform<T, prop_type<mpl::_1> >::type ptv;
-  typedef typename fusion::result_of::as_vector< ptv >::type type;  
+    typedef typename mpl::transform<T, prop_type<mpl::_1> >::type ptv;
+    typedef typename fusion::result_of::as_vector< ptv >::type type;
 };
 
 }
@@ -102,7 +102,7 @@ typedef std::pair<details::universalID, details::universalID> 	GlobalEdge;
 
 
 template< typename edge_prop, typename vertex_prop, typename objects>
-class ClusterGraph : boost::adjacency_list< boost::slistS, boost::slistS,
+class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS,
             fusion::vector< typename details::pts<vertex_prop>::type,
             typename details::sps<objects>::type, GlobalVertex >,
@@ -125,15 +125,16 @@ class ClusterGraph : boost::adjacency_list< boost::slistS, boost::slistS,
 
 private:
     struct global_extractor  {
-	typedef GlobalEdge& result_type;
-        result_type operator() (edge_bundle_single& bundle) const {
+        typedef GlobalEdge& result_type;
+	template<typename T>
+        result_type operator() (T& bundle) const {
             return fusion::at_c<2>(bundle);
         };
     };
     template<typename Obj>
     struct object_extractor  {
 
-	typedef boost::shared_ptr<Obj> base_type;
+        typedef boost::shared_ptr<Obj> base_type;
         typedef base_type& result_type;
         typedef typename mpl::find<objects, Obj>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
@@ -144,19 +145,19 @@ private:
             return fusion::at<distance>(fusion::at< mpl::int_<1> >(bundle));
         };
     };
-    
+
     template<typename prop>
     struct property_extractor  {
-	
+
         typedef typename prop::type base_type;
-	typedef base_type& result_type;
+        typedef base_type& result_type;
         typedef typename mpl::find<vertex_prop, prop>::type vertex_iterator;
         typedef typename mpl::find<edge_prop, prop>::type edge_iterator;
         typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
         edge_iterator, vertex_iterator>::type iterator;
-	typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
+        typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
         typename mpl::begin<edge_prop>::type, typename mpl::begin<vertex_prop>::type>::type begin;
-	typedef typename mpl::distance<begin, iterator>::type distance;
+        typedef typename mpl::distance<begin, iterator>::type distance;
 
         template<typename seq>
         result_type operator() (seq& bundle) const {
@@ -164,22 +165,23 @@ private:
         };
     };
 
+public:
     //iterators
     typedef boost::transform_iterator<global_extractor, typename edge_bundle::iterator> global_edge_iterator;
 
     template<typename Obj>
     struct object_iterator : public boost::transform_iterator<object_extractor<Obj>,typename edge_bundle::iterator> {
-      object_iterator(typename edge_bundle::iterator it, object_extractor<Obj> f) 
-      : boost::transform_iterator<object_extractor<Obj>,typename edge_bundle::iterator>(it, f) {};
-    };
-    
-    template<typename Prop>
-    struct property_iterator : public boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator> {
-      property_iterator(typename edge_bundle::iterator it, property_extractor<Prop> f) 
-      : boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator>(it, f) {};
+        object_iterator(typename edge_bundle::iterator it, object_extractor<Obj> f)
+                : boost::transform_iterator<object_extractor<Obj>,typename edge_bundle::iterator>(it, f) {};
     };
 
-    
+    template<typename Prop>
+    struct property_iterator : public boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator> {
+        property_iterator(typename edge_bundle::iterator it, property_extractor<Prop> f)
+                : boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator>(it, f) {};
+    };
+
+
 public:
     typedef typename ClusterMap::iterator 	cluster_iterator;
 
@@ -188,7 +190,7 @@ public:
     ClusterGraph ( ClusterGraph* g = 0 ) : m_parent ( g ), m_id(new details::IDgen) {
 
         if (g) m_id = g->m_id;
-	
+
     };
 
     ~ClusterGraph() {
@@ -200,11 +202,11 @@ public:
         }
         //TODO: if parent exists all vertices have to be transfered to it;
     };
-    
+
     //debug function to print the full typename
     template<typename T>
-    void pretty (T t) {     
-      std::cout << __PRETTY_FUNCTION__ << std::endl;
+    void pretty (T t) {
+        std::cout << __PRETTY_FUNCTION__ << std::endl;
     };
 
     template<typename T>
@@ -222,9 +224,9 @@ public:
      * Subclustering
      * *******************************************************/
 
-    ClusterGraph& 	createCluster() {
+    std::pair<ClusterGraph&, LocalVertex> createCluster() {
         LocalVertex v = boost::add_vertex ( *this );
-        return * ( m_clusters[v] = new ClusterGraph ( this ) );
+        return std::pair<ClusterGraph&, LocalVertex>(* ( m_clusters[v] = new ClusterGraph ( this ) ), v);
     };
 
     ClusterGraph& 	parent() 	{
@@ -267,56 +269,6 @@ public:
         }
     };
 
-    bool vertexToCluster ( LocalVertex v, ClusterGraph& cluster ) {
-
-        LocalVertex cv = getClusterVertex ( cluster );
-        return vertexToCluster ( v, cv, cluster );
-    }
-
-    bool vertexToCluster ( LocalVertex v, LocalVertex cluster ) {
-
-        ClusterGraph& cl = getVertexCluster ( cluster );
-        return vertexToCluster ( v, cluster, cl );
-    }
-
-    bool vertexToCluster ( LocalVertex v, LocalVertex Cluster, ClusterGraph& cg ) {
-
-        if (isCluster(v)) return false;
-
-        std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
-
-        /* add the later removed edges to the coressponding existing edges
-         * (or create new edges between adjacent vertices of moved vertex and cluster).
-         * also get the edge between cluster and vertex while iterating */
-        std::pair<edge_bundle&,bool> clusterp;
-        clusterp.second = false;
-        for (;it.first!=it.second;it.first++) {
-
-            LocalVertex target = boost::target(*it.first, *this);
-            if (target != Cluster) {
-
-                std::pair<LocalEdge, bool> res = boost::add_edge(target, Cluster, *this);
-                edge_bundle& ep = (*this)[*it.first];
-                edge_bundle& nep = (*this)[res.first];
-                nep.insert(nep.end(), ep.begin(), ep.end());
-            }
-            else clusterp = std::make_pair( (*this)[*it.first], true );
-        }
-
-        /* Create new Vertex in Cluster and map the edge to vertices and clusters in the cluster
-        * if a connection existed */
-        LocalVertex nv = boost::add_vertex((*this)[v], cg);
-        if (clusterp.second) {
-            for (typename edge_bundle::iterator i = clusterp.begin(); i != clusterp.end(); i++) {
-
-                std::pair<details::universalID, details::universalID> idpair = fusion::at_c<2>(*i);
-                details::universalID target = (idpair.first == fusion::at_c<2>(cg[nv])) ? idpair.second : idpair.first;
-                std::pair<LocalVertex, bool> res = getContainingVertex(target);
-                LocalEdge ne = boost::add_edge(nv, res.first, cg);
-                cg[ne].push_back(*i);
-            };
-        }
-    }
 
     /* *******************************************************
     * Creation Handling
@@ -335,12 +287,18 @@ public:
         return fusion::make_vector(v, m_id->count());
     };
 
-    fusion::vector<LocalEdge, GlobalEdge, bool> edge(LocalVertex source, LocalVertex target) {
-
-        LocalEdge e;
-        bool d;
-        boost::tie(e,d) = boost::edge(source, target, *this);
-        if (!d) return fusion::make_vector(LocalEdge(), GlobalEdge(), false);
+    /**
+     * @brief Returns the edge between the local vertices
+     *
+     * This function is the same as boost::edge(source, target, Graph) and only added for convienience.
+     *
+     * @param source LocalEdge as edge source
+     * @param target LocalEdge as edge target
+     * @return std::pair<LocalEdge, bool> with the local edge descriptor if existing. The bool value shows if the
+     * edge exists or not
+     **/
+    std::pair<LocalEdge, bool> edge(LocalVertex source, LocalVertex target) {
+        return boost::edge(source, target, *this);
     };
 
 
@@ -420,7 +378,7 @@ public:
 
         //if both vertices are in a subcluster this one must do the job as we cant access the local edge from here
         if (v1==v2 && isCluster(v1)) {
-            fusion::vector<LocalEdge, GlobalEdge, bool, bool> res = getVertexCluster(v1)->addEdge(source, target);
+            fusion::vector<LocalEdge, GlobalEdge, bool, bool> res = getVertexCluster(v1).addEdge(source, target);
             fusion::at_c<3>(res)=false;
             return res;
         }
@@ -517,8 +475,8 @@ protected:
 
     template<typename Type, typename Obj, typename key>
     struct obj_helper {
-      
-	typedef typename object_extractor<Obj>::result_type result_type;
+
+        typedef typename object_extractor<Obj>::result_type result_type;
 
         obj_helper(key k) : m_key(k) {};
 
@@ -586,11 +544,11 @@ public:
     void setObject(key k, boost::shared_ptr<Obj> val) {
         apply_to_bundle(k, obj_helper<set, Obj, key>(k)) = val;
     };
-    
+
     /**
      * @brief Get iterator range for all GlobalEdge objects hold by this local edge
-     * 
-     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific object in 
+     *
+     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific object in
      * all global edges hold by this local edge.
      *
      * @param k the LocalEdge over which all Objects should be iterated.
@@ -598,7 +556,7 @@ public:
      **/
     template<typename Obj>
     std::pair< object_iterator<Obj>, object_iterator<Obj> > getObjects(LocalEdge k) {
-      
+
         edge_bundle& vec = (*this)[k];
         object_iterator<Obj> begin(vec.begin(), object_extractor<Obj>());
         object_iterator<Obj> end(vec.end(), object_extractor<Obj>() );
@@ -611,13 +569,14 @@ public:
     /* *******************************************************
      * Property Handling
      * *******************************************************/
+
     template<typename prop, typename key>
     struct get_prop_helper {
 
         get_prop_helper(key k) : m_key(k) {};
 
         typedef typename prop::type base_type;
-	typedef base_type& result_type;
+        typedef base_type& result_type;
         typedef typename mpl::find<vertex_prop, prop>::type vertex_iterator;
         typedef typename mpl::find<edge_prop, prop>::type edge_iterator;
         typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
@@ -680,11 +639,11 @@ public:
     void setProperty(key k, typename property::type val) {
         apply_to_bundle(k, get_prop_helper<property, key>(k)) = val;
     };
-    
+
     /**
      * @brief Get iterator range for all GlobalEdge proeprties hold by this local edge
-     * 
-     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific property in 
+     *
+     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific property in
      * all global edges hold by this local edge.
      *
      * @param k the LocalEdge over which all properties should be iterated.
@@ -692,12 +651,92 @@ public:
      **/
     template<typename property>
     std::pair< property_iterator<property>, property_iterator<property> > getProperties(LocalEdge k) {
-      
+
         edge_bundle& vec = (*this)[k];
         property_iterator<property> begin(vec.begin(), property_extractor<property>());
         property_iterator<property> end(vec.end(), property_extractor<property>() );
         return std::pair< property_iterator<property>, property_iterator<property> >(begin, end);
     };
+
+
+
+    /********************************************************
+    * Vertex moving
+    * *******************************************************/
+
+    LocalVertex vertexToSubcluster ( LocalVertex v, ClusterGraph& cluster ) {
+
+        LocalVertex cv = getClusterVertex ( cluster );
+        return vertexToSubcluster ( v, cv, cluster );
+    };
+
+    LocalVertex vertexToSubcluster ( LocalVertex v, LocalVertex cluster ) {
+
+        ClusterGraph& cl = getVertexCluster ( cluster );
+        return vertexToSubcluster ( v, cluster, cl );
+    };
+
+    LocalVertex vertexToSubcluster ( LocalVertex v, LocalVertex Cluster, ClusterGraph& cg ) {
+
+        //if (isCluster(v)) return LocalVertex(); TODO: throw
+
+        std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
+
+        /* add the later removed edges to the coressponding existing edges
+         * (or create new edges between adjacent vertices of moved vertex and cluster).
+         * also get the edge between cluster and vertex while iterating */
+        for (;it.first!=it.second;it.first++) {
+
+            LocalVertex target = boost::target(*it.first, *this);
+            if (target != Cluster) {
+
+                //get or create the edge between the old edge target and the cluster
+                LocalEdge e;
+                bool done;
+                boost::tie(e,done) = boost::edge(target, Cluster, *this);
+                if (!done ) boost::tie(e,done) = boost::add_edge(target, Cluster, *this);
+                //if(!done) TODO: throw
+
+                edge_bundle& ep = (*this)[*it.first];
+                edge_bundle& nep = (*this)[e];
+                nep.insert(nep.end(), ep.begin(), ep.end());
+            }
+        }
+
+        /* Create new Vertex in Cluster and map the edge to vertices and clusters in the cluster
+        * if a connection existed */
+        LocalVertex nv = boost::add_vertex((*this)[v], cg);
+	std::pair<LocalEdge, bool> moveedge = boost::edge(v, Cluster, *this);
+        if (moveedge.second) {
+	    edge_bundle& vec = (*this)[moveedge.first];
+            for (typename edge_bundle::iterator i = vec.begin(); i != vec.end(); i++) {
+
+                //get the global vertex to which the global edge points and find the local vertex holding this
+                //global one
+                GlobalEdge global = global_extractor()(*i);
+                GlobalVertex target = (global.first == fusion::at_c<2>(cg[nv])) ? global.second : global.first;
+                std::pair<LocalVertex, bool> res = cg.getContainingVertex(target);
+                //if(!res.second) TODO: throw
+
+                //get or create the edge between the new vertex and the target
+                LocalEdge e;
+                bool done;
+                boost::tie(e,done) = boost::edge(nv, res.first, *this);
+                if (!done ) boost::tie(e,done) = boost::add_edge(nv, res.first, *this);
+                //if(!done) TODO: throw
+
+                //push the global edge to the local edge
+                cg[e].push_back(*i);
+            };
+        }
+
+        //all global edges concerning the move vertex are processed and it is moved to the subcluster,
+        //lets destroy it in the local cluster
+        boost::clear_vertex(v, *this);
+        boost::remove_vertex(v, *this);
+
+        return nv;
+    }
 
 protected:
     ClusterGraph* m_parent;
@@ -775,14 +814,14 @@ protected:
         if ( d1&&d2 ) {
             if ( (v1==v2) && isCluster(v1) ) return m_clusters[v1]->apply_to_bundle(k, f);
             else {
-	      LocalEdge e;
-	      bool done;
-	      boost::tie(e, done) = boost::edge(v1,v2,*this);
-	      //if(!done) TODO: throw, as there has to be a edge!
-	      return f((*this)[e]);
-	    };
+                LocalEdge e;
+                bool done;
+                boost::tie(e, done) = boost::edge(v1,v2,*this);
+                //if(!done) TODO: throw, as there has to be a edge!
+                return f((*this)[e]);
+            };
         }
-	//return std::make_pair(NULL, NULL); TODO:Throw
+        //return std::make_pair(NULL, NULL); TODO:Throw
     };
 };
 
