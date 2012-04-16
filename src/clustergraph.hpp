@@ -275,6 +275,7 @@ public:
     * Creation Handling
     * *******************************************************/
 
+public:
     /**
      * @brief Add a vertex to the local cluster
      *
@@ -676,32 +677,32 @@ public:
      * @brief Move a vertex to a subcluster
      *
      * Overloaded convinience function which fetches the local descriptor for the cluster reference and calls
-     * the full parameter equivalent.
+     * the full parameter equivalent. Both cluster and vertex must be in the local cluster.
      *
      * @param v the LocalVertex to be moved
      * @param cg reference to the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved edge in the subcluster
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex vertexToSubcluster ( LocalVertex v, ClusterGraph& cg ) {
+    LocalVertex moveToSubcluster ( LocalVertex v, ClusterGraph& cg ) {
 
         LocalVertex cv = getClusterVertex ( cg );
-        return vertexToSubcluster ( v, cv, cg );
+        return moveToSubcluster ( v, cv, cg );
     };
 
     /**
      * @brief Move a vertex to a subcluster
      *
      * Overloaded convinience function which fetches the the cluster reference for the local descriptor and calls
-     * the full parameter equivalent.
+     * the full parameter equivalent. Both cluster and vertex must be in the local cluster.
      *
      * @param v the LocalVertex to be moved
      * @param Cluster the local vertex descriptor representing the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved edge in the subcluster
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex vertexToSubcluster ( LocalVertex v, LocalVertex Cluster ) {
+    LocalVertex moveToSubcluster ( LocalVertex v, LocalVertex Cluster ) {
 
         ClusterGraph& cg = getVertexCluster ( Cluster );
-        return vertexToSubcluster ( v, Cluster, cg );
+        return moveToSubcluster ( v, Cluster, cg );
     };
 
     /**
@@ -710,17 +711,16 @@ public:
      * This function moves the LocalVertex to the subcluster and reconnects all other vertices and clusters. The
      * moved vertex will hold it's global descriptor but get a new local one assigned (the one returned). The same
      * stands for all edges which use the moved vertex: global descriptors stay the same, but they are moved to new
-     * local edges.
-     * The specified cluster has of course to be a valid subcluster.
+     * local edges. It's allowed to move cluster vertices with this function.
+     * The specified cluster has of course to be a valid and direct subcluster, the move vertex also has to be in the 
+     * local cluster.
      *
      * @param v the LocalVertex to be moved
      * @param Cluster the local vertex descriptor representing the subcluster to which v should be moved
      * @param cg reference to the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved edge in the subcluster
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex vertexToSubcluster ( LocalVertex v, LocalVertex Cluster, ClusterGraph& cg ) {
-
-        //if (isCluster(v)) return LocalVertex(); TODO: throw
+    LocalVertex moveToSubcluster ( LocalVertex v, LocalVertex Cluster, ClusterGraph& cg ) {
 
         std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
 
@@ -747,7 +747,15 @@ public:
 
         /* Create new Vertex in Cluster and map the edge to vertices and clusters in the cluster
         * if a connection existed */
-        LocalVertex nv = boost::add_vertex((*this)[v], cg);
+        LocalVertex nv= boost::add_vertex((*this)[v], cg);
+        //resort cluster parentship if needed
+        if (isCluster(v)) {
+
+            cg.m_clusters[nv] = m_clusters[v];
+	    cg.m_clusters[nv]->m_parent = &cg;
+	    m_clusters.erase(v);
+        }
+
         std::pair<LocalEdge, bool> moveedge = boost::edge(v, Cluster, *this);
         if (moveedge.second) {
             edge_bundle& vec = (*this)[moveedge.first];
@@ -756,7 +764,9 @@ public:
                 //get the global vertex to which the global edge points and find the local vertex holding this
                 //global one
                 GlobalEdge global = global_extractor()(*i);
-                GlobalVertex target = (global.first == fusion::at_c<2>(cg[nv])) ? global.second : global.first;
+                GlobalVertex target;
+                //bit cumbersome to support moving clusters
+                target = (cg.getContainingVertex(global.first).first == nv) ? global.second : global.first;
                 std::pair<LocalVertex, bool> res = cg.getContainingVertex(target);
                 //if(!res.second) TODO: throw
 
@@ -779,6 +789,7 @@ public:
 
         return nv;
     };
+    
 
     /**
      * @brief Move a vertex to the parent cluster.
@@ -786,25 +797,32 @@ public:
      * This function moves a vertex one step up in the subcluster hierarchie and reconnects all other vertices and clusters.
      * The moved vertex will hold it's global descriptor but get a new local one assigned (the one returned). The same
      * stands for all edges which use the moved vertex: global descriptors stay the same, but they are moved to new
-     * local edges. Note that this function is the inverse of vertexToSubcluster, and doing Pseudocode:
-     * vertexToParent(vertexToSubcluster(v)) does nothing (only the local descriptor of the moved vertex is
-     * diffrent afterwards). 
-     * 
+     * local edges. Note that this function is the inverse of moveToSubcluster, and doing Pseudocode:
+     * moveToParent(moveToSubcluster(v)) does nothing (only the local descriptor of the moved vertex is
+     * diffrent afterwards).
+     *
      * @param v Local vertex which should be moved to the parents cluster
      * @return LocalVertex the local descriptor of the moved vertex, valid in the parent cluster only.
      **/
-    LocalVertex vertexToParent( LocalVertex v ) {
+    LocalVertex moveToParent( LocalVertex v ) {
 
         //if(isRoot()) TODO:throw
 
         //create new vertex
         vertex_bundle& vb = (*this)[v];
         LocalVertex nv = boost::add_vertex(vb, parent());
-        GlobalVertex gv= fusion::at_c<2>(vb);
+	//regrouping if needed
+	if (isCluster(v)) {
+            m_parent->m_clusters[nv] = m_clusters[v];
+	    m_parent->m_clusters[nv]->m_parent = m_parent;
+	    m_clusters.erase(v);
+        }
 	
+        GlobalVertex gv= fusion::at_c<2>(vb);
+
         //get all out_edges of this cluster in the parentcluster (because only they can hold relevant global_Edgs)
         std::vector<LocalEdge> edge_vec;
-        LocalVertex this_v = parent().getClusterVertex(*this);
+        LocalVertex this_v = m_parent->getClusterVertex(*this);
         std::pair<local_out_edge_iterator, local_out_edge_iterator> it = boost::out_edges(this_v, parent());
         for (; it.first != it.second; it.first++) {
             //iterate all global edges and find relevant ones
@@ -814,14 +832,15 @@ public:
 
                 GlobalEdge global = global_extractor()(*i);
                 GlobalVertex target;
-                if (global.first == gv) target = global.second;
-                else if (global.second == gv) target = global.first;
+		//a bit cumbersome to allow cluster moving
+                if (m_parent->getContainingVertex(global.first).first == nv) target = global.second;
+                else if (m_parent->getContainingVertex(global.second).first == nv) target = global.first;
                 else {
                     i++;
                     continue;
                 }
 
-                std::pair<LocalVertex, bool> res = parent().getContainingVertex(target);
+                std::pair<LocalVertex, bool> res = m_parent->getContainingVertex(target);
 
                 //get or create the edge between the new vertex and the target
                 LocalEdge e;
@@ -856,8 +875,8 @@ public:
         //it's possible that some local edges in the parent are empty now, let's destroy them
         for (std::vector<LocalEdge>::iterator it=edge_vec.begin(); it!=edge_vec.end(); it++)
             boost::remove_edge(*it, parent());
-	
-	return nv;
+
+        return nv;
     };
 
 
@@ -889,6 +908,17 @@ protected:
 
         return std::make_pair((LocalVertex)NULL, false);
     };
+    
+    fusion::vector<LocalVertex, ClusterGraph*, bool> getContainingVertexGraph(GlobalVertex id) {
+      
+	LocalVertex v;
+	bool done;
+	boost::tie(v, done) = getContainingVertex(id);
+	if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
+	
+	if(isCluster(v)) return m_clusters[v]->getContainingVertexGraph(id);
+	else return fusion::make_vector(v,this,true);
+    };
 
     std::pair<LocalEdge, bool> getContainingEdge(GlobalEdge id, bool recusive = true) {
 
@@ -917,15 +947,14 @@ protected:
         //check all vertices if they are the id
         std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
         for (;it.first != it.second; it.first++) {
-            vertex_prop& p = (*this)[*it.first];
+            vertex_bundle& p = (*this)[*it.first];
             if ( k == fusion::at_c<2>(p) )
                 return f(p);
         }
 
         //check all clusters if they have the object
-        for (cluster_iterator it = m_clusters.begin(); it != m_clusters.end(); it++) {
-            return (*it.second)->apply_to_bundle<functor>(k, f);
-        }
+        fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
+        if( fusion::at_c<2>(res) ) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
 
         // return typename functor::base_type(); TODO: Throw (propeties return reference, but cant init a reference temporarily)
     };
@@ -955,3 +984,5 @@ protected:
 } //namespace solver
 
 #endif // CLUSTERGRAPH_HPP
+
+
