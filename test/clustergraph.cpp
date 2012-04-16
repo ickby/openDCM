@@ -24,6 +24,12 @@
 #include <boost/mpl/vector.hpp>
 #include <utility>
 
+  #include <iostream>
+
+//  #include <boost/fusion/container.hpp>
+//  #include <boost/fusion/sequence.hpp>
+//  #include <boost/smart_ptr/shared_ptr.hpp>
+
 #define BOOST_TEST_MODULE ClusterGraph
 #include <boost/test/unit_test.hpp>
 
@@ -97,8 +103,8 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
   BOOST_CHECK(fusion::at_c<1>(edge2) == fusion::at_c<1>(edge1));
 };
 
-BOOST_AUTO_TEST_CASE(object_property_handling) {
-
+BOOST_AUTO_TEST_CASE(object_handling) {
+    
     Graph g1;
     fusion::vector<LocalVertex, GlobalVertex> v1c = g1.addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v2c = g1.addVertex();
@@ -113,8 +119,7 @@ BOOST_AUTO_TEST_CASE(object_property_handling) {
     boost::shared_ptr<test_object1> o1( new test_object1 );
     boost::shared_ptr<test_object2> o2( new test_object2 );
     o1->value = 1;
-    
-    
+
     BOOST_CHECK( !g1.getObject<test_object1>(v1) );
     BOOST_CHECK( !g1.getObject<test_object2>(v1) );
     
@@ -144,6 +149,35 @@ BOOST_AUTO_TEST_CASE(object_property_handling) {
     BOOST_CHECK( g1.getObject<test_object2>(e1));
     BOOST_CHECK( o2 == g1.getObject<test_object2>(e1));
     
+    BOOST_CHECK( o2 == *g1.getObjects<test_object2>(e1).first );
+    BOOST_CHECK( *g1.getObjects<test_object2>(e1).first != *g1.getObjects<test_object2>(e1).second );
+    BOOST_CHECK( *(++g1.getObjects<test_object2>(e1).first) == *g1.getObjects<test_object2>(e1).second );
+}
+
+BOOST_AUTO_TEST_CASE(property_handling) {
+    
+    Graph g1;
+    fusion::vector<LocalVertex, GlobalVertex> v1c = g1.addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v2c = g1.addVertex();
+    LocalVertex v1 = fusion::at_c<0>(v1c);
+    LocalVertex v2 = fusion::at_c<0>(v2c);
+    
+    fusion::vector<LocalEdge, GlobalEdge, bool> seq = g1.addEdge(v1,v2);
+    GlobalEdge e1 = fusion::at_c<1>(seq);
+    bool inserted = fusion::at_c<2>(seq);
+    BOOST_CHECK(inserted);
+    
+
+    g1.setProperty<test_vertex_property>(v1, 7);    
+    BOOST_CHECK( g1.getProperty<test_vertex_property>(v1) == 7 );
+ 
+    g1.setProperty<test_edge_property>(e1, 3);    
+    BOOST_CHECK( g1.getProperty<test_edge_property>(e1) == 3 );
+    
+    LocalEdge e = fusion::at_c<0>(seq);
+    BOOST_CHECK( 3 == *g1.getProperties<test_edge_property>(e).first );
+    BOOST_CHECK( *g1.getProperties<test_vertex_property>(e).first != *g1.getProperties<test_vertex_property>(e).second );
+    BOOST_CHECK( *(++g1.getProperties<test_vertex_property>(e).first) == *g1.getProperties<test_vertex_property>(e).second );
 }
 
 BOOST_AUTO_TEST_CASE(movevertex) {
