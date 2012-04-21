@@ -24,11 +24,8 @@
 #include <boost/mpl/vector.hpp>
 #include <utility>
 
-  #include <iostream>
+#include <iostream>
 
-//  #include <boost/fusion/container.hpp>
-//  #include <boost/fusion/sequence.hpp>
-//  #include <boost/smart_ptr/shared_ptr.hpp>
 
 #define BOOST_TEST_MODULE ClusterGraph
 #include <boost/test/unit_test.hpp>
@@ -104,7 +101,7 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
   
   BOOST_CHECK(fusion::at_c<2>(edge2));
   BOOST_CHECK(fusion::at_c<0>(edge2) == fusion::at_c<0>(edge1));
-  BOOST_CHECK(fusion::at_c<1>(edge2) == fusion::at_c<1>(edge1));
+  BOOST_CHECK(fusion::at_c<1>(edge2) != fusion::at_c<1>(edge1));
 };
 
 BOOST_AUTO_TEST_CASE(object_handling) {

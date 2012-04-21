@@ -98,7 +98,18 @@ struct pts {
 typedef typename details::list_traits::vertex_descriptor 	LocalVertex;
 typedef typename details::list_traits::edge_descriptor 		LocalEdge;
 typedef details::universalID 					GlobalVertex;
-typedef std::pair<details::universalID, details::universalID> 	GlobalEdge;
+struct 	GlobalEdge {
+  GlobalVertex source;
+  GlobalVertex target;
+  details::universalID ID;
+  
+  bool operator==(const GlobalEdge& second) const {
+    return ID==second.ID;
+  };
+  bool operator!=(const GlobalEdge& second) const {
+    return ID!=second.ID;
+  };
+};
 
 
 template< typename edge_prop, typename vertex_prop, typename objects>
@@ -308,10 +319,9 @@ public:
      * @brief Add a edge between two vertices, defined by local descriptors.
      *
      * Add an edge that connects the two vertices and in the local clustergraph and assign the GlobalEdge to it. The
-     * LocalVertex parameters should not represent a cluster which would result in the functions failure. If ther's
-     * already a edge between the vertices the existing local and global descriptors are returnd. This counts as
-     * successful creation and will therefore not be indicated. Failure will be recocnisable by a false value in the
-     * returned type sequence.
+     * LocalVertex parameters should not represent a cluster which would result in the functions failure. If there's
+     * already a local edge between the vertices a new global edge will be added and returned. Failure will be 
+     * recocnisable by a false value in the returned type sequence.
      *
      * @param source The first vertex the edge should connect
      * @param target The second vertex the edge should connect
@@ -329,17 +339,11 @@ public:
         boost::tie(e,done) = boost::edge(source, target, *this);
 
         //if done=true the edge alredy existed
-        if (done) {
-            edge_bundle& vec = (*this)[e];
-            //if a non-cluster edge has more than one property attached something has gone terribly wrong
-            return fusion::make_vector(e, fusion::at_c<2>(vec.front()), vec.size()==1);
-        }
-        else boost::tie(e,done) = boost::add_edge(source, target, *this);
-
+        if (!done) boost::tie(e,done) = boost::add_edge(source, target, *this);
         if (!done) return fusion::make_vector(LocalEdge(), GlobalEdge(), false);
 
         //init the bundle corecctly for new edge
-        GlobalEdge global = std::make_pair(fusion::at_c<2>((*this)[source]),fusion::at_c<2>((*this)[target]));
+        GlobalEdge global = { fusion::at_c<2>((*this)[source]), fusion::at_c<2>((*this)[target]), m_id->generate() };
         edge_bundle_single s;
         fusion::at_c<2>(s) = global;
         (*this)[e].push_back(s);
@@ -350,15 +354,12 @@ public:
      * @brief Add a edge between two vertices, defined by global descriptors.
      *
      * Adds an edge between vertices which are not nesseccarily in this local cluster and have therefore to be
-     * identified with global descriptors. The only condition for source and tearget vertex is that both must be
-     * in the local cluster or any of its child clusters. If thats not the case, the function will fail. On success
+     * identified with global descriptors. The only condition for source and target vertex is that both must be
+     * in the local cluster or any of its subclusters. If thats not the case, the function will fail. On success
      * a new GlobalEdge will be created, but not neccessarily a local one. If the vertices are in different cluster
      * which are already connected the global edge will be added to this connecting local edge. Thats the one returned
      * in the seqence. Note that it's possible that the local edge belongs to another subcluster and therefore can't be
      * used in the local cluster. This case is indicated by the scope return value.
-     * In the case of an alredy existing global edge this one will be returned. Note that parent globaledges are not
-     * checked which may lead to existane of double edges, which would be a serious error.
-     *
      *
      * @param source The first vertex the edge should connect
      * @param target The second vertex the edge should connect
@@ -385,22 +386,13 @@ public:
             return res;
         }
 
-        //check if we already have that Local and GlobalEdge
+        //check if we already have that Local edge
         boost::tie(e,d3) = boost::edge(v1,v2, *this);
-        GlobalEdge global = std::make_pair(source, target);
-        if (d3) {
-            edge_bundle vec = (*this)[e];
-            for (typename edge_bundle::iterator it=vec.begin(); it!=vec.end(); it++) {
-                if (fusion::at_c<2>(*it) ==  global)
-                    return fusion::make_vector(e, global, true, true);
-            }
-        }
-        //local edge is not exsitant
-        else boost::tie(e,d3) = boost::add_edge(v1, v2, *this);
-
+        if (!d3) boost::tie(e,d3) = boost::add_edge(v1, v2, *this);
         if (!d3) return fusion::make_vector(LocalEdge(), GlobalEdge(), false, false);
 
-        //init the bundle corectly for new edge as the global edge is not existant
+        //init the bundle corectly for new edge 
+	GlobalEdge global = { source, target, m_id->generate() };
         edge_bundle_single s;
         fusion::at_c<2>(s) = global;
         (*this)[e].push_back(s);
@@ -766,7 +758,7 @@ public:
                 GlobalEdge global = global_extractor()(*i);
                 GlobalVertex target;
                 //bit cumbersome to support moving clusters
-                target = (cg.getContainingVertex(global.first).first == nv) ? global.second : global.first;
+                target = (cg.getContainingVertex(global.source).first == nv) ? global.target : global.source;
                 std::pair<LocalVertex, bool> res = cg.getContainingVertex(target);
                 //if(!res.second) TODO: throw
 
@@ -833,8 +825,8 @@ public:
                 GlobalEdge global = global_extractor()(*i);
                 GlobalVertex target;
 		//a bit cumbersome to allow cluster moving
-                if (m_parent->getContainingVertex(global.first).first == nv) target = global.second;
-                else if (m_parent->getContainingVertex(global.second).first == nv) target = global.first;
+                if (m_parent->getContainingVertex(global.source).first == nv) target = global.target;
+                else if (m_parent->getContainingVertex(global.target).first == nv) target = global.source;
                 else {
                     i++;
                     continue;
@@ -924,8 +916,8 @@ protected:
 
         LocalVertex v1,v2;
         bool d1,d2;
-        boost::tie(v1,d1) = getContainingVertex(id.first, recusive);
-        boost::tie(v2,d2) = getContainingVertex(id.second, recusive);
+        boost::tie(v1,d1) = getContainingVertex(id.source, recusive);
+        boost::tie(v2,d2) = getContainingVertex(id.target, recusive);
 
         if ( !((d1&&d2) && (v1!=v2)) )   return std::make_pair(LocalEdge(), false);
 
@@ -964,8 +956,8 @@ protected:
 
         LocalVertex v1,v2;
         bool d1,d2;
-        boost::tie(v1,d1) = getContainingVertex(k.first);
-        boost::tie(v2,d2) = getContainingVertex(k.second);
+        boost::tie(v1,d1) = getContainingVertex(k.source);
+        boost::tie(v2,d2) = getContainingVertex(k.target);
 
         if ( d1&&d2 ) {
             if ( (v1==v2) && isCluster(v1) ) return m_clusters[v1]->apply_to_bundle(k, f);
