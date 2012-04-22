@@ -43,6 +43,8 @@
 #include <boost/fusion/sequence.hpp>
 #include <boost/fusion/algorithm.hpp>
 
+#include "property.hpp"
+
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -99,16 +101,16 @@ typedef typename details::list_traits::vertex_descriptor 	LocalVertex;
 typedef typename details::list_traits::edge_descriptor 		LocalEdge;
 typedef details::universalID 					GlobalVertex;
 struct 	GlobalEdge {
-  GlobalVertex source;
-  GlobalVertex target;
-  details::universalID ID;
-  
-  bool operator==(const GlobalEdge& second) const {
-    return ID==second.ID;
-  };
-  bool operator!=(const GlobalEdge& second) const {
-    return ID!=second.ID;
-  };
+    GlobalVertex source;
+    GlobalVertex target;
+    details::universalID ID;
+
+    bool operator==(const GlobalEdge& second) const {
+        return ID==second.ID;
+    };
+    bool operator!=(const GlobalEdge& second) const {
+        return ID!=second.ID;
+    };
 };
 
 
@@ -118,7 +120,7 @@ class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
             fusion::vector< typename details::pts<vertex_prop>::type,
             typename details::sps<objects>::type, GlobalVertex >,
             fusion::vector< typename details::pts<edge_prop>::type,
-	    std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >	{
+            std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >	{
 
     typedef fusion::vector< typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
     typedef fusion::vector< typename details::pts<edge_prop>::type, std::vector< edge_bundle_single > > edge_bundle;
@@ -154,7 +156,7 @@ private:
         result_type operator() (vertex_bundle& bundle) const {
             return fusion::at<distance>(fusion::at_c<1>(bundle));
         };
-	result_type operator() (edge_bundle_single& bundle) const {
+        result_type operator() (edge_bundle_single& bundle) const {
             return fusion::at<distance>(fusion::at_c<0>(bundle));
         };
     };
@@ -164,17 +166,14 @@ private:
 
         typedef typename prop::type base_type;
         typedef base_type& result_type;
-        typedef typename mpl::find<vertex_prop, prop>::type vertex_iterator;
-        typedef typename mpl::find<edge_prop, prop>::type edge_iterator;
-        typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
-        edge_iterator, vertex_iterator>::type iterator;
-        typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
-        typename mpl::begin<edge_prop>::type, typename mpl::begin<vertex_prop>::type>::type begin;
-        typedef typename mpl::distance<begin, iterator>::type distance;
 
-        template<typename seq>
-        result_type operator() (seq& bundle) const {
-            return fusion::at<distance>(fusion::at< mpl::int_<0> >(bundle));
+        typedef typename details::property_selector<typename prop::kind, Graph>::sequence_type sequence;
+	typedef typename mpl::find<sequence, prop>::type iterator;
+	typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
+
+	template< typename seq>
+        result_type operator() (seq& b) const {
+            return fusion::at<distance>(fusion::at< mpl::int_<0> >(b));
         };
     };
 
@@ -316,7 +315,7 @@ public:
      *
      * Add an edge that connects the two vertices and in the local clustergraph and assign the GlobalEdge to it. The
      * LocalVertex parameters should not represent a cluster which would result in the functions failure. If there's
-     * already a local edge between the vertices a new global edge will be added and returned. Failure will be 
+     * already a local edge between the vertices a new global edge will be added and returned. Failure will be
      * recocnisable by a false value in the returned type sequence.
      *
      * @param source The first vertex the edge should connect
@@ -387,8 +386,8 @@ public:
         if (!d3) boost::tie(e,d3) = boost::add_edge(v1, v2, *this);
         if (!d3) return fusion::make_vector(LocalEdge(), GlobalEdge(), false, false);
 
-        //init the bundle corectly for new edge 
-	GlobalEdge global = { source, target, m_id->generate() };
+        //init the bundle corectly for new edge
+        GlobalEdge global = { source, target, m_id->generate() };
         edge_bundle_single s;
         fusion::at_c<1>(s) = global;
         fusion::at_c<1>((*this)[e]).push_back(s);
@@ -552,7 +551,7 @@ public:
     template<typename Obj>
     std::pair< object_iterator<Obj>, object_iterator<Obj> > getObjects(LocalEdge k) {
 
-         std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[k]);
+        std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[k]);
         object_iterator<Obj> begin(vec.begin(), object_extractor<Obj>());
         object_iterator<Obj> end(vec.end(), object_extractor<Obj>() );
         return std::pair< object_iterator<Obj>, object_iterator<Obj> >(begin, end);
@@ -580,7 +579,7 @@ protected:
         edge_iterator, vertex_iterator>::type iterator;
         BOOST_MPL_ASSERT(( mpl::not_<boost::is_same<iterator, typename mpl::end<edge_prop>::type > > ));
 
-	//used with vertex bundle type
+        //used with vertex bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
         result_type>::type operator()(bundle& p) {
@@ -590,7 +589,7 @@ protected:
         //used with edge bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-	result_type>::type operator()(bundle& p) {
+        result_type>::type operator()(bundle& p) {
             return property_extractor<prop>()(p);
         }
 
@@ -602,7 +601,7 @@ public:
     * @brief Get the desired property at the specified vertex or edge
     *
     * This function allows to access the properties stored in the graph. If no property of the desired type
-    * was set before, a default construced will be returned. Accessing the property at a global edge will return 
+    * was set before, a default construced will be returned. Accessing the property at a global edge will return
     * the property of the holding local edge.
     *
     * @param local or global Vertex/Edge descriptor for which the property is desired
@@ -674,7 +673,7 @@ public:
      * moved vertex will hold it's global descriptor but get a new local one assigned (the one returned). The same
      * stands for all edges which use the moved vertex: global descriptors stay the same, but they are moved to new
      * local edges. It's allowed to move cluster vertices with this function.
-     * The specified cluster has of course to be a valid and direct subcluster, the move vertex also has to be in the 
+     * The specified cluster has of course to be a valid and direct subcluster, the move vertex also has to be in the
      * local cluster.
      *
      * @param v the LocalVertex to be moved
@@ -714,8 +713,8 @@ public:
         if (isCluster(v)) {
 
             cg.m_clusters[nv] = m_clusters[v];
-	    cg.m_clusters[nv]->m_parent = &cg;
-	    m_clusters.erase(v);
+            cg.m_clusters[nv]->m_parent = &cg;
+            m_clusters.erase(v);
         }
 
         std::pair<LocalEdge, bool> moveedge = boost::edge(v, Cluster, *this);
@@ -751,7 +750,7 @@ public:
 
         return nv;
     };
-    
+
 
     /**
      * @brief Move a vertex to the parent cluster.
@@ -773,13 +772,13 @@ public:
         //create new vertex
         vertex_bundle& vb = (*this)[v];
         LocalVertex nv = boost::add_vertex(vb, parent());
-	//regrouping if needed
-	if (isCluster(v)) {
+        //regrouping if needed
+        if (isCluster(v)) {
             m_parent->m_clusters[nv] = m_clusters[v];
-	    m_parent->m_clusters[nv]->m_parent = m_parent;
-	    m_clusters.erase(v);
+            m_parent->m_clusters[nv]->m_parent = m_parent;
+            m_clusters.erase(v);
         }
-	
+
         GlobalVertex gv= fusion::at_c<2>(vb);
 
         //get all out_edges of this cluster in the parentcluster (because only they can hold relevant global_Edgs)
@@ -794,7 +793,7 @@ public:
 
                 GlobalEdge global = global_extractor()(*i);
                 GlobalVertex target;
-		//a bit cumbersome to allow cluster moving
+                //a bit cumbersome to allow cluster moving
                 if (m_parent->getContainingVertex(global.source).first == nv) target = global.target;
                 else if (m_parent->getContainingVertex(global.target).first == nv) target = global.source;
                 else {
@@ -870,16 +869,16 @@ protected:
 
         return std::make_pair((LocalVertex)NULL, false);
     };
-    
+
     fusion::vector<LocalVertex, ClusterGraph*, bool> getContainingVertexGraph(GlobalVertex id) {
-      
-	LocalVertex v;
-	bool done;
-	boost::tie(v, done) = getContainingVertex(id);
-	if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
-	
-	if(isCluster(v)) return m_clusters[v]->getContainingVertexGraph(id);
-	else return fusion::make_vector(v,this,true);
+
+        LocalVertex v;
+        bool done;
+        boost::tie(v, done) = getContainingVertex(id);
+        if (!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
+
+        if (isCluster(v)) return m_clusters[v]->getContainingVertexGraph(id);
+        else return fusion::make_vector(v,this,true);
     };
 
     std::pair<LocalEdge, bool> getContainingEdge(GlobalEdge id, bool recusive = true) {
@@ -916,7 +915,7 @@ protected:
 
         //check all clusters if they have the object
         fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
-        if( fusion::at_c<2>(res) ) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
+        if ( fusion::at_c<2>(res) ) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
 
         // return typename functor::base_type(); TODO: Throw (propeties return reference, but cant init a reference temporarily)
     };

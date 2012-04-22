@@ -164,6 +164,7 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     LocalVertex v2 = fusion::at_c<0>(v2c);
     
     fusion::vector<LocalEdge, GlobalEdge, bool> seq = g1.addEdge(v1,v2);
+    LocalEdge e = fusion::at_c<0>(seq);
     GlobalEdge e1 = fusion::at_c<1>(seq);
     bool inserted = fusion::at_c<2>(seq);
     BOOST_CHECK(inserted);
@@ -181,8 +182,13 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     
    
     //test property maps
-    //property_map<test_edge_property, Graph> pmap(g1);
-    //BOOST_CHECK(get(pmap, e) == 
+    property_map<test_edge_property, Graph> pmap(g1);
+    BOOST_CHECK( get(pmap, e) == 3 );
+    put(pmap, e, 7);
+    BOOST_CHECK( get(pmap, e) == 7 );
+    BOOST_CHECK( at(pmap, e) == 7 );
+    at(pmap, e) = 5;
+    BOOST_CHECK( get(pmap, e) == 5 );
     
 }
 
