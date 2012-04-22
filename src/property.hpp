@@ -33,8 +33,8 @@ namespace fusion = boost::fusion;
 
 namespace dcm {
 
-struct vertex_property_tag {};
-struct edge_property_tag {};
+struct vertex_property {};
+struct edge_property {};
 
 namespace details {
 
@@ -51,16 +51,16 @@ struct edge_selector {
 };
 
 template< typename Kind, typename Graph>
-struct property_selector : public mpl::if_<boost::is_same<Kind, vertex_property_tag>,
+struct property_selector : public mpl::if_<boost::is_same<Kind, vertex_property>,
             vertex_selector<Graph>, edge_selector<Graph> >::type {};
 
 }
 
 template<typename T>
-struct is_edge_property : boost::is_same<typename T::kind,edge_property_tag> {};
+struct is_edge_property : boost::is_same<typename T::kind,edge_property> {};
 
 template<typename T>
-struct is_vertex_property : boost::is_same<typename T::kind,vertex_property_tag> {};
+struct is_vertex_property : boost::is_same<typename T::kind,vertex_property> {};
 
 
 template <typename Property, typename Graph>

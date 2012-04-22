@@ -17,12 +17,25 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef NS2_SYSTEM_TRAITS_H
-#define NS2_SYSTEM_TRAITS_H
+#include "system.hpp"
+#include "module3d.hpp"
 
-namespace dcm {
+//#define BOOST_TEST_MODULE Geometry3DModule
+#include <boost/test/unit_test.hpp>
 
+using namespace dcm;
 
+BOOST_AUTO_TEST_SUITE( Module3D_test_suit);
 
+BOOST_AUTO_TEST_CASE(initialising) {
+  
+  typedef System<Module3D::type> System;
+  System sys;
+  typedef typename Module3D::type<System>::Geometry3D geom;
+  typedef boost::shared_ptr<geom> geom_ptr;
+ 
+  geom_ptr p = sys.createGeometry3D();
+  
 }
-#endif //NS2_SYSTEM_TRAITS_H
+
+BOOST_AUTO_TEST_SUITE_END();

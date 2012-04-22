@@ -209,11 +209,6 @@ public:
         //TODO: if parent exists all vertices have to be transfered to it;
     };
 
-    //debug function to print the full typename
-    template<typename T>
-    void pretty (T t) {
-        std::cout << __PRETTY_FUNCTION__ << std::endl;
-    };
 
     template<typename T>
     bool operator==(const T &other) const {

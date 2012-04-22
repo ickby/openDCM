@@ -26,20 +26,21 @@
 
 #include <iostream>
 
-
-#define BOOST_TEST_MODULE ClusterGraph
+#define BOOST_TEST_MODULE openDCM
 #include <boost/test/unit_test.hpp>
 
 using namespace dcm;
 namespace mpl = boost::mpl;
 
+BOOST_AUTO_TEST_SUITE( ClusterGraph_test_suit );
+
 struct test_edge_property {
-    typedef dcm::edge_property_tag kind;
+    typedef dcm::edge_property kind;
     typedef int type;
 };
 
 struct test_vertex_property {
-    typedef dcm::vertex_property_tag kind;
+    typedef dcm::vertex_property kind;
     typedef int type;
 };
 
@@ -387,3 +388,4 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     BOOST_CHECK( ++it.first == it.second );
 }
 
+BOOST_AUTO_TEST_SUITE_END();

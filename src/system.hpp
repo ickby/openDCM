@@ -39,6 +39,8 @@ namespace mpl = boost::mpl;
 
 namespace dcm {
 
+namespace details {
+
 template<typename seq, typename state>
 struct edge_fold : mpl::fold< seq, state,
             mpl::if_< is_edge_property<mpl::_2>,
@@ -61,55 +63,58 @@ struct make_prop_maps : mpl::fold< seq, mpl::vector<>, mpl::insert<mpl::_1, make
 struct nothing {};
 
 template<int v>
-struct empty_policy {
+struct EmptyModule {
 
     template<typename T>
     struct type {
         struct inheriter {};
         typedef mpl::vector<>  	objects;
-        typedef mpl::map<>	obj_propertys;
-        typedef mpl::vector<>  	graph_propertys;
+        typedef mpl::map<>	obj_properties;
+        typedef mpl::vector<>  	graph_properties;
     };
 };
+}
 
-template< template<class> class T1 = empty_policy<1>::type,
-template<class> class T2 = empty_policy<2>::type,
-template<class> class T3 = empty_policy<3>::type >
+template< template<class> class T1 = details::EmptyModule<1>::type,
+template<class> class T2 = details::EmptyModule<2>::type,
+template<class> class T3 = details::EmptyModule<3>::type >
 class System : 	public T1< System<T1,T2,T3> >::inheriter,
             public T2< System<T1,T2,T3> >::inheriter,
             public T3< System<T1,T2,T3> >::inheriter		{
 
+protected:
     typedef T1< System<T1,T2,T3> > Type1;
     typedef T2< System<T1,T2,T3> > Type2;
     typedef T3< System<T1,T2,T3> > Type3;
 
     typedef mpl::vector<typename Type1::objects, typename Type2::objects, typename Type3::objects> objects;
     typedef mpl::map<> prop1;
-    typedef typename map_fold<typename Type1::obj_propertys,
-    typename map_fold<typename Type1::obj_propertys,
-    typename map_fold<typename Type3::obj_propertys, prop1 >::type >::type >::type obj_propertys;
+    typedef typename details::map_fold<typename Type1::obj_properties,
+    typename details::map_fold<typename Type1::obj_properties,
+    typename details::map_fold<typename Type3::obj_properties, prop1 >::type >::type >::type obj_properties;
 
-    typedef typename make_prop_maps<obj_propertys>::type obj_prop_map_vector;
+    typedef typename details::make_prop_maps<obj_properties>::type obj_prop_map_vector;
 
     typedef mpl::vector<> edge1;
-    typedef typename edge_fold< typename Type1::graph_propertys,
-    typename edge_fold<typename Type2::graph_propertys,
-    typename edge_fold<typename Type3::graph_propertys,edge1>::type >::type >::type edge_propertys;
+    typedef typename details::edge_fold< typename Type1::graph_properties,
+    typename details::edge_fold<typename Type2::graph_properties,
+    typename details::edge_fold<typename Type3::graph_properties,edge1>::type >::type >::type edge_properties;
 
     typedef mpl::vector<> vertex1;
-    typedef typename vertex_fold< typename Type1::graph_propertys,
-    typename vertex_fold<typename Type2::graph_propertys,
-    typename vertex_fold<typename Type3::graph_propertys,vertex1>::type >::type >::type vertex_propertys;
+    typedef typename details::vertex_fold< typename Type1::graph_properties,
+    typename details::vertex_fold<typename Type2::graph_properties,
+    typename details::vertex_fold<typename Type3::graph_properties,vertex1>::type >::type >::type vertex_properties;
 
-    typedef ClusterGraph<edge_propertys, vertex_propertys, objects> Cluster;
+    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
+    
+    template<typename FT1, typename FT2>
+    friend struct Object;
 
 public:
-    System() {
-        std::cout<<"system constructor"<<std::endl;
-    };
+    System() {};
 
 protected:
-    Cluster m_cluster;
+    //Cluster m_cluster;
     obj_prop_map_vector m_objMaps;
 
 
