@@ -117,12 +117,12 @@ class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS,
             fusion::vector< typename details::pts<vertex_prop>::type,
             typename details::sps<objects>::type, GlobalVertex >,
-            std::vector< fusion::vector<typename details::pts<edge_prop>::type,
-            typename details::sps<objects>::type, GlobalEdge > > >	{
+            fusion::vector< typename details::pts<edge_prop>::type,
+	    std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >	{
 
-    typedef fusion::vector< typename details::pts<edge_prop>::type,
-    typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
-    typedef std::vector< edge_bundle_single > edge_bundle;
+    typedef fusion::vector< typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
+    typedef fusion::vector< typename details::pts<edge_prop>::type, std::vector< edge_bundle_single > > edge_bundle;
+    typedef typename std::vector< edge_bundle_single >::iterator edge_single_iterator;
     typedef fusion::vector< typename details::pts<vertex_prop>::type,
     typename details::sps<objects>::type, GlobalVertex > vertex_bundle;
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
@@ -139,7 +139,7 @@ private:
         typedef GlobalEdge& result_type;
         template<typename T>
         result_type operator() (T& bundle) const {
-            return fusion::at_c<2>(bundle);
+            return fusion::at_c<1>(bundle);
         };
     };
     template<typename Obj>
@@ -151,9 +151,11 @@ private:
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT(( mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > > ));
 
-        template<typename seq>
-        result_type operator() (seq& bundle) const {
-            return fusion::at<distance>(fusion::at< mpl::int_<1> >(bundle));
+        result_type operator() (vertex_bundle& bundle) const {
+            return fusion::at<distance>(fusion::at_c<1>(bundle));
+        };
+	result_type operator() (edge_bundle_single& bundle) const {
+            return fusion::at<distance>(fusion::at_c<0>(bundle));
         };
     };
 
@@ -178,18 +180,12 @@ private:
 
 public:
     //iterators
-    typedef boost::transform_iterator<global_extractor, typename edge_bundle::iterator> global_edge_iterator;
+    typedef boost::transform_iterator<global_extractor, edge_single_iterator> global_edge_iterator;
 
     template<typename Obj>
-    struct object_iterator : public boost::transform_iterator<object_extractor<Obj>,typename edge_bundle::iterator> {
-        object_iterator(typename edge_bundle::iterator it, object_extractor<Obj> f)
-                : boost::transform_iterator<object_extractor<Obj>,typename edge_bundle::iterator>(it, f) {};
-    };
-
-    template<typename Prop>
-    struct property_iterator : public boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator> {
-        property_iterator(typename edge_bundle::iterator it, property_extractor<Prop> f)
-                : boost::transform_iterator<property_extractor<Prop>,typename edge_bundle::iterator>(it, f) {};
+    struct object_iterator : public boost::transform_iterator<object_extractor<Obj>, edge_single_iterator> {
+        object_iterator(edge_single_iterator it, object_extractor<Obj> f)
+                : boost::transform_iterator<object_extractor<Obj>,edge_single_iterator>(it, f) {};
     };
 
 
@@ -345,8 +341,8 @@ public:
         //init the bundle corecctly for new edge
         GlobalEdge global = { fusion::at_c<2>((*this)[source]), fusion::at_c<2>((*this)[target]), m_id->generate() };
         edge_bundle_single s;
-        fusion::at_c<2>(s) = global;
-        (*this)[e].push_back(s);
+        fusion::at_c<1>(s) = global;
+        fusion::at_c<1>((*this)[e]).push_back(s);
         return fusion::make_vector(e, global, true);
     };
 
@@ -394,8 +390,8 @@ public:
         //init the bundle corectly for new edge 
 	GlobalEdge global = { source, target, m_id->generate() };
         edge_bundle_single s;
-        fusion::at_c<2>(s) = global;
-        (*this)[e].push_back(s);
+        fusion::at_c<1>(s) = global;
+        fusion::at_c<1>((*this)[e]).push_back(s);
         return fusion::make_vector(e, global, true, true);
 
     };
@@ -413,7 +409,7 @@ public:
      **/
     std::pair<global_edge_iterator, global_edge_iterator> getGlobalEdges(LocalEdge e) {
 
-        edge_bundle& vec = (*this)[e];
+        std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[e]);
         global_edge_iterator begin = boost::make_transform_iterator(vec.begin(), global_extractor());
         global_edge_iterator end   = boost::make_transform_iterator(vec.end(), global_extractor() );
         return std::pair<global_edge_iterator, global_edge_iterator>(begin, end);
@@ -475,34 +471,35 @@ protected:
         obj_helper(key k) : m_key(k) {};
 
         //used with vertex bundle type
-        template<typename prop>
-        typename boost::enable_if<boost::is_same<prop, typename boost::vertex_bundle_type<Graph>::type>,
-        result_type >::type operator()(prop& p) {
+        template<typename bundle>
+        typename boost::enable_if<boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
+        result_type >::type operator()(bundle& p) {
 
             if (Type::value) fusion::for_each(fusion::at< mpl::int_<1> >(p), details::clear_ptr());
             return object_extractor<Obj>()(p);
         }
 
         //used with edge bundle type and global edge descriptor
-        template<typename prop>
-        typename boost::enable_if<mpl::and_<boost::is_same<prop, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, GlobalEdge> >, result_type>::type operator()(prop& p) {
+        template<typename bundle>
+        typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
+        boost::is_same<key, GlobalEdge> >, result_type>::type operator()(bundle& p) {
 
             //need to search the edge_bundle for the global descriptor
-            for (typename prop::iterator it=p.begin(); it != p.end(); it++) {
-                if ( fusion::at_c<2>(*it) == m_key ) {
-                    if (Type::value) fusion::for_each(fusion::at< mpl::int_<1> >(*it), details::clear_ptr());
+            std::vector<edge_bundle_single>& ebsv = fusion::at_c<1>(p);
+            for (edge_single_iterator it= ebsv.begin(); it != ebsv.end(); it++) {
+                if ( global_extractor()(*it) == m_key ) {
+                    if (Type::value) fusion::for_each(fusion::at_c<0>(*it), details::clear_ptr());
                     return object_extractor<Obj>()(*it);
                 }
             }
         }
 
         //used with edge bundle type and local edge descriptor
-        template<typename prop>
-        typename boost::enable_if<mpl::and_<boost::is_same<prop, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, LocalEdge> >, result_type>::type operator()(prop& p) {
-            if (Type::value) fusion::for_each(fusion::at< mpl::int_<1> >(p.front()), details::clear_ptr());
-            return object_extractor<Obj>()(p.front());
+        template<typename bundle>
+        typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
+        boost::is_same<key, LocalEdge> >, result_type>::type operator()(bundle& p) {
+            if (Type::value) fusion::for_each(fusion::at_c<0>(fusion::at_c<1>(p).front()), details::clear_ptr());
+            return object_extractor<Obj>()(fusion::at_c<1>(p).front());
         }
 
         key m_key;
@@ -555,7 +552,7 @@ public:
     template<typename Obj>
     std::pair< object_iterator<Obj>, object_iterator<Obj> > getObjects(LocalEdge k) {
 
-        edge_bundle& vec = (*this)[k];
+         std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[k]);
         object_iterator<Obj> begin(vec.begin(), object_extractor<Obj>());
         object_iterator<Obj> end(vec.end(), object_extractor<Obj>() );
         return std::pair< object_iterator<Obj>, object_iterator<Obj> >(begin, end);
@@ -583,26 +580,18 @@ protected:
         edge_iterator, vertex_iterator>::type iterator;
         BOOST_MPL_ASSERT(( mpl::not_<boost::is_same<iterator, typename mpl::end<edge_prop>::type > > ));
 
+	//used with vertex bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
         result_type>::type operator()(bundle& p) {
             return property_extractor<prop>()(p);
         }
 
+        //used with edge bundle type
         template<typename bundle>
-        typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, GlobalEdge> >, result_type>::type operator()(bundle& p) {
-
-            for (typename bundle::iterator it=p.begin(); it != p.end(); it++) {
-                if ( fusion::at_c<2>(*it) == m_key )
-                    return property_extractor<prop>()(*it);
-            }
-        }
-
-        template<typename bundle>
-        typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, LocalEdge> >, result_type>::type operator()(bundle& p) {
-            return property_extractor<prop>()(p.front());
+        typename boost::enable_if<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
+	result_type>::type operator()(bundle& p) {
+            return property_extractor<prop>()(p);
         }
 
         key m_key;
@@ -613,9 +602,8 @@ public:
     * @brief Get the desired property at the specified vertex or edge
     *
     * This function allows to access the properties stored in the graph. If no property of the desired type
-    * was set before, a default construced will be returned. Accessing the property at a local edge is a special
-    * case, as it can hold many global edges, each with it's own propertys. Using a LocalEdge as key will
-    * always return the property for the first GlobalEdge.
+    * was set before, a default construced will be returned. Accessing the property at a global edge will return 
+    * the property of the holding local edge.
     *
     * @param local or global Vertex/Edge descriptor for which the property is desired
     * @return property::type& the reference to the desired property
@@ -639,24 +627,6 @@ public:
     template<typename property, typename key>
     void setProperty(key k, typename property::type val) {
         apply_to_bundle(k, get_prop_helper<property, key>(k)) = val;
-    };
-
-    /**
-     * @brief Get iterator range for all GlobalEdge proeprties hold by this local edge
-     *
-     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific property in
-     * all global edges hold by this local edge.
-     *
-     * @param k the LocalEdge over which all properties should be iterated.
-     * @return pair< begin, end > the iterator rang from begin (first element) to end (first undefined element)
-     **/
-    template<typename property>
-    std::pair< property_iterator<property>, property_iterator<property> > getProperties(LocalEdge k) {
-
-        edge_bundle& vec = (*this)[k];
-        property_iterator<property> begin(vec.begin(), property_extractor<property>());
-        property_iterator<property> end(vec.end(), property_extractor<property>() );
-        return std::pair< property_iterator<property>, property_iterator<property> >(begin, end);
     };
 
 
@@ -731,8 +701,8 @@ public:
                 if (!done ) boost::tie(e,done) = boost::add_edge(target, Cluster, *this);
                 //if(!done) TODO: throw
 
-                edge_bundle& ep = (*this)[*it.first];
-                edge_bundle& nep = (*this)[e];
+                std::vector<edge_bundle_single>& ep = fusion::at_c<1>((*this)[*it.first]);
+                std::vector<edge_bundle_single>& nep = fusion::at_c<1>((*this)[e]);
                 nep.insert(nep.end(), ep.begin(), ep.end());
             }
         }
@@ -750,8 +720,8 @@ public:
 
         std::pair<LocalEdge, bool> moveedge = boost::edge(v, Cluster, *this);
         if (moveedge.second) {
-            edge_bundle& vec = (*this)[moveedge.first];
-            for (typename edge_bundle::iterator i = vec.begin(); i != vec.end(); i++) {
+            std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[moveedge.first]);
+            for (edge_single_iterator i = vec.begin(); i != vec.end(); i++) {
 
                 //get the global vertex to which the global edge points and find the local vertex holding this
                 //global one
@@ -770,7 +740,7 @@ public:
                 //if(!done) TODO: throw
 
                 //push the global edge to the local edge
-                cg[e].push_back(*i);
+                fusion::at_c<1>(cg[e]).push_back(*i);
             };
         }
 
@@ -818,8 +788,8 @@ public:
         std::pair<local_out_edge_iterator, local_out_edge_iterator> it = boost::out_edges(this_v, parent());
         for (; it.first != it.second; it.first++) {
             //iterate all global edges and find relevant ones
-            edge_bundle& vec = parent()[*it.first];
-            typename edge_bundle::iterator i = vec.begin();
+            std::vector<edge_bundle_single>& vec = fusion::at_c<1>(parent()[*it.first]);
+            edge_single_iterator i = vec.begin();
             while ( i != vec.end() ) {
 
                 GlobalEdge global = global_extractor()(*i);
@@ -842,7 +812,7 @@ public:
                 //if(!done) TODO: throw
 
                 //push the global edge bundle to the new local edge and erase it in the old
-                parent()[e].push_back(*i);
+                fusion::at_c<1>(parent()[e]).push_back(*i);
                 i = vec.erase(i);
             }
             //see if we should destroy this edge (no global edges remain in local one)
@@ -854,8 +824,8 @@ public:
         LocalEdge e;
         if (it.first != it.second) e = boost::add_edge(nv, this_v, parent()).first;
         for (; it.first != it.second; it.first++) {
-            edge_bundle& ep = (*this)[*it.first];
-            edge_bundle& nep = parent()[e];
+            std::vector<edge_bundle_single>& ep = fusion::at_c<1>((*this)[*it.first]);
+            std::vector<edge_bundle_single>& nep = fusion::at_c<1>(parent()[e]);
             nep.insert(nep.end(), ep.begin(), ep.end());
         }
 

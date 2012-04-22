@@ -179,10 +179,11 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     BOOST_CHECK( g1.getProperty<test_edge_property>(e1) == 3 );
     BOOST_CHECK( g1.getProperty<test_edge_property>(g1.getLocalEdge(e1).first) == 3 );    
     
-    LocalEdge e = fusion::at_c<0>(seq);
-    BOOST_CHECK( 3 == *g1.getProperties<test_edge_property>(e).first );
-    BOOST_CHECK( *g1.getProperties<test_vertex_property>(e).first != *g1.getProperties<test_vertex_property>(e).second );
-    BOOST_CHECK( *(++g1.getProperties<test_vertex_property>(e).first) == *g1.getProperties<test_vertex_property>(e).second );
+   
+    //test property maps
+    //property_map<test_edge_property, Graph> pmap(g1);
+    //BOOST_CHECK(get(pmap, e) == 
+    
 }
 
 BOOST_AUTO_TEST_CASE(move_vertex) {
@@ -203,18 +204,13 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
     GlobalEdge e4 = fusion::at_c<1>( g.addEdge(fusion::at_c<1>(v1),fusion::at_c<1>(v4)) );
     GlobalEdge e5 = fusion::at_c<1>( g.addEdge(fusion::at_c<1>(v3),fusion::at_c<1>(v4)) );
     
-    g.setProperty<test_vertex_property>(fusion::at_c<0>(v1), 25);
-    g.setProperty<test_edge_property>(e1, 1);
-    g.setProperty<test_edge_property>(e2, 2);
-    g.setProperty<test_edge_property>(e3, 3);
-    g.setProperty<test_edge_property>(e4, 4);
-    g.setProperty<test_edge_property>(e5, 5);
+    g.setProperty<test_vertex_property>(fusion::at_c<0>(v1),25);
     
     //there should be edges between cluster and v1 v3
     BOOST_CHECK( g.edge(fusion::at_c<0>(v1), sub.second).second );
     BOOST_CHECK( g.edge(fusion::at_c<0>(v3), sub.second).second );
-    BOOST_CHECK( *g.getProperties<test_edge_property>( g.edge(fusion::at_c<0>(v1), sub.second).first).first == 4 );
-    BOOST_CHECK( *g.getProperties<test_edge_property>( g.edge(fusion::at_c<0>(v3), sub.second).first).first == 5 ); 
+    BOOST_CHECK( *g.getGlobalEdges( g.edge(fusion::at_c<0>(v1), sub.second).first).first == e4 );
+    BOOST_CHECK( *g.getGlobalEdges( g.edge(fusion::at_c<0>(v3), sub.second).first).first == e5 ); 
     
     //inside subcluster vertex v4 should not have any edges
     BOOST_CHECK( boost::num_vertices(sub.first) == 1 );
@@ -236,22 +232,21 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
     bool is_edge;
     boost::tie(et0, is_edge) = sub.first.edge(fusion::at_c<0>(v4), nv);
     BOOST_CHECK(is_edge);
-    typedef typename Graph::property_iterator<test_edge_property> prop_iter;
-    std::pair< prop_iter, prop_iter > it = sub.first.getProperties<test_edge_property>(et0);
-    BOOST_CHECK( *it.first == 4);
+    std::pair< Graph::global_edge_iterator, Graph::global_edge_iterator > it = sub.first.getGlobalEdges(et0);
+    BOOST_CHECK( *it.first == e4);
     BOOST_CHECK( ++it.first == it.second );
     
     //v3 should have two global edges to the cluster, his own and the one that was to v1 before
     LocalEdge et1 = g.edge(fusion::at_c<0>(v3), sub.second).first;
-    it = g.getProperties<test_edge_property>(et1);
-    BOOST_CHECK( *it.first == 5);
-    BOOST_CHECK( *(++it.first) == 3);
+    it = g.getGlobalEdges(et1);
+    BOOST_CHECK( *it.first == e5);
+    BOOST_CHECK( *(++it.first) == e3);
     BOOST_CHECK( ++it.first == it.second );
     
     //v2 should have one global edge to the cluster, the one that was to v1 before
     LocalEdge et2 = g.edge(fusion::at_c<0>(v2), sub.second).first;
-    it = g.getProperties<test_edge_property>(et2);
-    BOOST_CHECK( *it.first == 1);
+    it = g.getGlobalEdges(et2);
+    BOOST_CHECK( *it.first == e1);
     BOOST_CHECK( ++it.first == it.second );
     
     
@@ -265,38 +260,38 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
     BOOST_CHECK( boost::num_edges(g) == 5);
     BOOST_CHECK( boost::out_degree(sub.second, g) == 2 );
     BOOST_CHECK( boost::out_degree(nv1, g) == 3 );
-    BOOST_CHECK(  boost::edge( nv1, sub.second,  g).second);
-    BOOST_CHECK( !boost::edge( fusion::at_c<0>(v2), sub.second,  g).second);
-    BOOST_CHECK(  boost::edge( fusion::at_c<0>(v3), sub.second,  g).second);
+    BOOST_CHECK(  boost::edge( nv1, sub.second,  g).second );
+    BOOST_CHECK( !boost::edge( fusion::at_c<0>(v2), sub.second,  g).second );
+    BOOST_CHECK(  boost::edge( fusion::at_c<0>(v3), sub.second,  g).second );
     
     //nv1 to cluster should have one global edge
     LocalEdge et3 = g.edge(nv1, sub.second).first;
-    it = g.getProperties<test_edge_property>(et3);
-    BOOST_CHECK( *it.first == 4);
+    it = g.getGlobalEdges(et3);
+    BOOST_CHECK( *it.first == e4);
     BOOST_CHECK( ++it.first == it.second );
     
     //nv1 to v2 should have one global edge
     LocalEdge et4 = g.edge(nv1, fusion::at_c<0>(v2)).first;
-    it = g.getProperties<test_edge_property>(et4);
-    BOOST_CHECK( *it.first == 1);
+    it = g.getGlobalEdges(et4);
+    BOOST_CHECK( *it.first == e1);
     BOOST_CHECK( ++it.first == it.second );
     
     //nv1 to v3 should have one global edge
     LocalEdge et5 = g.edge(nv1, fusion::at_c<0>(v3)).first;
-    it = g.getProperties<test_edge_property>(et5);
-    BOOST_CHECK( *it.first == 3);
+    it = g.getGlobalEdges(et5);
+    BOOST_CHECK( *it.first == e3);
     BOOST_CHECK( ++it.first == it.second );
     
     //nv2 to v3 should have one global edge
     LocalEdge et6 = g.edge(fusion::at_c<0>(v2), fusion::at_c<0>(v3)).first;
-    it = g.getProperties<test_edge_property>(et6);
-    BOOST_CHECK( *it.first == 2);
+    it = g.getGlobalEdges(et6);
+    BOOST_CHECK( *it.first == e2);
     BOOST_CHECK( ++it.first == it.second );
     
     //nv3 to cluster should have one global edge
     LocalEdge et7 = g.edge(fusion::at_c<0>(v3), sub.second).first;
-    it = g.getProperties<test_edge_property>(et7);
-    BOOST_CHECK( *it.first == 5);
+    it = g.getGlobalEdges(et7);
+    BOOST_CHECK( *it.first == e5);
     BOOST_CHECK( ++it.first == it.second );
 }
 
@@ -322,15 +317,6 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     GlobalEdge e45 = fusion::at_c<1>( g.addEdge(fusion::at_c<1>(v4),fusion::at_c<1>(v5)) );
     GlobalEdge e35 = fusion::at_c<1>( g.addEdge(fusion::at_c<1>(v3),fusion::at_c<1>(v5)) );
     
-    g.setProperty<test_vertex_property>(fusion::at_c<1>(v4), 25);
-    g.setProperty<test_edge_property>(e12, 12);
-    g.setProperty<test_edge_property>(e13, 13);
-    g.setProperty<test_edge_property>(e23, 23);
-    g.setProperty<test_edge_property>(e24, 24);
-    g.setProperty<test_edge_property>(e34, 34);
-    g.setProperty<test_edge_property>(e45, 45);
-    g.setProperty<test_edge_property>(e35, 35);
-    
     LocalVertex nv = g.moveToSubcluster(sub2.second, sub3.second);
     
     //first check local cluster
@@ -339,16 +325,16 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     
     //sub1 to sub2 should have two global edge's
     LocalEdge et1 = g.edge(sub1.second, sub3.second).first;
-    typedef typename Graph::property_iterator<test_edge_property> prop_iter;
-    std::pair< prop_iter, prop_iter > it = g.getProperties<test_edge_property>(et1);
-    BOOST_CHECK( *it.first == 35);
-    BOOST_CHECK( *(++it.first) == 34 );
+    std::pair< Graph::global_edge_iterator, Graph::global_edge_iterator > it;
+    it = g.getGlobalEdges(et1);
+    BOOST_CHECK( *it.first == e35);
+    BOOST_CHECK( *(++it.first) == e34 );
     BOOST_CHECK( ++it.first == it.second );
     
     //v2 to sub3 should have one global edge
     LocalEdge et2 = g.edge(fusion::at_c<0>(v2), sub3.second).first;
-    it = g.getProperties<test_edge_property>(et2);
-    BOOST_CHECK( *it.first == 24);
+    it = g.getGlobalEdges(et2);
+    BOOST_CHECK( *it.first == e24);
     BOOST_CHECK( ++it.first == it.second );
     
     //check subcluster 3
@@ -357,8 +343,8 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     
     //nv to v5 should have one global edge
     LocalEdge et3 = sub3.first.edge(nv, fusion::at_c<0>(v5)).first;
-    it = sub3.first.getProperties<test_edge_property>(et3);
-    BOOST_CHECK( *it.first == 45);
+    it = sub3.first.getGlobalEdges(et3);
+    BOOST_CHECK( *it.first == e45);
     BOOST_CHECK( ++it.first == it.second );
     
     
@@ -372,25 +358,26 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
   
     //nc to sub1 should have one global edge
     LocalEdge et4 = g.edge(nc, sub1.second).first;
-    it = g.getProperties<test_edge_property>(et4);
-    BOOST_CHECK( *it.first == 34);
+    it = g.getGlobalEdges(et4);
+    BOOST_CHECK( *it.first == e34);
     BOOST_CHECK( ++it.first == it.second );
     
     //nc to sub3 should have one global edge
     LocalEdge et5 = g.edge(nc, sub3.second).first;
-    it = g.getProperties<test_edge_property>(et5);
-    BOOST_CHECK( *it.first == 45);
+    it = g.getGlobalEdges(et5);
+    BOOST_CHECK( *it.first == e45);
     BOOST_CHECK( ++it.first == it.second );
     
     //sub1 to sub3 should have one global edge
     LocalEdge et6 = g.edge(sub1.second, sub3.second).first;
-    it = g.getProperties<test_edge_property>(et6);
-    BOOST_CHECK( *it.first == 35);
+    it = g.getGlobalEdges(et6);
+    BOOST_CHECK( *it.first == e35);
     BOOST_CHECK( ++it.first == it.second );
     
     //v2 to sub2 should have one global edge
     LocalEdge et7 = g.edge(fusion::at_c<0>(v2), sub2.second).first;
-    it = g.getProperties<test_edge_property>(et7);
-    BOOST_CHECK( *it.first == 24);
+    it = g.getGlobalEdges(et7);
+    BOOST_CHECK( *it.first == e24);
     BOOST_CHECK( ++it.first == it.second );
 }
+
