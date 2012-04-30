@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef NS2_PROPERTY_H
-#define NS2_PROPERTY_H
+#ifndef DCM_PROPERTY_H
+#define DCM_PROPERTY_H
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/fusion/sequence.hpp>
@@ -41,19 +41,27 @@ namespace details {
 template<typename Graph>
 struct vertex_selector {
     typedef typename boost::graph_traits<Graph>::vertex_descriptor key_type;
-    typedef typename fusion::result_of::at_c< typename boost::vertex_bundle_type<Graph>::type, 0>::type	  sequence_type;
+    typedef typename Graph::vertex_properties sequence_type;
 };
 
 template<typename Graph>
 struct edge_selector {
     typedef typename boost::graph_traits<Graph>::edge_descriptor key_type;
-    typedef typename fusion::result_of::at_c< typename boost::edge_bundle_type<Graph>::type, 0>::type 	sequence_type;
+    typedef typename Graph::edge_properties sequence_type;
 };
 
 template< typename Kind, typename Graph>
 struct property_selector : public mpl::if_<boost::is_same<Kind, vertex_property>,
             vertex_selector<Graph>, edge_selector<Graph> >::type {};
 
+template<typename T>
+struct property_type {
+    typedef typename T::type type;
+};
+template<typename T>
+struct property_kind {
+    typedef typename T::kind type;
+};
 }
 
 template<typename T>
@@ -110,10 +118,10 @@ typename property_map<P,G>::reference at( const property_map<P,G>& map,
     typedef property_map<P,G> map_t;
     typedef typename mpl::find<typename map_t::sequence, typename map_t::property>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<typename map_t::sequence>::type, iterator>::type distance;
-    fusion::at<distance>(fusion::at_c<0>(map.m_graph[key]));
+    return fusion::at<distance>(fusion::at_c<0>(map.m_graph[key]));
 }
 
 }
 
 
-#endif //NS2_PROPERTY_H
+#endif //DCM_PROPERTY_H

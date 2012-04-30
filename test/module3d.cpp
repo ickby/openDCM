@@ -20,22 +20,43 @@
 #include "system.hpp"
 #include "module3d.hpp"
 
-//#define BOOST_TEST_MODULE Geometry3DModule
+#include <time.h>
+#include <iostream>
+#include <iomanip>
+
 #include <boost/test/unit_test.hpp>
+
+struct point {};
+
+namespace dcm {
+  
+  template<>
+  struct geometry_traits<point> {
+    typedef tag_point tag;
+  };
+}
 
 using namespace dcm;
 
 BOOST_AUTO_TEST_SUITE( Module3D_test_suit);
 
+
 BOOST_AUTO_TEST_CASE(initialising) {
   
-  typedef System<Module3D::type> System;
+  typedef Module3D< mpl::vector<point> > Module;
+  typedef System<Module::type> System;
   System sys;
-  typedef typename Module3D::type<System>::Geometry3D geom;
+  typedef typename Module::type<System>::Geometry3D geom;
   typedef boost::shared_ptr<geom> geom_ptr;
  
-  geom_ptr p = sys.createGeometry3D();
+  typedef typename Module::type<System>::Constraint3D cons;
+  typedef boost::shared_ptr<cons> cons_ptr;
   
+  geom_ptr g1 = sys.createGeometry3D(point());
+  geom_ptr g2 = sys.createGeometry3D(point());
+  
+  cons_ptr c = sys.createConstraint3D<Coincident3D>(g1, g2);
+
 }
 
 BOOST_AUTO_TEST_SUITE_END();

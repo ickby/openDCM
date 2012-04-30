@@ -17,10 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef NS2_SYSTEM_H
-#define NS2_SYSTEM_H
+#ifndef DCM_SYSTEM_H
+#define DCM_SYSTEM_H
 
 #include <boost/mpl/vector.hpp>
+#include <boost/mpl/vector/vector0.hpp>
 #include <boost/mpl/map.hpp>
 #include <boost/mpl/fold.hpp>
 #include <boost/mpl/insert.hpp>
@@ -42,6 +43,10 @@ namespace dcm {
 namespace details {
 
 template<typename seq, typename state>
+struct vector_fold : mpl::fold< seq, state,
+            mpl::push_back<mpl::_1,mpl::_2> > {};
+
+template<typename seq, typename state>
 struct edge_fold : mpl::fold< seq, state,
             mpl::if_< is_edge_property<mpl::_2>,
             mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
@@ -51,14 +56,20 @@ struct vertex_fold : mpl::fold< seq, state,
             mpl::if_< is_vertex_property<mpl::_2>,
             mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
 
+template<typename seq, typename state, typename obj>
+struct obj_fold : mpl::fold< seq, state,
+            mpl::if_< boost::is_same< details::property_kind<mpl::_2>, obj>,
+            mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
+
+template<typename objects, typename properties>
+struct property_map {
+    typedef typename mpl::fold<
+    objects, mpl::map<>, mpl::insert< mpl::_1, mpl::pair<
+    mpl::_2, details::obj_fold<properties, mpl::vector<>, mpl::_2 > > > >::type type;
+};
+
 template<typename seq, typename state>
 struct map_fold : mpl::fold< seq, state, mpl::insert<mpl::_1,mpl::_2> > {};
-
-template<typename pair>
-struct make_map : std::map<boost::shared_ptr<typename pair::first>, typename pair::second> {};
-
-template<typename seq>
-struct make_prop_maps : mpl::fold< seq, mpl::vector<>, mpl::insert<mpl::_1, make_map<mpl::_2> > > {};
 
 struct nothing {};
 
@@ -68,12 +79,13 @@ struct EmptyModule {
     template<typename T>
     struct type {
         struct inheriter {};
-        typedef mpl::vector<>  	objects;
-        typedef mpl::map<>	obj_properties;
-        typedef mpl::vector<>  	graph_properties;
+        typedef mpl::vector<>	properties;
+        typedef mpl::vector<>  objects;
     };
 };
+
 }
+
 
 template< template<class> class T1 = details::EmptyModule<1>::type,
 template<class> class T2 = details::EmptyModule<2>::type,
@@ -82,44 +94,35 @@ class System : 	public T1< System<T1,T2,T3> >::inheriter,
             public T2< System<T1,T2,T3> >::inheriter,
             public T3< System<T1,T2,T3> >::inheriter		{
 
-protected:
     typedef T1< System<T1,T2,T3> > Type1;
     typedef T2< System<T1,T2,T3> > Type2;
     typedef T3< System<T1,T2,T3> > Type3;
 
-    typedef mpl::vector<typename Type1::objects, typename Type2::objects, typename Type3::objects> objects;
-    typedef mpl::map<> prop1;
-    typedef typename details::map_fold<typename Type1::obj_properties,
-    typename details::map_fold<typename Type1::obj_properties,
-    typename details::map_fold<typename Type3::obj_properties, prop1 >::type >::type >::type obj_properties;
+    typedef typename details::vector_fold<typename Type3::objects,
+    typename details::vector_fold<typename Type2::objects,
+    typename details::vector_fold<typename Type1::objects, mpl::vector<> >::type >::type>::type objects;
 
-    typedef typename details::make_prop_maps<obj_properties>::type obj_prop_map_vector;
+    typedef typename details::vector_fold<typename Type3::properties,
+    typename details::vector_fold<typename Type2::properties,
+    typename details::vector_fold<typename Type1::properties, mpl::vector<> >::type >::type>::type properties;
 
-    typedef mpl::vector<> edge1;
-    typedef typename details::edge_fold< typename Type1::graph_properties,
-    typename details::edge_fold<typename Type2::graph_properties,
-    typename details::edge_fold<typename Type3::graph_properties,edge1>::type >::type >::type edge_properties;
-
-    typedef mpl::vector<> vertex1;
-    typedef typename details::vertex_fold< typename Type1::graph_properties,
-    typename details::vertex_fold<typename Type2::graph_properties,
-    typename details::vertex_fold<typename Type3::graph_properties,vertex1>::type >::type >::type vertex_properties;
-
-    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
+    typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
+    typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
+    typedef typename details::property_map<objects, properties>::type 		object_properties;
     
-    template<typename FT1, typename FT2>
+    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
+
+    template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
 
 public:
-    System() {};
+    System() {  };
 
-protected:
-    //Cluster m_cluster;
-    obj_prop_map_vector m_objMaps;
-
+    Cluster m_cluster;
 
 };
 
 }
 
-#endif //NS2_SYSTEM_H
+#endif //DCM_SYSTEM_H
+

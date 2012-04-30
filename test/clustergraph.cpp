@@ -39,6 +39,11 @@ struct test_edge_property {
     typedef int type;
 };
 
+struct test_edge_property2 {
+    typedef dcm::edge_property kind;
+    typedef int type;
+};
+
 struct test_vertex_property {
     typedef dcm::vertex_property kind;
     typedef int type;
@@ -51,7 +56,7 @@ struct test_object2 {
     int value;
 };
 
-typedef ClusterGraph<mpl::vector<test_edge_property>,
+typedef ClusterGraph<mpl::vector<test_edge_property, test_edge_property2>,
 mpl::vector<test_vertex_property>, mpl::vector<test_object1, test_object2> > Graph;
 
 BOOST_AUTO_TEST_CASE(subclustering) {
@@ -181,10 +186,13 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     BOOST_CHECK( g1.getProperty<test_edge_property>(e1) == 3 );
     BOOST_CHECK( g1.getProperty<test_edge_property>(g1.getLocalEdge(e1).first) == 3 );    
     
-   
+    g1.setProperty<test_edge_property2>(e1, 2);
+    BOOST_CHECK( g1.getProperty<test_edge_property>(e1) == 3 );
+    BOOST_CHECK( g1.getProperty<test_edge_property2>(e1) == 2 );
+    
     //test property maps
-    property_map<test_edge_property, Graph> pmap(g1);
-    BOOST_CHECK( get(pmap, e) == 3 );
+    property_map<test_edge_property2, Graph> pmap(g1);
+    BOOST_CHECK( get(pmap, e) == 2 );
     put(pmap, e, 7);
     BOOST_CHECK( get(pmap, e) == 7 );
     BOOST_CHECK( at(pmap, e) == 7 );

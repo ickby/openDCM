@@ -44,6 +44,7 @@
 #include <boost/fusion/algorithm.hpp>
 
 #include "property.hpp"
+#include <boost/variant/recursive_variant.hpp>
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -84,14 +85,10 @@ struct sps { //shared_ptr sequence
     typedef typename fusion::result_of::as_vector<spv>::type type;
 };
 
-template<typename T>
-struct prop_type {
-    typedef typename T::type type;
-};
 
 template<typename T>
 struct pts {
-    typedef typename mpl::transform<T, prop_type<mpl::_1> >::type ptv;
+    typedef typename mpl::transform<T, details::property_type<mpl::_1> >::type ptv;
     typedef typename fusion::result_of::as_vector< ptv >::type type;
 };
 
@@ -136,6 +133,10 @@ class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
 
     typedef std::map<LocalVertex,ClusterGraph*> ClusterMap;
 
+public:
+    typedef edge_prop 	edge_properties;
+    typedef vertex_prop vertex_properties;
+
 private:
     struct global_extractor  {
         typedef GlobalEdge& result_type;
@@ -167,15 +168,16 @@ private:
         typedef typename prop::type base_type;
         typedef base_type& result_type;
 
-        typedef typename details::property_selector<typename prop::kind, Graph>::sequence_type sequence;
-	typedef typename mpl::find<sequence, prop>::type iterator;
-	typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
+        typedef typename mpl::if_< is_edge_property<prop>, edge_properties, vertex_properties >::type sequence;
+        typedef typename mpl::find<sequence, prop>::type iterator;
+        typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
 
-	template< typename seq>
+        template< typename seq>
         result_type operator() (seq& b) const {
             return fusion::at<distance>(fusion::at< mpl::int_<0> >(b));
         };
     };
+
 
 public:
     //iterators

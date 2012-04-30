@@ -17,14 +17,27 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef NS2_GEOMETRY3D_H
-#define NS2_GEOMETRY3D_H
+#ifndef DCM_CONSTRAINT3D_H
+#define DCM_CONSTRAINT3D_H
+
+#include "geometry.hpp"
 
 namespace dcm {
-  
 
+template<typename T1, typename T2>
+struct Coincident3D {
+ 
+  double calculate( Storage& s1, Storage& s2) const { return 5;};
   
+};
+
+template<>
+struct Coincident3D<tag_point, tag_point> {
+ 
+  double calculate( Storage& s1, Storage& s2) const { return 7;};
   
+};
+
 }
 
-#endif //NS2_GEOMETRY3D_H
+#endif //DCM_CONSTRAINT3D_H
