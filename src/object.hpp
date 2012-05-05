@@ -60,6 +60,7 @@ struct map_val {
 }
 
 
+
 /**
  * @brief Base class for all object types
  *
@@ -138,12 +139,12 @@ struct Object {
     **/
     template<typename S>
     void disconnectSignal( typename mpl::at<Sig, S>::type function ) {
-        typedef typename mpl::find<sig_name, S>::type iterator;
+     /*   typedef typename mpl::find<sig_name, S>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
 
-        typedef typename fusion::result_of::at<Signals, distance>::type result;
+        typedef typename fusion::result_of::value_at<Signals, distance>::type result;
         result& vec = fusion::at<distance>(m_signals);
-        vec.erase(std::remove(vec.begin(), vec.end(), function), vec.end());
+        vec.erase(std::remove(vec.begin(), vec.end(), function), vec.end());*/ //TODO: implement disconnect signal
     };
 
 protected:
