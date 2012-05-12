@@ -24,12 +24,12 @@
 #include <vector>
 
 namespace dcm {
-
-enum remaining {
-    volume,
-    plane,
+  
+  enum remaining {
+    nothing = 0,
     line,
-    nothing
+    plane, 
+    volume
 };
 
 template<typename K, typename C>
@@ -45,31 +45,11 @@ public:
     Dof() : m_translation(volume), m_rotation(volume) {};
 
     int dofTranslational() {
-        switch (m_translation) {
-        case volume:
-            return 3;
-        case plane:
-            return 2;
-        case line:
-            return 1;
-        default:
-            return 0;
-        };
+        return m_translation;
     };
-
     int dofRotational() {
-        switch (m_rotation) {
-        case volume:
-            return 3;
-        case plane:
-            return 2;
-        case line:
-            return 1;
-        default:
-            return 0;
-        };
+        return m_rotation;
     };
-
     int dof() {
         return dofTranslational() + dofRotational();
     };

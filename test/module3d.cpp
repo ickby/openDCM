@@ -19,6 +19,7 @@
 
 #include "system.hpp"
 #include "module3d.hpp"
+#include "kernel.hpp"
 
 #include <time.h>
 #include <iostream>
@@ -43,7 +44,8 @@ BOOST_AUTO_TEST_SUITE( Module3D_test_suit);
 
 BOOST_AUTO_TEST_CASE(initialising) {
   
-  typedef Module3D< mpl::vector<point> > Module;
+  typedef dcm::Kernel<double> Kernel;
+  typedef Module3D< mpl::vector<point>, Kernel > Module;
   typedef System<Module::type> System;
   System sys;
   typedef typename Module::type<System>::Geometry3D geom;

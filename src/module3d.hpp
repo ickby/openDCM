@@ -30,9 +30,13 @@
 #include <boost/preprocessor/iteration/local.hpp>
 #include <boost/variant.hpp>
 
+#include <boost/function.hpp>
+
 #include "object.hpp"
 #include "geometry.hpp"
 #include "constraint3d.hpp"
+#include "dof.hpp"
+#include <boost/bind.hpp>
 
 namespace mpl = boost::mpl;
 
@@ -49,33 +53,40 @@ struct distance {
 
 }
 
-template<typename Typelist>
+struct reset {};
+
+template<typename Typelist, typename Kernel>
 struct Module3D {
 
     template<typename Sys>
     struct type {
         class Constraint3D;
+        class Geometry3D;
+        typedef boost::shared_ptr<Geometry3D> Geom;
 
-        class Geometry3D : public Object<Sys, Geometry3D, mpl::map<> > {
+        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom)> > >  GeomSignal;
+
+        class Geometry3D : public Object<Sys, Geometry3D, GeomSignal > {
             typedef typename boost::make_variant_over< Typelist >::type Variant;
+            typedef Object<Sys, Geometry3D, GeomSignal> base;
 
         public:
             template<typename T>
-            Geometry3D(T geometry, Sys& system) : Object<Sys, Geometry3D, mpl::map<> >(system),
-                    m_geometry(geometry) {
+            Geometry3D(T geometry, Sys& system) : base(system),
+                    m_geometry(geometry) {};
 
-                m_type = details::distance<Typelist, T>::type::value;
+            template<typename T>
+            void set(T geometry) {
+                m_geometry = geometry;
+                base::template emitSignal<reset>(base::shared_from_this());
             };
 
         protected:
             Variant m_geometry;
             Storage m_storage;
-            int m_type;
 
             friend class Constraint3D;
         };
-
-        typedef boost::shared_ptr<Geometry3D> Geom;
 
         //type erasure container for constraints
         class Constraint3D : public Object<Sys, Constraint3D, mpl::map<> > {
@@ -83,7 +94,11 @@ struct Module3D {
         public:
 
             Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> >(system),
-                    first(f), second(s), content(0) {  };
+                    first(f), second(s), content(0) {
+
+                first->template connectSignal<reset>(boost::bind(&Constraint3D::geometryReset, this, _1));
+                second->template connectSignal<reset>(boost::bind(&Constraint3D::geometryReset, this, _1));
+            };
 
             ~Constraint3D()  {
                 delete content;
@@ -101,6 +116,12 @@ struct Module3D {
             };
 
         protected:
+
+            void geometryReset(Geom g) {
+                placeholder *p = content->resetConstraint(first, second);
+                delete content;
+                content = p;
+            };
 
             struct placeholder  {
 
@@ -149,19 +170,48 @@ struct Module3D {
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
 
         struct inheriter {
+            inheriter() {
+                m_this = ((Sys*)this);
+            };
+
             template<typename T>
             Geom createGeometry3D(T geom ) {
-                return Geom(new Geometry3D(geom, *((Sys*)this)));
+                Geom g(new Geometry3D(geom, *((Sys*)this)));
+                fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
+                m_this->m_cluster.template setObject<Geometry3D>(fusion::at_c<0>(res), g);
+                g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
+                return g;
             };
 
             template<template<typename, typename> class T>
             Cons createConstraint3D(Geom first, Geom second) {
                 Cons c(new Constraint3D(*((Sys*)this), first, second));
                 c->template setType<T>();
+                fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
+                res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
+                                                second->template getProperty<vertex_prop>());
+		c->template setProperty<edge_prop>(fusion::at_c<1>(res));
                 return c;
             };
+
+private:
+            Sys* m_this;
         };
-        typedef mpl::vector<>  	properties;
+
+        struct dof_prop {
+            typedef edge_property kind;
+            typedef Dof<Kernel, Cons> type;
+        };
+        struct vertex_prop {
+            typedef Geometry3D kind;
+            typedef GlobalVertex type;
+        };
+	struct edge_prop {
+            typedef Constraint3D kind;
+            typedef GlobalEdge type;
+        };
+
+        typedef mpl::vector<dof_prop, vertex_prop, edge_prop>  	properties;
 
     };
 };

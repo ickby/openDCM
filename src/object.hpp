@@ -39,6 +39,8 @@
 #include <boost/preprocessor/repetition/enum_trailing_params.hpp>
 #include <boost/preprocessor/repetition/enum_binary_params.hpp>
 
+#include <boost/enable_shared_from_this.hpp>
+
 #include "property.hpp"
 
 
@@ -74,7 +76,7 @@ struct map_val {
  * \tparam Sig a mpl::map specifing the object's signals by (type -  boost::function) pairs
  **/
 template<typename Sys, typename Obj, typename Sig>
-struct Object {
+struct Object : public boost::enable_shared_from_this<Obj> {
 
     Object(Sys& system) : m_system(system) {};
 

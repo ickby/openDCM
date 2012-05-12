@@ -109,11 +109,12 @@ class System : 	public T1< System<T1,T2,T3> >::inheriter,
     typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
     typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
     typedef typename details::property_map<objects, properties>::type 		object_properties;
-    
-    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
+
+public:
+    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
 
 public:
     System() {  };
