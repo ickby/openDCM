@@ -40,6 +40,7 @@
 #include <boost/preprocessor/repetition/enum_binary_params.hpp>
 
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/any.hpp>
 
 #include "property.hpp"
 
@@ -61,7 +62,7 @@ struct map_val {
 
 }
 
-
+typedef boost::any Connection;
 
 /**
  * @brief Base class for all object types
@@ -123,10 +124,12 @@ struct Object : public boost::enable_shared_from_this<Obj> {
      * @return void
      **/
     template<typename S>
-    void connectSignal( typename mpl::at<Sig, S>::type function ) {
+    Connection connectSignal( typename mpl::at<Sig, S>::type function ) {
         typedef typename mpl::find<sig_name, S>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
-        fusion::at<distance>(m_signals).push_back(function);
+        typedef typename fusion::result_of::value_at<Signals, distance>::type list_type;
+	list_type &list = fusion::at<distance>(m_signals);
+	return list.insert(list.begin(),function);
     };
 
     /**
@@ -140,13 +143,13 @@ struct Object : public boost::enable_shared_from_this<Obj> {
     * @return void
     **/
     template<typename S>
-    void disconnectSignal( typename mpl::at<Sig, S>::type function ) {
-     /*   typedef typename mpl::find<sig_name, S>::type iterator;
+    void disconnectSignal( Connection c ) {
+        typedef typename mpl::find<sig_name, S>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
 
-        typedef typename fusion::result_of::value_at<Signals, distance>::type result;
-        result& vec = fusion::at<distance>(m_signals);
-        vec.erase(std::remove(vec.begin(), vec.end(), function), vec.end());*/ //TODO: implement disconnect signal
+        typedef typename fusion::result_of::value_at<Signals, distance>::type list_type;
+        list_type& list = fusion::at<distance>(m_signals);
+        list.erase( boost::any_cast<typename list_type::iterator>(c) );
     };
 
 protected:
@@ -171,7 +174,7 @@ protected:
     typedef typename mpl::fold< Sig, mpl::vector<>,
     mpl::push_back<mpl::_1, details::map_val<mpl::_2> > >::type sig_functions;
     typedef typename mpl::fold< sig_functions, mpl::vector<>,
-    mpl::push_back<mpl::_1, std::vector<mpl::_2> > >::type sig_vectors;
+    mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
 
     Sys& m_system;
@@ -193,9 +196,9 @@ protected:
   { \
       typedef typename mpl::find<sig_name, S>::type iterator; \
       typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
-      typedef typename fusion::result_of::value_at<Signals, distance>::type result; \
-      result& vec = fusion::at<distance>(m_signals); \
-      for (typename result::iterator it=vec.begin(); it != vec.end(); it++) \
+      typedef typename fusion::result_of::value_at<Signals, distance>::type list_type; \
+      list_type& list = fusion::at<distance>(m_signals); \
+      for (typename list_type::iterator it=list.begin(); it != list.end(); it++) \
 	(*it)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
   };
 

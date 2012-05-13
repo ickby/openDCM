@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 
     test_functor_void s, s2;
 
-    o1.connectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s) );
+    dcm::Connection c1 = o1.connectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s) );
     o1.connectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s2) );
 
     o1.emit_test_void();
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(object_signals) {
     BOOST_CHECK( s.counter == 2 );
     BOOST_CHECK( s2.counter == 2 );
     
-    o1.disconnectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s) );
+    o1.disconnectSignal<test_signal1>( c1 );
     o1.emit_test_void();
     
     BOOST_CHECK( s.counter == 2 );
