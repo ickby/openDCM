@@ -74,7 +74,7 @@ struct Module3D {
 
         public:
             template<typename T>
-            Geometry3D(T geometry, Sys& system) : base(system),
+            Geometry3D(T geometry, Sys &system) : base(system),
                 m_geometry(geometry) {};
 
             template<typename T>
@@ -95,15 +95,17 @@ struct Module3D {
 
         public:
 
-            Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
+            Constraint3D(Sys &system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
                 first(f), second(s), content(0) {
 
-                first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
-                second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
+                cf = first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
+                cs = second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
             };
 
             ~Constraint3D()  {
                 delete content;
+                first->template disconnectSignal<reset>(cf);
+                second->template disconnectSignal<reset>(cs);
             }
 
             template<template<typename, typename> class T>
@@ -128,8 +130,8 @@ struct Module3D {
             struct placeholder  {
 
                 virtual ~placeholder() {}
-                virtual double calculate(Storage&, Storage&) const = 0;
-                virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
+                virtual double calculate(Storage &, Storage &) const = 0;
+                virtual placeholder *resetConstraint(Geom first, Geom second) const = 0;
             };
 
             template< template<typename,typename> class T1, typename T2, typename T3>
@@ -138,11 +140,11 @@ struct Module3D {
                 holder(const T1<T2,T3> & value)
                     : held(value)   {}
 
-                virtual double calculate(Storage& f, Storage& s) const {
+                virtual double calculate(Storage &f, Storage &s) const {
                     return held.calculate(f,s);
                 };
 
-                virtual placeholder* resetConstraint(Geom first, Geom second) const {
+                virtual placeholder *resetConstraint(Geom first, Geom second) const {
                     creator<T1> creator;
                     boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
                     return creator.p;
@@ -160,11 +162,12 @@ struct Module3D {
                     typedef T<typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag> type;
                     p = new holder< T, typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > (type());
                 };
-                placeholder* p;
+                placeholder *p;
             };
 
-            placeholder * content;
+            placeholder *content;
             Geom first, second;
+            Connection cf, cs;
 
         };
 
@@ -174,13 +177,13 @@ struct Module3D {
 
         struct inheriter {
             inheriter() {
-                m_this = ((Sys*) this);
+                m_this = ((Sys *) this);
             };
 
             template<typename T>
             Geom createGeometry3D(T geom) {
 
-                Geom g(new Geometry3D(geom, * ((Sys*) this)));
+                Geom g(new Geometry3D(geom, * ((Sys *) this)));
                 fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
                 m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
@@ -190,7 +193,7 @@ struct Module3D {
             template<template<typename, typename> class T>
             Cons createConstraint3D(Geom first, Geom second) {
 
-                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                Cons c(new Constraint3D(* ((Sys *) this), first, second));
                 c->template setType<T>();
                 fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
                 res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
@@ -200,7 +203,7 @@ struct Module3D {
             };
 
         private:
-            Sys* m_this;
+            Sys *m_this;
         };
 
         struct dof_prop {
@@ -215,8 +218,29 @@ struct Module3D {
             typedef Constraint3D kind;
             typedef GlobalEdge type;
         };
+        struct absQ_prop {
+            typedef cluster_property kind;
+            typedef typename Kernel::Vector3 type;
+        };
+        struct matrix_prop {
+            typedef cluster_property kind;
+            typedef typename Kernel::Matrix3 type;
+        };
+        struct dmatrix1_prop {
+            typedef cluster_property kind;
+            typedef typename Kernel::Matrix3 type;
+        };
+        struct dmatrix2_prop {
+            typedef cluster_property kind;
+            typedef typename Kernel::Matrix3 type;
+        };
+        struct dmatrix3_prop {
+            typedef cluster_property kind;
+            typedef typename Kernel::Matrix3 type;
+        };
 
-        typedef mpl::vector<dof_prop, vertex_prop, edge_prop>  	properties;
+        typedef mpl::vector<dof_prop, vertex_prop, edge_prop, absQ_prop,
+                matrix_prop, dmatrix1_prop, dmatrix2_prop, dmatrix3_prop>  properties;
 
     };
 };

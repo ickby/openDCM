@@ -35,6 +35,7 @@ class Kernel {
 public:
     typedef Nt number_type;
     typedef Matrix<Nt, 3, 1> Vector3;
+    typedef Matrix<Nt, 3, 3> Matrix3;
     
     Kernel() : precision(0.001) {};
 
