@@ -49,6 +49,11 @@ struct test_vertex_property {
     typedef int type;
 };
 
+struct test_cluster_property {
+    typedef dcm::cluster_property kind;
+    typedef int type;
+};
+
 struct test_object1 {
     int value;
 };
@@ -57,7 +62,7 @@ struct test_object2 {
 };
 
 typedef ClusterGraph<mpl::vector<test_edge_property, test_edge_property2>,
-mpl::vector<test_vertex_property>, mpl::vector<test_object1, test_object2> > Graph;
+mpl::vector<test_vertex_property>, mpl::vector<test_cluster_property>, mpl::vector<test_object1, test_object2> > Graph;
 
 BOOST_AUTO_TEST_CASE(subclustering) {
 
@@ -164,6 +169,10 @@ BOOST_AUTO_TEST_CASE(object_handling) {
 BOOST_AUTO_TEST_CASE(property_handling) {
     
     Graph g1;
+    g1.setClusterProperty<test_cluster_property>(5);
+    BOOST_CHECK( g1.getClusterProperty<test_cluster_property>() == 5 );
+    
+    
     fusion::vector<LocalVertex, GlobalVertex> v1c = g1.addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v2c = g1.addVertex();
     LocalVertex v1 = fusion::at_c<0>(v1c);

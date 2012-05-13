@@ -35,6 +35,7 @@ namespace dcm {
 
 struct vertex_property {};
 struct edge_property {};
+struct cluster_property {};
 
 namespace details {
 
@@ -70,6 +71,8 @@ struct is_edge_property : boost::is_same<typename T::kind,edge_property> {};
 template<typename T>
 struct is_vertex_property : boost::is_same<typename T::kind,vertex_property> {};
 
+template<typename T>
+struct is_cluster_property : boost::is_same<typename T::kind,cluster_property> {};
 
 template <typename Property, typename Graph>
 class property_map  {

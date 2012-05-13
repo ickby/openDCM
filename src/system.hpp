@@ -33,6 +33,7 @@
 
 #include "property.hpp"
 #include "clustergraph.hpp"
+#include "sheduler.hpp"
 
 
 namespace mpl = boost::mpl;
@@ -92,7 +93,7 @@ template< template<class> class T1 = details::EmptyModule<1>::type,
           template<class> class T3 = details::EmptyModule<3>::type >
 class System : 	public T1< System<T1,T2,T3> >::inheriter,
     public T2< System<T1,T2,T3> >::inheriter,
-    public T3< System<T1,T2,T3> >::inheriter		{
+    public T3< System<T1,T2,T3> >::inheriter {
 
     typedef T1< System<T1,T2,T3> > Type1;
     typedef T2< System<T1,T2,T3> > Type2;
@@ -113,14 +114,14 @@ class System : 	public T1< System<T1,T2,T3> >::inheriter,
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
 
-public:
-    typedef ClusterGraph<edge_properties, vertex_properties, objects> Cluster;
+    typedef ClusterGraph<edge_properties, vertex_properties, mpl::vector<>, objects> Cluster;
+    typedef Sheduler< System<T1,T2,T3> > Shedule;
 
 public:
-    System() {  };
+    System() : m_sheduler(*this) {  };
 
     Cluster m_cluster;
-
+    Shedule m_sheduler;
 };
 
 }
