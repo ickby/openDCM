@@ -31,12 +31,14 @@
 #include <boost/variant.hpp>
 
 #include <boost/function.hpp>
+#include <boost/bind.hpp>
 
 #include "object.hpp"
 #include "geometry.hpp"
 #include "constraint3d.hpp"
 #include "dof.hpp"
-#include <boost/bind.hpp>
+#include "clustergraph.hpp"
+
 
 namespace mpl = boost::mpl;
 
@@ -48,7 +50,7 @@ template<typename seq, typename t>
 struct distance {
     typedef typename mpl::find<seq, t>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<seq>::type, iterator>::type type;
-    BOOST_MPL_ASSERT(( mpl::not_< boost::is_same<iterator, typename mpl::end<seq>::type > > ));
+    BOOST_MPL_ASSERT((mpl::not_< boost::is_same<iterator, typename mpl::end<seq>::type > >));
 };
 
 }
@@ -64,7 +66,7 @@ struct Module3D {
         class Geometry3D;
         typedef boost::shared_ptr<Geometry3D> Geom;
 
-        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom)> > >  GeomSignal;
+        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > > >  GeomSignal;
 
         class Geometry3D : public Object<Sys, Geometry3D, GeomSignal > {
             typedef typename boost::make_variant_over< Typelist >::type Variant;
@@ -73,12 +75,12 @@ struct Module3D {
         public:
             template<typename T>
             Geometry3D(T geometry, Sys& system) : base(system),
-                    m_geometry(geometry) {};
+                m_geometry(geometry) {};
 
             template<typename T>
             void set(T geometry) {
                 m_geometry = geometry;
-                base::template emitSignal<reset>(base::shared_from_this());
+                base::template emitSignal<reset> (base::shared_from_this());
             };
 
         protected:
@@ -93,11 +95,11 @@ struct Module3D {
 
         public:
 
-            Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> >(system),
-                    first(f), second(s), content(0) {
+            Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
+                first(f), second(s), content(0) {
 
-                first->template connectSignal<reset>(boost::bind(&Constraint3D::geometryReset, this, _1));
-                second->template connectSignal<reset>(boost::bind(&Constraint3D::geometryReset, this, _1));
+                first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
+                second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
             };
 
             ~Constraint3D()  {
@@ -134,18 +136,19 @@ struct Module3D {
             struct holder : public placeholder  {
 
                 holder(const T1<T2,T3> & value)
-                        : held(value)   {}
+                    : held(value)   {}
 
                 virtual double calculate(Storage& f, Storage& s) const {
                     return held.calculate(f,s);
                 };
-                T1<T2,T3>  held;
 
                 virtual placeholder* resetConstraint(Geom first, Geom second) const {
                     creator<T1> creator;
                     boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
                     return creator.p;
                 };
+
+                T1<T2,T3>  held;
             };
 
 
@@ -153,9 +156,9 @@ struct Module3D {
             struct creator : public boost::static_visitor<void> {
 
                 template<typename T1, typename T2>
-                void operator() (const T1 &, const T2 &) {
+                void operator()(const T1 &, const T2 &) {
                     typedef T<typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag> type;
-                    p = new holder< T, typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag >( type() );
+                    p = new holder< T, typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > (type());
                 };
                 placeholder* p;
             };
@@ -171,30 +174,32 @@ struct Module3D {
 
         struct inheriter {
             inheriter() {
-                m_this = ((Sys*)this);
+                m_this = ((Sys*) this);
             };
 
             template<typename T>
-            Geom createGeometry3D(T geom ) {
-                Geom g(new Geometry3D(geom, *((Sys*)this)));
+            Geom createGeometry3D(T geom) {
+
+                Geom g(new Geometry3D(geom, * ((Sys*) this)));
                 fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
-                m_this->m_cluster.template setObject<Geometry3D>(fusion::at_c<0>(res), g);
+                m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
                 return g;
             };
 
             template<template<typename, typename> class T>
             Cons createConstraint3D(Geom first, Geom second) {
-                Cons c(new Constraint3D(*((Sys*)this), first, second));
+
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
                 c->template setType<T>();
                 fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
                 res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
                                                 second->template getProperty<vertex_prop>());
-		c->template setProperty<edge_prop>(fusion::at_c<1>(res));
+                c->template setProperty<edge_prop>(fusion::at_c<1>(res));
                 return c;
             };
 
-private:
+        private:
             Sys* m_this;
         };
 
@@ -206,7 +211,7 @@ private:
             typedef Geometry3D kind;
             typedef GlobalVertex type;
         };
-	struct edge_prop {
+        struct edge_prop {
             typedef Constraint3D kind;
             typedef GlobalEdge type;
         };
