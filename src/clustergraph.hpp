@@ -57,7 +57,7 @@ typedef boost::adjacency_list_traits<boost::slistS, boost::slistS, boost::undire
 typedef int universalID;
 
 struct IDgen {
-    universalID *counter;
+    universalID* counter;
 
     IDgen() {
         counter = new universalID(10);
@@ -74,7 +74,7 @@ typedef boost::shared_ptr<IDgen> IDpointer;
 
 struct clear_ptr {
     template<typename T>
-    void operator()(T &t) const {
+    void operator()(T& t) const {
         t.reset();
     };
 };
@@ -102,10 +102,10 @@ struct 	GlobalEdge {
     GlobalVertex target;
     details::universalID ID;
 
-    bool operator==(const GlobalEdge &second) const {
+    bool operator==(const GlobalEdge& second) const {
         return ID==second.ID;
     };
-    bool operator!=(const GlobalEdge &second) const {
+    bool operator!=(const GlobalEdge& second) const {
         return ID!=second.ID;
     };
 };
@@ -130,13 +130,17 @@ public:
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
 private:
-    typedef typename details::pts<cluster_prop>::type cluster_bundle;
+    struct changed_prop {
+        typedef cluster_property kind;
+        typedef bool type;
+    };
+    typedef typename details::pts< typename mpl::push_back<cluster_prop, changed_prop>::type >::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;
     typedef typename boost::graph_traits<Graph>::out_edge_iterator local_out_edge_iterator;
 
-    typedef std::map<LocalVertex,ClusterGraph *> ClusterMap;
+    typedef std::map<LocalVertex,ClusterGraph*> ClusterMap;
 
 private:
     cluster_bundle m_cluster_bundle;
@@ -146,9 +150,9 @@ public:
 
 private:
     struct global_extractor  {
-        typedef GlobalEdge &result_type;
+        typedef GlobalEdge& result_type;
         template<typename T>
-        result_type operator()(T &bundle) const {
+        result_type operator()(T& bundle) const {
             return fusion::at_c<1>(bundle);
         };
     };
@@ -157,15 +161,15 @@ private:
     struct object_extractor  {
 
         typedef boost::shared_ptr<Obj> base_type;
-        typedef base_type &result_type;
+        typedef base_type& result_type;
         typedef typename mpl::find<objects, Obj>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
 
-        result_type operator()(vertex_bundle &bundle) const {
+        result_type operator()(vertex_bundle& bundle) const {
             return fusion::at<distance>(fusion::at_c<1>(bundle));
         };
-        result_type operator()(edge_bundle_single &bundle) const {
+        result_type operator()(edge_bundle_single& bundle) const {
             return fusion::at<distance>(fusion::at_c<0>(bundle));
         };
     };
@@ -174,14 +178,14 @@ private:
     struct property_extractor  {
 
         typedef typename prop::type base_type;
-        typedef base_type &result_type;
+        typedef base_type& result_type;
 
         typedef typename mpl::if_< is_edge_property<prop>, edge_properties, vertex_properties >::type sequence;
         typedef typename mpl::find<sequence, prop>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
 
         template< typename seq>
-        result_type operator()(seq &b) const {
+        result_type operator()(seq& b) const {
             return fusion::at<distance>(fusion::at< mpl::int_<0> >(b));
         };
     };
@@ -200,7 +204,7 @@ public:
     typedef typename ClusterMap::iterator 	cluster_iterator;
 
 public:
-    ClusterGraph(ClusterGraph *g = 0) : m_parent(g), m_id(new details::IDgen) {
+    ClusterGraph(ClusterGraph* g = 0) : m_parent(g), m_id(new details::IDgen) {
 
         if(g) m_id = g->m_id;
 
@@ -218,20 +222,24 @@ public:
 
 
     template<typename T>
-    bool operator==(const T &other) const {
+    bool operator==(const T& other) const {
         return this == &other;
     };
 
     template<typename T>
-    bool operator!=(const T &other) const {
+    bool operator!=(const T& other) const {
         return !(this == &other);
+    };
+
+    void setChanged() {
+        setClusterProperty<changed_prop>(true);
     };
 
     /* *******************************************************
      * Cluster Property
      * *******************************************************/
     template<typename P>
-    typename P::type &getClusterProperty() {
+    typename P::type& getClusterProperty() {
         typedef typename mpl::find<cluster_prop, P>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<cluster_prop>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
@@ -246,27 +254,27 @@ public:
     /* *******************************************************
      * Subclustering
      * *******************************************************/
-    std::pair<ClusterGraph &, LocalVertex> createCluster() {
+    std::pair<ClusterGraph&, LocalVertex> createCluster() {
         LocalVertex v = boost::add_vertex(*this);
-        return std::pair<ClusterGraph &, LocalVertex>(* (m_clusters[v] = new ClusterGraph(this)), v);
+        return std::pair<ClusterGraph&, LocalVertex>(* (m_clusters[v] = new ClusterGraph(this)), v);
     };
 
-    ClusterGraph 	&parent() 	{
+    ClusterGraph&	 parent() 	{
         return *m_parent;
     };
 
-    const ClusterGraph &parent() const 	{
+    const ClusterGraph& parent() const 	{
         return *m_parent;
     };
     bool 		isRoot() const {
         return m_parent == 0;
     };
 
-    ClusterGraph 	&root()		{
+    ClusterGraph&	 root()		{
         return isRoot() ? *this : m_parent->root();
     };
 
-    const ClusterGraph &root() const    {
+    const ClusterGraph& root() const    {
         return isRoot() ? *this : m_parent->root();
     };
 
@@ -282,12 +290,12 @@ public:
         return (m_clusters.find(v) != m_clusters.end());
     };
 
-    ClusterGraph 	&getVertexCluster(LocalVertex v) {
+    ClusterGraph&	 getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return *m_clusters[v];
     };
 
-    LocalVertex		getClusterVertex(ClusterGraph &g) {
+    LocalVertex		getClusterVertex(ClusterGraph& g) {
         std::pair<cluster_iterator, cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
             if((*it.first).second == &g)
@@ -312,6 +320,8 @@ public:
         vertex_bundle vp;
         fusion::at_c<2>(vp) = m_id->generate();
         LocalVertex v= boost::add_vertex(vp, *this);
+	
+	setChanged();
         return fusion::make_vector(v, m_id->count());
     };
 
@@ -361,6 +371,8 @@ public:
         edge_bundle_single s;
         fusion::at_c<1>(s) = global;
         fusion::at_c<1>((*this)[e]).push_back(s);
+	
+	setChanged();
         return fusion::make_vector(e, global, true);
     };
 
@@ -409,6 +421,8 @@ public:
         edge_bundle_single s;
         fusion::at_c<1>(s) = global;
         fusion::at_c<1>((*this)[e]).push_back(s);
+	
+	setChanged();
         return fusion::make_vector(e, global, true, true);
 
     };
@@ -429,6 +443,8 @@ public:
         std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[e]);
         global_edge_iterator begin = boost::make_transform_iterator(vec.begin(), global_extractor());
         global_edge_iterator end   = boost::make_transform_iterator(vec.end(), global_extractor());
+	
+	setChanged();
         return std::pair<global_edge_iterator, global_edge_iterator>(begin, end);
     };
 
@@ -504,7 +520,7 @@ protected:
         //used with vertex bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
-        result_type >::type operator()(bundle &p) {
+        result_type >::type operator()(bundle& p) {
 
             if(Type::value) fusion::for_each(fusion::at< mpl::int_<1> >(p), details::clear_ptr());
             return object_extractor<Obj>()(p);
@@ -513,7 +529,7 @@ protected:
         //used with edge bundle type and global edge descriptor
         template<typename bundle>
         typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, GlobalEdge> >, result_type>::type operator()(bundle &p) {
+        boost::is_same<key, GlobalEdge> >, result_type>::type operator()(bundle& p) {
 
             //need to search the edge_bundle for the global descriptor
             std::vector<edge_bundle_single>& ebsv = fusion::at_c<1>(p);
@@ -528,7 +544,7 @@ protected:
         //used with edge bundle type and local edge descriptor
         template<typename bundle>
         typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-        boost::is_same<key, LocalEdge> >, result_type>::type operator()(bundle &p) {
+        boost::is_same<key, LocalEdge> >, result_type>::type operator()(bundle& p) {
             if(Type::value) fusion::for_each(fusion::at_c<0>(fusion::at_c<1>(p).front()), details::clear_ptr());
             return object_extractor<Obj>()(fusion::at_c<1>(p).front());
         }
@@ -569,6 +585,8 @@ public:
     template<typename Obj, typename key>
     void setObject(key k, boost::shared_ptr<Obj> val) {
         apply_to_bundle(k, obj_helper<set, Obj, key>(k)) = val;
+	
+	setChanged();
     };
 
     /**
@@ -602,7 +620,7 @@ protected:
         get_prop_helper(key k) : m_key(k) {};
 
         typedef typename prop::type base_type;
-        typedef base_type &result_type;
+        typedef base_type& result_type;
         typedef typename mpl::find<vertex_prop, prop>::type vertex_iterator;
         typedef typename mpl::find<edge_prop, prop>::type edge_iterator;
         typedef typename mpl::if_<boost::is_same<vertex_iterator,typename mpl::end<vertex_prop>::type >,
@@ -612,14 +630,14 @@ protected:
         //used with vertex bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
-        result_type>::type operator()(bundle &p) {
+        result_type>::type operator()(bundle& p) {
             return property_extractor<prop>()(p);
         }
 
         //used with edge bundle type
         template<typename bundle>
         typename boost::enable_if<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-        result_type>::type operator()(bundle &p) {
+        result_type>::type operator()(bundle& p) {
             return property_extractor<prop>()(p);
         }
 
@@ -638,7 +656,7 @@ public:
     * @return property::type& the reference to the desired property
     **/
     template<typename property, typename key>
-    typename property::type &getProperty(key k) {
+    typename property::type& getProperty(key k) {
         return apply_to_bundle(k, get_prop_helper<property, key>(k));
     };
 
@@ -656,6 +674,8 @@ public:
     template<typename property, typename key>
     void setProperty(key k, typename property::type val) {
         apply_to_bundle(k, get_prop_helper<property, key>(k)) = val;
+	
+	setChanged();
     };
 
 
@@ -673,7 +693,7 @@ public:
      * @param cg reference to the subcluster to which v should be moved
      * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex moveToSubcluster(LocalVertex v, ClusterGraph &cg) {
+    LocalVertex moveToSubcluster(LocalVertex v, ClusterGraph& cg) {
 
         LocalVertex cv = getClusterVertex(cg);
         return moveToSubcluster(v, cv, cg);
@@ -691,7 +711,7 @@ public:
      **/
     LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster) {
 
-        ClusterGraph &cg = getVertexCluster(Cluster);
+        ClusterGraph& cg = getVertexCluster(Cluster);
         return moveToSubcluster(v, Cluster, cg);
     };
 
@@ -710,7 +730,7 @@ public:
      * @param cg reference to the subcluster to which v should be moved
      * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster, ClusterGraph &cg) {
+    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster, ClusterGraph& cg) {
 
         std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
 
@@ -777,6 +797,9 @@ public:
         boost::clear_vertex(v, *this);
         boost::remove_vertex(v, *this);
 
+	setChanged();
+	cg.setChanged();
+	
         return nv;
     };
 
@@ -799,7 +822,7 @@ public:
         //if(isRoot()) TODO:throw
 
         //create new vertex
-        vertex_bundle &vb = (*this)[v];
+        vertex_bundle& vb = (*this)[v];
         LocalVertex nv = boost::add_vertex(vb, parent());
         //regrouping if needed
         if(isCluster(v)) {
@@ -866,6 +889,8 @@ public:
         for(std::vector<LocalEdge>::iterator it=edge_vec.begin(); it!=edge_vec.end(); it++)
             boost::remove_edge(*it, parent());
 
+	setChanged();
+	parent().setChanged();
         return nv;
     };
 
@@ -875,7 +900,7 @@ public:
     * *******************************************************/
 
 protected:
-    ClusterGraph *m_parent;
+    ClusterGraph* m_parent;
     ClusterMap	  m_clusters;
     details::IDpointer 	  m_id;
 
@@ -899,12 +924,12 @@ protected:
         return std::make_pair((LocalVertex)NULL, false);
     };
 
-    fusion::vector<LocalVertex, ClusterGraph *, bool> getContainingVertexGraph(GlobalVertex id) {
+    fusion::vector<LocalVertex, ClusterGraph*, bool> getContainingVertexGraph(GlobalVertex id) {
 
         LocalVertex v;
         bool done;
         boost::tie(v, done) = getContainingVertex(id);
-        if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph *)NULL, false);
+        if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
 
         if(isCluster(v)) return m_clusters[v]->getContainingVertexGraph(id);
         else return fusion::make_vector(v,this,true);
@@ -938,13 +963,13 @@ protected:
         //check all vertices if they are the id
         std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
         for(; it.first != it.second; it.first++) {
-            vertex_bundle &p = (*this)[*it.first];
+            vertex_bundle& p = (*this)[*it.first];
             if(k == fusion::at_c<2>(p))
                 return f(p);
         }
 
         //check all clusters if they have the object
-        fusion::vector<LocalVertex, ClusterGraph *, bool> res = getContainingVertexGraph(k);
+        fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
         if(fusion::at_c<2>(res)) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
 
         // return typename functor::base_type(); TODO: Throw (propeties return reference, but cant init a reference temporarily)
