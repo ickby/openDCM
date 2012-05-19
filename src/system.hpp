@@ -35,9 +35,7 @@
 #include "clustergraph.hpp"
 #include "sheduler.hpp"
 
-
 namespace mpl = boost::mpl;
-
 
 namespace dcm {
 
@@ -87,22 +85,26 @@ struct EmptyModule {
         struct inheriter {};
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>  objects;
+
+        static void system_init(T &sys) {};
     };
 };
 
 }
 
 
-template< template<class> class T1 = details::EmptyModule<1>::type,
+template< typename KernelType,
+	  template<class> class T1 = details::EmptyModule<1>::type,
           template<class> class T2 = details::EmptyModule<2>::type,
           template<class> class T3 = details::EmptyModule<3>::type >
-class System : 	public T1< System<T1,T2,T3> >::inheriter,
-    public T2< System<T1,T2,T3> >::inheriter,
-    public T3< System<T1,T2,T3> >::inheriter {
+class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
+    public T2< System<KernelType,T1,T2,T3> >::inheriter,
+    public T3< System<KernelType,T1,T2,T3> >::inheriter {
 
-    typedef T1< System<T1,T2,T3> > Type1;
-    typedef T2< System<T1,T2,T3> > Type2;
-    typedef T3< System<T1,T2,T3> > Type3;
+    typedef System<KernelType,T1,T2,T3> Base;
+    typedef T1< Base > Type1;
+    typedef T2< Base > Type2;
+    typedef T3< Base > Type3;
 
     typedef typename details::vector_fold<typename Type3::objects,
             typename details::vector_fold<typename Type2::objects,
@@ -122,17 +124,23 @@ class System : 	public T1< System<T1,T2,T3> >::inheriter,
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
 
+public:
     typedef ClusterGraph<edge_properties, vertex_properties, cluster_properties, objects> Cluster;
-    typedef Sheduler< System<T1,T2,T3> > Shedule;
+    typedef Sheduler< Base > Shedule;
+    typedef KernelType Kernel;
 
 public:
-    System() : m_sheduler(*this) {  };
+    System() : m_sheduler(*this) {
+        Type1::system_init(*this);
+        Type2::system_init(*this);
+        Type3::system_init(*this);
+    };
 
     Cluster m_cluster;
     Shedule m_sheduler;
+    Kernel  m_kernel;
 };
 
 }
-
 #endif //DCM_SYSTEM_H
 

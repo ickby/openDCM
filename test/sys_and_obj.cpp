@@ -19,8 +19,9 @@
 
 #include "system.hpp"
 #include "object.hpp"
+#include "kernel.hpp"
 
-#include "boost/function.hpp"
+#include <boost/function.hpp>
 #include <boost/bind.hpp>
 
 #include <boost/test/unit_test.hpp>
@@ -81,6 +82,9 @@ struct TestModule1 {
 
         typedef mpl::vector<test_object1> objects;
         typedef mpl::vector<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
+	
+	template<typename System>
+	static void system_init(System& sys) {};
     };
 };
 
@@ -112,10 +116,13 @@ struct TestModule2 {
         typedef mpl::vector<test_object2>  	objects;
         typedef mpl::vector<test_edge_property2, test_vertex_property2,
         test_object2_prop, test_object1_external_prop> properties;
+	
+	template<typename System>
+	static void system_init(System& sys) {};
     };
 };
 
-typedef dcm::System<TestModule1::type, TestModule2::type> System;
+typedef dcm::System<dcm::Kernel<double>, TestModule1::type, TestModule2::type> System;
 
 BOOST_AUTO_TEST_CASE(inherit_functions) {
 

@@ -124,9 +124,12 @@ class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
     typedef typename std::vector< edge_bundle_single >::iterator edge_single_iterator;
     typedef fusion::vector< typename details::pts<vertex_prop>::type,
             typename details::sps<objects>::type, GlobalVertex > vertex_bundle;
+
+public:
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
+private:
     typedef typename details::pts<cluster_prop>::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
@@ -149,6 +152,7 @@ private:
             return fusion::at_c<1>(bundle);
         };
     };
+
     template<typename Obj>
     struct object_extractor  {
 
@@ -182,7 +186,6 @@ private:
         };
     };
 
-
 public:
     //iterators
     typedef boost::transform_iterator<global_extractor, edge_single_iterator> global_edge_iterator;
@@ -193,12 +196,10 @@ public:
             : boost::transform_iterator<object_extractor<Obj>,edge_single_iterator>(it, f) {};
     };
 
-
 public:
     typedef typename ClusterMap::iterator 	cluster_iterator;
 
 public:
-
     ClusterGraph(ClusterGraph *g = 0) : m_parent(g), m_id(new details::IDgen) {
 
         if(g) m_id = g->m_id;
@@ -236,6 +237,7 @@ public:
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
         return fusion::at<distance>(m_cluster_bundle);
     };
+
     template<typename P>
     void setClusterProperty(typename P::type p) {
         getClusterProperty<P>() = p;
@@ -244,7 +246,6 @@ public:
     /* *******************************************************
      * Subclustering
      * *******************************************************/
-
     std::pair<ClusterGraph &, LocalVertex> createCluster() {
         LocalVertex v = boost::add_vertex(*this);
         return std::pair<ClusterGraph &, LocalVertex>(* (m_clusters[v] = new ClusterGraph(this)), v);
@@ -253,15 +254,18 @@ public:
     ClusterGraph 	&parent() 	{
         return *m_parent;
     };
+
     const ClusterGraph &parent() const 	{
         return *m_parent;
     };
     bool 		isRoot() const {
         return m_parent == 0;
     };
+
     ClusterGraph 	&root()		{
         return isRoot() ? *this : m_parent->root();
     };
+
     const ClusterGraph &root() const    {
         return isRoot() ? *this : m_parent->root();
     };
@@ -269,6 +273,7 @@ public:
     std::pair<cluster_iterator, cluster_iterator> clusters() {
         return std::make_pair(m_clusters.begin(), m_clusters.end());
     }
+
     std::size_t numClusters() const {
         return m_clusters.size();
     }
@@ -324,7 +329,6 @@ public:
         return boost::edge(source, target, *this);
     };
 
-
     /**
      * @brief Add a edge between two vertices, defined by local descriptors.
      *
@@ -377,7 +381,6 @@ public:
      * one where it was added. Success indicates if the function was successful and scope shows the validy of the local
      * descriptor in this cluster (true means the edge is in this cluster).
      **/
-
     fusion::vector<LocalEdge, GlobalEdge, bool, bool> addEdge(GlobalVertex source, GlobalVertex target) {
 
         LocalVertex v1,v2;
@@ -429,6 +432,20 @@ public:
         return std::pair<global_edge_iterator, global_edge_iterator>(begin, end);
     };
 
+    /**
+     * @brief Get the count of all global edges
+     *
+     * Local edges can hold multiple global ones, for example when they connect at least one cluster. To get the
+     * number of all global edges in this local one you can use this function.
+     *
+     * @param e the local edge for which the global descriptors are wanted
+     * @return std::pair<begin, end> with the global_edge_iterator's pointing to the vector<GlobalEdge>'s start
+     * and end
+     **/
+    uint getGlobalEdgeCount(LocalEdge e) {
+
+        return fusion::at_c<1>((*this)[e]).size();
+    };
 
     /**
      * @brief Get the local edge which holds the specified global edge.
@@ -450,10 +467,10 @@ public:
      * @param e LocalVertex
      * @return GlobalVertex
      **/
-
     GlobalVertex getGlobalVertex(LocalVertex e) {
         return fusion::at_c<2>((*this)[e]);
     };
+
     /**
      * @brief Get the LocalVertex which corresponds to the golab one
      *
@@ -573,8 +590,6 @@ public:
     };
 
 
-
-
     /* *******************************************************
      * Property Handling
      * *******************************************************/
@@ -642,7 +657,6 @@ public:
     void setProperty(key k, typename property::type val) {
         apply_to_bundle(k, get_prop_helper<property, key>(k)) = val;
     };
-
 
 
     /********************************************************
@@ -912,6 +926,7 @@ protected:
     typename functor::result_type apply_to_bundle(LocalVertex k, functor f) {
         return f((*this)[k]);
     };
+
     template<typename functor>
     typename functor::result_type apply_to_bundle(LocalEdge k, functor f) {
         return f((*this)[k]);

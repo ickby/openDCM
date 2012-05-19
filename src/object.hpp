@@ -21,11 +21,13 @@
 #define DCM_OBJECT_H
 
 #include <iostream>
+#include <list>
 
 #include <boost/mpl/at.hpp>
 #include <boost/mpl/if.hpp>
 #include <boost/mpl/void.hpp>
 #include <boost/mpl/vector.hpp>
+#include <boost/mpl/transform.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>

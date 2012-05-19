@@ -45,8 +45,8 @@ BOOST_AUTO_TEST_SUITE( Module3D_test_suit);
 BOOST_AUTO_TEST_CASE(initialising) {
   
   typedef dcm::Kernel<double> Kernel;
-  typedef Module3D< mpl::vector<point>, Kernel > Module;
-  typedef System<Module::type> System;
+  typedef Module3D< mpl::vector<point> > Module;
+  typedef System<Kernel, Module::type> System;
   System sys;
   typedef typename Module::type<System>::Geometry3D geom;
   typedef boost::shared_ptr<geom> geom_ptr;
