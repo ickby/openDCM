@@ -59,8 +59,10 @@ BOOST_AUTO_TEST_CASE(initialising) {
 
     cons_ptr c = sys.createConstraint3D<Coincident3D>(g1, g2);
     
-    Kernel::Vector3 v;
-    v<<1,2,3;
+    std::cout<<"solve system!"<<std::endl;
+    sys.solve();
+    
+
     
 }
 

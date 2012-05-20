@@ -592,7 +592,7 @@ public:
     /**
      * @brief Get iterator range for all GlobalEdge objects hold by this local edge
      *
-     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific object in
+     * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific object type in
      * all global edges hold by this local edge.
      *
      * @param k the LocalEdge over which all Objects should be iterated.
@@ -972,7 +972,8 @@ protected:
         fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
         if(fusion::at_c<2>(res)) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
 
-        // return typename functor::base_type(); TODO: Throw (propeties return reference, but cant init a reference temporarily)
+        // return typename functor::base_type(); 
+	//TODO: Throw (propeties return reference, but cant init a reference temporarily)
     };
 
     template<typename functor>

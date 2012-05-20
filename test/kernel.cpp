@@ -30,11 +30,14 @@ typedef dcm::Kernel<double> kernel;
 struct EqnSystem : public kernel::MappedEquationSystem {
 
     typedef typename kernel::MappedEquationSystem Base;
+    typedef typename kernel::DynStride DS;
 
     typename kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
 
-    EqnSystem() : Base(9,3), v1(NULL,0), v2(NULL,0), v3(NULL,0), eqn1(NULL,0), eqn2(NULL,0), eqn3(NULL,0),
-        e1_dv1(NULL,0), e1_dv2(NULL,0), e2_dv2(NULL,0), e2_dv3(NULL,0), e3_dv3(NULL,0), e3_dv1(NULL,0) {
+    EqnSystem() : Base(9,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
+    eqn1(NULL,0,DS(0,0)), eqn2(NULL,0,DS(0,0)), eqn3(NULL,0,DS(0,0)), e1_dv1(NULL,0,DS(0,0)),
+    e1_dv2(NULL,0,DS(0,0)), e2_dv2(NULL,0,DS(0,0)), e2_dv3(NULL,0,DS(0,0)),
+    e3_dv3(NULL,0,DS(0,0)), e3_dv1(NULL,0,DS(0,0)) {
 
         setParameterMap(0,3,v1);
         setParameterMap(3,3,v2);
@@ -53,13 +56,11 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 
     };
 
-    virtual void recalculateResidual() {
+    virtual void recalculate() {
 
         eqn1 << v1.dot(v2);
         eqn2 << v2.dot(v3);
         eqn3 << v3.dot(v1);
-    };
-    virtual void recalculateJacobi() {
 
         Base::Jacobi.setZero();
         e1_dv1 = v2;
@@ -87,7 +88,7 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK(MM(1) == 7);
     BOOST_CHECK(MM.size() == 2);
 
-    test_map_type MM2(NULL,0);
+    test_map_type MM2(NULL,0,typename kernel::DynStride(0,0));
     BOOST_CHECK(MM2.size() == 0);
 
     new(&MM2) test_map_type(&M(1,1), 2, typename kernel::DynStride(1,3));
@@ -101,6 +102,15 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     MM = v;
     BOOST_CHECK(M(1,1) == 1);
     BOOST_CHECK(M(1,2) == 2);
+   
+    //test if fixed size works without using strides
+    typename kernel::Vector3 v3;
+    typename kernel::Vector3Map v3m(&v3(0)); 
+
+    BOOST_CHECK( v3(0) == v3m(0) );
+    BOOST_CHECK( v3(1) == v3m(1) );
+    BOOST_CHECK( v3(2) == v3m(2) );
+    
 };
 
 BOOST_AUTO_TEST_CASE(kernel_dogleg) {

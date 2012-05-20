@@ -20,23 +20,44 @@
 #ifndef DCM_CONSTRAINT3D_H
 #define DCM_CONSTRAINT3D_H
 
-#include "geometry.hpp"
-
 namespace dcm {
 
 template<typename T1, typename T2>
 struct Coincident3D {
 
-    double calculate(Storage& s1, Storage& s2) const {
-        return 5;
-    };
+    //TODO: throw as someone called a unsupported geometry combination with this constraint
+
+    template<typename Kernel>
+    typename Kernel::number_type calculate(typename Kernel::VectorMap& param1,
+                                           typename Kernel::VectorMap& param2) const {};
+
+    template<typename Kernel>
+    typename Kernel::number_type calculateFirstFullGradient(typename Kernel::VectorMap& param1,
+            typename Kernel::VectorMap& param2,
+            typename Kernel::VectorMap& diffparam) const {};
+
+    template<typename Kernel>
+    typename Kernel::number_type calculateSecondFullGradient(typename Kernel::VectorMap& param1,
+            typename Kernel::VectorMap& param2,
+            typename Kernel::VectorMap& diffparam) const {};
+
+    template<typename Kernel>
+    void calculateFirstGradient(typename Kernel::VectorMap& param1,
+                                typename Kernel::VectorMap& param2,
+                                typename Kernel::VectorMap& grad) const {};
+
+    template<typename Kernel>
+    void calculateSecondGradient(typename Kernel::VectorMap& param1,
+                                 typename Kernel::VectorMap& param2,
+                                 typename Kernel::VectorMap& grad) const {};
 
 };
 
 template<>
 struct Coincident3D<tag_point, tag_point> {
 
-    double calculate(Storage& s1, Storage& s2) const {
+    template<typename Kernel>
+    typename Kernel::number_type calculate(typename Kernel::VectorMap& v1, typename Kernel::VectorMap& v2) const {
         return 7;
     };
 

@@ -42,9 +42,9 @@ struct Dogleg {
 
         typename Kernel::Vector g(sys.m_params), h_sd(sys.m_params),
                  h_gn(sys.m_params), h_dl(sys.m_params), F_old(sys.m_eqns);
+	typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
-        sys.recalculateResidual();
-        sys.recalculateJacobi();
+        sys.recalculate();
 
         number_type err = sys.Residual.norm();
 
@@ -119,7 +119,7 @@ struct Dogleg {
 
             // get the new values
             sys.Parameter += h_dl;
-            sys.recalculateResidual();
+            sys.recalculate();
 
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
@@ -129,8 +129,8 @@ struct Dogleg {
             if(dF > 0 && dL > 0) {
 
                 F_old = sys.Residual;
+		J_old = sys.Jacobi;
 
-                sys.recalculateJacobi();
                 err = err_new;
 
                 g = sys.Jacobi.transpose()*(-sys.Residual);
@@ -141,6 +141,7 @@ struct Dogleg {
 
             } else {
                 sys.Residual = F_old;
+		sys.Jacobi = F_old;
                 sys.Parameter -= h_dl;
                 rho = -1;
             }
@@ -178,10 +179,10 @@ struct Kernel {
     typedef E::Matrix<Scalar, E::Dynamic, E::Dynamic> Matrix;
 
     //mapped types
-    typedef E::Map< Vector3 > Vector3Map;
-    typedef E::Map< CVector3 > CVector3Map;
-    typedef E::Map< Matrix3 > Matrix3Map;
     typedef E::Stride<E::Dynamic, E::Dynamic> DynStride;
+    typedef E::Map< Vector3 > Vector3Map;
+    typedef E::Map< CVector3> CVector3Map;
+    typedef E::Map< Matrix3 > Matrix3Map;    
     typedef E::Map< Vector, 0, DynStride > VectorMap;
     typedef E::Map< CVector, 0, DynStride > CVectorMap;
     typedef E::Map< Matrix, 0, DynStride > MatrixMap;
@@ -204,6 +205,9 @@ struct Kernel {
         void setParameterMap(int offset, int number, VectorMap& map) {
             new(&map) VectorMap(&Parameter(offset), number, DynStride(1,1));
         };
+	void setParameterMap(int offset, Vector3Map& map) {
+            new(&map) Vector3Map(&Parameter(offset));
+        };
         void setResidualMap(int eqn, VectorMap& map) {
             new(&map) VectorMap(&Residual(eqn), 1, DynStride(1,1));
         };
@@ -214,8 +218,7 @@ struct Kernel {
             new(&map) VectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
         };
 
-        virtual void recalculateResidual() = 0;
-        virtual void recalculateJacobi() = 0;
+        virtual void recalculate() = 0;
 
     };
 

@@ -120,6 +120,12 @@ class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
     typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
     typedef typename details::cluster_fold< properties, mpl::vector<> >::type 	cluster_properties;
     typedef typename details::property_map<objects, properties>::type 		object_properties;
+    
+    //object storage
+    typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;
+    typedef typename mpl::fold< sp_objects, mpl::vector<>,
+            mpl::push_back<mpl::_1, std::vector<mpl::_2> > >::type 	object_vectors;
+    typedef typename fusion::result_of::as_vector<object_vectors>::type Storage;
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
@@ -135,10 +141,42 @@ public:
         Type2::system_init(*this);
         Type3::system_init(*this);
     };
+    
+    template<typename Object>
+    typename std::vector< boost::shared_ptr<Object> >::iterator begin() {
+      
+        typedef typename mpl::find<objects, Object>::type iterator;
+        typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
+	return fusion::at<distance>(m_storage).begin();
+    };
+    
+    template<typename Object>
+    typename std::vector< boost::shared_ptr<Object> >::iterator end() {
+      
+	typedef typename mpl::find<objects, Object>::type iterator;
+        typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
+	return fusion::at<distance>(m_storage).end();
+    };
+    
+    template<typename Object>
+    std::vector< boost::shared_ptr<Object> >& objectVector() {
+      
+	typedef typename mpl::find<objects, Object>::type iterator;
+        typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
+	return fusion::at<distance>(m_storage);
+    };
+    
+    void solve() {
+      m_sheduler.execute();
+    };
 
     Cluster m_cluster;
     Shedule m_sheduler;
     Kernel  m_kernel;
+    Storage m_storage;
 };
 
 }

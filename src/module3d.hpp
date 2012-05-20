@@ -87,7 +87,7 @@ public:
         m_quaternion = typename Kernel::Quaternion(m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm, norm);
     };
 
-    void calculate() {
+    void recalculate() {
 
         //get the Quaternion for the norm quaternion form and calculate the rotation matrix
         Scalar norm = m_normQ.norm();
@@ -188,54 +188,165 @@ struct Module3D {
         class Constraint3D;
         class Geometry3D;
         typedef boost::shared_ptr<Geometry3D> Geom;
+        typedef boost::shared_ptr<Constraint3D> Cons;
         typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > > >  GeomSignal;
 
         struct MES  : public Sys::Kernel::MappedEquationSystem {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
-	    Cluster& m_cluster;
+            Cluster& m_cluster;
 
             MES(Cluster& cl, int par, int eqn) : Sys::Kernel::MappedEquationSystem(par, eqn),
                 m_cluster(cl) {};
 
-            virtual void recalculateResidual() {
+            virtual void recalculate() {
 
-            }
-            virtual void recalculateJacobi() {
+                //first calculate all clusters
+                typedef typename Cluster::cluster_iterator citer;
+                std::pair<citer, citer> cit = m_cluster.clusters();
+                for(; cit.first != cit.second; cit.first++) {
 
+                    (*cit.first).second->template getClusterProperty<math_prop>().recalculate();
+
+                    //now with the new rotation matrix we calculate all geometries in that cluster
+                    std::vector<Geom>& vec = (*cit.first).second->template getClusterProperty<gmap_prop>();
+                    typedef typename std::vector<Geom>::iterator iter;
+
+                    for(iter it = vec.begin(); it != vec.end(); it++)
+                        (*it)->recalculate();
+
+                };
+
+                //with everything updated just nicely we can compute the constraints
+                typedef typename Cluster::template object_iterator<Constraint3D> oiter;
+                typedef typename boost::graph_traits<Cluster>::edge_iterator eiter;
+                std::pair<eiter, eiter>  eit = boost::edges(m_cluster);
+                for(; eit.first != eit.second; eit.first++) {
+
+                    //as always: every local edge can hold multiple global ones, so iterate over all constraints
+                    //hold by the individual edge
+                    std::pair< oiter, oiter > oit = m_cluster.template getObjects<Constraint3D>(*eit.first);
+                    for(; oit.first != oit.second; oit.first++) {
+                        if(*oit.first)
+                            (*oit.first)->calculate();
+                    }
+                }
             }
         };
 
         struct SystemSolver : public Job<Sys> {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
+            typedef typename system_traits<Sys>::Kernel Kernel;
 
             SystemSolver() {
                 Job<Sys>::priority = 1000;
             };
 
-            virtual void execute(Sys& sys, Sheduler<Sys>& shd) {
+            virtual void execute(Sys& sys) {
 
+                std::cout<<"Execute system solver"<<std::endl;
+                solveCluster(sys.m_cluster);
             };
 
             void solveCluster(Cluster& cluster) {
 
-                uint parameters, constraints;
+                uint parameters=0, constraints=0, offset=0, equation=0;
 
+                //get the ammount of parameters and constraint equations we need
                 typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
                 std::pair<iter, iter>  it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {
 
                     if(cluster.isCluster(*it.first)) parameters += 3;
-                    else parameters += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
-                };
-
+                    else {
+		      parameters += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
+		    };
+                }
+ 
                 typedef typename boost::graph_traits<Cluster>::edge_iterator e_iter;
                 std::pair<e_iter, e_iter>  e_it = boost::edges(cluster);
                 for(; e_it.first != e_it.second; e_it.first++)
                     constraints += cluster.getGlobalEdgeCount(*e_it.first);
 
+                //initialise the system with now known size
                 MES mes(cluster, parameters, constraints);
+
+                //iterate all geometrys again and set the needed maps
+                it = boost::vertices(cluster);
+                for(; it.first != it.second; it.first++) {
+
+                    if(cluster.isCluster(*it.first)) {
+                        //set norm Quaternion as map to the parameter vector
+                        Cluster& c = cluster.getVertexCluster(*it.first);
+                        details::ClusterMath<Sys>& cm =  c.template getClusterProperty<math_prop>();
+                        mes.setParameterMap(offset, cm.getNormQuaternionMap());
+
+                        //map all geometrie within that cluster to it's rotation matrix
+                        std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
+                        vec.clear();
+                        mapClusterDownstreamGeometry(c, cm, vec);
+
+                        offset += 3;
+                    } else {
+                        Geom g = cluster.template getObject<Geometry3D>(*it.first);
+                        mes.setParameterMap(offset, g->m_parameterCount, g->getParameterMap());
+                        g->m_parameterOffset = offset;
+                        offset += g->m_parameterCount;
+                    }
+                }
+                //and now the constraints to set the residual and gradient maps
+                typedef typename Cluster::template object_iterator<Constraint3D> oiter;
+                std::pair<e_iter, e_iter>  eit = boost::edges(cluster);
+                for(; e_it.first != e_it.second; e_it.first++) {
+
+                    //as always: every local edge can hold multiple global ones, so iterate over all constraints
+                    //hold by the individual edge
+                    std::pair< oiter, oiter > oit = cluster.template getObjects<Constraint3D>(*e_it.first);
+                    for(; oit.first != oit.second; oit.first++) {
+
+                        //set the maps
+                        Cons c = *oit.first;
+                        if(c) {
+                            mes.setResidualMap(equation, c->m_residual);
+                            mes.setJacobiMap(equation, c->first->m_parameterOffset, c->first->m_parameterCount, c->m_diffFirst);
+                            mes.setJacobiMap(equation, c->second->m_parameterOffset, c->second->m_parameterCount, c->m_diffSecond);
+                            equation++;
+                        }
+                        //TODO: else throw (as every global edge was counted as one equation)
+                    }
+                }
+
+                std::cout<<"Residual bevore solving: "<<mes.Residual.norm()<<std::endl;
+		
+                //now it's time to solve
+                Kernel::solve(mes);
+		
+		std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+            };
+
+            void mapClusterDownstreamGeometry(Cluster& cluster, details::ClusterMath<Sys>& cm, std::vector<Geom>& vec) {
+                //all geometry within that cluster needs to be mapped to the provided rotation matrix (in cm)
+
+                //get all vertices and map the geometries if existend
+                typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
+                std::pair<iter, iter>  it = boost::vertices(cluster);
+                for(; it.first != it.second; it.first++) {
+                    Geom g = cluster.template getObject<Geometry3D>(*it.first);
+                    if(g) {
+                        //allow iteration over all maped geometries
+                        vec.push_back(g);
+                        //map rotation an diffrotation from cluster to geometry
+                        cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
+                    }
+                }
+
+                //go downstream and map
+                typedef typename Cluster::cluster_iterator citer;
+                std::pair<citer, citer> cit = cluster.clusters();
+                for(; cit.first != cit.second; cit.first++)
+                    mapClusterDownstreamGeometry(*(*cit.first).second, cm, vec);
+
             };
 
         };
@@ -243,11 +354,18 @@ struct Module3D {
         class Geometry3D : public Object<Sys, Geometry3D, GeomSignal > {
             typedef typename boost::make_variant_over< Typelist >::type Variant;
             typedef Object<Sys, Geometry3D, GeomSignal> base;
+            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename Kernel::DynStride DS;
 
         public:
             template<typename T>
-            Geometry3D(T geometry, Sys& system) : base(system),
-                m_geometry(geometry), m_rotation(NULL,0,0), m_parameter(NULL,0), m_diffrot(NULL,0,0)  {};
+            Geometry3D(T geometry, Sys& system) : base(system), m_isInCluster(false),
+                m_geometry(geometry), m_parameterCount(geometry_traits<T>::tag::parameters::value),
+                m_rotation(NULL), m_parameter(NULL,0,DS(0,0)), m_diffrot(NULL)  {
+		  
+		  //TODO: write initial values into m_original
+		};
+
 
             template<typename T>
             void set(T geometry) {
@@ -258,34 +376,60 @@ struct Module3D {
 
         protected:
             Variant m_geometry;
-            int     m_parameterCount;
-            typename Sys::Kernel::Vector    m_original, m_value;
-            typename Sys::Kernel::Matrix    m_diffparam;
-            typename Sys::Kernel::VectorMap m_parameter;
-            typename Sys::Kernel::MatrixMap m_rotation, m_diffrot;
+            int     m_parameterCount, m_parameterOffset;
+            bool    m_isInCluster;
+            typename Sys::Kernel::Vector      m_original, m_value;
+            typename Sys::Kernel::Matrix3     m_diffparam;
+            typename Sys::Kernel::VectorMap   m_parameter;
+            typename Sys::Kernel::Matrix3Map  m_rotation;
+            typename Sys::Kernel::Matrix39Map m_diffrot;
 
             typename Sys::Kernel::VectorMap& getParameterMap() {
+                m_isInCluster = false;
+		//TODO: write initial values into m_parameter
                 return m_parameter;
-            };
-            typename Sys::Kernel::MatrixMap& getRotationMap() {
+            }
+            typename Sys::Kernel::Matrix3Map& getRotationMap() {
                 return m_rotation;
             };
-            typename Sys::Kernel::MatrixMap& getDiffRotationMap() {
+            typename Sys::Kernel::Matrix39Map& getDiffRotationMap() {
                 return m_diffrot;
             };
 
-            friend class SystemBuilder;
+            void setClusterMode() {
+                m_isInCluster = true;
+                new(&m_parameter) typename Sys::Kernel::VectorMap(m_value(0), m_parameterCount);
+            }
+            bool getClusterMode() {
+                return m_isInCluster;
+            };
+
+            void recalculate() {
+                if(!m_isInCluster) return;
+
+                //TODO: this only works for points, so find a way this will work with values longer than 3
+                m_value = m_rotation*m_original;
+                m_diffparam.block(0,0,3,1) = m_diffrot.block(0,0,3,3) * m_original;
+                m_diffparam.block(0,1,3,1) = m_diffrot.block(0,3,3,3) * m_original;
+                m_diffparam.block(0,2,3,1) = m_diffrot.block(0,6,3,3) * m_original;
+            }
+
+            friend class SystemSolver;
             friend class Constraint3D;
+            friend struct MES;
         };
 
         //type erasure container for constraints
         class Constraint3D : public Object<Sys, Constraint3D, mpl::map<> > {
 
-            typedef typename system_traits<Sys>::Kernel::number_type Scalar;
+            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename Kernel::number_type Scalar;
+            typedef typename Kernel::DynStride DS;
 
         public:
             Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
-                first(f), second(s), content(0) {
+                first(f), second(s), content(0), m_diffFirst(NULL,0,DS(0,0)), m_diffSecond(NULL,0,DS(0,0)),
+                m_residual(NULL,0,DS(0,0))	{
 
                 cf = first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
                 cs = second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
@@ -304,11 +448,27 @@ struct Module3D {
                 content = creator.p;
             };
 
+        protected:
+            template<typename T> void pretty(T t) {
+                std::cout<<__PRETTY_FUNCTION__<<std::endl;
+            }
+
             Scalar calculate() {
-                return content->calculate(first->m_storage, second->m_storage);
+
+                //first the residual (operator= doeas not work with scalars)
+                m_residual << content->calculate(first->m_parameter, second->m_parameter);
+
+                //now see which way we should calculate the gradient
+                if(first->getClusterMode()) {
+                    //cluster mode, so we do a full calculation with all 3 diffparam vectors
+                    std::cout<<"test"<<std::endl;
+                    pretty(m_diffFirst.block(0,0,1,1));
+                } else {
+
+                }
+
             };
 
-        protected:
             void geometryReset(Geom g) {
                 placeholder* p = content->resetConstraint(first, second);
                 delete content;
@@ -318,7 +478,7 @@ struct Module3D {
             struct placeholder  {
 
                 virtual ~placeholder() {}
-                virtual Scalar calculate(Storage&, Storage&) const = 0;
+                virtual Scalar calculate(typename Kernel::VectorMap&, typename Kernel::VectorMap&) const = 0;
                 virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
             };
 
@@ -328,8 +488,8 @@ struct Module3D {
                 holder(const T1<T2,T3> & value)
                     : held(value)   {}
 
-                virtual Scalar calculate(Storage& f, Storage& s) const {
-                    return held.calculate(f,s);
+                virtual Scalar calculate(typename Kernel::VectorMap& f, typename Kernel::VectorMap& s) const {
+                    return held.template calculate<Kernel>(f,s);
                 };
 
                 virtual placeholder* resetConstraint(Geom first, Geom second) const {
@@ -356,9 +516,13 @@ struct Module3D {
             Geom first, second;
             Connection cf, cs;
 
+            typename Kernel::VectorMap m_diffFirst, m_diffSecond, m_residual;
+
+            friend class SystemSolver;
+            friend class MES;
+
         };
 
-        typedef boost::shared_ptr<Constraint3D> Cons;
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
 
         struct inheriter {
@@ -373,6 +537,7 @@ struct Module3D {
                 fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
                 m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
+                m_this->template objectVector<Geometry3D>().push_back(g);
                 return g;
             };
 
@@ -385,6 +550,7 @@ struct Module3D {
                 res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
                                                 second->template getProperty<vertex_prop>());
                 c->template setProperty<edge_prop>(fusion::at_c<1>(res));
+                m_this->template objectVector<Constraint3D>().push_back(c);
                 return c;
             };
 
@@ -397,6 +563,10 @@ struct Module3D {
             typedef cluster_property kind;
             typedef details::ClusterMath<Sys> type;
         };
+        struct gmap_prop {
+            typedef cluster_property kind;
+            typedef std::vector<Geom> type;
+        };
         struct vertex_prop {
             typedef Geometry3D kind;
             typedef GlobalVertex type;
@@ -406,10 +576,11 @@ struct Module3D {
             typedef GlobalEdge type;
         };
 
-        typedef mpl::vector<vertex_prop, edge_prop, math_prop>  properties;
+        typedef mpl::vector<vertex_prop, edge_prop, math_prop, gmap_prop>  properties;
 
         static void system_init(Sys& sys) {
-            sys.m_sheduler.addProcessJob(SystemSolver());
+            std::cout<<"add solver job"<<std::endl;
+            sys.m_sheduler.addProcessJob(new SystemSolver());
         };
     };
 };
