@@ -30,27 +30,27 @@ typedef dcm::Kernel<double> kernel;
 struct EqnSystem : public kernel::MappedEquationSystem {
 
     typedef typename kernel::MappedEquationSystem Base;
-    
+
     typename kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
 
     EqnSystem() : Base(9,3), v1(NULL,0), v2(NULL,0), v3(NULL,0), eqn1(NULL,0), eqn2(NULL,0), eqn3(NULL,0),
-    e1_dv1(NULL,0), e1_dv2(NULL,0), e2_dv2(NULL,0), e2_dv3(NULL,0), e3_dv3(NULL,0), e3_dv1(NULL,0){
-      
-      setParameterMap(0,3,v1);
-      setParameterMap(3,3,v2);
-      setParameterMap(6,3,v3);
-      
-      setResidualMap(0, eqn1);
-      setResidualMap(1, eqn2);
-      setResidualMap(2, eqn3);
-      
-      setJacobiMap(0,0,3,e1_dv1);
-      setJacobiMap(0,3,3,e1_dv2);
-      setJacobiMap(1,3,3,e2_dv2);
-      setJacobiMap(1,6,3,e2_dv3);
-      setJacobiMap(2,6,3,e3_dv3);
-      setJacobiMap(2,0,3,e3_dv1);
-      
+        e1_dv1(NULL,0), e1_dv2(NULL,0), e2_dv2(NULL,0), e2_dv3(NULL,0), e3_dv3(NULL,0), e3_dv1(NULL,0) {
+
+        setParameterMap(0,3,v1);
+        setParameterMap(3,3,v2);
+        setParameterMap(6,3,v3);
+
+        setResidualMap(0, eqn1);
+        setResidualMap(1, eqn2);
+        setResidualMap(2, eqn3);
+
+        setJacobiMap(0,0,3,e1_dv1);
+        setJacobiMap(0,3,3,e1_dv2);
+        setJacobiMap(1,3,3,e2_dv2);
+        setJacobiMap(1,6,3,e2_dv3);
+        setJacobiMap(2,6,3,e3_dv3);
+        setJacobiMap(2,0,3,e3_dv1);
+
     };
 
     virtual void recalculateResidual() {
@@ -63,11 +63,11 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 
         Base::Jacobi.setZero();
         e1_dv1 = v2;
-	e1_dv2 = v1;
-	e2_dv2 = v3;
-	e2_dv3 = v2;
-	e3_dv3 = v1;
-	e3_dv1 = v3;        
+        e1_dv2 = v1;
+        e2_dv2 = v3;
+        e2_dv3 = v2;
+        e3_dv3 = v1;
+        e3_dv1 = v3;
     };
 
 
@@ -106,10 +106,10 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
 BOOST_AUTO_TEST_CASE(kernel_dogleg) {
 
     EqnSystem s;
-    
+
     s.Parameter.setRandom();
     kernel::solve(s);
-    BOOST_CHECK( s.Residual.norm() < 1e-5 );    
+    BOOST_CHECK(s.Residual.norm() < 1e-5);
 }
 
 BOOST_AUTO_TEST_SUITE_END();

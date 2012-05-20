@@ -26,7 +26,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE( system_and_object );
+BOOST_AUTO_TEST_SUITE(system_and_object);
 
 struct test_edge_property1 {
     typedef dcm::edge_property kind;
@@ -52,16 +52,16 @@ struct TestModule1 {
     template<typename Sys>
     struct type {
         typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
-        mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
+                mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
 
         struct test_object1 : public dcm::Object<Sys, test_object1, signal_map > {
-            test_object1( Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
+            test_object1(Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
             int value;
 
             void emit_test_void() {
                 dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal1>();
             };
-            void emit_test_double(const double& d1, const double& d2 ) {
+            void emit_test_double(const double& d1, const double& d2) {
                 dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
             };
         };
@@ -82,9 +82,9 @@ struct TestModule1 {
 
         typedef mpl::vector<test_object1> objects;
         typedef mpl::vector<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
-	
-	template<typename System>
-	static void system_init(System& sys) {};
+
+        template<typename System>
+        static void system_init(System& sys) {};
     };
 };
 
@@ -93,13 +93,13 @@ struct TestModule2 {
     template<typename Sys>
     struct type {
         struct test_object2 : public dcm::Object<Sys, test_object2, mpl::map<> > {
-            test_object2( Sys& system) : dcm::Object<Sys, test_object2, mpl::map<> >(system) { };
+            test_object2(Sys& system) : dcm::Object<Sys, test_object2, mpl::map<> >(system) { };
             int value;
         };
 
         struct inheriter {
             template<typename T1>
-            int test_inherit3( T1 f, T1 s) {
+            int test_inherit3(T1 f, T1 s) {
                 return ((Sys*)this)->test_inherit2(f,s);
             };
         };
@@ -115,10 +115,10 @@ struct TestModule2 {
 
         typedef mpl::vector<test_object2>  	objects;
         typedef mpl::vector<test_edge_property2, test_vertex_property2,
-        test_object2_prop, test_object1_external_prop> properties;
-	
-	template<typename System>
-	static void system_init(System& sys) {};
+                test_object2_prop, test_object1_external_prop> properties;
+
+        template<typename System>
+        static void system_init(System& sys) {};
     };
 };
 
@@ -127,9 +127,9 @@ typedef dcm::System<dcm::Kernel<double>, TestModule1::type, TestModule2::type> S
 BOOST_AUTO_TEST_CASE(inherit_functions) {
 
     System sys;
-    BOOST_CHECK( sys.test_inherit1() == 1 );
-    BOOST_CHECK( sys.test_inherit2(2,3) == 5 );
-    BOOST_CHECK( sys.test_inherit3(2,3) == 5 );
+    BOOST_CHECK(sys.test_inherit1() == 1);
+    BOOST_CHECK(sys.test_inherit2(2,3) == 5);
+    BOOST_CHECK(sys.test_inherit3(2,3) == 5);
 };
 
 BOOST_AUTO_TEST_CASE(graph_properties) {
@@ -184,7 +184,7 @@ struct test_functor_void {
 
 struct test_functor_double {
     test_functor_double() : counter(0) {};
-    void count( double d1, double d2 ) {
+    void count(double d1, double d2) {
         counter += d1+d2;
     };
     int counter;
@@ -201,27 +201,27 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 
     test_functor_void s, s2;
 
-    dcm::Connection c1 = o1.connectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s) );
-    o1.connectSignal<test_signal1>( boost::bind(&test_functor_void::count, &s2) );
+    dcm::Connection c1 = o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s));
+    o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s2));
 
     o1.emit_test_void();
     o1.emit_test_void();
 
-    BOOST_CHECK( s.counter == 2 );
-    BOOST_CHECK( s2.counter == 2 );
-    
-    o1.disconnectSignal<test_signal1>( c1 );
+    BOOST_CHECK(s.counter == 2);
+    BOOST_CHECK(s2.counter == 2);
+
+    o1.disconnectSignal<test_signal1>(c1);
     o1.emit_test_void();
-    
-    BOOST_CHECK( s.counter == 2 );
-    BOOST_CHECK( s2.counter == 3 );
-    
+
+    BOOST_CHECK(s.counter == 2);
+    BOOST_CHECK(s2.counter == 3);
+
     test_functor_double d;
-    
+
     o1.connectSignal<test_signal2>(boost::bind(&test_functor_double::count, &d, _1, _2));
     o1.emit_test_double(2,4);
-    
-    BOOST_CHECK( d.counter == 6 );
+
+    BOOST_CHECK(d.counter == 6);
 
 };
 

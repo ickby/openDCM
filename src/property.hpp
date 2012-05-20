@@ -53,7 +53,7 @@ struct edge_selector {
 
 template< typename Kind, typename Graph>
 struct property_selector : public mpl::if_<boost::is_same<Kind, vertex_property>,
-            vertex_selector<Graph>, edge_selector<Graph> >::type {};
+        vertex_selector<Graph>, edge_selector<Graph> >::type {};
 
 template<typename T>
 struct property_type {
@@ -87,7 +87,7 @@ public:
     typedef typename dcm::details::property_selector<typename Property::kind, Graph>::sequence_type sequence;
 
     property_map(Graph& g)
-            : m_graph(g) { }
+        : m_graph(g) { }
 
     Graph& m_graph;
 };
@@ -115,9 +115,8 @@ void  put(const property_map<P,G>& map,
 
 
 template <typename P, typename G>
-typename property_map<P,G>::reference at( const property_map<P,G>& map,
-        typename property_map<P,G>::key_type key)
-{
+typename property_map<P,G>::reference at(const property_map<P,G>& map,
+        typename property_map<P,G>::key_type key) {
     typedef property_map<P,G> map_t;
     typedef typename mpl::find<typename map_t::sequence, typename map_t::property>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<typename map_t::sequence>::type, iterator>::type distance;

@@ -126,32 +126,32 @@ struct Object : public boost::enable_shared_from_this<Obj> {
      * @return void
      **/
     template<typename S>
-    Connection connectSignal( typename mpl::at<Sig, S>::type function ) {
+    Connection connectSignal(typename mpl::at<Sig, S>::type function) {
         typedef typename mpl::find<sig_name, S>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
         typedef typename fusion::result_of::value_at<Signals, distance>::type list_type;
-	list_type &list = fusion::at<distance>(m_signals);
-	return list.insert(list.begin(),function);
+        list_type& list = fusion::at<distance>(m_signals);
+        return list.insert(list.begin(),function);
     };
 
     /**
     * @brief Disconnects a slot for a specific signal.
     *
-    * Disconnects a slot so that it dosn't get called at signal emittion. It's important to 
+    * Disconnects a slot so that it dosn't get called at signal emittion. It's important to
     * disconnect the slot by the same boost:function it was connected with.
-    * 
+    *
     * @tparam S the signal type of interest
     * @param function boost::function with which the slot was connected
     * @return void
     **/
     template<typename S>
-    void disconnectSignal( Connection c ) {
+    void disconnectSignal(Connection c) {
         typedef typename mpl::find<sig_name, S>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
 
         typedef typename fusion::result_of::value_at<Signals, distance>::type list_type;
         list_type& list = fusion::at<distance>(m_signals);
-        list.erase( boost::any_cast<typename list_type::iterator>(c) );
+        list.erase(boost::any_cast<typename list_type::iterator>(c));
     };
 
 protected:
@@ -167,16 +167,16 @@ protected:
     typedef typename fusion::result_of::as_vector<Typesequence>::type Properties;
 
     /*signal handling
-     * extract all signal types to allow index search (inex search on signal functions would fail as same 
+     * extract all signal types to allow index search (inex search on signal functions would fail as same
      * signatures are supported for multiple signals). Create std::vectors to allow multiple slots per signal
      * and store these vectors in a fusion::vector for easy access.
-     * */    
+     * */
     typedef typename mpl::fold< Sig, mpl::vector<>,
-    mpl::push_back<mpl::_1, details::map_key<mpl::_2> > >::type sig_name;
+            mpl::push_back<mpl::_1, details::map_key<mpl::_2> > >::type sig_name;
     typedef typename mpl::fold< Sig, mpl::vector<>,
-    mpl::push_back<mpl::_1, details::map_val<mpl::_2> > >::type sig_functions;
+            mpl::push_back<mpl::_1, details::map_val<mpl::_2> > >::type sig_functions;
     typedef typename mpl::fold< sig_functions, mpl::vector<>,
-    mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
+            mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
 
     Sys& m_system;
@@ -188,21 +188,21 @@ protected:
     BOOST_PP_CAT(data, n)
 
 #define EMIT_CALL(z, n, data) \
-  template < \
+    template < \
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
-  > \
-  void emitSignal( \
-    BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
-  ) \
-  { \
-      typedef typename mpl::find<sig_name, S>::type iterator; \
-      typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
-      typedef typename fusion::result_of::value_at<Signals, distance>::type list_type; \
-      list_type& list = fusion::at<distance>(m_signals); \
-      for (typename list_type::iterator it=list.begin(); it != list.end(); it++) \
-	(*it)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
-  };
+    > \
+    void emitSignal( \
+                     BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
+                   ) \
+    { \
+        typedef typename mpl::find<sig_name, S>::type iterator; \
+        typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
+        typedef typename fusion::result_of::value_at<Signals, distance>::type list_type; \
+        list_type& list = fusion::at<distance>(m_signals); \
+        for (typename list_type::iterator it=list.begin(); it != list.end(); it++) \
+            (*it)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
+    };
 
     BOOST_PP_REPEAT(5, EMIT_CALL, ~)
 

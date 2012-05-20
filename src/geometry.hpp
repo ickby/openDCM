@@ -41,16 +41,16 @@ namespace fusion = boost::fusion;
 namespace dcm {
 
 struct undefined {
-  typedef mpl::int_<0> parameters;
+    typedef mpl::int_<0> parameters;
 };
 struct tag_point {
-  typedef mpl::int_<3> parameters;
+    typedef mpl::int_<3> parameters;
 };
 struct tag_line {
-  typedef mpl::int_<6> parameters;
+    typedef mpl::int_<6> parameters;
 };
 struct tag_plane {
-  typedef mpl::int_<6> parameters;
+    typedef mpl::int_<6> parameters;
 };
 
 template< typename T>
@@ -65,7 +65,7 @@ struct Storage {
 //metafunction to get the tag of a special geometry
 template<typename t>
 struct get_tag {
-  typedef typename geometry_traits<t>::tag type;
+    typedef typename geometry_traits<t>::tag type;
 };
 
 }

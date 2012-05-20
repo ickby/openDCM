@@ -46,7 +46,7 @@ struct Dogleg {
         sys.recalculateResidual();
         sys.recalculateJacobi();
 
-	number_type err = sys.Residual.norm();
+        number_type err = sys.Residual.norm();
 
         F_old = sys.Residual;
         g = sys.Jacobi.transpose()*(-sys.Residual);
@@ -139,7 +139,7 @@ struct Dogleg {
                 g_inf = g.template lpNorm<E::Infinity>();
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
 
-             } else {
+            } else {
                 sys.Residual = F_old;
                 sys.Parameter -= h_dl;
                 rho = -1;
@@ -186,7 +186,10 @@ struct Kernel {
     typedef E::Map< CVector, 0, DynStride > CVectorMap;
     typedef E::Map< Matrix, 0, DynStride > MatrixMap;
 
+    //Special types
     typedef E::Quaternion<Scalar>   Quaternion;
+    typedef E::Matrix<Scalar, 3, 9> Matrix39;
+    typedef E::Map< Matrix39 >      Matrix39Map;
 
     struct MappedEquationSystem {
 

@@ -320,8 +320,8 @@ public:
         vertex_bundle vp;
         fusion::at_c<2>(vp) = m_id->generate();
         LocalVertex v= boost::add_vertex(vp, *this);
-	
-	setChanged();
+
+        setChanged();
         return fusion::make_vector(v, m_id->count());
     };
 
@@ -371,8 +371,8 @@ public:
         edge_bundle_single s;
         fusion::at_c<1>(s) = global;
         fusion::at_c<1>((*this)[e]).push_back(s);
-	
-	setChanged();
+
+        setChanged();
         return fusion::make_vector(e, global, true);
     };
 
@@ -421,8 +421,8 @@ public:
         edge_bundle_single s;
         fusion::at_c<1>(s) = global;
         fusion::at_c<1>((*this)[e]).push_back(s);
-	
-	setChanged();
+
+        setChanged();
         return fusion::make_vector(e, global, true, true);
 
     };
@@ -443,8 +443,8 @@ public:
         std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[e]);
         global_edge_iterator begin = boost::make_transform_iterator(vec.begin(), global_extractor());
         global_edge_iterator end   = boost::make_transform_iterator(vec.end(), global_extractor());
-	
-	setChanged();
+
+        setChanged();
         return std::pair<global_edge_iterator, global_edge_iterator>(begin, end);
     };
 
@@ -585,8 +585,8 @@ public:
     template<typename Obj, typename key>
     void setObject(key k, boost::shared_ptr<Obj> val) {
         apply_to_bundle(k, obj_helper<set, Obj, key>(k)) = val;
-	
-	setChanged();
+
+        setChanged();
     };
 
     /**
@@ -674,8 +674,8 @@ public:
     template<typename property, typename key>
     void setProperty(key k, typename property::type val) {
         apply_to_bundle(k, get_prop_helper<property, key>(k)) = val;
-	
-	setChanged();
+
+        setChanged();
     };
 
 
@@ -797,9 +797,9 @@ public:
         boost::clear_vertex(v, *this);
         boost::remove_vertex(v, *this);
 
-	setChanged();
-	cg.setChanged();
-	
+        setChanged();
+        cg.setChanged();
+
         return nv;
     };
 
@@ -889,8 +889,8 @@ public:
         for(std::vector<LocalEdge>::iterator it=edge_vec.begin(); it!=edge_vec.end(); it++)
             boost::remove_edge(*it, parent());
 
-	setChanged();
-	parent().setChanged();
+        setChanged();
+        parent().setChanged();
         return nv;
     };
 

@@ -22,98 +22,98 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE( dof );
+BOOST_AUTO_TEST_SUITE(dof);
 
-BOOST_AUTO_TEST_CASE( dof_translation) {
+BOOST_AUTO_TEST_CASE(dof_translation) {
 
-  typedef dcm::Kernel<double> Kernel;
-  typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
-  typedef dcm::Dof<Kernel, int>::Result Result;
-  dcm::Dof<Kernel, int> d;
-  
-  BOOST_CHECK(d.dofTranslational() == 3);
-  BOOST_CHECK(d.dofRotational() == 3);
-  BOOST_CHECK(d.dof() == 6);
-  
-  Kernel::Vector3 v(1,0,0);
-  Result r = d.removeTranslationDirection(v, 1);
-  BOOST_CHECK( r.first );
-  
-  BOOST_CHECK(d.dofTranslational() == 2);
-  BOOST_CHECK(d.dofRotational() == 3);
-  BOOST_CHECK(d.dof() == 5);
-  
-  r = d.removeTranslationDirection(v,2);
-  BOOST_CHECK( d.dofTranslational() == 2 );
-  BOOST_CHECK( !r.first );
-  BOOST_CHECK( r.second.front() == 1 );
-  BOOST_CHECK( r.second.size() == 1 );
-  
-  Kernel::Vector3 v2(0,1,0);
-  r = d.removeTranslationDirection(v2,3);
-  BOOST_CHECK( d.dofTranslational() == 1 );
-  BOOST_CHECK( r.first );
+    typedef dcm::Kernel<double> Kernel;
+    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::Result Result;
+    dcm::Dof<Kernel, int> d;
 
-  Kernel::Vector3 v3(1,1,0);
-  r = d.removeTranslationDirection(v3,4);
-  BOOST_CHECK( d.dofTranslational() == 1 );
-  BOOST_CHECK( !r.first );
-  iter it = r.second.begin();
-  BOOST_CHECK( *it == 1 );
-  BOOST_CHECK( *(++it) == 3 );
-  BOOST_CHECK( ++it == r.second.end() );
-  
-  Kernel::Vector3 v4(1,1,1);
-  r = d.removeTranslationDirection(v4,5);
-  BOOST_CHECK( d.dofTranslational() == 0 );
-  BOOST_CHECK( r.first );
-  
-  Kernel::Vector3 v5(7,2,5);
-  r = d.removeTranslationDirection(v5,6);
-  BOOST_CHECK( d.dofTranslational() == 0 );
-  BOOST_CHECK( !r.first );
-  it = r.second.begin();
-  BOOST_CHECK( *it == 1 );
-  BOOST_CHECK( *(++it) == 3 );
-  BOOST_CHECK( *(++it) == 5 );
-  BOOST_CHECK( ++it == r.second.end() );
+    BOOST_CHECK(d.dofTranslational() == 3);
+    BOOST_CHECK(d.dofRotational() == 3);
+    BOOST_CHECK(d.dof() == 6);
+
+    Kernel::Vector3 v(1,0,0);
+    Result r = d.removeTranslationDirection(v, 1);
+    BOOST_CHECK(r.first);
+
+    BOOST_CHECK(d.dofTranslational() == 2);
+    BOOST_CHECK(d.dofRotational() == 3);
+    BOOST_CHECK(d.dof() == 5);
+
+    r = d.removeTranslationDirection(v,2);
+    BOOST_CHECK(d.dofTranslational() == 2);
+    BOOST_CHECK(!r.first);
+    BOOST_CHECK(r.second.front() == 1);
+    BOOST_CHECK(r.second.size() == 1);
+
+    Kernel::Vector3 v2(0,1,0);
+    r = d.removeTranslationDirection(v2,3);
+    BOOST_CHECK(d.dofTranslational() == 1);
+    BOOST_CHECK(r.first);
+
+    Kernel::Vector3 v3(1,1,0);
+    r = d.removeTranslationDirection(v3,4);
+    BOOST_CHECK(d.dofTranslational() == 1);
+    BOOST_CHECK(!r.first);
+    iter it = r.second.begin();
+    BOOST_CHECK(*it == 1);
+    BOOST_CHECK(*(++it) == 3);
+    BOOST_CHECK(++it == r.second.end());
+
+    Kernel::Vector3 v4(1,1,1);
+    r = d.removeTranslationDirection(v4,5);
+    BOOST_CHECK(d.dofTranslational() == 0);
+    BOOST_CHECK(r.first);
+
+    Kernel::Vector3 v5(7,2,5);
+    r = d.removeTranslationDirection(v5,6);
+    BOOST_CHECK(d.dofTranslational() == 0);
+    BOOST_CHECK(!r.first);
+    it = r.second.begin();
+    BOOST_CHECK(*it == 1);
+    BOOST_CHECK(*(++it) == 3);
+    BOOST_CHECK(*(++it) == 5);
+    BOOST_CHECK(++it == r.second.end());
 
 };
 
-BOOST_AUTO_TEST_CASE( dof_rotational) {
+BOOST_AUTO_TEST_CASE(dof_rotational) {
 
-  typedef dcm::Kernel<double> Kernel;
-  typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
-  typedef dcm::Dof<Kernel, int>::Result Result;
-  dcm::Dof<Kernel, int> d;
-  
-  Kernel::Vector3 v(1,0,0);
-  Result r = d.allowOnlyRotationDirection(v, 1);
-  BOOST_CHECK( r.first );
-  
-  BOOST_CHECK(d.dofTranslational() == 3);
-  BOOST_CHECK(d.dofRotational() == 1);
-  BOOST_CHECK(d.dof() == 4);
-  
-  r = d.allowOnlyRotationDirection(v,2);
-  BOOST_CHECK( d.dofRotational() == 1 );
-  BOOST_CHECK( !r.first );
-  BOOST_CHECK( r.second.front() == 1 );
-  BOOST_CHECK( r.second.size() == 1 );
-  
-  Kernel::Vector3 v2(0,1,0);
-  r = d.allowOnlyRotationDirection(v2,3);
-  BOOST_CHECK( d.dofRotational() == 0 );
-  BOOST_CHECK( r.first );
-  
-  Kernel::Vector3 v5(7,2,5);
-  r = d.allowOnlyRotationDirection(v5,6);
-  BOOST_CHECK( d.dofRotational() == 0 );
-  BOOST_CHECK( !r.first );
-  iter it = r.second.begin();
-  BOOST_CHECK( *it == 1 );
-  BOOST_CHECK( *(++it) == 3 );
-  BOOST_CHECK( ++it == r.second.end() );
+    typedef dcm::Kernel<double> Kernel;
+    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::Result Result;
+    dcm::Dof<Kernel, int> d;
+
+    Kernel::Vector3 v(1,0,0);
+    Result r = d.allowOnlyRotationDirection(v, 1);
+    BOOST_CHECK(r.first);
+
+    BOOST_CHECK(d.dofTranslational() == 3);
+    BOOST_CHECK(d.dofRotational() == 1);
+    BOOST_CHECK(d.dof() == 4);
+
+    r = d.allowOnlyRotationDirection(v,2);
+    BOOST_CHECK(d.dofRotational() == 1);
+    BOOST_CHECK(!r.first);
+    BOOST_CHECK(r.second.front() == 1);
+    BOOST_CHECK(r.second.size() == 1);
+
+    Kernel::Vector3 v2(0,1,0);
+    r = d.allowOnlyRotationDirection(v2,3);
+    BOOST_CHECK(d.dofRotational() == 0);
+    BOOST_CHECK(r.first);
+
+    Kernel::Vector3 v5(7,2,5);
+    r = d.allowOnlyRotationDirection(v5,6);
+    BOOST_CHECK(d.dofRotational() == 0);
+    BOOST_CHECK(!r.first);
+    iter it = r.second.begin();
+    BOOST_CHECK(*it == 1);
+    BOOST_CHECK(*(++it) == 3);
+    BOOST_CHECK(++it == r.second.end());
 
 };
 

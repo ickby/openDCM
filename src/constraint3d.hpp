@@ -26,16 +26,20 @@ namespace dcm {
 
 template<typename T1, typename T2>
 struct Coincident3D {
- 
-  double calculate( Storage& s1, Storage& s2) const { return 5;};
-  
+
+    double calculate(Storage& s1, Storage& s2) const {
+        return 5;
+    };
+
 };
 
 template<>
 struct Coincident3D<tag_point, tag_point> {
- 
-  double calculate( Storage& s1, Storage& s2) const { return 7;};
-  
+
+    double calculate(Storage& s1, Storage& s2) const {
+        return 7;
+    };
+
 };
 
 }

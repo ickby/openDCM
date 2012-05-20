@@ -30,35 +30,38 @@
 struct point {};
 
 namespace dcm {
-  
-  template<>
-  struct geometry_traits<point> {
+
+template<>
+struct geometry_traits<point> {
     typedef tag_point tag;
-  };
+};
 }
 
 using namespace dcm;
 
-BOOST_AUTO_TEST_SUITE( Module3D_test_suit);
+BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 
 BOOST_AUTO_TEST_CASE(initialising) {
-  
-  typedef dcm::Kernel<double> Kernel;
-  typedef Module3D< mpl::vector<point> > Module;
-  typedef System<Kernel, Module::type> System;
-  System sys;
-  typedef typename Module::type<System>::Geometry3D geom;
-  typedef boost::shared_ptr<geom> geom_ptr;
- 
-  typedef typename Module::type<System>::Constraint3D cons;
-  typedef boost::shared_ptr<cons> cons_ptr;
-  
-  geom_ptr g1 = sys.createGeometry3D(point());
-  geom_ptr g2 = sys.createGeometry3D(point());
-  
-  cons_ptr c = sys.createConstraint3D<Coincident3D>(g1, g2);
 
+    typedef dcm::Kernel<double> Kernel;
+    typedef Module3D< mpl::vector<point> > Module;
+    typedef System<Kernel, Module::type> System;
+    System sys;
+    typedef typename Module::type<System>::Geometry3D geom;
+    typedef boost::shared_ptr<geom> geom_ptr;
+
+    typedef typename Module::type<System>::Constraint3D cons;
+    typedef boost::shared_ptr<cons> cons_ptr;
+
+    geom_ptr g1 = sys.createGeometry3D(point());
+    geom_ptr g2 = sys.createGeometry3D(point());
+
+    cons_ptr c = sys.createConstraint3D<Coincident3D>(g1, g2);
+    
+    Kernel::Vector3 v;
+    v<<1,2,3;
+    
 }
 
 BOOST_AUTO_TEST_SUITE_END();

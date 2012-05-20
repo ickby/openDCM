@@ -24,11 +24,11 @@
 #include <vector>
 
 namespace dcm {
-  
-  enum remaining {
+
+enum remaining {
     nothing = 0,
     line,
-    plane, 
+    plane,
     volume
 };
 
@@ -57,31 +57,28 @@ public:
 
     Result removeTranslationDirection(Vec& v, C constraint) {
 
-        if (m_translation == nothing) {
+        if(m_translation == nothing) {
             ConstraintVector cv;
             cv.push_back(tp1.second);
             cv.push_back(tp2.second);
             cv.push_back(tp3.second);
             return std::make_pair(false,cv);
-        }
-        else if (m_translation == volume) {
+        } else if(m_translation == volume) {
 
             m_translation = plane;
             tp1 = std::make_pair(v, constraint);
-        }
-        else if (m_translation == plane) {
+        } else if(m_translation == plane) {
 
-            if (K::isSame(tp1.first, v) || K::isOpposite(tp1.first, v)) {
+            if(K::isSame(tp1.first, v) || K::isOpposite(tp1.first, v)) {
                 ConstraintVector cv;
                 cv.push_back(tp1.second);
                 return std::make_pair(false,cv);
             }
             m_translation = line;
             tp2 = std::make_pair(v, constraint);
-        }
-        else if (m_translation == line) {
+        } else if(m_translation == line) {
 
-            if (tp1.first.cross(tp2.first).dot(v) < 0.001) {
+            if(tp1.first.cross(tp2.first).dot(v) < 0.001) {
                 ConstraintVector cv;
                 cv.push_back(tp1.second);
                 cv.push_back(tp2.second);
@@ -96,24 +93,21 @@ public:
 
     Result allowOnlyRotationDirection(Vec& v, C constraint) {
 
-        if (m_rotation == nothing) {
+        if(m_rotation == nothing) {
             ConstraintVector cv;
             cv.push_back(rp1.second);
             cv.push_back(rp2.second);
             return std::make_pair(false, cv);
-        }
-        else if (m_rotation == volume) {
+        } else if(m_rotation == volume) {
 
             m_rotation = line;
             rp1 = std::make_pair(v, constraint);
-        }
-        else if (m_rotation == plane) {
+        } else if(m_rotation == plane) {
 
             return std::make_pair(false, ConstraintVector()); //error as every function call removes 2 dof's
-        }
-        else if (m_rotation == line) {
+        } else if(m_rotation == line) {
 
-            if (K::isSame(rp1.first, v) || K::isOpposite(rp1.first, v)) {
+            if(K::isSame(rp1.first, v) || K::isOpposite(rp1.first, v)) {
                 ConstraintVector cv;
                 cv.push_back(rp1.second);
                 return std::make_pair(false, cv);

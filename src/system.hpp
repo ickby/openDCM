@@ -86,7 +86,7 @@ struct EmptyModule {
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>  objects;
 
-        static void system_init(T &sys) {};
+        static void system_init(T& sys) {};
     };
 };
 
@@ -94,7 +94,7 @@ struct EmptyModule {
 
 
 template< typename KernelType,
-	  template<class> class T1 = details::EmptyModule<1>::type,
+          template<class> class T1 = details::EmptyModule<1>::type,
           template<class> class T2 = details::EmptyModule<2>::type,
           template<class> class T3 = details::EmptyModule<3>::type >
 class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,

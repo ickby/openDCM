@@ -60,41 +60,118 @@ struct ClusterMath {
 
 private:
     typedef typename system_traits<Sys>::Kernel Kernel;
+    typedef typename Kernel::number_type Scalar;
+
     typename Kernel::Matrix3	m_rotation;
-    typename Kernel::Matrix 	m_diffrot;
+    typename Kernel::Matrix39 	m_diffrot;
     typename Kernel::Quaternion	m_quaternion;
     typename Kernel::Vector3Map	m_normQ;
 
 public:
+    ClusterMath() : m_normQ(NULL) {};
 
-    void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::MatrixMap& diffmap) {
-        new(&map) typename Kernel::Matrix3Map(&m_rotation(0,0),3,3,
-                                              typename Kernel::DynStride(0,0));
-        new(&diffmap) typename Kernel::MatrixMap(&m_diffrot(0,0),3,9,
-                typename Kernel::DynStride(0,0));
+    void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
+        new(&map) typename Kernel::Matrix3Map(&m_rotation(0,0),3,3);
+        new(&diffmap) typename Kernel::Matrix39Map(&m_diffrot(0,0));
     };
 
     typename Kernel::Vector3Map& getNormQuaternionMap() {
         return m_normQ;
     };
-
     typename Kernel::Quaternion& getQuaternion() {
-
+        return m_quaternion;
     };
 
     void setQuaternionFromNQ() {
-
+        Scalar norm = m_normQ.norm();
+        m_quaternion = typename Kernel::Quaternion(m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm, norm);
     };
 
     void calculate() {
 
-        typename Kernel::number_type norm = m_normQ.norm(), cn = std::cos(norm), sn = std::sin(norm);
+        //get the Quaternion for the norm quaternion form and calculate the rotation matrix
+        Scalar norm = m_normQ.norm();
 
-        //typename Kernel::Quaternion Q;
+        typename Kernel::Quaternion Q(m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm, norm);
         if(Kernel::isSame(norm, 0)) {
-
+            Q.setIdentity();
+            m_rotation.setIdentity();
+            m_diffrot.setZero();
+            return;
         };
-        typename Kernel::Quaternion Q(sn*m_normQ(0)/norm, sn*m_normQ(0)/norm, sn*m_normQ(0)/norm, cn*norm);
+
+        Q.normalize();
+        m_rotation = Q.toRotationMatrix();
+
+        /* now calculate the gradient quaternions and calculate the diff rotation matrices
+         * normQ = (a,b,c)
+         * sn0 = ||normQ||^2, n0 = ||normQ||
+         *
+         * Q = (a/n0, b/n0, c/n0, n0)
+         * ||Q|| = n = 1/n0 * sqrt( a^2+b^2+c^2+sn0^2 )
+         * n2 = sqrt( a^2+b^2+c^2+sn0^2 )
+         *
+         * unit Quaternion uQ = (x y z w) = (a/(n0*n), b/(n0*n), c/(n0*n), n0/n)
+         * uQ = (a/n2, b/n2, c/n2, sn0/n2)
+         */
+
+        const Scalar sn0 = m_normQ.squaredNorm();
+        const Scalar n0 = std::sqrt(sn0);
+        const Scalar n2 = std::sqrt(sn0 + std::pow(sn0, 2));
+
+        // d(1/n2)/dx and dy and dz
+        const Scalar ddn2 = -(1+2*sn0)/std::pow(n2,3);
+        const Scalar n2_dda = m_normQ(0)*ddn2;
+        const Scalar n2_ddb = m_normQ(1)*ddn2;
+        const Scalar n2_ddc = m_normQ(2)*ddn2;
+
+        //dxa = da/dx
+        const Scalar dxa = 1/n2 + m_normQ(0)*n2_dda;
+        const Scalar dxb = m_normQ(0)*n2_ddb;
+        const Scalar dxc = m_normQ(0)*n2_ddc;
+
+        const Scalar dya = m_normQ(1)*n2_dda;
+        const Scalar dyb = 1/n2 + m_normQ(1)*n2_ddb;
+        const Scalar dyc = m_normQ(1)*n2_ddc;
+
+        const Scalar dza = m_normQ(2)*n2_dda;
+        const Scalar dzb = m_normQ(2)*n2_ddb;
+        const Scalar dzc = 1/n2 + m_normQ(2)*n2_ddc;
+
+        const Scalar dwa = 2*m_normQ(0)/n2 + sn0*n2_dda;
+        const Scalar dwb = 2*m_normQ(1)/n2 + sn0*n2_ddb;
+        const Scalar dwc = 2*m_normQ(2)/n2 + sn0*n2_ddc;
+
+        //write in the diffrot matrix, starting with duQ/dx
+        m_diffrot(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
+        m_diffrot(0,1) = -2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
+        m_diffrot(0,2) = 2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
+        m_diffrot(1,0) = 2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
+        m_diffrot(1,1) = -4.0*(Q.x()*dxa+Q.z()*dza);
+        m_diffrot(1,2) = -2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
+        m_diffrot(2,0) = -2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
+        m_diffrot(2,1) = 2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
+        m_diffrot(2,2) = -4.0*(Q.x()*dxa+Q.y()*dya);
+
+        m_diffrot(0,3) = -4.0*(Q.y()*dyb+Q.z()*dzb);
+        m_diffrot(0,4) = -2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
+        m_diffrot(0,5) = 2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
+        m_diffrot(1,3) = 2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
+        m_diffrot(1,4) = -4.0*(Q.x()*dxb+Q.z()*dzb);
+        m_diffrot(1,5) = -2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
+        m_diffrot(2,3) = -2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
+        m_diffrot(2,4) = 2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
+        m_diffrot(2,5) = -4.0*(Q.x()*dxb+Q.y()*dyb);
+
+        m_diffrot(0,6) = -4.0*(Q.y()*dyc+Q.z()*dzc);
+        m_diffrot(0,7) = -2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
+        m_diffrot(0,8) = 2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
+        m_diffrot(1,6) = 2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
+        m_diffrot(1,7) = -4.0*(Q.x()*dxc+Q.z()*dzc);
+        m_diffrot(1,8) = -2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
+        m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
+        m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
+        m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
 
     };
 };
@@ -116,6 +193,7 @@ struct Module3D {
         struct MES  : public Sys::Kernel::MappedEquationSystem {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
+	    Cluster& m_cluster;
 
             MES(Cluster& cl, int par, int eqn) : Sys::Kernel::MappedEquationSystem(par, eqn),
                 m_cluster(cl) {};
@@ -126,8 +204,6 @@ struct Module3D {
             virtual void recalculateJacobi() {
 
             }
-
-            Cluster& m_cluster;
         };
 
         struct SystemSolver : public Job<Sys> {
@@ -205,8 +281,9 @@ struct Module3D {
         //type erasure container for constraints
         class Constraint3D : public Object<Sys, Constraint3D, mpl::map<> > {
 
-        public:
+            typedef typename system_traits<Sys>::Kernel::number_type Scalar;
 
+        public:
             Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
                 first(f), second(s), content(0) {
 
@@ -227,12 +304,11 @@ struct Module3D {
                 content = creator.p;
             };
 
-            double calculate() {
+            Scalar calculate() {
                 return content->calculate(first->m_storage, second->m_storage);
             };
 
         protected:
-
             void geometryReset(Geom g) {
                 placeholder* p = content->resetConstraint(first, second);
                 delete content;
@@ -242,7 +318,7 @@ struct Module3D {
             struct placeholder  {
 
                 virtual ~placeholder() {}
-                virtual double calculate(Storage&, Storage&) const = 0;
+                virtual Scalar calculate(Storage&, Storage&) const = 0;
                 virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
             };
 
@@ -252,7 +328,7 @@ struct Module3D {
                 holder(const T1<T2,T3> & value)
                     : held(value)   {}
 
-                virtual double calculate(Storage& f, Storage& s) const {
+                virtual Scalar calculate(Storage& f, Storage& s) const {
                     return held.calculate(f,s);
                 };
 
@@ -264,7 +340,6 @@ struct Module3D {
 
                 T1<T2,T3>  held;
             };
-
 
             template<template<typename, typename> class T>
             struct creator : public boost::static_visitor<void> {
@@ -317,11 +392,11 @@ struct Module3D {
             Sys* m_this;
         };
 
-        /*
-            struct dof_prop {
-                typedef edge_property kind;
-                typedef Dof<typename Sys::Kernel, Cons> type;
-            };*/
+
+        struct math_prop {
+            typedef cluster_property kind;
+            typedef details::ClusterMath<Sys> type;
+        };
         struct vertex_prop {
             typedef Geometry3D kind;
             typedef GlobalVertex type;
@@ -331,10 +406,10 @@ struct Module3D {
             typedef GlobalEdge type;
         };
 
-        typedef mpl::vector<vertex_prop, edge_prop>  properties;
+        typedef mpl::vector<vertex_prop, edge_prop, math_prop>  properties;
 
         static void system_init(Sys& sys) {
-            sys.m_sheduler.addPreprocessJob(SystemSolver());
+            sys.m_sheduler.addProcessJob(SystemSolver());
         };
     };
 };
