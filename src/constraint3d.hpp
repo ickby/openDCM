@@ -26,6 +26,10 @@ template<typename T1, typename T2>
 struct Coincident3D {
 
     //TODO: throw as someone called a unsupported geometry combination with this constraint
+};
+
+template<>
+struct Coincident3D<tag_point, tag_point> {
 
     template<typename Kernel>
     typename Kernel::number_type calculate(typename Kernel::VectorMap& param1,
@@ -50,16 +54,6 @@ struct Coincident3D {
     void calculateSecondGradient(typename Kernel::VectorMap& param1,
                                  typename Kernel::VectorMap& param2,
                                  typename Kernel::VectorMap& grad) const {};
-
-};
-
-template<>
-struct Coincident3D<tag_point, tag_point> {
-
-    template<typename Kernel>
-    typename Kernel::number_type calculate(typename Kernel::VectorMap& v1, typename Kernel::VectorMap& v2) const {
-        return 7;
-    };
 
 };
 

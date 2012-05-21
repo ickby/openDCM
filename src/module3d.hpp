@@ -64,18 +64,25 @@ private:
 
     typename Kernel::Matrix3	m_rotation;
     typename Kernel::Matrix39 	m_diffrot;
+    typename Kernel::Vector3Map m_translation;
     typename Kernel::Quaternion	m_quaternion;
     typename Kernel::Vector3Map	m_normQ;
 
 public:
-    ClusterMath() : m_normQ(NULL) {};
+    ClusterMath() : m_normQ(NULL), m_translation(NULL) {};
 
     void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
         new(&map) typename Kernel::Matrix3Map(&m_rotation(0,0),3,3);
         new(&diffmap) typename Kernel::Matrix39Map(&m_diffrot(0,0));
     };
+    void setTranslationMap(typename Kernel::Vector3Map& map) {
+        new(&map) typename Kernel::Vector3Map(&m_translation(0));
+    };
 
     typename Kernel::Vector3Map& getNormQuaternionMap() {
+        return m_normQ;
+    };
+    typename Kernel::Vector3Map& getTranslationMap() {
         return m_normQ;
     };
     typename Kernel::Quaternion& getQuaternion() {
@@ -258,12 +265,12 @@ struct Module3D {
                 std::pair<iter, iter>  it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {
 
-                    if(cluster.isCluster(*it.first)) parameters += 3;
+                    if(cluster.isCluster(*it.first)) parameters += 6;
                     else {
-		      parameters += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
-		    };
+                        parameters += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
+                    };
                 }
- 
+
                 typedef typename boost::graph_traits<Cluster>::edge_iterator e_iter;
                 std::pair<e_iter, e_iter>  e_it = boost::edges(cluster);
                 for(; e_it.first != e_it.second; e_it.first++)
@@ -281,13 +288,15 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         details::ClusterMath<Sys>& cm =  c.template getClusterProperty<math_prop>();
                         mes.setParameterMap(offset, cm.getNormQuaternionMap());
+                        //set translation as map to the parameter vector
+                        mes.setParameterMap(offset+3, cm.getTranslationMap());
 
                         //map all geometrie within that cluster to it's rotation matrix
                         std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
                         vec.clear();
                         mapClusterDownstreamGeometry(c, cm, vec);
 
-                        offset += 3;
+                        offset += 6;
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
                         mes.setParameterMap(offset, g->m_parameterCount, g->getParameterMap());
@@ -297,8 +306,9 @@ struct Module3D {
                 }
                 //and now the constraints to set the residual and gradient maps
                 typedef typename Cluster::template object_iterator<Constraint3D> oiter;
-                std::pair<e_iter, e_iter>  eit = boost::edges(cluster);
+                e_it = boost::edges(cluster);
                 for(; e_it.first != e_it.second; e_it.first++) {
+
 
                     //as always: every local edge can hold multiple global ones, so iterate over all constraints
                     //hold by the individual edge
@@ -318,11 +328,11 @@ struct Module3D {
                 }
 
                 std::cout<<"Residual bevore solving: "<<mes.Residual.norm()<<std::endl;
-		
+
                 //now it's time to solve
                 Kernel::solve(mes);
-		
-		std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+
+                std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
             };
 
             void mapClusterDownstreamGeometry(Cluster& cluster, details::ClusterMath<Sys>& cm, std::vector<Geom>& vec) {
@@ -336,8 +346,12 @@ struct Module3D {
                     if(g) {
                         //allow iteration over all maped geometries
                         vec.push_back(g);
-                        //map rotation an diffrotation from cluster to geometry
+                        //map rotation and diffrotation from cluster to geometry
                         cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
+                        //map translation from cluster to geometry
+                        cm.setTranslationMap(g->getTranslationMap());
+
+                        g->setClusterMode(true);
                     }
                 }
 
@@ -361,10 +375,10 @@ struct Module3D {
             template<typename T>
             Geometry3D(T geometry, Sys& system) : base(system), m_isInCluster(false),
                 m_geometry(geometry), m_parameterCount(geometry_traits<T>::tag::parameters::value),
-                m_rotation(NULL), m_parameter(NULL,0,DS(0,0)), m_diffrot(NULL)  {
-		  
-		  //TODO: write initial values into m_original
-		};
+                m_rotation(NULL), m_parameter(NULL,0,DS(0,0)), m_diffrot(NULL), m_translation(NULL)  {
+
+                //TODO: write initial values into m_original
+            };
 
 
             template<typename T>
@@ -381,24 +395,28 @@ struct Module3D {
             typename Sys::Kernel::Vector      m_original, m_value;
             typename Sys::Kernel::Matrix3     m_diffparam;
             typename Sys::Kernel::VectorMap   m_parameter;
+            typename Sys::Kernel::Vector3Map  m_translation;
             typename Sys::Kernel::Matrix3Map  m_rotation;
             typename Sys::Kernel::Matrix39Map m_diffrot;
 
             typename Sys::Kernel::VectorMap& getParameterMap() {
                 m_isInCluster = false;
-		//TODO: write initial values into m_parameter
+                //TODO: write initial values into m_parameter
                 return m_parameter;
             }
-            typename Sys::Kernel::Matrix3Map& getRotationMap() {
+            typename Sys::Kernel::Matrix3Map&  getRotationMap() {
                 return m_rotation;
             };
             typename Sys::Kernel::Matrix39Map& getDiffRotationMap() {
                 return m_diffrot;
             };
+            typename Sys::Kernel::Vector3Map&  getTranslationMap() {
+                return m_translation;
+            };
 
-            void setClusterMode() {
-                m_isInCluster = true;
-                new(&m_parameter) typename Sys::Kernel::VectorMap(m_value(0), m_parameterCount);
+            void setClusterMode(bool iscluster) {
+                m_isInCluster = iscluster;
+                if(iscluster) new(&m_parameter) typename Sys::Kernel::VectorMap(&m_value(0), m_parameterCount);
             }
             bool getClusterMode() {
                 return m_isInCluster;
@@ -408,6 +426,7 @@ struct Module3D {
                 if(!m_isInCluster) return;
 
                 //TODO: this only works for points, so find a way this will work with values longer than 3
+                //TODO: add translation gradient
                 m_value = m_rotation*m_original;
                 m_diffparam.block(0,0,3,1) = m_diffrot.block(0,0,3,3) * m_original;
                 m_diffparam.block(0,1,3,1) = m_diffrot.block(0,3,3,3) * m_original;
@@ -458,13 +477,22 @@ struct Module3D {
                 //first the residual (operator= doeas not work with scalars)
                 m_residual << content->calculate(first->m_parameter, second->m_parameter);
 
-                //now see which way we should calculate the gradient
+                //now see which way we should calculate the gradient (may be diffrent for both geometries)
                 if(first->getClusterMode()) {
                     //cluster mode, so we do a full calculation with all 3 diffparam vectors
                     std::cout<<"test"<<std::endl;
                     pretty(m_diffFirst.block(0,0,1,1));
                 } else {
-
+                    //not in cluster, so allow the constraint to optimize the gradient calculation
+                    content->calculateFirstGradient(first->m_parameter, second->m_parameter, m_diffFirst);
+                }
+                if(second->getClusterMode()) {
+                    //cluster mode, so we do a full calculation with all 3 diffparam vectors
+                    std::cout<<"test"<<std::endl;
+                    pretty(m_diffFirst.block(0,0,1,1));
+                } else {
+                    //not in cluster, so allow the constraint to optimize the gradient calculation
+                    content->calculateFirstGradient(first->m_parameter, second->m_parameter, m_diffSecond);
                 }
 
             };
@@ -478,8 +506,21 @@ struct Module3D {
             struct placeholder  {
 
                 virtual ~placeholder() {}
-                virtual Scalar calculate(typename Kernel::VectorMap&, typename Kernel::VectorMap&) const = 0;
                 virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
+
+                virtual Scalar calculate(typename Kernel::VectorMap&, typename Kernel::VectorMap&) const = 0;
+                virtual Scalar calculateFirstFullGradient(typename Kernel::VectorMap& param1,
+                        typename Kernel::VectorMap& param2,
+                        typename Kernel::VectorMap& diffparam) = 0;
+                virtual Scalar calculateSecondFullGradient(typename Kernel::VectorMap& param1,
+                        typename Kernel::VectorMap& param2,
+                        typename Kernel::VectorMap& diffparam) = 0;
+                virtual void calculateFirstGradient(typename Kernel::VectorMap& param1,
+                                                    typename Kernel::VectorMap& param2,
+                                                    typename Kernel::VectorMap& grad) = 0;
+                virtual void calculateSecondGradient(typename Kernel::VectorMap& param1,
+                                                     typename Kernel::VectorMap& param2,
+                                                     typename Kernel::VectorMap& grad) = 0;
             };
 
             template< template<typename,typename> class T1, typename T2, typename T3>
@@ -490,6 +531,26 @@ struct Module3D {
 
                 virtual Scalar calculate(typename Kernel::VectorMap& f, typename Kernel::VectorMap& s) const {
                     return held.template calculate<Kernel>(f,s);
+                };
+                virtual Scalar calculateFirstFullGradient(typename Kernel::VectorMap& param1,
+                        typename Kernel::VectorMap& param2,
+                        typename Kernel::VectorMap& diffparam) {
+                    return held.template calculateSecondFullGradient<Kernel>(param1, param2, diffparam);
+                };
+                virtual Scalar calculateSecondFullGradient(typename Kernel::VectorMap& param1,
+                        typename Kernel::VectorMap& param2,
+                        typename Kernel::VectorMap& diffparam) {
+                    return held.template calculateSecondFullGradient<Kernel>(param1, param2, diffparam);
+                };
+                virtual void calculateFirstGradient(typename Kernel::VectorMap& param1,
+                                                    typename Kernel::VectorMap& param2,
+                                                    typename Kernel::VectorMap& grad) {
+                    held.template calculateFirstGradient<Kernel>(param1, param2, grad);
+                };
+                virtual void calculateSecondGradient(typename Kernel::VectorMap& param1,
+                                                     typename Kernel::VectorMap& param2,
+                                                     typename Kernel::VectorMap& grad) {
+                    held.template calculateSecondGradient<Kernel>(param1, param2, grad);
                 };
 
                 virtual placeholder* resetConstraint(Geom first, Geom second) const {
@@ -549,6 +610,7 @@ struct Module3D {
                 fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
                 res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
                                                 second->template getProperty<vertex_prop>());
+                m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<0> (res), c);
                 c->template setProperty<edge_prop>(fusion::at_c<1>(res));
                 m_this->template objectVector<Constraint3D>().push_back(c);
                 return c;
