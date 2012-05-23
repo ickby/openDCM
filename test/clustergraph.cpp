@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "clustergraph.hpp"
-#include "property.hpp"
+#include "opendcm/core/clustergraph.hpp"
+#include "opendcm/core/property.hpp"
 
 #include <boost/fusion/sequence.hpp>
 #include <boost/mpl/vector.hpp>

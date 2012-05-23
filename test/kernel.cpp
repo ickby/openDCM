@@ -17,7 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "kernel.hpp"
+#include "opendcm/Core"
+
 #include <iostream>
 
 #include <boost/test/unit_test.hpp>
@@ -74,6 +75,9 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 
 };
 
+struct test {
+  double x,y,z;};
+
 BOOST_AUTO_TEST_CASE(kernel_mapping) {
 
     typedef typename kernel::Matrix 	test_type;
@@ -111,6 +115,13 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK( v3(1) == v3m(1) );
     BOOST_CHECK( v3(2) == v3m(2) );
     
+    std::vector<double> t;
+    t.push_back(1);
+    t.push_back(2);
+    t.push_back(3);
+    typename kernel::Vector3Map tm(&t[0]);
+    
+    std::cout<<tm<<std::endl;
 };
 
 BOOST_AUTO_TEST_CASE(kernel_dogleg) {

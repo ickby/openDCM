@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "kernel.hpp"
-#include "dof.hpp"
+#include "opendcm/core/kernel.hpp"
+#include "opendcm/module3d/dof.hpp"
 
 #include <boost/test/unit_test.hpp>
 

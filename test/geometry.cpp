@@ -18,13 +18,10 @@
 */
 
 #include "opendcm/Core"
-#include "opendcm/Module3D"
-
-#include <time.h>
-#include <iostream>
-#include <iomanip>
 
 #include <boost/test/unit_test.hpp>
+
+
 
 struct point {};
 
@@ -38,31 +35,14 @@ struct geometry_traits<point> {
 
 using namespace dcm;
 
-BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
+BOOST_AUTO_TEST_SUITE(Geometry_test_suit);
 
 
-BOOST_AUTO_TEST_CASE(initialising) {
+BOOST_AUTO_TEST_CASE(geometry_tag_rotation) {
+  
 
-    typedef dcm::Kernel<double> Kernel;
-    typedef Module3D< mpl::vector<point> > Module;
-    typedef System<Kernel, Module::type> System;
-    System sys;
-    typedef typename Module::type<System>::Geometry3D geom;
-    typedef boost::shared_ptr<geom> geom_ptr;
-
-    typedef typename Module::type<System>::Constraint3D cons;
-    typedef boost::shared_ptr<cons> cons_ptr;
-
-    geom_ptr g1 = sys.createGeometry3D(point());
-    geom_ptr g2 = sys.createGeometry3D(point());
-
-    cons_ptr c = sys.createConstraint3D<Coincident3D>(g1, g2);
-    
-    std::cout<<"solve system!"<<std::endl;
-    sys.solve();
-    
-
-    
+  
 }
+
 
 BOOST_AUTO_TEST_SUITE_END();
