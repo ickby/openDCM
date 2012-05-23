@@ -191,7 +191,7 @@ struct Kernel {
     typedef E::Quaternion<Scalar>   Quaternion;
     typedef E::Matrix<Scalar, 3, 9> Matrix39;
     typedef E::Map< Matrix39 >      Matrix39Map;
-    typedef E::Block<Matrix39>	    Matrix39Block;
+    typedef E::Block<Matrix>	    MatrixBlock;
 
     struct MappedEquationSystem {
 

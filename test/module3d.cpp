@@ -26,13 +26,15 @@
 
 #include <boost/test/unit_test.hpp>
 
-struct point {};
+struct point : std::vector<double> {};
 
 namespace dcm {
 
 template<>
 struct geometry_traits<point> {
-    typedef tag_point3D tag;
+    typedef tag::point3D tag;
+    typedef modell::XYZ modell;
+    typedef orderd_bracket_accessor accessor;
 };
 }
 
@@ -41,7 +43,7 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 
-BOOST_AUTO_TEST_CASE(initialising) {
+BOOST_AUTO_TEST_CASE(module3d_initialising) {
 
     typedef dcm::Kernel<double> Kernel;
     typedef Module3D< mpl::vector<point> > Module;
@@ -60,8 +62,6 @@ BOOST_AUTO_TEST_CASE(initialising) {
     
     std::cout<<"solve system!"<<std::endl;
     sys.solve();
-    
-
     
 }
 

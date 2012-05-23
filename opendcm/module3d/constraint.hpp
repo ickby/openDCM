@@ -20,41 +20,95 @@
 #ifndef DCM_CONSTRAINT3D_H
 #define DCM_CONSTRAINT3D_H
 
+#include "geometry.hpp"
+
 namespace dcm {
 
-template<typename T1, typename T2>
+
+template<typename Kernel, typename Tag1, typename Tag2>
 struct Coincident3D {
 
-    //TODO: throw as someone called a unsupported geometry combination with this constraint
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    Scalar calculate(Vector& param1,  Vector& param2)  {
+        /*TODO:assert*/
+    };
+
+    Scalar calculateFirstFullGradient(Vector& param1,  Vector& param2, Vector& diffparam) {
+        /*TODO:assert*/
+    };
+
+    Scalar calculateSecondFullGradient(Vector& param1,  Vector& param2, Vector& diffparam)  {
+        /*TODO:assert*/
+    };
+
+    void calculateFirstGradient(Vector& param1,  Vector& param2, Vector& grad) {
+        /*TODO:assert*/
+    };
+
+    void calculateSecondGradient(Vector& param1,  Vector& param2, Vector& grad) {
+        /*TODO:assert*/
+    };
+
 };
 
-template<>
-struct Coincident3D<tag_point3D, tag_point3D> {
 
-    template<typename Kernel>
-    typename Kernel::number_type calculate(typename Kernel::VectorMap& param1,
-                                           typename Kernel::VectorMap& param2) const {};
+template< typename Kernel, typename Tag1, typename Tag2 >
+struct Distance3D {
 
-    template<typename Kernel>
-    typename Kernel::number_type calculateFirstFullGradient(typename Kernel::VectorMap& param1,
-            typename Kernel::VectorMap& param2,
-            typename Kernel::VectorMap& diffparam) const {};
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
 
-    template<typename Kernel>
-    typename Kernel::number_type calculateSecondFullGradient(typename Kernel::VectorMap& param1,
-            typename Kernel::VectorMap& param2,
-            typename Kernel::VectorMap& diffparam) const {};
+    //template definition
+    Scalar calculate(Vector& param1,  Vector& param2) {
+        /*TODO:assert*/
+    };
 
-    template<typename Kernel>
-    void calculateFirstGradient(typename Kernel::VectorMap& param1,
-                                typename Kernel::VectorMap& param2,
-                                typename Kernel::VectorMap& grad) const {};
+    Scalar calculateFirstFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+        /*TODO:assert*/
+    };
 
-    template<typename Kernel>
-    void calculateSecondGradient(typename Kernel::VectorMap& param1,
-                                 typename Kernel::VectorMap& param2,
-                                 typename Kernel::VectorMap& grad) const {};
+    Scalar calculateSecondFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+        /*TODO:assert*/
+    };
 
+    void calculateFirstGradient(Vector& param1, Vector& param2, Vector& grad) {
+        /*TODO:assert*/
+    };
+
+    void calculateSecondGradient(Vector& param1, Vector& param2, Vector& grad) {
+        /*TODO:assert*/
+    };
+};
+
+template< typename Kernel >
+struct Distance3D< Kernel, tag::point3D, tag::point3D > {
+
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    //template definition
+    Scalar calculate(Vector& param1,  Vector& param2) {
+
+    };
+
+    Scalar calculateFirstFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+
+    };
+
+    Scalar calculateSecondFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+
+    };
+
+    void calculateFirstGradient(Vector& param1, Vector& param2, Vector& grad) {
+
+    };
+
+    void calculateSecondGradient(Vector& param1, Vector& param2, Vector& grad) {
+
+    };
+   
 };
 
 }

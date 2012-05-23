@@ -29,6 +29,10 @@
 #include <boost/mpl/assert.hpp>
 #include <boost/mpl/fold.hpp>
 #include <boost/mpl/set.hpp>
+#include <boost/mpl/less.hpp>
+#include <boost/mpl/or.hpp>
+#include <boost/mpl/not.hpp>
+#include <boost/mpl/bool.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
@@ -46,6 +50,14 @@ struct undefined {
     typedef mpl::int_<0> parameters;
     typedef mpl::int_<0> transformations;
 };
+
+//we nee to order tags, this base make it easy for module tags
+namespace weight {
+struct undefined : mpl::int_<0> {};
+struct point : mpl::int_<1> {};
+struct line  : mpl::int_<2> {};
+struct plane : mpl::int_<3> {};
+}
 }
 
 namespace modell {
@@ -54,57 +66,63 @@ struct undefined {
     void transform(T& t, Res& r) {};
 };
 }
-struct tag_point3D  {
-    typedef mpl::int_<3> parameters;
-    typedef mpl::int_<1> transformations;
-};
-struct tag_line3D  {
-    typedef mpl::int_<6> parameters;
-    typedef mpl::int_<2> transformations;
-};
-struct tag_plane  {
-    typedef mpl::int_<6> parameters;
-    typedef mpl::int_<2> transformations;
-};
 
-
-
-/*
-struct orderd_bracket_accessor3D {
-
-    template<typename Kernel, typename T>
-    typename Kernel::number_type get(T& t, access id) {
-        return t[id];
+struct accessor_undefined {
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T&) {
+        return ID;
     };
-    template<typename Kernel, typename T>
-    void set(typename Kernel::number_type value, T& t, access id) {
-        t[id] = value;
-    };
+    template<typename Scalar, int ID, typename T>
+    void set(Scalar,T&) {};
 };
 
-struct orderd_roundbracket_accessor3D {
+struct orderd_bracket_accessor {
 
-    template<typename Scalar, int access, typename T>
+    template<typename Scalar, int ID, typename T>
     Scalar get(T& t) {
-        return t(access);
+        return t[ID];
     };
-    template<typename Scalar, int access,  typename T>
+    template<typename Scalar, int ID, typename T>
     void set(Scalar value, T& t) {
-        t(id) = value;
+        t[ID] = value;
     };
-};*/
+};
+
+struct orderd_roundbracket_accessor {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        return t(ID);
+    };
+    template<typename Scalar, int ID,  typename T>
+    void set(Scalar value, T& t) {
+        t(ID) = value;
+    };
+};
+
+//tag ordering
+template<typename T1, typename T2>
+struct tag_order {
+
+    BOOST_MPL_ASSERT((mpl::not_< mpl::or_<
+                      boost::is_same< typename T1::weight, mpl::int_<0> >,
+                      boost::is_same< typename T2::weight, mpl::int_<0> >  >  >));
+
+    typedef mpl::less<typename T1::weight, typename T2::weight> swapt;
+    typedef mpl::if_<swapt, T2, T1> first_tag;
+    typedef mpl::if_<swapt, T1, T2> second_tag;
+};
+
+
+//template<typename T1, typename T2>
+//struct type_order : public tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > {};
 
 template< typename T>
 struct geometry_traits {
     typedef tag::undefined 	tag;
     typedef modell::undefined 	modell;
+    typedef accessor_undefined  accessor;
 
-};
-
-//metafunction to get the tag of a special geometry
-template<typename t>
-struct get_tag {
-    typedef typename geometry_traits<t>::tag type;
 };
 
 }
