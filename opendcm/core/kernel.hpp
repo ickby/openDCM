@@ -38,18 +38,21 @@ struct Dogleg {
 
     bool solve(typename Kernel::MappedEquationSystem& sys) {
 
+        if(!sys.isValid()) return false;
+
         number_type tolg=1e-80, tolx=1e-80, tolf=1e-10;
 
         typename Kernel::Vector g(sys.m_params), h_sd(sys.m_params),
                  h_gn(sys.m_params), h_dl(sys.m_params), F_old(sys.m_eqns);
-	typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
+        typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
         sys.recalculate();
 
         number_type err = sys.Residual.norm();
 
         F_old = sys.Residual;
-        g = sys.Jacobi.transpose()*(-sys.Residual);
+        J_old = sys.Jacobi;
+        g = sys.Jacobi.transpose()*(sys.Residual);
 
         // get the infinity norm fx_inf and g_inf
         number_type g_inf = g.template lpNorm<E::Infinity>();
@@ -76,37 +79,42 @@ struct Dogleg {
             else if(err > diverging_lim || err != err) {  // check for diverging and NaN
                 stop = 6;
             } else {
-                // get the steepest descent direction
+
+                // get the steepest descent stepsize and direction
                 alpha = g.squaredNorm()/(sys.Jacobi*g).squaredNorm();
-                h_sd  = alpha*g;
+                h_sd  = -g;
 
                 // get the gauss-newton step
                 h_gn = sys.Jacobi.fullPivLu().solve(-sys.Residual);
 
                 // compute the dogleg step
-                if(h_gn.norm() < delta) {
+                if(h_gn.norm() <= delta) {
                     h_dl = h_gn;
                     if(h_dl.norm() <= tolx*(tolx + sys.Parameter.norm())) {
                         stop = 5;
                         break;
                     }
-                } else if(alpha*g.norm() >= delta) {
-                    h_dl = (delta/(alpha*g.norm()))*h_sd;
+                } else if((alpha*h_sd).norm() >= delta) {
+                    h_dl = alpha*h_sd;
+		    //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
+		    //wir gehen aber den klassichen steepest descent weg
                 } else {
                     //compute beta
                     number_type beta = 0;
-                    Eigen::VectorXd b = h_gn - h_sd;
-                    number_type bb = (b.transpose()*b).norm();
-                    number_type gb = (h_sd.transpose()*b).norm();
-                    number_type c = (delta + h_sd.norm())*(delta - h_sd.norm());
-
-                    if(gb > 0)
-                        beta = c / (gb + sqrt(gb * gb + c * bb));
-                    else
-                        beta = (sqrt(gb * gb + c * bb) - gb)/bb;
+                    typename Kernel::Vector a = alpha*h_sd;
+                    typename Kernel::Vector b = h_gn;
+                    number_type c = a.transpose()*(b-a);
+                    number_type bas = (b-a).squaredNorm(), as = a.squaredNorm();
+                    if(c<0) {
+                        beta = -c+std::sqrt(std::pow(c,2)+bas*(std::pow(delta,2)-as));
+                        beta /= bas;
+                    } else {
+                        beta = std::pow(delta,2)-as;
+                        beta /= c+std::sqrt(std::pow(c,2) + bas*(std::pow(delta,2)-as));
+                    };
 
                     // and update h_dl and dL with beta
-                    h_dl = h_sd + beta*b;
+                    h_dl = alpha*h_sd + beta*(b-a);
                 }
             }
 
@@ -124,16 +132,16 @@ struct Dogleg {
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
             number_type dF = err - err_new;
-            number_type rho = dL/dF;
+            number_type rho = dF/dL;
 
             if(dF > 0 && dL > 0) {
 
                 F_old = sys.Residual;
-		J_old = sys.Jacobi;
+                J_old = sys.Jacobi;
 
                 err = err_new;
 
-                g = sys.Jacobi.transpose()*(-sys.Residual);
+                g = sys.Jacobi.transpose()*(sys.Residual);
 
                 // get infinity norms
                 g_inf = g.template lpNorm<E::Infinity>();
@@ -141,23 +149,19 @@ struct Dogleg {
 
             } else {
                 sys.Residual = F_old;
-		sys.Jacobi = F_old;
+                sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
                 rho = -1;
             }
 
             // update delta
-            if(fabs(rho-1.) < 0.2 && h_dl.norm() > delta/3. && reduce <= 0) {
-                delta = 3*delta;
+            if(rho>0.75) {
+                delta = std::max(delta,3*h_dl.norm());
                 nu = 2;
-                reduce = 0;
             } else if(rho < 0.25) {
                 delta = delta/nu;
                 nu = 2*nu;
-                reduce = 2;
-            } else
-                reduce--;
-
+            } 
             // count this iteration and start again
             iter++;
         }
@@ -182,7 +186,7 @@ struct Kernel {
     typedef E::Stride<E::Dynamic, E::Dynamic> DynStride;
     typedef E::Map< Vector3 > Vector3Map;
     typedef E::Map< CVector3> CVector3Map;
-    typedef E::Map< Matrix3 > Matrix3Map;    
+    typedef E::Map< Matrix3 > Matrix3Map;
     typedef E::Map< Vector, 0, DynStride > VectorMap;
     typedef E::Map< CVector, 0, DynStride > CVectorMap;
     typedef E::Map< Matrix, 0, DynStride > MatrixMap;
@@ -206,7 +210,7 @@ struct Kernel {
         void setParameterMap(int offset, int number, VectorMap& map) {
             new(&map) VectorMap(&Parameter(offset), number, DynStride(1,1));
         };
-	void setParameterMap(int offset, Vector3Map& map) {
+        void setParameterMap(int offset, Vector3Map& map) {
             new(&map) Vector3Map(&Parameter(offset));
         };
         void setResidualMap(int eqn, VectorMap& map) {
@@ -217,6 +221,12 @@ struct Kernel {
         };
         void setJacobiMap(int eqn, int offset, int number, VectorMap& map) {
             new(&map) VectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
+        };
+
+        bool isValid() {
+            if(!m_params || !m_eqns) return false;
+
+            return true;
         };
 
         virtual void recalculate() = 0;

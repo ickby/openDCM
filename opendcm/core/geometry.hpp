@@ -108,9 +108,9 @@ struct tag_order {
                       boost::is_same< typename T1::weight, mpl::int_<0> >,
                       boost::is_same< typename T2::weight, mpl::int_<0> >  >  >));
 
-    typedef mpl::less<typename T1::weight, typename T2::weight> swapt;
-    typedef mpl::if_<swapt, T2, T1> first_tag;
-    typedef mpl::if_<swapt, T1, T2> second_tag;
+    typedef typename mpl::less<typename T2::weight, typename T1::weight>::type swapt;
+    typedef typename mpl::if_<swapt, T2, T1>::type first_tag;
+    typedef typename mpl::if_<swapt, T1, T2>::type second_tag;
 };
 
 

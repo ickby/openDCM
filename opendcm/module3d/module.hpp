@@ -264,13 +264,25 @@ struct Module3D {
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename system_traits<Sys>::Kernel Kernel;
 
+	    //visitor to write the calculated value into the variant
+            struct apply_visitor : public boost::static_visitor<void> {
+
+                apply_visitor(typename Kernel::Vector& v) : value(v) {};
+                template <typename T>
+                pointer operator()(T& t) const  {
+                    (typename geometry_traits<T>::modell()).template inject<Scalar,
+                    typename geometry_traits<T>::accessor >(t, value);
+                }
+                typename Kernel::Vector& value;
+            };
+
             SystemSolver() {
                 Job<Sys>::priority = 1000;
             };
 
             virtual void execute(Sys& sys) {
 
-                std::cout<<"Execute system solver"<<std::endl;
+
                 solveCluster(sys.m_cluster);
             };
 
@@ -349,12 +361,17 @@ struct Module3D {
                     }
                 }
 
+                //remove this for real calculus
+                mes.recalculate();
                 std::cout<<"Residual bevore solving: "<<mes.Residual.norm()<<std::endl;
 
                 //now it's time to solve
                 Kernel::solve(mes);
 
                 std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+		
+		//now go to all relevant geometries and write the values back
+		//TODO:write values into variants
             };
 
             void mapClusterDownstreamGeometry(Cluster& cluster, details::ClusterMath<Sys>& cm, std::vector<Geom>& vec) {
@@ -411,6 +428,11 @@ struct Module3D {
                 base::template emitSignal<reset> (base::shared_from_this());
             };
 
+            template<typename Visitor>
+            typename Visitor::result_type apply(Visitor& vis) {
+                return boost::apply_visitor(vis, m_geometry);
+            };
+
         protected:
             Variant m_geometry;
             int     m_parameterCount, m_parameterOffset, m_transformations;
@@ -444,7 +466,6 @@ struct Module3D {
 
             typename Sys::Kernel::VectorMap& getParameterMap() {
                 m_isInCluster = false;
-                //TODO: write initial values into m_parameter
                 return m_parameter;
             }
             typename Sys::Kernel::Matrix3Map&  getRotationMap() {
@@ -518,7 +539,7 @@ struct Module3D {
                 creator<T> creator;
                 boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
                 content = creator.p;
-		if(creator.need_swap) first.swap(second);
+                if(creator.need_swap) first.swap(second);
             };
 
         protected:
@@ -538,7 +559,7 @@ struct Module3D {
                     pretty(m_diffFirst.block(0,0,1,1));
                 } else {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
-                    content->calculateFirstGradient(first->m_parameter, second->m_parameter, m_diffFirst);
+                    content->calculateGradientFirstComplete(first->m_parameter, second->m_parameter, m_diffFirst);
                 }
                 if(second->getClusterMode()) {
                     //cluster mode, so we do a full calculation with all 6 diffparam vectors
@@ -546,7 +567,7 @@ struct Module3D {
                     pretty(m_diffFirst.block(0,0,1,1));
                 } else {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
-                    content->calculateFirstGradient(first->m_parameter, second->m_parameter, m_diffSecond);
+                    content->calculateGradientSecondComplete(first->m_parameter, second->m_parameter, m_diffSecond);
                 }
 
             };
@@ -563,18 +584,18 @@ struct Module3D {
                 virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
 
                 virtual Scalar calculate(typename Kernel::VectorMap&, typename Kernel::VectorMap&) = 0;
-                virtual Scalar calculateFirstFullGradient(typename Kernel::VectorMap& param1,
+                virtual Scalar calculateGradientFirst(typename Kernel::VectorMap& param1,
+                                                      typename Kernel::VectorMap& param2,
+                                                      typename Kernel::VectorMap& diffparam) = 0;
+                virtual Scalar calculateGradientSecond(typename Kernel::VectorMap& param1,
+                                                       typename Kernel::VectorMap& param2,
+                                                       typename Kernel::VectorMap& diffparam) = 0;
+                virtual void calculateGradientFirstComplete(typename Kernel::VectorMap& param1,
                         typename Kernel::VectorMap& param2,
-                        typename Kernel::VectorMap& diffparam) = 0;
-                virtual Scalar calculateSecondFullGradient(typename Kernel::VectorMap& param1,
+                        typename Kernel::VectorMap& grad) = 0;
+                virtual void calculateGradientSecondComplete(typename Kernel::VectorMap& param1,
                         typename Kernel::VectorMap& param2,
-                        typename Kernel::VectorMap& diffparam) = 0;
-                virtual void calculateFirstGradient(typename Kernel::VectorMap& param1,
-                                                    typename Kernel::VectorMap& param2,
-                                                    typename Kernel::VectorMap& grad) = 0;
-                virtual void calculateSecondGradient(typename Kernel::VectorMap& param1,
-                                                     typename Kernel::VectorMap& param2,
-                                                     typename Kernel::VectorMap& grad) = 0;
+                        typename Kernel::VectorMap& grad) = 0;
             };
 
             template< template<typename, typename, typename> class T1, typename T2, typename T3>
@@ -586,31 +607,31 @@ struct Module3D {
                 virtual Scalar calculate(typename Kernel::VectorMap& f, typename Kernel::VectorMap& s) {
                     return held.calculate(f,s);
                 };
-                virtual Scalar calculateFirstFullGradient(typename Kernel::VectorMap& param1,
+                virtual Scalar calculateGradientFirst(typename Kernel::VectorMap& param1,
+                                                      typename Kernel::VectorMap& param2,
+                                                      typename Kernel::VectorMap& diffparam) {
+                    return held.calculateGradientFirst(param1, param2, diffparam);
+                };
+                virtual Scalar calculateGradientSecond(typename Kernel::VectorMap& param1,
+                                                       typename Kernel::VectorMap& param2,
+                                                       typename Kernel::VectorMap& diffparam) {
+                    return held.calculateGradientSecond(param1, param2, diffparam);
+                };
+                virtual void calculateGradientFirstComplete(typename Kernel::VectorMap& param1,
                         typename Kernel::VectorMap& param2,
-                        typename Kernel::VectorMap& diffparam) {
-                    return held.calculateSecondFullGradient(param1, param2, diffparam);
+                        typename Kernel::VectorMap& grad) {
+                    held.calculateGradientFirstComplete(param1, param2, grad);
                 };
-                virtual Scalar calculateSecondFullGradient(typename Kernel::VectorMap& param1,
+                virtual void calculateGradientSecondComplete(typename Kernel::VectorMap& param1,
                         typename Kernel::VectorMap& param2,
-                        typename Kernel::VectorMap& diffparam) {
-                    return held.calculateSecondFullGradient(param1, param2, diffparam);
-                };
-                virtual void calculateFirstGradient(typename Kernel::VectorMap& param1,
-                                                    typename Kernel::VectorMap& param2,
-                                                    typename Kernel::VectorMap& grad) {
-                    held.calculateFirstGradient(param1, param2, grad);
-                };
-                virtual void calculateSecondGradient(typename Kernel::VectorMap& param1,
-                                                     typename Kernel::VectorMap& param2,
-                                                     typename Kernel::VectorMap& grad) {
-                    held.calculateSecondGradient(param1, param2, grad);
+                        typename Kernel::VectorMap& grad) {
+                    held.calculateGradientSecondComplete(param1, param2, grad);
                 };
 
                 virtual placeholder* resetConstraint(Geom first, Geom second) const {
                     creator<T1> creator;
                     boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
-		    if(creator.need_swap) first.swap(second);
+                    if(creator.need_swap) first.swap(second);
                     return creator.p;
                 };
 
@@ -622,13 +643,13 @@ struct Module3D {
 
                 template<typename T1, typename T2>
                 void operator()(const T1&, const T2&) {
-		    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
+                    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
                     typedef T<Kernel, typename order::first_tag, typename order::second_tag > type;
                     p = new holder< T, typename order::first_tag, typename order::second_tag > (type());
-		    need_swap = order::swapt::value;
+                    need_swap = order::swapt::value;
                 };
                 placeholder* p;
-		bool need_swap;
+                bool need_swap;
             };
 
             placeholder* content;
@@ -705,6 +726,44 @@ struct Module3D {
     };
 };
 
+namespace details {
+//allow direct access to the stored geometry in a Geometry3D, copyed from boost variant get
+template <typename T>
+struct get_visitor {
+private:
+
+    typedef typename boost::add_pointer<T>::type pointer;
+    typedef typename boost::add_reference<T>::type reference;
+
+public:
+
+    typedef pointer result_type;
+
+public:
+    pointer operator()(reference operand) const   {
+        return boost::addressof(operand);
+    }
+
+    template <typename U>
+    pointer operator()(const U&) const  {
+        return static_cast<pointer>(0);
+    }
+};
+}
+
+template<typename T, typename G>
+typename boost::add_reference<T>::type get(G geom) {
+
+    typedef typename boost::add_pointer<T>::type T_ptr;
+    details::get_visitor<T> v;
+    T_ptr result = geom->apply(v);
+
+    //if (!result)
+    //TODO:throw bad_get();
+    return *result;
+};
+
 }
 
 #endif //DCM_GEOMETRY3D_H
+

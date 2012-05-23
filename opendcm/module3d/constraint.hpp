@@ -35,19 +35,19 @@ struct Coincident3D {
         /*TODO:assert*/
     };
 
-    Scalar calculateFirstFullGradient(Vector& param1,  Vector& param2, Vector& diffparam) {
+    Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
         /*TODO:assert*/
     };
 
-    Scalar calculateSecondFullGradient(Vector& param1,  Vector& param2, Vector& diffparam)  {
+    Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
         /*TODO:assert*/
     };
 
-    void calculateFirstGradient(Vector& param1,  Vector& param2, Vector& grad) {
+    void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
         /*TODO:assert*/
     };
 
-    void calculateSecondGradient(Vector& param1,  Vector& param2, Vector& grad) {
+    void calculateGradientSecondComplete(Vector& param1,  Vector& param2, Vector& gradient) {
         /*TODO:assert*/
     };
 
@@ -65,19 +65,19 @@ struct Distance3D {
         /*TODO:assert*/
     };
 
-    Scalar calculateFirstFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
         /*TODO:assert*/
     };
 
-    Scalar calculateSecondFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
         /*TODO:assert*/
     };
 
-    void calculateFirstGradient(Vector& param1, Vector& param2, Vector& grad) {
+    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
         /*TODO:assert*/
     };
 
-    void calculateSecondGradient(Vector& param1, Vector& param2, Vector& grad) {
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
         /*TODO:assert*/
     };
 };
@@ -91,21 +91,22 @@ struct Distance3D< Kernel, tag::point3D, tag::point3D > {
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
 
+	
     };
 
-    Scalar calculateFirstFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
-
-    };
-
-    Scalar calculateSecondFullGradient(Vector& param1, Vector& param2, Vector& diffparam) {
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
 
     };
 
-    void calculateFirstGradient(Vector& param1, Vector& param2, Vector& grad) {
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
 
     };
 
-    void calculateSecondGradient(Vector& param1, Vector& param2, Vector& grad) {
+    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+
+    };
+
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
 
     };
    

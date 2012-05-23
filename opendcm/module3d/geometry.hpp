@@ -59,6 +59,12 @@ namespace modell {
       v(1) = a.get<Scalar, 1>(t);
       v(2) = a.get<Scalar, 2>(t);
     }
+    void inject(Type& t, Vector& v) {
+      Accessor a;
+      a.set<Scalar, 0>(v(0), t);
+      a.set<Scalar, 1>(v(1), t);
+      a.set<Scalar, 2>(v(2), t);
+    };
   };
   
 }

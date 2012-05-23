@@ -64,5 +64,26 @@ BOOST_AUTO_TEST_CASE(geometry_accessor) {
 
 }
 
+struct test_tag1 {
+  typedef dcm::tag::weight::point weight;
+};
+struct test_tag2 {
+  typedef dcm::tag::weight::line weight;
+};
+
+BOOST_AUTO_TEST_CASE(geometry_order) {
+  
+  BOOST_CHECK( (!dcm::tag_order<test_tag1, test_tag2>::swapt::value) );
+  BOOST_CHECK( (dcm::tag_order<test_tag2, test_tag1>::swapt::value) );
+  
+
+  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1> ));
+  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2> ));
+  
+  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1> ));
+  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2> ));
+
+}
+
 
 BOOST_AUTO_TEST_SUITE_END();
