@@ -55,15 +55,17 @@ namespace modell {
     template<typename Scalar, typename Accessor, typename Vector, typename Type>
     void extract(Type& t, Vector& v) {
       Accessor a;
-      v(0) = a.get<Scalar, 0>(t);
-      v(1) = a.get<Scalar, 1>(t);
-      v(2) = a.get<Scalar, 2>(t);
+      v(0) = a.template get<Scalar, 0>(t);
+      v(1) = a.template get<Scalar, 1>(t);
+      v(2) = a.template get<Scalar, 2>(t);
     }
+    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
     void inject(Type& t, Vector& v) {
       Accessor a;
-      a.set<Scalar, 0>(v(0), t);
-      a.set<Scalar, 1>(v(1), t);
-      a.set<Scalar, 2>(v(2), t);
+      a.template set<Scalar, 0>(v(0), t);
+      a.template set<Scalar, 1>(v(1), t);
+      a.template set<Scalar, 2>(v(2), t);
     };
   };
   

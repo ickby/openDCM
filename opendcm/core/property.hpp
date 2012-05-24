@@ -123,6 +123,21 @@ typename property_map<P,G>::reference at(const property_map<P,G>& map,
     return fusion::at<distance>(fusion::at_c<0>(map.m_graph[key]));
 }
 
+
+//now create some standart properties
+//***********************************
+
+struct type_prop {
+      //states the type of a cluster
+      typedef cluster_property kind;
+      typedef int type;
+};
+
+struct changed_prop {
+    typedef cluster_property kind;
+    typedef bool type;
+};
+
 }
 
 

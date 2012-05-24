@@ -113,6 +113,15 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
     BOOST_CHECK(fusion::at_c<2>(edge2));
     BOOST_CHECK(fusion::at_c<0>(edge2) == fusion::at_c<0>(edge1));
     BOOST_CHECK(fusion::at_c<1>(edge2) != fusion::at_c<1>(edge1));
+    
+    //check edge creation when 1 vertex is in a cluster
+    std::pair<Graph&, LocalVertex> nc = g1.createCluster();
+    fusion::vector<LocalVertex, GlobalVertex> sub3 = nc.first.addVertex();
+    fusion::vector<LocalEdge, GlobalEdge, bool> edge3 = g1.addEdge(fusion::at_c<1>(sub2), fusion::at_c<1>(sub3));
+    BOOST_CHECK( fusion::at_c<2>(edge3) );
+    BOOST_CHECK( boost::source(fusion::at_c<0>(edge3), g1) == fusion::at_c<0>(sub2) );
+    BOOST_CHECK( boost::target(fusion::at_c<0>(edge3), g1) == nc.second );
+    
 };
 
 BOOST_AUTO_TEST_CASE(object_handling) {

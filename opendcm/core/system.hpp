@@ -106,6 +106,7 @@ class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
     typedef T2< Base > Type2;
     typedef T3< Base > Type3;
 
+    //get all module objects and properties
     typedef typename details::vector_fold<typename Type3::objects,
             typename details::vector_fold<typename Type2::objects,
             typename details::vector_fold<typename Type1::objects,
@@ -116,11 +117,15 @@ class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
             typename details::vector_fold<typename Type1::properties,
             mpl::vector<> >::type >::type>::type properties;
 
-    typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
-    typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
-    typedef typename details::cluster_fold< properties, mpl::vector<> >::type 	cluster_properties;
-    typedef typename details::property_map<objects, properties>::type 		object_properties;
-    
+    //add the standart objects and properties
+    typedef typename mpl::push_back<properties, type_prop>::type cproperties;
+
+    //make the subcomponent lists of objects and properties
+    typedef typename details::edge_fold< cproperties, mpl::vector<> >::type 	edge_properties;
+    typedef typename details::vertex_fold< cproperties, mpl::vector<> >::type 	vertex_properties;
+    typedef typename details::cluster_fold< cproperties, mpl::vector<> >::type 	cluster_properties;
+    typedef typename details::property_map<objects, cproperties>::type 		object_properties;
+
     //object storage
     typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;
     typedef typename mpl::fold< sp_objects, mpl::vector<>,
@@ -141,36 +146,36 @@ public:
         Type2::system_init(*this);
         Type3::system_init(*this);
     };
-    
+
     template<typename Object>
     typename std::vector< boost::shared_ptr<Object> >::iterator begin() {
-      
+
         typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-	return fusion::at<distance>(m_storage).begin();
+        return fusion::at<distance>(m_storage).begin();
     };
-    
+
     template<typename Object>
     typename std::vector< boost::shared_ptr<Object> >::iterator end() {
-      
-	typedef typename mpl::find<objects, Object>::type iterator;
+
+        typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-	return fusion::at<distance>(m_storage).end();
+        return fusion::at<distance>(m_storage).end();
     };
-    
+
     template<typename Object>
     std::vector< boost::shared_ptr<Object> >& objectVector() {
-      
-	typedef typename mpl::find<objects, Object>::type iterator;
+
+        typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-	return fusion::at<distance>(m_storage);
+        return fusion::at<distance>(m_storage);
     };
-    
+
     void solve() {
-      m_sheduler.execute();
+        m_sheduler.execute();
     };
 
     Cluster m_cluster;

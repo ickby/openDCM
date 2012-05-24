@@ -156,7 +156,8 @@ struct Dogleg {
 
             // update delta
             if(rho>0.75) {
-                delta = std::max(delta,3*h_dl.norm());
+                //delta = std::max(delta,3*h_dl.norm());
+                delta = 3*delta;
                 nu = 2;
             } else if(rho < 0.25) {
                 delta = delta/nu;

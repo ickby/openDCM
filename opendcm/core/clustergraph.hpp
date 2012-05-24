@@ -130,10 +130,6 @@ public:
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
 private:
-    struct changed_prop {
-        typedef cluster_property kind;
-        typedef bool type;
-    };
     typedef typename details::pts< typename mpl::push_back<cluster_prop, changed_prop>::type >::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
@@ -400,7 +396,7 @@ public:
         bool d1,d2,d3;
         boost::tie(v1,d1) = getContainingVertex(source);
         boost::tie(v2,d2) = getContainingVertex(target);
-
+	
         //if one vertex is not accessible from here this function fails
         if(!(d1&&d2)) return fusion::make_vector(LocalEdge(), GlobalEdge(), false, false);
 
@@ -972,8 +968,8 @@ protected:
         fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
         if(fusion::at_c<2>(res)) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
 
-        // return typename functor::base_type(); 
-	//TODO: Throw (propeties return reference, but cant init a reference temporarily)
+        // return typename functor::base_type();
+        //TODO: Throw (propeties return reference, but cant init a reference temporarily)
     };
 
     template<typename functor>
@@ -1001,5 +997,6 @@ protected:
 } //namespace solver
 
 #endif // CLUSTERGRAPH_HPP
+
 
 

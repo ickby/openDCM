@@ -30,16 +30,17 @@ struct Coincident3D {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
+    typedef typename Kernel::MatrixBlock Block;
 
     Scalar calculate(Vector& param1,  Vector& param2)  {
         /*TODO:assert*/
     };
 
-    Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
+    Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Block& dparam1) {
         /*TODO:assert*/
     };
 
-    Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
+    Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Block& dparam2)  {
         /*TODO:assert*/
     };
 
@@ -59,17 +60,18 @@ struct Distance3D {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
+    typedef typename Kernel::MatrixBlock Block;
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         /*TODO:assert*/
     };
 
-    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Block& dparam1) {
         /*TODO:assert*/
     };
 
-    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Block& dparam2) {
         /*TODO:assert*/
     };
 
