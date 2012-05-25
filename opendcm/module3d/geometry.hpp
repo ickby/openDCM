@@ -27,19 +27,29 @@ namespace tag {
 
 struct point3D  {
     typedef mpl::int_<3>  parameters;
-    typedef mpl::int_<1>  transformations;
+    typedef mpl::int_<1>  rotations;
+    typedef mpl::int_<1>  translations;
+    typedef weight::point weight; 
+};
+
+struct direction3D  {
+    typedef mpl::int_<3>  parameters;
+    typedef mpl::int_<1>  rotations;
+    typedef mpl::int_<0>  translations;
     typedef weight::point weight; 
 };
 
 struct line3D  {
     typedef mpl::int_<6> parameters;
-    typedef mpl::int_<2> transformations;
+    typedef mpl::int_<2> rotations;
+    typedef mpl::int_<1> translations;
     typedef weight::line weight; 
 };
 
 struct plane  {
     typedef mpl::int_<6>  parameters;
-    typedef mpl::int_<2>  transformations;
+    typedef mpl::int_<2>  rotations;
+    typedef mpl::int_<1>  translations;
     typedef weight::plane weight; 
 };
 }

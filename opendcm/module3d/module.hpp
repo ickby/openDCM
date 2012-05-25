@@ -100,8 +100,8 @@ public:
     };
     void initMaps() {
 
-	typename Kernel::Quaternion Q(1,3,6,7);
-	m_quaternion = Q.normalized();
+        typename Kernel::Quaternion Q(1,3,6,7);
+        m_quaternion = Q.normalized();
         std::cout<<"Quaternion x,y,z,w: "<<m_quaternion.x()<<", "<<m_quaternion.y()<<", "<<m_quaternion.z()<<", "<<m_quaternion.w()<<std::endl;
         //nQ = a,b,c ; n = ||nQ»» ;  Q = x,y,z,w = a/n,b/n,c/n,n
         // --> w = n; a = x*n = x*w ...
@@ -130,7 +130,7 @@ public:
         //get the Quaternion for the norm quaternion form and calculate the rotation matrix
         Scalar norm = m_normQ.norm();
 
-        typename Kernel::Quaternion Q(m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm, norm);
+        typename Kernel::Quaternion Q(norm, m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm);
         if(Kernel::isSame(norm, 0)) {
             Q.setIdentity();
             m_rotation.setIdentity();
@@ -159,6 +159,7 @@ public:
 
         // d(1/n2)/dx and dy and dz
         const Scalar ddn2 = -(1+2*sn0)/std::pow(n2,3);
+	
         const Scalar n2_dda = m_normQ(0)*ddn2;
         const Scalar n2_ddb = m_normQ(1)*ddn2;
         const Scalar n2_ddc = m_normQ(2)*ddn2;
@@ -210,7 +211,6 @@ public:
         m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
         m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
         m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
-
     };
 };
 
@@ -240,7 +240,7 @@ struct Module3D {
 
             virtual void recalculate() {
 
-                 //first calculate all clusters
+                //first calculate all clusters
                 typedef typename Cluster::cluster_iterator citer;
                 std::pair<citer, citer> cit = m_cluster.clusters();
                 for(; cit.first != cit.second; cit.first++) {
@@ -476,7 +476,8 @@ struct Module3D {
             int     m_baseParameterCount; //count of the parameters the variant geometry type needs
             int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_baseParameterCount)
             int     m_parameterOffset; //the starting point of our parameters in the math system parameter vector
-            int     m_transformations; //count of transformations to be done when original vector gets rotated
+            int     m_rotations; //count of rotations to be done when original vector gets rotated
+            int     m_translations; //count of translations to be done when original vector gets rotated
             bool    m_isInCluster;
             typename Sys::Kernel::Vector      m_original, m_value; //original and rotated parameters
             typename Sys::Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
@@ -489,19 +490,14 @@ struct Module3D {
             void init(T& t) {
                 m_baseParameterCount = geometry_traits<T>::tag::parameters::value;
                 m_parameterCount = m_baseParameterCount;
-                m_transformations = geometry_traits<T>::tag::transformations::value;
+                m_rotations = geometry_traits<T>::tag::rotations::value;
+                m_translations = geometry_traits<T>::tag::translations::value;
 
                 m_original.resize(m_parameterCount);
                 m_value.resize(m_parameterCount);
 
                 m_diffparam.resize(m_parameterCount,6);
-
-                //the translation gradient is always constant
-                for(int i=0; i!=m_transformations; i++)
-                    m_diffparam.block(i*3,3,3,3).setIdentity();
-                //the not transformed parameters (constant when in cluster) have gradient 0
-                int ntp = m_parameterCount-m_transformations*3; //not transformed parameter
-                m_diffparam.block(m_parameterCount-ntp, 0, ntp, 6).setZero();
+                m_diffparam.setZero();
 
                 (typename geometry_traits<T>::modell()).template extract<Scalar,
                 typename geometry_traits<T>::accessor >(t, m_original);
@@ -540,16 +536,24 @@ struct Module3D {
             void recalculate() {
                 if(!m_isInCluster) return;
 
-                for(int i=0; i!=m_transformations; i++) {
-                    //first transform the original to the transformed value
+                for(int i=0; i!=m_rotations; i++) {
+                    //first rotate the original to the transformed value
                     m_value.block(i*3,0,3,1) = m_rotation*m_original.block(i*3,0,3,1);
-            
+
                     //now calculate the gradient vectors and add them to diffparam
                     m_diffparam.block(i*3,0,3,1) = m_diffrot.block(0,0,3,3) * m_original.block(i*3,0,3,1);
                     m_diffparam.block(i*3,1,3,1) = m_diffrot.block(0,3,3,3) * m_original.block(i*3,0,3,1);
                     m_diffparam.block(i*3,2,3,1) = m_diffrot.block(0,6,3,3) * m_original.block(i*3,0,3,1);
-                }         
-             }
+                }
+                //after rotating the needed parameters we translate the stuff that needs to be moved
+                for(int i=0; i!=m_translations; i++) {
+                    //first transform the original to the transformed value
+                    m_value.block(i*3,0,3,1) += m_translation;
+
+                    //now calculate the gradient vectors and add them to diffparam
+                    m_diffparam.block(i*3,3,3,3).setIdentity();
+                }
+            }
 
             //visitor to write the calculated value into the variant
             struct apply_visitor : public boost::static_visitor<void> {
@@ -617,7 +621,7 @@ struct Module3D {
                 if(first->getClusterMode()) {
                     //cluster mode, so we do a full calculation with all 6 diffparam vectors
                     for(int i=0; i<6; i++) {
-                        typename Kernel::MatrixBlock block = first->m_diffparam.block(0,i,first->m_parameterCount,1);
+                        typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
                         m_diffFirst(i) = content->calculateGradientFirst(first->m_parameter,
                                          second->m_parameter, block);
                     }
@@ -625,11 +629,12 @@ struct Module3D {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
                     content->calculateGradientFirstComplete(first->m_parameter, second->m_parameter, m_diffFirst);
                 }
+                
                 if(second->getClusterMode()) {
                     //cluster mode, so we do a full calculation with all 6 diffparam vectors
                     for(int i=0; i<6; i++) {
-                        typename Kernel::MatrixBlock block = first->m_diffparam.block(0,i,second->m_parameterCount,1);
-                        m_diffSecond(i) = content->calculateGradientFirst(first->m_parameter,
+                        typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
+                        m_diffSecond(i) = content->calculateGradientSecond(first->m_parameter,
                                           second->m_parameter, block);
                     }
                 } else {
@@ -653,10 +658,10 @@ struct Module3D {
                 virtual Scalar calculate(typename Kernel::VectorMap&, typename Kernel::VectorMap&) = 0;
                 virtual Scalar calculateGradientFirst(typename Kernel::VectorMap& param1,
                                                       typename Kernel::VectorMap& param2,
-                                                      typename Kernel::MatrixBlock& dparam1) = 0;
+                                                      typename Kernel::VectorMap& dparam1) = 0;
                 virtual Scalar calculateGradientSecond(typename Kernel::VectorMap& param1,
                                                        typename Kernel::VectorMap& param2,
-                                                       typename Kernel::MatrixBlock& dparam2) = 0;
+                                                       typename Kernel::VectorMap& dparam2) = 0;
                 virtual void calculateGradientFirstComplete(typename Kernel::VectorMap& param1,
                         typename Kernel::VectorMap& param2,
                         typename Kernel::VectorMap& grad) = 0;
@@ -676,12 +681,12 @@ struct Module3D {
                 };
                 virtual Scalar calculateGradientFirst(typename Kernel::VectorMap& param1,
                                                       typename Kernel::VectorMap& param2,
-                                                      typename Kernel::MatrixBlock& dparam1) {
+                                                      typename Kernel::VectorMap& dparam1) {
                     return held.calculateGradientFirst(param1, param2, dparam1);
                 };
                 virtual Scalar calculateGradientSecond(typename Kernel::VectorMap& param1,
                                                        typename Kernel::VectorMap& param2,
-                                                       typename Kernel::MatrixBlock& dparam2) {
+                                                       typename Kernel::VectorMap& dparam2) {
                     return held.calculateGradientSecond(param1, param2, dparam2);
                 };
                 virtual void calculateGradientFirstComplete(typename Kernel::VectorMap& param1,

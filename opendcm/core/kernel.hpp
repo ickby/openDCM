@@ -61,7 +61,7 @@ struct Dogleg {
         int maxIterNumber = 1000;//MaxIterations * xsize;
         number_type diverging_lim = 1e6*err + 1e12;
 
-        number_type delta=0.1;
+        number_type delta=1;
         number_type alpha=0.;
         number_type nu=2.;
         int iter=0, stop=0, reduce=0;
@@ -95,9 +95,10 @@ struct Dogleg {
                         break;
                     }
                 } else if((alpha*h_sd).norm() >= delta) {
-                    h_dl = alpha*h_sd;
-		    //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
-		    //wir gehen aber den klassichen steepest descent weg
+                    //h_dl = alpha*h_sd;
+                    h_dl = (delta/(h_sd.norm()))*h_sd;
+                    //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
+                    //wir gehen aber den klassichen steepest descent weg
                 } else {
                     //compute beta
                     number_type beta = 0;
@@ -123,7 +124,7 @@ struct Dogleg {
                 break;
 
             // calculate the linear model
-            number_type dL = err - 0.5*(sys.Residual + sys.Jacobi*h_dl).squaredNorm();
+            number_type dL = 0.5*std::pow(err,2) - 0.5*(sys.Residual + sys.Jacobi*h_dl).squaredNorm();
 
             // get the new values
             sys.Parameter += h_dl;
@@ -156,13 +157,13 @@ struct Dogleg {
 
             // update delta
             if(rho>0.75) {
-                //delta = std::max(delta,3*h_dl.norm());
-                delta = 3*delta;
+                delta = std::max(delta,3*h_dl.norm());
+                //delta = 3*delta;
                 nu = 2;
             } else if(rho < 0.25) {
                 delta = delta/nu;
                 nu = 2*nu;
-            } 
+            }
             // count this iteration and start again
             iter++;
         }
