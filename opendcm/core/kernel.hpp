@@ -129,7 +129,7 @@ struct Dogleg {
             // get the new values
             sys.Parameter += h_dl;
             sys.recalculate();
-
+	    
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
             number_type dF = err - err_new;
@@ -167,6 +167,9 @@ struct Dogleg {
             // count this iteration and start again
             iter++;
         }
+        
+        if(stop == 1) return true;
+	return false; //TODO:throw
     }
 };
 

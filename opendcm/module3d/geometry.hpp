@@ -79,6 +79,38 @@ namespace modell {
     };
   };
   
+  struct XYZ2 {
+    /*Modell XYZ2: two xyz parts after each other 
+     * 0 = X;
+     * 1 = Y;
+     * 2 = Z;
+     * 3 = X;
+     * 4 = Y;
+     * 5 = Z;
+     */    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void extract(Type& t, Vector& v) {
+      Accessor a;
+      v(0) = a.template get<Scalar, 0>(t);
+      v(1) = a.template get<Scalar, 1>(t);
+      v(2) = a.template get<Scalar, 2>(t);
+      v(3) = a.template get<Scalar, 3>(t);
+      v(4) = a.template get<Scalar, 4>(t);
+      v(5) = a.template get<Scalar, 5>(t);
+    }
+    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void inject(Type& t, Vector& v) {
+      Accessor a;
+      a.template set<Scalar, 0>(v(0), t);
+      a.template set<Scalar, 1>(v(1), t);
+      a.template set<Scalar, 2>(v(2), t);
+      a.template set<Scalar, 3>(v(3), t);
+      a.template set<Scalar, 4>(v(4), t);
+      a.template set<Scalar, 5>(v(5), t);
+    };
+  };
+  
 }
 
 }

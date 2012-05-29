@@ -24,4 +24,4 @@
 #include "module3d/constraint.hpp"
 #include "module3d/module.hpp"
 
-#endif //DCM_CORE_H
+#endif //DCM_MODULE3D_H

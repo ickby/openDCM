@@ -102,10 +102,11 @@ class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
     public T3< System<KernelType,T1,T2,T3> >::inheriter {
 
     typedef System<KernelType,T1,T2,T3> Base;
+public:
     typedef T1< Base > Type1;
     typedef T2< Base > Type2;
     typedef T3< Base > Type3;
-
+protected:
     //get all module objects and properties
     typedef typename details::vector_fold<typename Type3::objects,
             typename details::vector_fold<typename Type2::objects,

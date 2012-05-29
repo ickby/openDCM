@@ -53,28 +53,11 @@ struct undefined {
 
 //we nee to order tags, this base make it easy for module tags
 namespace weight {
-struct undefined : mpl::int_<0> {};
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};
 struct plane : mpl::int_<3> {};
 }
 }
-
-namespace modell {
-struct undefined {
-    template<typename T, typename Res>
-    void transform(T& t, Res& r) {};
-};
-}
-
-struct accessor_undefined {
-    template<typename Scalar, int ID, typename T>
-    Scalar get(T&) {
-        return ID;
-    };
-    template<typename Scalar, int ID, typename T>
-    void set(Scalar,T&) {};
-};
 
 struct orderd_bracket_accessor {
 
@@ -117,12 +100,10 @@ struct tag_order {
 //template<typename T1, typename T2>
 //struct type_order : public tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > {};
 
+
 template< typename T>
 struct geometry_traits {
-    typedef tag::undefined 	tag;
-    typedef modell::undefined 	modell;
-    typedef accessor_undefined  accessor;
-
+    BOOST_MPL_ASSERT_MSG( false, NO_GEOMETRY_TRAITS_SPECIFIED_FOR_TYPE, (T) );
 };
 
 }

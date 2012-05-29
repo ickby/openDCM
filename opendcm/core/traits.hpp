@@ -20,13 +20,31 @@
 #ifndef DCM_TRAITS_H
 #define DCM_TRAITS_H
 
-namespace dcm {
+#include <boost/type_traits.hpp>
+#include <boost/mpl/if.hpp>
+#include <boost/mpl/void.hpp>
 
+namespace mpl = boost::mpl;
+
+namespace dcm {
+  
 template< typename T >
 struct system_traits {
     typedef typename T::Kernel  Kernel;
     typedef typename T::Cluster Cluster;
+    
+    template<typename M>
+    struct getModule {
+      
+      typedef typename mpl::if_< boost::is_base_of<M, T::Type1>, T::Type1, T::Type2 >::type test1;
+      typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, T::Type3 >::type test2;
+      typedef typename mpl::if_< boost::is_base_of<M, test1>, test2, mpl::void_ >::type type;
+      
+      typedef boost::is_same<type, mpl::void_> has_module; 
+    };
 };
+
+
 
 
 }

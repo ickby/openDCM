@@ -76,7 +76,11 @@ private:
     int m_parameterOffset;
 
 public:
-    ClusterMath() : m_normQ(NULL), m_translation(NULL) {};
+    ClusterMath() : m_normQ(NULL), m_translation(NULL) {
+
+        m_quaternion = typename Kernel::Quaternion(1,2,3,4);
+        m_quaternion.normalize();
+    };
 
     void setParameterOffset(int offset) {
         m_parameterOffset = offset;
@@ -100,9 +104,6 @@ public:
     };
     void initMaps() {
 
-        typename Kernel::Quaternion Q(1,3,6,7);
-        m_quaternion = Q.normalized();
-        std::cout<<"Quaternion x,y,z,w: "<<m_quaternion.x()<<", "<<m_quaternion.y()<<", "<<m_quaternion.z()<<", "<<m_quaternion.w()<<std::endl;
         //nQ = a,b,c ; n = ||nQ»» ;  Q = x,y,z,w = a/n,b/n,c/n,n
         // --> w = n; a = x*n = x*w ...
         m_normQ(0) = m_quaternion.x()*m_quaternion.w();
@@ -159,7 +160,7 @@ public:
 
         // d(1/n2)/dx and dy and dz
         const Scalar ddn2 = -(1+2*sn0)/std::pow(n2,3);
-	
+
         const Scalar n2_dda = m_normQ(0)*ddn2;
         const Scalar n2_ddb = m_normQ(1)*ddn2;
         const Scalar n2_ddc = m_normQ(2)*ddn2;
@@ -216,10 +217,11 @@ public:
 
 }
 
-struct reset {};
+struct reset {}; 	//signal namespace
+struct m3d {}; 	//base of module3c to allow other modules check for it
 
 template<typename Typelist>
-struct Module3D {
+struct Module3D : m3d {
 
     template<typename Sys>
     struct type {
@@ -287,8 +289,6 @@ struct Module3D {
             };
 
             void solveCluster(Cluster& cluster) {
-
-                std::cout<<"solve cluster starting!"<<std::endl;
 
                 //set out and solve all relevant subclusters
                 typedef typename Cluster::cluster_iterator citer;
@@ -381,10 +381,6 @@ struct Module3D {
                     }
                 }
 
-                //remove this for real calculus
-                mes.recalculate();
-                std::cout<<"Residual bevore solving: "<<mes.Residual.norm()<<std::endl;
-
                 //now it's time to solve
                 Kernel::solve(mes);
 
@@ -407,7 +403,6 @@ struct Module3D {
                 //we have solved this cluster
                 cluster.template setClusterProperty<changed_prop>(false);
 
-                std::cout<<"solve cluster done!"<<std::endl;
             };
 
             void mapClusterDownstreamGeometry(Cluster& cluster, details::ClusterMath<Sys>& cm, std::vector<Geom>& vec) {
@@ -603,14 +598,28 @@ struct Module3D {
             }
 
             template< template<typename,typename,typename> class T>
-            void setType() {
-                creator<T> creator;
-                boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
-                content = creator.p;
-                if(creator.need_swap) first.swap(second);
+            void set() {
+                creator<T> c;
+                resetType(c);
+            };
+            template< template<typename,typename,typename> class T, typename Value1>
+            void set(Value1 v) {
+                creator_1v<T, Value1> c(v);
+                resetType(c);
+            };
+            template< template<typename,typename,typename> class T, typename Value1, typename Value2>
+            void set(Value1 v1, Value2 v2) {
+                creator_2v<T, Value1, Value2> c(v1,v2);
+                resetType(c);
             };
 
         protected:
+            template< typename creator_type>
+            void resetType(creator_type& c) {
+                boost::apply_visitor(c, first->m_geometry, second->m_geometry);
+                content = c.p;
+                if(c.need_swap) first.swap(second);
+            };
 
             Scalar calculate() {
 
@@ -629,7 +638,7 @@ struct Module3D {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
                     content->calculateGradientFirstComplete(first->m_parameter, second->m_parameter, m_diffFirst);
                 }
-                
+
                 if(second->getClusterMode()) {
                     //cluster mode, so we do a full calculation with all 6 diffparam vectors
                     for(int i=0; i<6; i++) {
@@ -724,6 +733,42 @@ struct Module3D {
                 bool need_swap;
             };
 
+            template< template<typename,typename,typename> class T, typename Value1 >
+            struct creator_1v : public boost::static_visitor<void> {
+
+                creator_1v(Value1 v) : m_value(v) {};
+
+                template<typename T1, typename T2>
+                void operator()(const T1&, const T2&) {
+                    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
+                    typedef T<Kernel, typename order::first_tag, typename order::second_tag > type;
+                    p = new holder< T, typename order::first_tag, typename order::second_tag > (type(m_value));
+                    need_swap = order::swapt::value;
+                };
+                placeholder* p;
+                bool need_swap;
+                Value1 m_value;
+            };
+
+            template< template<typename,typename,typename> class T, typename Value1, typename Value2 >
+            struct creator_2v : public boost::static_visitor<void> {
+
+                creator_2v(Value1 v1, Value2 v2) : m_value1(v1), m_value2(v2) {};
+
+                template<typename T1, typename T2>
+                void operator()(const T1&, const T2&) {
+                    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
+                    typedef T<Kernel, typename order::first_tag, typename order::second_tag > type;
+                    p = new holder< T, typename order::first_tag, typename order::second_tag > (type(m_value1, m_value2));
+                    need_swap = order::swapt::value;
+                };
+                placeholder* p;
+                bool need_swap;
+                Value1 m_value1;
+                Value2 m_value2;
+            };
+
+
             placeholder* content;
             Geom first, second;
             Connection cf, cs;
@@ -757,21 +802,42 @@ struct Module3D {
             Cons createConstraint3D(Geom first, Geom second) {
 
                 Cons c(new Constraint3D(* ((Sys*) this), first, second));
-                c->template setType<T>();
-                fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
-                res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
-                                                second->template getProperty<vertex_prop>());
-                if(!fusion::at_c<2>(res))  {
-                    return Cons(); //TODO: throw
-                };
-                m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
-                c->template setProperty<edge_prop>(fusion::at_c<1>(res));
-                m_this->template objectVector<Constraint3D>().push_back(c);
+                c->template set<T>();
+		process_constraint(c, first, second);
+                return c;
+            };
+	    template< template<typename,typename,typename> class T, typename Value1 >
+            Cons createConstraint3D(Geom first, Geom second, Value1 v1) {
+
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                c->template set<T>(v1);
+		process_constraint(c, first, second);
+                return c;
+            };
+	    template< template<typename,typename,typename> class T, typename Value1, typename Value2 >
+            Cons createConstraint3D(Geom first, Geom second, Value1 v1, Value2 v2) {
+
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                c->template set<T>(v1,v2);
+		process_constraint(c, first, second);
                 return c;
             };
 
         private:
             Sys* m_this;
+	    
+	    void process_constraint(Cons c, Geom first, Geom second) {
+	      
+	        fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
+                res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
+                                                second->template getProperty<vertex_prop>());
+                if(!fusion::at_c<2>(res))  {
+                    return; //TODO: throw
+                };
+                m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
+                c->template setProperty<edge_prop>(fusion::at_c<1>(res));
+                m_this->template objectVector<Constraint3D>().push_back(c);
+	    }
         };
 
 
@@ -795,7 +861,6 @@ struct Module3D {
         typedef mpl::vector<vertex_prop, edge_prop, math_prop, gmap_prop>  properties;
 
         static void system_init(Sys& sys) {
-            std::cout<<"add solver job"<<std::endl;
             sys.m_sheduler.addProcessJob(new SystemSolver());
         };
     };
@@ -841,5 +906,6 @@ typename boost::add_reference<T>::type get(G geom) {
 }
 
 #endif //DCM_GEOMETRY3D_H
+
 
 

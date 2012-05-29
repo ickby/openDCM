@@ -82,7 +82,6 @@ protected:
     struct Executer {
         Executer(Sys& s) : m_system(s) {};
         void operator()(Job<Sys>* j) {
-	  std::cout<<"executer executes job"<<std::endl;
             j->execute(m_system);
         };
         Sys& m_system;
