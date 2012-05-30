@@ -320,7 +320,7 @@ struct Module3D {
 
                 //initialise the system with now known size
                 MES mes(cluster, parameters, constraints);
-
+		
                 //iterate all geometrys again and set the needed maps
                 it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {

@@ -114,14 +114,6 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK( v3(0) == v3m(0) );
     BOOST_CHECK( v3(1) == v3m(1) );
     BOOST_CHECK( v3(2) == v3m(2) );
-    
-    std::vector<double> t;
-    t.push_back(1);
-    t.push_back(2);
-    t.push_back(3);
-    typename kernel::Vector3Map tm(&t[0]);
-    
-    std::cout<<tm<<std::endl;
 };
 
 template<class T>

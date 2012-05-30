@@ -31,7 +31,7 @@
 namespace mpl = boost::mpl;
 
 namespace dcm {
-  
+
 enum { clusterPart = 110};
 
 template<typename Typelist>
@@ -70,8 +70,14 @@ struct ModulePart {
                 m_geometry(geometry), m_cluster(cluster)  {};
 
             template<typename T>
-            Geom createGeometry3D(T geom) {
+            Geom addGeometry3D(T geom) {
 
+                Geom g(new Geometry3D(geom, * ((Sys*) this)));
+                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
+                m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
+                //((Sys*) this)->template objectVector<Geometry3D>().push_back(g);
+                return g;
             };
 
             template<typename T>
@@ -98,22 +104,20 @@ struct ModulePart {
 
             inheriter() {
                 m_this = ((Sys*) this);
-                std::cout<<"part inheriter constructor"<<std::endl;
-//		pretty(module3d());
             };
 
 
             template<typename T>
             Partptr createPart(T geometry) {
 
-		typedef typename system_traits<Sys>::Cluster Cluster;
-		std::pair<Cluster&, LocalVertex>  res = m_this->m_cluster.createCluster();
-                Partptr p(new Part(geometry, * ((Sys*) this)), fusion::at_c<0> (res));
-                
-                m_this->m_cluster.template setObject<Part> (fusion::at_c<1> (res), p);
+                typedef typename system_traits<Sys>::Cluster Cluster;
+                std::pair<Cluster&, LocalVertex>  res = m_this->m_cluster.createCluster();
+                Partptr p(new Part(geometry, * ((Sys*) this), res.first));
+
+                m_this->m_cluster.template setObject<Part> (res.second, p);
                 m_this->template objectVector<Part>().push_back(p);
-		
-		(fusion::at_c<0> (res)).template setCluserProperty<type_prop>(clusterPart);
+
+                res.first.template setClusterProperty<type_prop>(clusterPart);
                 return p;
             };
 

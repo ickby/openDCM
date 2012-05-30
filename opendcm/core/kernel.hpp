@@ -130,6 +130,9 @@ struct Dogleg {
             sys.Parameter += h_dl;
             sys.recalculate();
 	    
+	   // std::cout<<"Residual:"<<std::endl<<sys.Residual<<std::endl<<std::endl;
+	   // std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl<<std::endl;
+	    
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
             number_type dF = err - err_new;

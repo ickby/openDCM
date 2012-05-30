@@ -243,7 +243,28 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
     v2 = get<Eigen::Vector3d>(g2);
 
     BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
-    BOOST_CHECK( !Kernel::isSame((v1-v2).norm(), 0) );
+    
+    System sys2; //point point distance in clusters (first time to check translation)
+
+    geom_ptr g3 = sys2.createGeometry3D(p1);
+    geom_ptr g4 = sys2.createGeometry3D(p2);
+    
+    //now trick a bit and move geometries manual in a subcluster
+    std::pair<typename System::Cluster&, LocalVertex> sc1 = sys2.m_cluster.createCluster();
+    std::pair<typename System::Cluster&, LocalVertex> sc2 = sys2.m_cluster.createCluster();
+    sys2.m_cluster.moveToSubcluster(sys2.m_cluster.getLocalVertex(g3->getProperty<vertex_prop>()).first, sc1.second);
+    sys2.m_cluster.moveToSubcluster(sys2.m_cluster.getLocalVertex(g4->getProperty<vertex_prop>()).first, sc2.second);
+    sc1.first.setClusterProperty<changed_prop>(false);//dont need to solve as it's only one point
+    sc1.first.setClusterProperty<changed_prop>(false);
+
+    cons_ptr c2 = sys2.createConstraint3D<Distance3D>(g3, g4, 5);
+
+    sys2.solve();
+
+    v1 = get<Eigen::Vector3d>(g3);
+    v2 = get<Eigen::Vector3d>(g4);
+
+    BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
 }
 
 BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
