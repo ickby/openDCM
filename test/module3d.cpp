@@ -29,6 +29,7 @@
 #include <boost/test/unit_test.hpp>
 
 struct point : std::vector<double> {};
+typedef Eigen::Matrix<double, 6,1> line_t;
 
 namespace dcm {
 
@@ -41,15 +42,47 @@ struct geometry_traits<point> {
 
 template<>
 struct geometry_traits<Eigen::Vector3d> {
-    typedef tag::direction3D tag;
+    typedef tag::point3D tag;
     typedef modell::XYZ modell;
     typedef orderd_roundbracket_accessor accessor;
 };
+
+
+template<>
+struct geometry_traits<line_t> {
+    typedef tag::line3D  tag;
+    typedef modell::XYZ2 modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
+
 }
 
 //again, two vectors perpendicular, maybe the easiest constraints of them all
 template< typename Kernel, typename Tag1, typename Tag2 >
-struct test_constraint { };
+struct test_constraint { 
+  typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    Scalar calculate(Vector& param1,  Vector& param2)  {
+        assert(false);
+    };
+
+    Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
+        assert(false);
+    };
+
+    Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
+        assert(false);
+    };
+
+    void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+        assert(false);
+    };
+
+    void calculateGradientSecondComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+        assert(false);
+    };
+};
 
 template< typename Kernel >
 struct test_constraint<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {
@@ -88,7 +121,7 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 typedef dcm::Kernel<double> Kernel;
-typedef Module3D< mpl::vector<point, Eigen::Vector3d> > Module;
+typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t > > Module;
 typedef System<Kernel, Module::type> System;
 typedef typename Module::type<System>::Geometry3D geom;
 typedef boost::shared_ptr<geom> geom_ptr;
@@ -100,46 +133,46 @@ typedef typename System::Cluster::vertex_iterator viter;
 typedef typename Module::type<System>::vertex_prop vertex_prop;
 
 BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
-    
-        System sys;
 
-        point p1,p2,p3;
-        p1.push_back(7);
-        p1.push_back(-0.5);
-        p1.push_back(0.3);
-        p2.push_back(0.2);
-        p2.push_back(0.5);
-        p2.push_back(-0.1);
-        p3.push_back(1.2);
-        p3.push_back(5.9);
-        p3.push_back(0.43);
+    System sys;
+
+    point p1,p2,p3;
+    p1.push_back(7);
+    p1.push_back(-0.5);
+    p1.push_back(0.3);
+    p2.push_back(0.2);
+    p2.push_back(0.5);
+    p2.push_back(-0.1);
+    p3.push_back(1.2);
+    p3.push_back(5.9);
+    p3.push_back(0.43);
 
 
-        geom_ptr g1 = sys.createGeometry3D(p1);
-        geom_ptr g2 = sys.createGeometry3D(p2);
-        geom_ptr g3 = sys.createGeometry3D(p3);
+    geom_ptr g1 = sys.createGeometry3D(p1);
+    geom_ptr g2 = sys.createGeometry3D(p2);
+    geom_ptr g3 = sys.createGeometry3D(p3);
 
-        //check empty solving
-        sys.solve();
+    //check empty solving
+    sys.solve();
 
-        //simple constraint and fire
-        cons_ptr c1 = sys.createConstraint3D<test_constraint>(g1, g2);
-        cons_ptr c2 = sys.createConstraint3D<test_constraint>(g2, g3);
-        cons_ptr c3 = sys.createConstraint3D<test_constraint>(g3, g1);
-        sys.solve();
+    //simple constraint and fire
+    cons_ptr c1 = sys.createConstraint3D<test_constraint>(g1, g2);
+    cons_ptr c2 = sys.createConstraint3D<test_constraint>(g2, g3);
+    cons_ptr c3 = sys.createConstraint3D<test_constraint>(g3, g1);
+    sys.solve();
 
-        typename Kernel::Vector3 v1,v2,v3;
-        point& rp1 = get<point>(g1);
-        point& rp2 = get<point>(g2);
-        point& rp3 = get<point>(g3);
+    typename Kernel::Vector3 v1,v2,v3;
+    point& rp1 = get<point>(g1);
+    point& rp2 = get<point>(g2);
+    point& rp3 = get<point>(g3);
 
-        v1<<rp1[0],rp1[1],rp1[2];
-        v2<<rp2[0],rp2[1],rp2[2];
-        v3<<rp3[0],rp3[1],rp3[2];
+    v1<<rp1[0],rp1[1],rp1[2];
+    v2<<rp2[0],rp2[1],rp2[2];
+    v3<<rp3[0],rp3[1],rp3[2];
 
-        BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
-        BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
-        BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
 
 }
 
@@ -147,10 +180,16 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
     System sys;
 
-    Eigen::Vector3d p1,p2,p3;
-    p1 << 7, -0.5, 0.3;
-    p2 << 0.2, 0.5, -0.1;
-    p3 << 1.2, 5.9, 0.43;
+    point p1,p2,p3;
+    p1.push_back(7);
+    p1.push_back(-0.5);
+    p1.push_back(0.3);
+    p2.push_back(0.2);
+    p2.push_back(0.5);
+    p2.push_back(-0.1);
+    p3.push_back(1.2);
+    p3.push_back(5.9);
+    p3.push_back(0.43);
 
     geom_ptr g1 = sys.createGeometry3D(p1);
     geom_ptr g2 = sys.createGeometry3D(p2);
@@ -161,7 +200,7 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g1->getProperty<vertex_prop>()).first, sc.second);
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g2->getProperty<vertex_prop>()).first, sc.second);
     sc.first.setClusterProperty<changed_prop>(true);
-    sc.first.setClusterProperty<type_prop>(details::cluster);
+    sc.first.setClusterProperty<type_prop>(details::cluster3D);
 
     //and finally add constraints
     cons_ptr c1 = sys.createConstraint3D<test_constraint>(g1, g2);
@@ -170,14 +209,85 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
     sys.solve();
 
-    Eigen::Vector3d v1,v2,v3;
-    v1 = get<Eigen::Vector3d>(g1);
-    v2 = get<Eigen::Vector3d>(g2);
-    v3 = get<Eigen::Vector3d>(g3);
+    typename Kernel::Vector3 v1,v2,v3;
+    point& rp1 = get<point>(g1);
+    point& rp2 = get<point>(g2);
+    point& rp3 = get<point>(g3);
+
+    v1<<rp1[0],rp1[1],rp1[2];
+    v2<<rp2[0],rp2[1],rp2[2];
+    v3<<rp3[0],rp3[1],rp3[2];
 
     BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
     BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
     BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
 };
+
+BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
+
+    System sys1; //point point distance
+
+    Eigen::Vector3d p1,p2;
+    p1 << 7, -0.5, 0.3;
+    p2 << 0.2, 0.5, -0.1;
+
+    geom_ptr g1 = sys1.createGeometry3D(p1);
+    geom_ptr g2 = sys1.createGeometry3D(p2);
+
+    cons_ptr c1 = sys1.createConstraint3D<Distance3D>(g1, g2, 5);
+
+    sys1.solve();
+
+    Eigen::Vector3d v1,v2;
+    v1 = get<Eigen::Vector3d>(g1);
+    v2 = get<Eigen::Vector3d>(g2);
+
+    BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
+    BOOST_CHECK( !Kernel::isSame((v1-v2).norm(), 0) );
+}
+
+BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
+
+    System sys1; //line line parallel
+
+    line_t l1,l2;
+    l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;
+    l2 << 0.2, 0.5, -0.1, -2.1, 1.2, 0;
+
+    geom_ptr g1 = sys1.createGeometry3D(l1);
+    geom_ptr g2 = sys1.createGeometry3D(l2);
+
+    cons_ptr c1 = sys1.createConstraint3D<Parallel3D>(g1, g2, Same);
+
+    sys1.solve();
+
+    line_t rl1,rl2;
+    rl1 = get<line_t>(g1);
+    rl2 = get<line_t>(g2);
+
+    BOOST_CHECK( Kernel::isSame((rl1.tail<3>()-rl2.tail<3>()).norm(), 0) );
+}
+
+BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
+
+    System sys1; //line line parallel
+
+    line_t l1,l2;
+    l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;
+    l2 << 0.2, 0.5, -0.1, -2.1, 1.2, 0;
+
+    geom_ptr g1 = sys1.createGeometry3D(l1);
+    geom_ptr g2 = sys1.createGeometry3D(l2);
+
+    cons_ptr c1 = sys1.createConstraint3D<Angle3D>(g1, g2, 0.2);
+
+    sys1.solve();
+
+    line_t rl1,rl2;
+    rl1 = get<line_t>(g1);
+    rl2 = get<line_t>(g2);
+
+    BOOST_CHECK( Kernel::isSame( std::acos( (rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2) );
+}
 
 BOOST_AUTO_TEST_SUITE_END();

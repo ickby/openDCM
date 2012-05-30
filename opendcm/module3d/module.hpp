@@ -50,7 +50,7 @@ namespace dcm {
 
 namespace details {
 
-enum { cluster = 100};
+enum { cluster3D = 100};
 
 template<typename seq, typename t>
 struct distance {
@@ -218,13 +218,13 @@ public:
 }
 
 struct reset {}; 	//signal namespace
-struct m3d {}; 	//base of module3c to allow other modules check for it
+struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
 template<typename Typelist>
-struct Module3D : m3d {
+struct Module3D {
 
     template<typename Sys>
-    struct type {
+    struct type : m3d {
         class Constraint3D;
         class Geometry3D;
         typedef boost::shared_ptr<Geometry3D> Geom;
@@ -296,7 +296,7 @@ struct Module3D : m3d {
                 for(; cit.first != cit.second; cit.first++) {
 
                     if((*cit.first).second->template getClusterProperty<changed_prop>() &&
-                            (*cit.first).second->template getClusterProperty<type_prop>() == details::cluster)
+                            (*cit.first).second->template getClusterProperty<type_prop>() == details::cluster3D)
                         solveCluster(*(*cit.first).second);
                 }
 

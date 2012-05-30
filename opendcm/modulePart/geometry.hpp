@@ -17,36 +17,45 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_TRAITS_H
-#define DCM_TRAITS_H
+#ifndef DCM_GEOMETRY_PART_H
+#define DCM_GEOMETRY_PART_H
 
-#include <boost/type_traits.hpp>
-#include <boost/mpl/if.hpp>
-#include <boost/mpl/void.hpp>
-
-namespace mpl = boost::mpl;
+#include <opendcm/core/geometry.hpp>
 
 namespace dcm {
-  
-template< typename T >
-struct system_traits {
-    typedef typename T::Kernel  Kernel;
-    typedef typename T::Cluster Cluster;
-    
-    template<typename M>
-    struct getModule {
-      
-      typedef typename mpl::if_< boost::is_base_of<M, typename T::Type1>, typename T::Type1, typename T::Type2 >::type test1;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, typename T::Type3 >::type test2;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test2, mpl::void_ >::type type;
-      
-      typedef boost::is_same<type, mpl::void_> has_module; 
-    };
-};
+namespace tag {
 
-
-
+struct part  {};
 
 }
 
-#endif //DCM_TRAITS_H
+namespace modell {
+  
+  struct quaternion_wxyz {
+    /*Modell XYZ: 
+     * 0 = w;
+     * 1 = x;
+     * 2 = y;
+     * 3 = z;
+     */    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void extract(Type& t, Vector& v) {
+      Accessor a;
+      v(0) = a.template get<Scalar, 0>(t);
+      v(1) = a.template get<Scalar, 1>(t);
+      v(2) = a.template get<Scalar, 2>(t);
+    }
+    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void inject(Type& t, Vector& v) {
+      Accessor a;
+      a.template set<Scalar, 0>(v(0), t);
+      a.template set<Scalar, 1>(v(1), t);
+      a.template set<Scalar, 2>(v(2), t);
+    };
+  };
+}
+
+}
+
+#endif //DCM_GEOMETRY_PART_H

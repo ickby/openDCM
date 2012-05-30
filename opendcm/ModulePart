@@ -17,36 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_TRAITS_H
-#define DCM_TRAITS_H
+#ifndef DCM_MODULEPART_H
+#define DCM_MODULEPART_H
 
-#include <boost/type_traits.hpp>
-#include <boost/mpl/if.hpp>
-#include <boost/mpl/void.hpp>
+#include "modulePart/geometry.hpp"
+#include "modulePart/constraint.hpp"
+#include "modulePart/module.hpp"
 
-namespace mpl = boost::mpl;
-
-namespace dcm {
-  
-template< typename T >
-struct system_traits {
-    typedef typename T::Kernel  Kernel;
-    typedef typename T::Cluster Cluster;
-    
-    template<typename M>
-    struct getModule {
-      
-      typedef typename mpl::if_< boost::is_base_of<M, typename T::Type1>, typename T::Type1, typename T::Type2 >::type test1;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, typename T::Type3 >::type test2;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test2, mpl::void_ >::type type;
-      
-      typedef boost::is_same<type, mpl::void_> has_module; 
-    };
-};
-
-
-
-
-}
-
-#endif //DCM_TRAITS_H
+#endif //DCM_MODULEPART_H
