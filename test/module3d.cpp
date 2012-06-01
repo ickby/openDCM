@@ -122,19 +122,25 @@ BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 typedef dcm::Kernel<double> Kernel;
 typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t > > Module;
-typedef System<Kernel, Module::type> System;
-typedef typename Module::type<System>::Geometry3D geom;
+typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
+typedef System<Kernel, Module::type> SystemNOID;
+typedef System<Kernel, ModuleID::type> SystemID;
+typedef typename Module::type<SystemNOID>::Geometry3D geom;
+typedef typename ModuleID::type<SystemID>::Geometry3D geomid;
 typedef boost::shared_ptr<geom> geom_ptr;
+typedef boost::shared_ptr<geomid> geomid_ptr;
 
-typedef typename Module::type<System>::Constraint3D cons;
+typedef typename Module::type<SystemNOID>::Constraint3D cons;
+typedef typename ModuleID::type<SystemID>::Constraint3D consid;
 typedef boost::shared_ptr<cons> cons_ptr;
+typedef boost::shared_ptr<consid> consid_ptr;
 
-typedef typename System::Cluster::vertex_iterator viter;
-typedef typename Module::type<System>::vertex_prop vertex_prop;
+typedef typename SystemNOID::Cluster::vertex_iterator viter;
+typedef typename Module::type<SystemNOID>::vertex_prop vertex_prop;
 
 BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
 
-    System sys;
+    SystemNOID sys;
 
     point p1,p2,p3;
     p1.push_back(7);
@@ -178,7 +184,7 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
 
 BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
-    System sys;
+    SystemNOID sys;
 
     point p1,p2,p3;
     p1.push_back(7);
@@ -196,7 +202,7 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     geom_ptr g3 = sys.createGeometry3D(p3);
 
     //now trick a bit and move two geometries manual in a subcluster
-    std::pair<typename System::Cluster&, LocalVertex> sc = sys.m_cluster.createCluster();
+    std::pair<typename SystemNOID::Cluster&, LocalVertex> sc = sys.m_cluster.createCluster();
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g1->getProperty<vertex_prop>()).first, sc.second);
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g2->getProperty<vertex_prop>()).first, sc.second);
     sc.first.setClusterProperty<changed_prop>(true);
@@ -223,9 +229,36 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
 };
 
+BOOST_AUTO_TEST_CASE(module3d_id) {
+  
+  SystemID sys;
+  Eigen::Vector3d p1,p2;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
+  geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
+  
+  consid_ptr c1 = sys.createConstraint3D<Distance3D>("constraint", g1, g2, 5);
+  
+  BOOST_CHECK( !g1->getIdentifier().compare("g1") );
+  BOOST_CHECK( !g2->getIdentifier().compare("g2") );
+  BOOST_CHECK( !c1->getIdentifier().compare("constraint") );
+  
+  BOOST_CHECK( sys.hasGeometry3D("g1") );
+  BOOST_CHECK( !sys.hasGeometry3D("fail") );
+  BOOST_CHECK( sys.hasConstraint3D("constraint") );
+  BOOST_CHECK( !sys.hasConstraint3D("fail") );
+  
+  BOOST_CHECK( sys.getGeometry3D("g1") == g1 );
+  BOOST_CHECK( sys.getGeometry3D("g2") == g2 );
+  BOOST_CHECK( sys.getConstraint3D("constraint") == c1 );
+  
+}
+
 BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
 
-    System sys1; //point point distance
+    SystemNOID sys1; //point point distance
 
     Eigen::Vector3d p1,p2;
     p1 << 7, -0.5, 0.3;
@@ -244,14 +277,14 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
 
     BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
     
-    System sys2; //point point distance in clusters (first time to check translation)
+    SystemNOID sys2; //point point distance in clusters (first time to check translation)
 
     geom_ptr g3 = sys2.createGeometry3D(p1);
     geom_ptr g4 = sys2.createGeometry3D(p2);
     
     //now trick a bit and move geometries manual in a subcluster
-    std::pair<typename System::Cluster&, LocalVertex> sc1 = sys2.m_cluster.createCluster();
-    std::pair<typename System::Cluster&, LocalVertex> sc2 = sys2.m_cluster.createCluster();
+    std::pair<typename SystemNOID::Cluster&, LocalVertex> sc1 = sys2.m_cluster.createCluster();
+    std::pair<typename SystemNOID::Cluster&, LocalVertex> sc2 = sys2.m_cluster.createCluster();
     sys2.m_cluster.moveToSubcluster(sys2.m_cluster.getLocalVertex(g3->getProperty<vertex_prop>()).first, sc1.second);
     sys2.m_cluster.moveToSubcluster(sys2.m_cluster.getLocalVertex(g4->getProperty<vertex_prop>()).first, sc2.second);
     sc1.first.setClusterProperty<changed_prop>(false);//dont need to solve as it's only one point
@@ -269,7 +302,7 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
 
 BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
 
-    System sys1; //line line parallel
+    SystemNOID sys1; //line line parallel
 
     line_t l1,l2;
     l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;
@@ -291,7 +324,7 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
 
 BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
 
-    System sys1; //line line parallel
+    SystemNOID sys1; //line line parallel
 
     line_t l1,l2;
     l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;

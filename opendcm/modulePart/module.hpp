@@ -49,8 +49,9 @@ struct ModulePart {
         typedef mpl::map< >  PartSignal;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
-
         protected:
+	  using Object<Sys, Part, PartSignal >::m_system;
+	  
             //check if we have module3d in this system
             typedef typename system_traits<Sys>::template getModule<m3d> getM;
             typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
@@ -83,11 +84,11 @@ struct ModulePart {
 
             template<typename T>
             Geom addGeometry(T geom) {
-                Geom g(new Geometry3D(geom, Part_base::m_system));
+                Geom g(new Geometry3D(geom, m_system));
                 fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
                 m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
-                Part_base::m_system.template objectVector<Geometry3D>().push_back(g);
+                m_system.template objectVector<Geometry3D>().push_back(g);
                 return g;
             };
 
@@ -133,12 +134,21 @@ struct ModulePart {
                 (typename geometry_traits<T>::modell()).template extract< typename Part_base::Scalar,
                 typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion);
             };
+	    
+	    bool hasGeometry3D(Identifier id) {
+	      typename Part_base::Geom g = Part_base::m_system.getGeometry3D(id);
+	      if(!g) return false;
+	      
+	      //get the global vertex and check if it is a child of the part cluster
+	      GlobalVertex v = g->template getProperty<typename Part_base::module3d::vertex_prop>();
+	      return Part_base::m_cluster.getLocalVertex(v).second;	      
+	    };
 
             Identifier getIdentifier() {
                 return m_id;
             };
 
-            void getIdentifier(Identifier id) {
+            void setIdentifier(Identifier id) {
                 m_id = id;
             };
         };
@@ -185,7 +195,7 @@ struct ModulePart {
 
             template<typename T>
             Partptr createPart(T geometry, Identifier id) {
-                Partptr p = inheriter_base::partCreation();
+                Partptr p = inheriter_base::partCreation(geometry);
                 p->setIdentifier(id);
                 return p;
             };

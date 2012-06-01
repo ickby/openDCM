@@ -57,13 +57,23 @@ BOOST_AUTO_TEST_SUITE(modulepart_suit);
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t> > Module3D;
+typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t>, std::string > Module3DID;
 typedef dcm::ModulePart< mpl::vector< Eigen::Quaterniond > > ModulePart;
-typedef dcm::System<Kernel, Module3D::type, ModulePart::type> System;
+typedef dcm::ModulePart< mpl::vector< Eigen::Quaterniond >, std::string > ModulePartID;
 
-typedef typename ModulePart::type<System>::Part Part;
+typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
+typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
+
+typedef typename ModulePart::type<SystemNOID>::Part Part;
+typedef typename ModulePartID::type<SystemID>::Part PartID;
 typedef boost::shared_ptr<Part> Part_ptr;
-typedef typename Module3D::type<System>::Geometry3D Geometry3D;
+typedef boost::shared_ptr<PartID> Partid_ptr;
+typedef typename Module3D::type<SystemNOID>::Geometry3D Geometry3D;
+typedef typename Module3DID::type<SystemID>::Geometry3D Geometry3DID;
+typedef typename Module3DID::type<SystemID>::Constraint3D Constraint3DID;
 typedef boost::shared_ptr<Geometry3D> Geom;
+typedef boost::shared_ptr<Geometry3DID> GeomID;
+typedef boost::shared_ptr<Constraint3DID> ConsID;
 
 
 BOOST_AUTO_TEST_CASE(modulepart_basics) {
@@ -75,7 +85,7 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   p3 << -2, -1.3, -2.8;
   p4 << 0.2, -0.5, 1.2;
     
-  System sys;
+  SystemNOID sys;
   Part_ptr part1 = sys.createPart(Eigen::Quaterniond(1,2,5,7).normalized());
   Geom g1 = part1->addGeometry3D( p1 );
   Geom g2 = part1->addGeometry3D( p2 );
@@ -98,6 +108,42 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
   BOOST_CHECK( Kernel::isSame((v2-v4).norm(),5.) );
   
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_identifier) {
+  
+  Eigen::Vector3d p1,p2,p3,p4;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+    
+  SystemID sys;
+  
+  Partid_ptr part1 = sys.createPart(Eigen::Quaterniond(1,2,5,7).normalized(), "part1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  GeomID g2 = part1->addGeometry3D( p2, "g2" );
+  
+  Partid_ptr part2 = sys.createPart(Eigen::Quaterniond(3,0.2,1,5).normalized(), "part2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3" );
+  GeomID g4 = part2->addGeometry3D( p4 , "g4" );
+  
+  ConsID c1 =  sys.createConstraint3D<dcm::Distance3D>("c1",g1,g3,5);
+  ConsID c2 = sys.createConstraint3D<dcm::Distance3D>("c2",g2,g4,5);
+  
+  BOOST_CHECK( !part1->getIdentifier().compare("part1") );
+  BOOST_CHECK( !part2->getIdentifier().compare("part2") );
+  BOOST_CHECK( !c1->getIdentifier().compare("c1") );
+  BOOST_CHECK( !c2->getIdentifier().compare("c2") );
+  
+  BOOST_CHECK( part1->hasGeometry3D("g1") );
+  BOOST_CHECK( !part1->hasGeometry3D("fail") );
+  BOOST_CHECK( part2->hasGeometry3D("g4") );
+  BOOST_CHECK( !part2->hasGeometry3D("g2") );
+  
+  BOOST_CHECK( sys.getPart("part1") == part1 );
+  BOOST_CHECK( sys.getPart("part2") == part2 );
 }
 
 BOOST_AUTO_TEST_SUITE_END();

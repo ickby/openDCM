@@ -463,7 +463,7 @@ public:
      * @brief Get the local edge which holds the specified global edge.
      *
      * Note that GlobalEdge must be in a local edge of this cluster, means the connected vertices must be in this
-     * ore one of it's subclusters. Also if the containing LocalEdge is not in this cluster, but in one of it's
+     * or one of it's subclusters. Also if the containing LocalEdge is not in this cluster, but in one of it's
      * subclusters, the function fails and the returned edge is invalid.
      *
      * @param e GlobalEdge for which the containing local one is wanted
