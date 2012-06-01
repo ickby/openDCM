@@ -21,6 +21,8 @@
 #include "opendcm/Module3D"
 #include "opendcm/ModulePart"
 
+#include "test/Octave/debugsolver.hpp"
+
 #include <boost/test/unit_test.hpp>
 
 typedef Eigen::Matrix<double, 6,1> line_t;

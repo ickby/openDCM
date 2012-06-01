@@ -31,6 +31,7 @@ namespace dcm {
 
 namespace E = Eigen;
 
+
 template<typename Kernel>
 struct Dogleg {
 
@@ -89,17 +90,20 @@ struct Dogleg {
 
                 // compute the dogleg step
                 if(h_gn.norm() <= delta) {
+		  // std::cout<<"Gauss Newton"<<std::endl;
                     h_dl = h_gn;
                     if(h_dl.norm() <= tolx*(tolx + sys.Parameter.norm())) {
                         stop = 5;
                         break;
                     }
                 } else if((alpha*h_sd).norm() >= delta) {
+		  // std::cout<<"Steepest descent"<<std::endl;
                     //h_dl = alpha*h_sd;
                     h_dl = (delta/(h_sd.norm()))*h_sd;
                     //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
                     //wir gehen aber den klassichen steepest descent weg
                 } else {
+		  // std::cout<<"Dogleg"<<std::endl;
                     //compute beta
                     number_type beta = 0;
                     typename Kernel::Vector a = alpha*h_sd;
@@ -130,13 +134,15 @@ struct Dogleg {
             sys.Parameter += h_dl;
             sys.recalculate();
 	    
-	   // std::cout<<"Residual:"<<std::endl<<sys.Residual<<std::endl<<std::endl;
-	   // std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl<<std::endl;
+	    // std::cout<<"Parameter Transposed:"<<std::endl<<sys.Parameter.transpose()<<std::endl;
+	    // std::cout<<"Residual:"<<std::endl<<sys.Residual<<std::endl;
+	    // std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl;
 	    
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
             number_type dF = err - err_new;
             number_type rho = dF/dL;
+	    //std::cout<<"rho: "<<rho<<std::endl;
 
             if(dF > 0 && dL > 0) {
 
@@ -152,6 +158,7 @@ struct Dogleg {
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
 
             } else {
+	     // std::cout<<"Step Rejected"<<std::endl;
                 sys.Residual = F_old;
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
@@ -167,9 +174,11 @@ struct Dogleg {
                 delta = delta/nu;
                 nu = 2*nu;
             }
+            // std::cout<<"Delta: "<<delta<<std::endl<<std::endl;
             // count this iteration and start again
             iter++;
         }
+        // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
         
         if(stop == 1) return true;
 	return false; //TODO:throw

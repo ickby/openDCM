@@ -91,6 +91,7 @@ struct EmptyModule {
 };
 
 }
+struct No_Identifier {};
 
 
 template< typename KernelType,

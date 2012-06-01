@@ -34,6 +34,7 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
+#include "opendcm/Core"
 #include "opendcm/core/object.hpp"
 #include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/sheduler.hpp"
@@ -220,7 +221,7 @@ public:
 struct reset {}; 	//signal namespace
 struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
-template<typename Typelist>
+template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
 
     template<typename Sys>
@@ -320,7 +321,7 @@ struct Module3D {
 
                 //initialise the system with now known size
                 MES mes(cluster, parameters, constraints);
-		
+
                 //iterate all geometrys again and set the needed maps
                 it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {
@@ -437,7 +438,7 @@ struct Module3D {
 
         };
 
-        class Geometry3D : public Object<Sys, Geometry3D, GeomSignal > {
+        class Geometry3D_base : public Object<Sys, Geometry3D, GeomSignal > {
             typedef typename boost::make_variant_over< Typelist >::type Variant;
             typedef Object<Sys, Geometry3D, GeomSignal> base;
             typedef typename system_traits<Sys>::Kernel Kernel;
@@ -446,19 +447,18 @@ struct Module3D {
 
         public:
             template<typename T>
-            Geometry3D(T geometry, Sys& system) : base(system), m_isInCluster(false),
+            Geometry3D_base(T geometry, Sys& system) : base(system), m_isInCluster(false),
                 m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
                 m_diffrot(NULL), m_translation(NULL)  {
 
                 init<T>(geometry);
             };
 
-
             template<typename T>
             void set(T geometry) {
-                m_geometry = geometry;
-                init<T>(geometry);
-                base::template emitSignal<reset> (base::shared_from_this());
+                Geometry3D_base::m_geometry = geometry;
+                Geometry3D_base::template init<T>(geometry);
+                Geometry3D_base::template emitSignal<reset> (Geometry3D_base::shared_from_this());
             };
 
             template<typename Visitor>
@@ -466,7 +466,7 @@ struct Module3D {
                 return boost::apply_visitor(vis, m_geometry);
             };
 
-        protected:
+        public:
             Variant m_geometry; //Variant holding the real geometry type
             int     m_baseParameterCount; //count of the parameters the variant geometry type needs
             int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_baseParameterCount)
@@ -480,6 +480,7 @@ struct Module3D {
             typename Sys::Kernel::Vector3Map  m_translation; //map to the cluster translation
             typename Sys::Kernel::Matrix3Map  m_rotation; //map to the cluster rotation
             typename Sys::Kernel::Matrix39Map m_diffrot; //map to the gradient rotations
+
 
             template<typename T>
             void init(T& t) {
@@ -569,21 +570,52 @@ struct Module3D {
                 apply_visitor v(m_original);
                 apply(v);
             };
-
-            friend class SystemSolver;
-            friend class Constraint3D;
-            friend struct MES;
         };
 
+        class Geometry3D_id : public Geometry3D_base {
+
+            Identifier m_id;
+        public:
+            template<typename T>
+            Geometry3D_id(T geometry, Sys& system) : Geometry3D_base(geometry, system) { };
+
+            template<typename T>
+            void set(T geometry, Identifier id) {
+                Geometry3D_base::m_geometry = geometry;
+                Geometry3D_base::template init<T>(geometry);
+                m_id = id;
+                Geometry3D_base::template emitSignal<reset> (Geometry3D_base::shared_from_this());
+            };
+
+            Identifier getIdentifier() {
+                return m_id;
+            };
+            void setIdentitfier(Identifier id) {
+                m_id = id;
+            };
+        };
+
+        struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                Geometry3D_base, Geometry3D_id>::type {
+
+            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                    Geometry3D_base, Geometry3D_id>::type base;
+
+            template<typename T>
+            Geometry3D(T geometry, Sys& system) : base(geometry, system) { };
+
+        };
+
+
         //type erasure container for constraints
-        class Constraint3D : public Object<Sys, Constraint3D, mpl::map<> > {
+        class Constraint3D_base : public Object<Sys, Constraint3D, mpl::map<> > {
 
             typedef typename system_traits<Sys>::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
             typedef typename Kernel::DynStride DS;
 
         public:
-            Constraint3D(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
+            Constraint3D_base(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
                 first(f), second(s), content(0), m_diffFirst(NULL,0,DS(0,0)), m_diffSecond(NULL,0,DS(0,0)),
                 m_residual(NULL,0,DS(0,0))	{
 
@@ -591,7 +623,7 @@ struct Module3D {
                 cs = second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
             };
 
-            ~Constraint3D()  {
+            ~Constraint3D_base()  {
                 delete content;
                 first->template disconnectSignal<reset>(cf);
                 second->template disconnectSignal<reset>(cs);
@@ -780,13 +812,76 @@ struct Module3D {
 
         };
 
+        class Constraint3D_id : public Constraint3D_base {
+
+            Identifier m_id;
+        public:
+            Constraint3D_id(Sys& system, Geom f, Geom s) : Constraint3D_base(system, f, s) {};
+
+            Identifier getIdentifier() {
+                return m_id;
+            };
+            void setIdentitfier(Identifier id) {
+                m_id = id;
+            };
+
+            template< template<typename,typename,typename> class T>
+            void set(Identifier id) {
+                Constraint3D_base::template set<T>();
+                m_id = id;
+            };
+            template< template<typename,typename,typename> class T, typename Value1>
+            void set(Identifier id, Value1 v) {
+                Constraint3D_base::template set<T>(v);
+                m_id = id;
+            };
+            template< template<typename,typename,typename> class T, typename Value1, typename Value2>
+            void set(Identifier id, Value1 v1, Value2 v2) {
+                Constraint3D_base::template set<T>(v1,v2);
+                m_id = id;
+            };
+        };
+
+        struct Constraint3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                Constraint3D_base, Constraint3D_id>::type {
+
+            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                    Constraint3D_base, Constraint3D_id>::type base;
+
+            Constraint3D(Sys& system, Geom f, Geom s) : base(system, f, s) { };
+        };
+
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
 
-        struct inheriter {
-            inheriter() {
+        struct inheriter_base {
+            inheriter_base() {
                 m_this = ((Sys*) this);
             };
 
+        protected:
+            Sys* m_this;
+
+            void process_constraint(Cons c, Geom first, Geom second) {
+
+                fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
+                res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
+                                                second->template getProperty<vertex_prop>());
+                if(!fusion::at_c<2>(res))  {
+                    return; //TODO: throw
+                };
+                m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
+                c->template setProperty<edge_prop>(fusion::at_c<1>(res));
+                m_this->template objectVector<Constraint3D>().push_back(c);
+            }
+        };
+
+        struct inheriter_noid : public inheriter_base {
+
+        protected:
+            using inheriter_base::m_this;
+            using inheriter_base::process_constraint;
+
+        public:
             template<typename T>
             Geom createGeometry3D(T geom) {
 
@@ -803,42 +898,74 @@ struct Module3D {
 
                 Cons c(new Constraint3D(* ((Sys*) this), first, second));
                 c->template set<T>();
-		process_constraint(c, first, second);
+                process_constraint(c, first, second);
                 return c;
             };
-	    template< template<typename,typename,typename> class T, typename Value1 >
+            template< template<typename,typename,typename> class T, typename Value1 >
             Cons createConstraint3D(Geom first, Geom second, Value1 v1) {
 
                 Cons c(new Constraint3D(* ((Sys*) this), first, second));
                 c->template set<T>(v1);
-		process_constraint(c, first, second);
+                process_constraint(c, first, second);
                 return c;
             };
-	    template< template<typename,typename,typename> class T, typename Value1, typename Value2 >
+            template< template<typename,typename,typename> class T, typename Value1, typename Value2 >
             Cons createConstraint3D(Geom first, Geom second, Value1 v1, Value2 v2) {
 
                 Cons c(new Constraint3D(* ((Sys*) this), first, second));
                 c->template set<T>(v1,v2);
-		process_constraint(c, first, second);
+                process_constraint(c, first, second);
                 return c;
             };
-
-        private:
-            Sys* m_this;
-	    
-	    void process_constraint(Cons c, Geom first, Geom second) {
-	      
-	        fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
-                res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
-                                                second->template getProperty<vertex_prop>());
-                if(!fusion::at_c<2>(res))  {
-                    return; //TODO: throw
-                };
-                m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
-                c->template setProperty<edge_prop>(fusion::at_c<1>(res));
-                m_this->template objectVector<Constraint3D>().push_back(c);
-	    }
         };
+
+        struct inheriter_id : public inheriter_base {
+
+        protected:
+            using inheriter_base::m_this;
+            using inheriter_base::process_constraint;
+            Identifier m_id;
+
+        public:
+            template<typename T>
+            Geom createGeometry3D(T geom, Identifier id) {
+                m_id = id;
+                Geom g(new Geometry3D(geom, * ((Sys*) this)));
+                fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
+                m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+                g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
+                m_this->template objectVector<Geometry3D>().push_back(g);
+                return g;
+            };
+
+            template< template<typename,typename,typename> class T >
+            Cons createConstraint3D(Identifier id, Geom first, Geom second) {
+                m_id = id;
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                c->template set<T>();
+                process_constraint(c, first, second);
+                return c;
+            };
+            template< template<typename,typename,typename> class T, typename Value1 >
+            Cons createConstraint3D(Identifier id, Geom first, Geom second, Value1 v1) {
+                m_id = id;
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                c->template set<T>(v1);
+                process_constraint(c, first, second);
+                return c;
+            };
+            template< template<typename,typename,typename> class T, typename Value1, typename Value2 >
+            Cons createConstraint3D(Identifier id, Geom first, Geom second, Value1 v1, Value2 v2) {
+                m_id = id;
+                Cons c(new Constraint3D(* ((Sys*) this), first, second));
+                c->template set<T>(v1,v2);
+                process_constraint(c, first, second);
+                return c;
+            };
+        };
+	
+	struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
+
 
 
         struct math_prop {
@@ -906,6 +1033,7 @@ typename boost::add_reference<T>::type get(G geom) {
 }
 
 #endif //DCM_GEOMETRY3D_H
+
 
 
 
