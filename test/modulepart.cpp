@@ -26,14 +26,61 @@
 #include <boost/test/unit_test.hpp>
 
 typedef Eigen::Matrix<double, 6,1> line_t;
+struct place {
+  Eigen::Quaterniond quat;
+  Eigen::Vector3d trans;
+};
+struct place_accessor {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        switch(ID) {
+            case 0:
+                return t.quat.w();
+            case 1:
+                return t.quat.x();
+            case 2:
+                return t.quat.y();
+            case 3:
+                return t.quat.z();
+            case 4:
+                return t.trans(0);
+            case 5:
+                return t.trans(1);
+            case 6:
+                return t.trans(2);
+            default:
+                return 0;
+        };
+    };
+    template<typename Scalar, int ID, typename T>
+    void set(Scalar value, T& t) {
+      switch(ID) {
+            case 0:
+                t.quat.w() = value; break;
+            case 1:
+                t.quat.x() = value; break;
+            case 2:
+                t.quat.y() = value; break;
+            case 3:
+                t.quat.z() = value; break;
+            case 4:
+                t.trans(0) = value; break;
+            case 5:
+                t.trans(1) = value; break;
+            case 6:
+                t.trans(2) = value; break;
+        };
+    };
+};
 
 namespace dcm {
 
 template<>
-struct geometry_traits< Eigen::Quaterniond > {
+struct geometry_traits< place > {
     typedef tag::part  tag;
-    typedef modell::quaternion_wxyz modell;
-    typedef orderd_roundbracket_accessor accessor;
+    typedef modell::quaternion_wxyz_vec3 modell;
+    typedef place_accessor accessor;
 };
 
 template<>
@@ -58,8 +105,8 @@ BOOST_AUTO_TEST_SUITE(modulepart_suit);
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t> > Module3D;
 typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t>, std::string > Module3DID;
-typedef dcm::ModulePart< mpl::vector< Eigen::Quaterniond > > ModulePart;
-typedef dcm::ModulePart< mpl::vector< Eigen::Quaterniond >, std::string > ModulePartID;
+typedef dcm::ModulePart< mpl::vector< place > > ModulePart;
+typedef dcm::ModulePart< mpl::vector< place >, std::string > ModulePartID;
 
 typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
 typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
@@ -86,11 +133,11 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   p4 << 0.2, -0.5, 1.2;
     
   SystemNOID sys;
-  Part_ptr part1 = sys.createPart(Eigen::Quaterniond(1,2,5,7).normalized());
+  Part_ptr part1 = sys.createPart(place());
   Geom g1 = part1->addGeometry3D( p1 );
   Geom g2 = part1->addGeometry3D( p2 );
   
-  Part_ptr part2 = sys.createPart(Eigen::Quaterniond(3,0.2,1,5).normalized());
+  Part_ptr part2 = sys.createPart(place());
   Geom g3 = part2->addGeometry3D( p3 );
   Geom g4 = part2->addGeometry3D( p4 );
   
@@ -121,11 +168,11 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
     
   SystemID sys;
   
-  Partid_ptr part1 = sys.createPart(Eigen::Quaterniond(1,2,5,7).normalized(), "part1");
+  Partid_ptr part1 = sys.createPart(place(), "part1");
   GeomID g1 = part1->addGeometry3D( p1, "g1" );
   GeomID g2 = part1->addGeometry3D( p2, "g2" );
   
-  Partid_ptr part2 = sys.createPart(Eigen::Quaterniond(3,0.2,1,5).normalized(), "part2");
+  Partid_ptr part2 = sys.createPart(place(), "part2");
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   

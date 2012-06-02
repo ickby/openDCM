@@ -31,27 +31,39 @@ struct part  {};
 
 namespace modell {
   
-  struct quaternion_wxyz {
+  struct quaternion_wxyz_vec3 {
     /*Modell XYZ: 
      * 0 = w;
      * 1 = x;
      * 2 = y;
      * 3 = z;
      */    
-    template<typename Scalar, typename Accessor, typename Vector, typename Type>
-    void extract(Type& t, Vector& v) {
+    template<typename Scalar, typename Accessor, typename Vector1, typename Vector2, typename Type>
+    void extract(Type& t, Vector1& v, Vector2& v2) {
+      //Vector is a Quaternion here
       Accessor a;
-      v(0) = a.template get<Scalar, 0>(t);
-      v(1) = a.template get<Scalar, 1>(t);
-      v(2) = a.template get<Scalar, 2>(t);
+      v.w() = a.template get<Scalar, 0>(t);
+      v.x() = a.template get<Scalar, 1>(t);
+      v.y() = a.template get<Scalar, 2>(t);
+      v.z() = a.template get<Scalar, 3>(t);
+      //Vector2 is a Eigen::Vector3
+      v2(0) = a.template get<Scalar, 4>(t);
+      v2(1) = a.template get<Scalar, 5>(t);
+      v2(2) = a.template get<Scalar, 6>(t);
+      
     }
     
-    template<typename Scalar, typename Accessor, typename Vector, typename Type>
-    void inject(Type& t, Vector& v) {
+    template<typename Scalar, typename Accessor, typename Vector1, typename Vector2, typename Type>
+    void inject(Type& t, Vector1& v, Vector2& v2) {
       Accessor a;
-      a.template set<Scalar, 0>(v(0), t);
-      a.template set<Scalar, 1>(v(1), t);
-      a.template set<Scalar, 2>(v(2), t);
+      a.template set<Scalar, 0>(v.w(), t);
+      a.template set<Scalar, 1>(v.x(), t);
+      a.template set<Scalar, 2>(v.y(), t);
+      a.template set<Scalar, 3>(v.z(), t);
+      
+      a.template set<Scalar, 4>(v2(0), t);
+      a.template set<Scalar, 5>(v2(1), t);
+      a.template set<Scalar, 6>(v2(2), t);
     };
   };
 }

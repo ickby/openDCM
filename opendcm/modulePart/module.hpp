@@ -42,16 +42,16 @@ struct ModulePart {
     struct type {
 
 
-
-
         class Part;
+        struct PrepareCluster;
+        struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
         typedef mpl::map< >  PartSignal;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
-	  using Object<Sys, Part, PartSignal >::m_system;
-	  
+            using Object<Sys, Part, PartSignal >::m_system;
+
             //check if we have module3d in this system
             typedef typename system_traits<Sys>::template getModule<m3d> getM;
             typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
@@ -70,7 +70,11 @@ struct ModulePart {
         public:
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
-                m_geometry(geometry), m_cluster(cluster)  {};
+                m_geometry(geometry), m_cluster(cluster)  {
+
+                (typename geometry_traits<T>::modell()).template extract<typename Part_base::Scalar,
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
+            };
 
             template<typename Visitor>
             typename Visitor::result_type apply(Visitor& vis) {
@@ -80,6 +84,7 @@ struct ModulePart {
         protected:
             Variant m_geometry;
             typename Kernel::Quaternion m_quaternion;
+            typename Kernel::Vector3 m_translation;
             Cluster& m_cluster;
 
             template<typename T>
@@ -89,9 +94,29 @@ struct ModulePart {
                 m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
                 m_system.template objectVector<Geometry3D>().push_back(g);
+
                 return g;
             };
 
+            //visitor to write the calculated value into the variant
+            struct apply_visitor : public boost::static_visitor<void> {
+
+                apply_visitor(typename Kernel::Quaternion& v1,typename Kernel::Vector3& v2) : quaternion(v1),
+                    translation(v2) {};
+                template <typename T>
+                void operator()(T& t) const  {
+                    (typename geometry_traits<T>::modell()).template inject<typename Part_base::Scalar,
+                    typename geometry_traits<T>::accessor >(t, quaternion, translation);
+
+                }
+                typename Kernel::Vector3& translation;
+                typename Kernel::Quaternion& quaternion;
+            };
+
+            void finishCalculation() {
+	      apply_visitor vis(m_quaternion, m_translation);
+	      apply(vis);
+            };
         };
 
         class Part_noid : public Part_base {
@@ -109,7 +134,7 @@ struct ModulePart {
             void set(T geometry) {
                 Part_base::m_geometry = geometry;
                 (typename geometry_traits<T>::modell()).template extract<typename Part_base::Scalar,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion);
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
             };
         };
         class Part_id : public Part_base {
@@ -132,17 +157,17 @@ struct ModulePart {
                 Part_base::m_geometry = geometry;
                 m_id = id;
                 (typename geometry_traits<T>::modell()).template extract< typename Part_base::Scalar,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion);
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
             };
-	    
-	    bool hasGeometry3D(Identifier id) {
-	      typename Part_base::Geom g = Part_base::m_system.getGeometry3D(id);
-	      if(!g) return false;
-	      
-	      //get the global vertex and check if it is a child of the part cluster
-	      GlobalVertex v = g->template getProperty<typename Part_base::module3d::vertex_prop>();
-	      return Part_base::m_cluster.getLocalVertex(v).second;	      
-	    };
+
+            bool hasGeometry3D(Identifier id) {
+                typename Part_base::Geom g = Part_base::m_system.getGeometry3D(id);
+                if(!g) return false;
+
+                //get the global vertex and check if it is a child of the part cluster
+                GlobalVertex v = g->template getProperty<typename Part_base::module3d::vertex_prop>();
+                return Part_base::m_cluster.getLocalVertex(v).second;
+            };
 
             Identifier getIdentifier() {
                 return m_id;
@@ -158,6 +183,9 @@ struct ModulePart {
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_noid, Part_id>::type base;
             template<typename T>
             Part(T geometry, Sys& system, typename base::Cluster& cluster) : base(geometry, system, cluster) {};
+
+            friend struct PrepareCluster;
+            friend struct EvaljuateCluster;
         };
 
 
@@ -220,8 +248,55 @@ struct ModulePart {
         typedef mpl::vector<>  properties;
         typedef mpl::vector<Part>  objects;
 
+        struct PrepareCluster : public Job<Sys> {
+
+            typedef typename system_traits<Sys>::Cluster Cluster;
+            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+
+            PrepareCluster() {
+                Job<Sys>::priority = 1000;
+            };
+
+            virtual void execute(Sys& sys) {
+                //get all parts and set their values to the cluster's
+                typedef typename std::vector<Partptr>::iterator iter;
+                for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
+
+                    details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
+                    cm.getQuaternion() = (*it)->m_quaternion;
+                    cm.getTranslation() = (*it)->m_translation;
+                };
+            };
+        };
+
+        struct EvaljuateCluster : public Job<Sys> {
+
+            typedef typename system_traits<Sys>::Cluster Cluster;
+            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+
+            EvaljuateCluster() {
+                Job<Sys>::priority = 1000;
+            };
+
+            virtual void execute(Sys& sys) {
+                //get all parts and set their values to the cluster's
+                typedef typename std::vector<Partptr>::iterator iter;
+                for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
+
+                    details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
+                    cm.setValuesFromMaps();
+                    (*it)->m_quaternion = cm.getQuaternion();
+                    (*it)->m_translation = cm.getTranslation();
+		    (*it)->finishCalculation();
+                };
+            };
+        };
+
         static void system_init(Sys& sys) {
-            //sys.m_sheduler.addProcessJob(new SystemSolver());
+            sys.m_sheduler.addPreprocessJob(new PrepareCluster());
+            sys.m_sheduler.addPostprocessJob(new EvaljuateCluster());
         };
     };
 };

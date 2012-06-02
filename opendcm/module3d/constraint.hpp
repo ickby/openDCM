@@ -264,9 +264,9 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 
 //planes like lines have the direction as segment 3-5, so we can use the same implementations
 template< typename Kernel >
-struct Parallel3D< Kernel, tag::plane, tag::plane > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
+struct Parallel3D< Kernel, tag::plane3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
 template< typename Kernel >
-struct Parallel3D< Kernel, tag::line3D, tag::plane > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
+struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
 
 
 /*******************************************************************************
@@ -383,9 +383,9 @@ struct Angle3D< Kernel, tag::line3D, tag::line3D > {
 
 //planes like lines have the direction as segment 3-5, so we can use the same implementations
 template< typename Kernel >
-struct Angle3D< Kernel, tag::plane, tag::plane > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
+struct Angle3D< Kernel, tag::plane3D, tag::plane3D > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
 template< typename Kernel >
-struct Angle3D< Kernel, tag::line3D, tag::plane > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
+struct Angle3D< Kernel, tag::line3D, tag::plane3D > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
 
 }
 

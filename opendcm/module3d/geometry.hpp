@@ -46,7 +46,7 @@ struct line3D  {
     typedef weight::line weight; 
 };
 
-struct plane  {
+struct plane3D  {
     typedef mpl::int_<6>  parameters;
     typedef mpl::int_<2>  rotations;
     typedef mpl::int_<1>  translations;
