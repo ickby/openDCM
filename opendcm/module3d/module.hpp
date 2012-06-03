@@ -570,6 +570,17 @@ struct Module3D {
                 apply_visitor v(m_original);
                 apply(v);
             };
+
+            //some modules may need to transform the value with given rotation and translation (PART)
+            void transform(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
+
+                for(int i=0; i!=m_rotations; i++)
+                    m_original.block(i*3,0,3,1) = rot*m_original.block(i*3,0,3,1);
+
+                //after rotating the needed parameters we translate the stuff that needs to be moved
+                for(int i=0; i!=m_translations; i++)
+                    m_original.block(i*3,0,3,1) += trans;
+            };
         };
 
         class Geometry3D_id : public Geometry3D_base {
@@ -800,8 +811,8 @@ struct Module3D {
 
             using Constraint3D_base::resetType;
         public:
-	    Constraint3D_noid(Sys& system, Geom f, Geom s) : Constraint3D_base(system, f, s) {};
-	  
+            Constraint3D_noid(Sys& system, Geom f, Geom s) : Constraint3D_base(system, f, s) {};
+
             template< template<typename,typename,typename> class T>
             void set() {
                 typename Constraint3D_base::template creator<T> c;
@@ -944,7 +955,7 @@ struct Module3D {
                 m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
                 m_this->template objectVector<Geometry3D>().push_back(g);
-		g->setIdentifier(id);
+                g->setIdentifier(id);
                 return g;
             };
 
@@ -979,7 +990,7 @@ struct Module3D {
                 std::vector< Geom >& vec = inheriter_base::m_this->template objectVector<Geometry3D>();
                 typedef typename std::vector<Geom>::iterator iter;
                 for(iter it=vec.begin(); it!=vec.end(); it++) {
-                    if((*it)->getIdentifier() == id) return *it;
+                    if(compare_traits<Identifier>::compare((*it)->getIdentifier(), id)) return *it;
                 };
                 return Geom();
             };
@@ -993,7 +1004,7 @@ struct Module3D {
                 std::vector< Cons >& vec = inheriter_base::m_this->template objectVector<Constraint3D>();
                 typedef typename std::vector<Cons>::iterator iter;
                 for(iter it=vec.begin(); it!=vec.end(); it++) {
-                    if((*it)->getIdentifier() == id) return *it;
+                    if(compare_traits<Identifier>::compare((*it)->getIdentifier(), id)) return *it;
                 };
                 return Cons();
             };

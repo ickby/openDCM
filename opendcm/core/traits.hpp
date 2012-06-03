@@ -24,6 +24,8 @@
 #include <boost/mpl/if.hpp>
 #include <boost/mpl/void.hpp>
 
+#include <string.h>
+
 namespace mpl = boost::mpl;
 
 namespace dcm {
@@ -44,9 +46,29 @@ struct system_traits {
     };
 };
 
+template<typename T>
+struct compare_traits {
+  
+  bool compare(T& first, T& second) {
+    return first == second;
+  };
+};
 
+template<>
+struct compare_traits<std::string> {
+  
+  bool compare(std::string& first, std::string& second) {
+    return !(first.compare(second));
+  };
+};
 
-
+template<>
+struct compare_traits<const char*> {
+  
+  static bool compare(const char* first, const char* second) {
+    return !(strcmp(first,second));
+  };
+};
 }
 
 #endif //DCM_TRAITS_H

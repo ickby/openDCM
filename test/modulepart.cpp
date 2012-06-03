@@ -29,6 +29,10 @@ typedef Eigen::Matrix<double, 6,1> line_t;
 struct place {
   Eigen::Quaterniond quat;
   Eigen::Vector3d trans;
+  
+  place():quat(1,2,3,4) {
+    quat.normalize();
+  };
 };
 struct place_accessor {
 
@@ -155,6 +159,21 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
   BOOST_CHECK( Kernel::isSame((v2-v4).norm(),5.) );
   
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_coordinate_frame) {
+  
+  Eigen::Vector3d p1;
+  p1 << 7, -0.5, 0.3;
+  
+  SystemNOID sys;
+  place p;
+  p.quat.x()=1; p.quat.y()=2; p.quat.z()=3; p.quat.w()=4;
+  p.quat.normalize();
+  Part_ptr part1 = sys.createPart(p);
+  Geom g = part1->addGeometry3D(p1, dcm::Global);
+  
+  BOOST_CHECK( (g->m_original-p.quat.conjugate()._transformVector(p1)).norm() < 0.0001 );  
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_identifier) {

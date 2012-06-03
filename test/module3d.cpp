@@ -138,6 +138,7 @@ typedef boost::shared_ptr<consid> consid_ptr;
 typedef typename SystemNOID::Cluster::vertex_iterator viter;
 typedef typename Module::type<SystemNOID>::vertex_prop vertex_prop;
 
+
 BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
 
     SystemNOID sys;
