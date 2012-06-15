@@ -226,25 +226,67 @@ struct Kernel {
     typedef E::Matrix<Scalar, 3, 9> Matrix39;
     typedef E::Map< Matrix39 >      Matrix39Map;
     typedef E::Block<Matrix>	    MatrixBlock;
+    
+    enum ParameterType {
+      Rotation,
+      Translation,
+      Anything
+    };
 
     struct MappedEquationSystem {
 
         Matrix Jacobi;
         Vector Parameter;
         Vector Residual;
-        int m_params, m_eqns;
+        int m_params, m_rot_params, m_trans_params, m_eqns; //total amount
+	int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
 
-        MappedEquationSystem(int p, int e) : Jacobi(e, p),
-            Parameter(p), Residual(e), m_params(p), m_eqns(e) {};
+        MappedEquationSystem(int params, int rotparams, int transparams, int equations) 
+	  : Jacobi(equations, params+rotparams+transparams),
+            Parameter(params+rotparams+transparams), Residual(equations),
+            m_params(params+rotparams+transparams), m_eqns(equations) {
+	      m_rot_offset = params;
+	      m_trans_offset = params + rotparams;
+	      m_eqn_offset = 0;
+	    };
 
-        void setParameterMap(int offset, int number, VectorMap& map) {
-            new(&map) VectorMap(&Parameter(offset), number, DynStride(1,1));
+        int setParameterMap(ParameterType t, int number, VectorMap& map) {
+            if(t==Anything) {
+	      new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
+	      m_param_offset += number;
+	      return m_param_offset-number;
+	    }
+	    else if(t==Rotation) {
+	      new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
+	      m_rot_offset += number;
+	      return m_rot_offset-number;
+	    }
+	    else if(t==Translation) {
+	      new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
+	      m_trans_offset += number;
+	      return m_trans_offset-number;
+	    }
         };
-        void setParameterMap(int offset, Vector3Map& map) {
-            new(&map) Vector3Map(&Parameter(offset));
+        void setParameterMap(ParameterType t, Vector3Map& map) {
+	    if(t==Anything) {
+	      new(&map) Vector3Map(&Parameter(m_param_offset));
+	      m_param_offset += 3;
+	      return m_param_offset-3;
+	    }
+	    else if(t==Rotation) {
+	      new(&map) Vector3Map(&Parameter(m_rot_offset));
+	      m_rot_offset += 3;
+	      return m_rot_offset-3;
+	    }
+	    else if(t==Translation) {
+	      new(&map) Vector3Map(&Parameter(m_trans_offset));
+	      m_trans_offset += 3;
+	      return m_trans_offset-3;
+	    }
         };
-        void setResidualMap(int eqn, VectorMap& map) {
-            new(&map) VectorMap(&Residual(eqn), 1, DynStride(1,1));
+        int setResidualMap(VectorMap& map) {
+            new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
+	    return ++m_eqn_offset;
         };
         void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
             new(&map) CVectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
