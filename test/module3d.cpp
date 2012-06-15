@@ -59,8 +59,8 @@ struct geometry_traits<line_t> {
 
 //again, two vectors perpendicular, maybe the easiest constraints of them all
 template< typename Kernel, typename Tag1, typename Tag2 >
-struct test_constraint { 
-  typedef typename Kernel::number_type Scalar;
+struct test_constraint {
+    typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
     Scalar calculate(Vector& param1,  Vector& param2)  {
@@ -231,30 +231,30 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 };
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
-  
-  SystemID sys;
-  Eigen::Vector3d p1,p2;
-  p1 << 7, -0.5, 0.3;
-  p2 << 0.2, 0.5, -0.1;
-  
-  geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
-  geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
-  
-  consid_ptr c1 = sys.createConstraint3D<Distance3D>("constraint", g1, g2, 5);
-  
-  BOOST_CHECK( !g1->getIdentifier().compare("g1") );
-  BOOST_CHECK( !g2->getIdentifier().compare("g2") );
-  BOOST_CHECK( !c1->getIdentifier().compare("constraint") );
-  
-  BOOST_CHECK( sys.hasGeometry3D("g1") );
-  BOOST_CHECK( !sys.hasGeometry3D("fail") );
-  BOOST_CHECK( sys.hasConstraint3D("constraint") );
-  BOOST_CHECK( !sys.hasConstraint3D("fail") );
-  
-  BOOST_CHECK( sys.getGeometry3D("g1") == g1 );
-  BOOST_CHECK( sys.getGeometry3D("g2") == g2 );
-  BOOST_CHECK( sys.getConstraint3D("constraint") == c1 );
-  
+
+    SystemID sys;
+    Eigen::Vector3d p1,p2;
+    p1 << 7, -0.5, 0.3;
+    p2 << 0.2, 0.5, -0.1;
+
+    geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
+    geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
+
+    consid_ptr c1 = sys.createConstraint3D<Distance3D>("constraint", g1, g2, 5);
+
+    BOOST_CHECK(!g1->getIdentifier().compare("g1"));
+    BOOST_CHECK(!g2->getIdentifier().compare("g2"));
+    BOOST_CHECK(!c1->getIdentifier().compare("constraint"));
+
+    BOOST_CHECK(sys.hasGeometry3D("g1"));
+    BOOST_CHECK(!sys.hasGeometry3D("fail"));
+    BOOST_CHECK(sys.hasConstraint3D("constraint"));
+    BOOST_CHECK(!sys.hasConstraint3D("fail"));
+
+    BOOST_CHECK(sys.getGeometry3D("g1") == g1);
+    BOOST_CHECK(sys.getGeometry3D("g2") == g2);
+    BOOST_CHECK(sys.getConstraint3D("constraint") == c1);
+
 }
 
 BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
@@ -276,13 +276,13 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
     v1 = get<Eigen::Vector3d>(g1);
     v2 = get<Eigen::Vector3d>(g2);
 
-    BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
-    
+    BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5));
+
     SystemNOID sys2; //point point distance in clusters (first time to check translation)
 
     geom_ptr g3 = sys2.createGeometry3D(p1);
     geom_ptr g4 = sys2.createGeometry3D(p2);
-    
+
     //now trick a bit and move geometries manual in a subcluster
     std::pair<typename SystemNOID::Cluster&, LocalVertex> sc1 = sys2.m_cluster.createCluster();
     std::pair<typename SystemNOID::Cluster&, LocalVertex> sc2 = sys2.m_cluster.createCluster();
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
     v1 = get<Eigen::Vector3d>(g3);
     v2 = get<Eigen::Vector3d>(g4);
 
-    BOOST_CHECK( Kernel::isSame((v1-v2).norm(), 5) );
+    BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5));
 }
 
 BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
@@ -320,7 +320,7 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
     rl1 = get<line_t>(g1);
     rl2 = get<line_t>(g2);
 
-    BOOST_CHECK( Kernel::isSame((rl1.tail<3>()-rl2.tail<3>()).norm(), 0) );
+    BOOST_CHECK(Kernel::isSame((rl1.tail<3>()-rl2.tail<3>()).norm(), 0));
 }
 
 BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
     rl1 = get<line_t>(g1);
     rl2 = get<line_t>(g2);
 
-    BOOST_CHECK( Kernel::isSame( std::acos( (rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2) );
+    BOOST_CHECK(Kernel::isSame(std::acos((rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2));
 }
 
 BOOST_AUTO_TEST_SUITE_END();

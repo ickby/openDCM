@@ -117,6 +117,51 @@ struct Distance3D< Kernel, tag::point3D, tag::point3D > {
     };
 };
 
+//remember: only valid for parallel planes (as intersecting have always minimal distance 0) 
+template< typename Kernel >
+struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
+
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    Scalar m_distance;
+
+    Distance3D(Scalar d = 0) : m_distance(d) {};
+
+    //template definition
+    Scalar calculate(Vector& param1,  Vector& param2) {
+	//(p1-p2)°n / |n| - distance
+	return  (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+    };
+
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+      //dp1°n / |n|
+        return (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
+    };
+
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+	const typename Kernel::Vector3 p1 = param1.head(3);
+	const typename Kernel::Vector3 p2 = param2.head(3);
+	const typename Kernel::Vector3 dp2 = dparam2.head(3);
+	const typename Kernel::Vector3 n = param2.tail(3);
+	const typename Kernel::Vector3 dn = dparam2.tail(3);
+	
+        return ((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3);
+    };
+
+    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        gradient = param2.tail(3) / param2.tail(3).norm();
+    };
+
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+	const typename Kernel::Vector3 p1m2 = param1.head(3) - param2.head(3);
+	const typename Kernel::Vector3 n = param2.tail(3);
+	
+        gradient.head(3) = -n / n.norm();
+	gradient.tail(3) = (p1m2)/n.norm() - (p1m2).dot(n)*n/std::pow(n.norm(),3);
+    };
+};
+
 
 /*******************************************************************************
  * 			Parallel Constraint
@@ -212,7 +257,9 @@ struct Parallel3D {
     typedef typename Kernel::VectorMap   Vector;
     Direction m_dir;
 
-    Parallel3D(Direction d = Same) : m_dir(d) {};
+    Parallel3D(Direction d = Same) : m_dir(d) {
+      Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
+    };
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -264,9 +311,13 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 
 //planes like lines have the direction as segment 3-5, so we can use the same implementations
 template< typename Kernel >
-struct Parallel3D< Kernel, tag::plane3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
+struct Parallel3D< Kernel, tag::plane3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
+  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+};
 template< typename Kernel >
-struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {};
+struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
+  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+};
 
 
 /*******************************************************************************

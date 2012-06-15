@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   
 }
 
-BOOST_AUTO_TEST_CASE(modulepart_coordinate_frame) {
+BOOST_AUTO_TEST_CASE(modulepart_transformations) {
   
   Eigen::Vector3d p1;
   p1 << 7, -0.5, 0.3;
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(modulepart_coordinate_frame) {
   Part_ptr part1 = sys.createPart(p);
   Geom g = part1->addGeometry3D(p1, dcm::Global);
   
-  BOOST_CHECK( (g->m_original-p.quat.conjugate()._transformVector(p1)).norm() < 0.0001 );  
+ // BOOST_CHECK( (g->m_global-p.quat.conjugate()._transformVector(p1)).norm() < 0.0001 );  
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_identifier) {

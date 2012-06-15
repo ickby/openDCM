@@ -29,46 +29,43 @@
 namespace mpl = boost::mpl;
 
 namespace dcm {
-  
+
 template< typename T >
 struct system_traits {
     typedef typename T::Kernel  Kernel;
     typedef typename T::Cluster Cluster;
-    
+
     template<typename M>
     struct getModule {
-      
-      typedef typename mpl::if_< boost::is_base_of<M, typename T::Type1>, typename T::Type1, typename T::Type2 >::type test1;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, typename T::Type3 >::type test2;
-      typedef typename mpl::if_< boost::is_base_of<M, test1>, test2, mpl::void_ >::type type;
-      
-      typedef boost::is_same<type, mpl::void_> has_module; 
+
+        typedef typename mpl::if_< boost::is_base_of<M, typename T::Type1>, typename T::Type1, typename T::Type2 >::type test1;
+        typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, typename T::Type3 >::type test2;
+        typedef typename mpl::if_< boost::is_base_of<M, test1>, test2, mpl::void_ >::type type;
+
+        typedef boost::is_same<type, mpl::void_> has_module;
     };
 };
 
 template<typename T>
 struct compare_traits {
-  
-  bool compare(T& first, T& second) {
-    return first == second;
-  };
+
+    BOOST_MPL_ASSERT_MSG((boost::is_same<T, const char*>::value),
+                         YOU_SHOULD_NOT_USE_THIS_TYPE_AS_IDENTIFIER,
+                         (const char*));
+
+    static bool compare(T& first, T& second) {
+        return first == second;
+    };
 };
 
 template<>
 struct compare_traits<std::string> {
-  
-  bool compare(std::string& first, std::string& second) {
-    return !(first.compare(second));
-  };
+
+    static bool compare(std::string& first, std::string& second) {
+        return !(first.compare(second));
+    };
 };
 
-template<>
-struct compare_traits<const char*> {
-  
-  static bool compare(const char* first, const char* second) {
-    return !(strcmp(first,second));
-  };
-};
 }
 
 #endif //DCM_TRAITS_H

@@ -64,6 +64,8 @@ namespace modell {
       a.template set<Scalar, 4>(v2(0), t);
       a.template set<Scalar, 5>(v2(1), t);
       a.template set<Scalar, 6>(v2(2), t);
+      
+      a.finalize(t);
     };
   };
 }

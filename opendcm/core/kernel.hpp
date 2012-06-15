@@ -48,6 +48,10 @@ struct Dogleg {
         typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
         sys.recalculate();
+	
+	std::stringstream stream;
+	      stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
+ 	      Base::Console().Message("%s", stream.str().c_str());
 
         number_type err = sys.Residual.norm();
 
@@ -148,6 +152,14 @@ struct Dogleg {
 
                 F_old = sys.Residual;
                 J_old = sys.Jacobi;
+		
+	      std::stringstream stream;
+	      stream<<"jacobi: "<<std::endl<<J_old<<std::endl<<"residual:"<<std::endl<<F_old<<std::endl;
+	      stream<<"update: "<<std::endl<<h_dl.transpose()<<std::endl;
+	      stream<<"delta: "<<delta<<std::endl<<std::endl;
+	      
+	      Base::Console().Message("%s", stream.str().c_str());
+
 
                 err = err_new;
 
@@ -179,6 +191,7 @@ struct Dogleg {
             iter++;
         }
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
+        Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         
         if(stop == 1) return true;
 	return false; //TODO:throw

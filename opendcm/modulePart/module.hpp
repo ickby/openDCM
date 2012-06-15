@@ -77,7 +77,8 @@ struct ModulePart {
                 (typename geometry_traits<T>::modell()).template extract<typename Part_base::Scalar,
                 typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
 
-                Part_base::m_quaternion.normalize();
+                Part_base::m_quaternion.normalize();		
+		//the cluster needs initial values but they are set by preprocess job
             };
 
             template<typename Visitor>
@@ -92,10 +93,10 @@ struct ModulePart {
             Cluster& m_cluster;
 
             template<typename T>
-            Geom addGeometry(T geom, CoordinateFrame frame = Local) {
+            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
                 Geom g(new Geometry3D(geom, m_system));
-                if(frame == Global)
-                    g->transform(m_quaternion.conjugate().toRotationMatrix(), -m_translation);
+                if(frame == Local)
+                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
 
                 fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
                 m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
@@ -114,7 +115,6 @@ struct ModulePart {
                 void operator()(T& t) const  {
                     (typename geometry_traits<T>::modell()).template inject<typename Part_base::Scalar,
                     typename geometry_traits<T>::accessor >(t, quaternion, translation);
-
                 }
                 typename Kernel::Vector3& translation;
                 typename Kernel::Quaternion& quaternion;
@@ -134,7 +134,7 @@ struct ModulePart {
             Part_noid(T geometry, Sys& system, typename Part_base::Cluster& cluster) : Part_base(geometry, system, cluster) {};
 
             template<typename T>
-            typename Part_base::Geom addGeometry3D(T geom, CoordinateFrame frame = Local) {
+            typename Part_base::Geom addGeometry3D(T geom, CoordinateFrame frame = Global) {
                 return  Part_base::addGeometry(geom, frame);
             };
 
@@ -177,7 +177,7 @@ struct ModulePart {
                 return Part_base::m_cluster.getLocalVertex(v).second;
             };
 
-            Identifier getIdentifier() {
+            Identifier& getIdentifier() {
                 return m_id;
             };
 
@@ -294,7 +294,6 @@ struct ModulePart {
                 for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
-                    cm.setValuesFromMaps();
                     (*it)->m_quaternion = cm.getQuaternion();
                     (*it)->m_translation = cm.getTranslation();
                     (*it)->finishCalculation();
@@ -312,6 +311,7 @@ struct ModulePart {
 }
 
 #endif //DCM_MODULEPART_H
+
 
 
 
