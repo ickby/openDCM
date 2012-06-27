@@ -457,7 +457,7 @@ struct Module3D {
                         //map translation from cluster to geometry
                         cm.setTranslationMap(g->getTranslationMap());
                         //set the appropriate local vlaues
-                        g->transform(nq.conjugate().toRotationMatrix(), -nt);
+                        g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
 
                         //position and offset of the parameters must be set to the clusters values
                         g->setClusterMode(true);
@@ -569,7 +569,7 @@ struct Module3D {
                     std::stringstream stream;
                     stream<<"Geometry global: "<<m_global.transpose()<<std::endl;
                     stream<<"Geometry local: "<<m_toplocal.transpose()<<std::endl<<std::endl;
-                    //   Base::Console().Message("%s", stream.str().c_str());
+                    //Base::Console().Message("%s", stream.str().c_str());
                 };
             }
             bool getClusterMode() {
@@ -620,21 +620,27 @@ struct Module3D {
 
             void transform(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
+                m_toplocal = m_global;    
                 for(int i=0; i!=m_rotations; i++)
                     m_toplocal.block(i*3,0,3,1) = rot*m_global.block(i*3,0,3,1);
 
                 //after rotating the needed parameters we translate the stuff that needs to be moved
                 for(int i=0; i!=m_translations; i++)
-                    m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
+                    m_toplocal.block(i*3,0,3,1) = m_toplocal.block(i*3,0,3,1) + trans;
             };
             //first translation, then rotation
             void transformInverse(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
-
-                //after rotating the needed parameters we translate the stuff that needs to be moved
+		std::stringstream stream;
+                m_toplocal = m_global;  
                 for(int i=0; i!=m_translations; i++)
                     m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
+		stream<<"translation: "<<trans<<std::endl;
+		stream<<"local after translation: "<<m_toplocal.transpose()<<std::endl<<std::endl;
                 for(int i=0; i!=m_rotations; i++)
-                    m_toplocal.block(i*3,0,3,1) = rot*m_global.block(i*3,0,3,1);
+                    m_toplocal.block(i*3,0,3,1) = rot*m_toplocal.block(i*3,0,3,1);
+		 stream<<"local after rotation: "<<m_toplocal.transpose()<<std::endl;
+		
+		Base::Console().Message("%s", stream.str().c_str());
             };
             void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
