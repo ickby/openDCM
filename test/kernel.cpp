@@ -35,25 +35,25 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 
     typename kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
 
-    EqnSystem() : Base(9,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
+    EqnSystem() : Base(9,0,0,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
     eqn1(NULL,0,DS(0,0)), eqn2(NULL,0,DS(0,0)), eqn3(NULL,0,DS(0,0)), e1_dv1(NULL,0,DS(0,0)),
     e1_dv2(NULL,0,DS(0,0)), e2_dv2(NULL,0,DS(0,0)), e2_dv3(NULL,0,DS(0,0)),
     e3_dv3(NULL,0,DS(0,0)), e3_dv1(NULL,0,DS(0,0)) {
 
-        setParameterMap(0,3,v1);
-        setParameterMap(3,3,v2);
-        setParameterMap(6,3,v3);
+        int o1 = setParameterMap(dcm::Anything,3,v1);
+        int o2 = setParameterMap(dcm::Anything,3,v2);
+        int o3 = setParameterMap(dcm::Anything,3,v3);
 
-        setResidualMap(0, eqn1);
-        setResidualMap(1, eqn2);
-        setResidualMap(2, eqn3);
+        int eq1 = setResidualMap(eqn1);
+        int eq2 = setResidualMap(eqn2);
+        int eq3 = setResidualMap(eqn3);
 
-        setJacobiMap(0,0,3,e1_dv1);
-        setJacobiMap(0,3,3,e1_dv2);
-        setJacobiMap(1,3,3,e2_dv2);
-        setJacobiMap(1,6,3,e2_dv3);
-        setJacobiMap(2,6,3,e3_dv3);
-        setJacobiMap(2,0,3,e3_dv1);
+        setJacobiMap(eq1,o1,3,e1_dv1);
+        setJacobiMap(eq1,o2,3,e1_dv2);
+        setJacobiMap(eq2,o2,3,e2_dv2);
+        setJacobiMap(eq2,o3,3,e2_dv3);
+        setJacobiMap(eq3,o3,3,e3_dv3);
+        setJacobiMap(eq3,o1,3,e3_dv1);
 
     };
 

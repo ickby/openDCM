@@ -31,6 +31,11 @@ namespace dcm {
 
 namespace E = Eigen;
 
+enum ParameterType {
+    Rotation,
+    Translation,
+    Anything
+};
 
 template<typename Kernel>
 struct Dogleg {
@@ -38,6 +43,7 @@ struct Dogleg {
     typedef typename Kernel::number_type number_type;
 
     bool solve(typename Kernel::MappedEquationSystem& sys) {
+	std::cout<<"start solving"<<std::endl;
 
         if(!sys.isValid()) return false;
 
@@ -48,10 +54,10 @@ struct Dogleg {
         typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
         sys.recalculate();
-	
-	std::stringstream stream;
-	      stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
- 	      Base::Console().Message("%s", stream.str().c_str());
+
+        //std::stringstream stream;
+        //stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
+        //      Base::Console().Message("%s", stream.str().c_str());
 
         number_type err = sys.Residual.norm();
 
@@ -94,20 +100,20 @@ struct Dogleg {
 
                 // compute the dogleg step
                 if(h_gn.norm() <= delta) {
-		  // std::cout<<"Gauss Newton"<<std::endl;
+                    // std::cout<<"Gauss Newton"<<std::endl;
                     h_dl = h_gn;
                     if(h_dl.norm() <= tolx*(tolx + sys.Parameter.norm())) {
                         stop = 5;
                         break;
                     }
                 } else if((alpha*h_sd).norm() >= delta) {
-		  // std::cout<<"Steepest descent"<<std::endl;
+                    // std::cout<<"Steepest descent"<<std::endl;
                     //h_dl = alpha*h_sd;
                     h_dl = (delta/(h_sd.norm()))*h_sd;
                     //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
                     //wir gehen aber den klassichen steepest descent weg
                 } else {
-		  // std::cout<<"Dogleg"<<std::endl;
+                    // std::cout<<"Dogleg"<<std::endl;
                     //compute beta
                     number_type beta = 0;
                     typename Kernel::Vector a = alpha*h_sd;
@@ -137,28 +143,28 @@ struct Dogleg {
             // get the new values
             sys.Parameter += h_dl;
             sys.recalculate();
-	    
-	    // std::cout<<"Parameter Transposed:"<<std::endl<<sys.Parameter.transpose()<<std::endl;
-	    // std::cout<<"Residual:"<<std::endl<<sys.Residual<<std::endl;
-	    // std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl;
-	    
+
+            // std::cout<<"Parameter Transposed:"<<std::endl<<sys.Parameter.transpose()<<std::endl;
+            // std::cout<<"Residual:"<<std::endl<<sys.Residual<<std::endl;
+            // std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl;
+
             //calculate the update ratio
             number_type err_new = sys.Residual.norm();
             number_type dF = err - err_new;
             number_type rho = dF/dL;
-	    //std::cout<<"rho: "<<rho<<std::endl;
+            //std::cout<<"rho: "<<rho<<std::endl;
 
             if(dF > 0 && dL > 0) {
 
                 F_old = sys.Residual;
                 J_old = sys.Jacobi;
-		
-	      std::stringstream stream;
-	      stream<<"jacobi: "<<std::endl<<J_old<<std::endl<<"residual:"<<std::endl<<F_old<<std::endl;
-	      stream<<"update: "<<std::endl<<h_dl.transpose()<<std::endl;
-	      stream<<"delta: "<<delta<<std::endl<<std::endl;
-	      
-	      Base::Console().Message("%s", stream.str().c_str());
+
+                std::stringstream stream;
+                stream<<"jacobi: "<<std::endl<<J_old<<std::endl<<"residual:"<<std::endl<<F_old<<std::endl;
+                stream<<"update: "<<std::endl<<h_dl.transpose()<<std::endl;
+                stream<<"delta: "<<delta<<std::endl<<std::endl;
+
+                //   Base::Console().Message("%s", stream.str().c_str());
 
 
                 err = err_new;
@@ -170,7 +176,7 @@ struct Dogleg {
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
 
             } else {
-	     // std::cout<<"Step Rejected"<<std::endl;
+                // std::cout<<"Step Rejected"<<std::endl;
                 sys.Residual = F_old;
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
@@ -191,10 +197,10 @@ struct Dogleg {
             iter++;
         }
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
-        Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
-        
+        //  Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
+	std::cout<<"DONE solving"<<std::endl;
         if(stop == 1) return true;
-	return false; //TODO:throw
+        return false; //TODO:throw
     }
 };
 
@@ -226,12 +232,6 @@ struct Kernel {
     typedef E::Matrix<Scalar, 3, 9> Matrix39;
     typedef E::Map< Matrix39 >      Matrix39Map;
     typedef E::Block<Matrix>	    MatrixBlock;
-    
-    enum ParameterType {
-      Rotation,
-      Translation,
-      Anything
-    };
 
     struct MappedEquationSystem {
 
@@ -239,54 +239,51 @@ struct Kernel {
         Vector Parameter;
         Vector Residual;
         int m_params, m_rot_params, m_trans_params, m_eqns; //total amount
-	int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
+        int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
 
-        MappedEquationSystem(int params, int rotparams, int transparams, int equations) 
-	  : Jacobi(equations, params+rotparams+transparams),
-            Parameter(params+rotparams+transparams), Residual(equations),
-            m_params(params+rotparams+transparams), m_eqns(equations) {
-	      m_rot_offset = params;
-	      m_trans_offset = params + rotparams;
-	      m_eqn_offset = 0;
-	    };
+        MappedEquationSystem(int params, int rotparams, int transparams, int equations)
+            : Jacobi(equations, params+rotparams+transparams),
+              Parameter(params+rotparams+transparams), Residual(equations),
+              m_params(params+rotparams+transparams), m_eqns(equations) {
+            m_rot_offset = params;
+            m_trans_offset = params + rotparams;
+	    m_param_offset = 0;
+            m_eqn_offset = 0;
+        };
 
         int setParameterMap(ParameterType t, int number, VectorMap& map) {
             if(t==Anything) {
-	      new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
-	      m_param_offset += number;
-	      return m_param_offset-number;
-	    }
-	    else if(t==Rotation) {
-	      new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
-	      m_rot_offset += number;
-	      return m_rot_offset-number;
-	    }
-	    else if(t==Translation) {
-	      new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
-	      m_trans_offset += number;
-	      return m_trans_offset-number;
-	    }
+                new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
+                m_param_offset += number;
+                return m_param_offset-number;
+            } else if(t==Rotation) {
+                new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
+                m_rot_offset += number;
+                return m_rot_offset-number;
+            } else if(t==Translation) {
+                new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
+                m_trans_offset += number;
+                return m_trans_offset-number;
+            }
         };
-        void setParameterMap(ParameterType t, Vector3Map& map) {
-	    if(t==Anything) {
-	      new(&map) Vector3Map(&Parameter(m_param_offset));
-	      m_param_offset += 3;
-	      return m_param_offset-3;
-	    }
-	    else if(t==Rotation) {
-	      new(&map) Vector3Map(&Parameter(m_rot_offset));
-	      m_rot_offset += 3;
-	      return m_rot_offset-3;
-	    }
-	    else if(t==Translation) {
-	      new(&map) Vector3Map(&Parameter(m_trans_offset));
-	      m_trans_offset += 3;
-	      return m_trans_offset-3;
-	    }
+        int setParameterMap(ParameterType t, Vector3Map& map) {
+            if(t==Anything) {
+                new(&map) Vector3Map(&Parameter(m_param_offset));
+                m_param_offset += 3;
+                return m_param_offset-3;
+            } else if(t==Rotation) {
+                new(&map) Vector3Map(&Parameter(m_rot_offset));
+                m_rot_offset += 3;
+                return m_rot_offset-3;
+            } else if(t==Translation) {
+                new(&map) Vector3Map(&Parameter(m_trans_offset));
+                m_trans_offset += 3;
+                return m_trans_offset-3;
+            }
         };
         int setResidualMap(VectorMap& map) {
             new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
-	    return ++m_eqn_offset;
+            return m_eqn_offset++;
         };
         void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
             new(&map) CVectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));

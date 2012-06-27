@@ -258,7 +258,7 @@ struct Parallel3D {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) {
-      Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
+    //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
     };
 
     //template definition

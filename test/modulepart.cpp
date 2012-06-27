@@ -75,7 +75,9 @@ struct place_accessor {
             case 6:
                 t.trans(2) = value; break;
         };
-    };
+    };    
+    template<typename T>
+    void finalize(T& t) {};
 };
 
 namespace dcm {
