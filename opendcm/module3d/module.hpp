@@ -115,10 +115,9 @@ public:
 
         //nQ = a,b,c ; n = ||nQ»» ;  Q = x,y,z,w = a/n,b/n,c/n,n
         // --> w = n; a = x*n = x*w ...
-        m_normQ(0) = m_quaternion.x()*m_quaternion.w();
-        m_normQ(1) = m_quaternion.y()*m_quaternion.w();
-        m_normQ(2) = m_quaternion.z()*m_quaternion.w();
-        m_translation = m_original_translation;
+        const Scalar s = std::pow(m_quaternion.w(),2);
+        m_normQ = m_quaternion.vec()*std::sqrt(std::pow(s/(1-s),2)+s/(1-s));;
+        m_translation = m_original_translation;	
     };
 
     typename Kernel::Quaternion& getQuaternion() {
@@ -133,16 +132,9 @@ public:
         m_quaternion = typename Kernel::Quaternion(norm, m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm);
         m_quaternion.normalize();
         m_original_translation = m_translation;
-        std::stringstream stream;
-        stream<<"calculated translation: "<<std::endl<<m_translation<<std::endl;
-        //Base::Console().Message("%s", stream.str().c_str());
     };
 
     void recalculate() {
-
-        std::stringstream stream;
-        stream<<"recalculated translation: "<<std::endl<<m_translation<<std::endl;
-
 
         //get the Quaternion for the norm quaternion form and calculate the rotation matrix
         Scalar norm = m_normQ.norm();
@@ -227,9 +219,6 @@ public:
         m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
         m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
         m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
-
-        stream<<"diffrot: "<<std::endl<<m_diffrot<<std::endl<<std::endl;
-        //Base::Console().Message("%s", stream.str().c_str());
     };
 };
 
@@ -320,7 +309,7 @@ struct Module3D {
                         solveCluster(*(*cit.first).second);
                 }
 
-                uint params=0, trans_params=0, rot_params=0, constraints=0;
+                int params=0, trans_params=0, rot_params=0, constraints=0;
 
                 //get the ammount of parameters and constraint equations we need
                 typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
@@ -341,6 +330,8 @@ struct Module3D {
                     constraints += cluster.getGlobalEdgeCount(*e_it.first);
 
                 //initialise the system with now known size
+		Base::Console().Message("\nModule: params: %d, rot_params: %d, trans_params: %d\n", params, rot_params, trans_params);
+    
                 MES mes(cluster, params, rot_params, trans_params, constraints);
 
                 //iterate all geometrys again and set the needed maps
@@ -630,16 +621,15 @@ struct Module3D {
             };
             //first translation, then rotation
             void transformInverse(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
-		std::stringstream stream;
-                m_toplocal = m_global;  
+
+		m_toplocal = m_global;  
                 for(int i=0; i!=m_translations; i++)
                     m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
-		stream<<"translation: "<<trans<<std::endl;
-		stream<<"local after translation: "<<m_toplocal.transpose()<<std::endl<<std::endl;
                 for(int i=0; i!=m_rotations; i++)
                     m_toplocal.block(i*3,0,3,1) = rot*m_toplocal.block(i*3,0,3,1);
-		 stream<<"local after rotation: "<<m_toplocal.transpose()<<std::endl;
-		
+		std::stringstream stream;
+
+		stream<<"local geometry:"<<m_toplocal<<std::endl;
 		Base::Console().Message("%s", stream.str().c_str());
             };
             void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
