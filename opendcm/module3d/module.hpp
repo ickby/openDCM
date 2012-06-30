@@ -330,8 +330,6 @@ struct Module3D {
                     constraints += cluster.getGlobalEdgeCount(*e_it.first);
 
                 //initialise the system with now known size
-		Base::Console().Message("\nModule: params: %d, rot_params: %d, trans_params: %d\n", params, rot_params, trans_params);
-    
                 MES mes(cluster, params, rot_params, trans_params, constraints);
 
                 //iterate all geometrys again and set the needed maps
