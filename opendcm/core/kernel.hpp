@@ -25,6 +25,9 @@
 #include <eigen3/Eigen/Geometry>
 
 #include <iostream>
+#include <../FreeCAD/src/Base/Console.h>
+
+#include <boost/math/special_functions/fpclassify.hpp>
 
 
 namespace dcm {
@@ -51,8 +54,8 @@ struct Dogleg {
                       const double delta) {
 
          std::stringstream stream;
-         stream<<"g: "<<std::endl<<g<<std::endl<<"jacobi: "<<std::endl<<jacobi<<std::endl;
-         stream<<"residual: "<<std::endl<<residual<<std::endl;
+         //stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
+         //stream<<"residual: "<<std::endl<<residual<<std::endl;
 
 
         // get the steepest descent stepsize and direction
@@ -60,19 +63,33 @@ struct Dogleg {
         const typename Kernel::Vector h_sd  = -g;
 
         // get the gauss-newton step
-        const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
+	bool force_sd;
+        //const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
+	Eigen::JacobiSVD<typename Kernel::Matrix> svd(jacobi, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	const typename Kernel::Vector h_gn = svd.solve(-residual);
+	if( boost::math::isfinite(h_gn.norm()) ) {
+	  //stream<<"normal h_gn"<<std::endl;
+	  force_sd = false;
+	}
+	else {
+	  stream<<"force steepest descend"<<std::endl;
+	  stream<<"jacobi"<<std::endl<<jacobi<<std::endl;
+	  force_sd = true; 
+	}
+	//stream<<"h_gn:"<<std::endl<<h_gn<<std::endl;
 
         // compute the dogleg step
-        if(h_gn.norm() <= delta) {
+        if( !force_sd && (h_gn.norm() <= delta)) {
             // std::cout<<"Gauss Newton"<<std::endl;
             h_dl = h_gn;
             //if(h_dl.norm() <= tolx*(tolx + sys.Parameter.norm())) {
             //    return 5;
             //}
-        } else if((alpha*h_sd).norm() >= delta) {
+        } else if( force_sd || ((alpha*h_sd).norm() >= delta)) {
             // std::cout<<"Steepest descent"<<std::endl;
             //h_dl = alpha*h_sd;
             h_dl = (delta/(h_sd.norm()))*h_sd;
+	    //stream<<"h_dl steepest: "<<std::endl<<h_dl<<std::endl;
             //die theorie zu dogleg sagt: h_dl = (delta/(h_sd.norm()))*h_sd;
             //wir gehen aber den klassichen steepest descent weg
         } else {
@@ -81,7 +98,7 @@ struct Dogleg {
             number_type beta = 0;
             typename Kernel::Vector a = alpha*h_sd;
             typename Kernel::Vector b = h_gn;
-            number_type c = a.transpose()*(b-a);
+           number_type c = a.transpose()*(b-a);
             number_type bas = (b-a).squaredNorm(), as = a.squaredNorm();
             if(c<0) {
                 beta = -c+std::sqrt(std::pow(c,2)+bas*(std::pow(delta,2)-as));
@@ -94,8 +111,8 @@ struct Dogleg {
             // and update h_dl and dL with beta
             h_dl = alpha*h_sd + beta*(b-a);
         }
-         stream<<"jacobi*h_dl"<<std::endl<<(jacobi*h_dl)<<std::endl<<std::endl;
-         stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
+        // stream<<"jacobi*h_dl"<<std::endl<<(jacobi*h_dl)<<std::endl<<std::endl;
+        // stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
          Base::Console().Message("%s", stream.str().c_str());
         return 0;
     };
@@ -116,9 +133,10 @@ struct Dogleg {
 
         sys.recalculate();
 
-        //std::stringstream stream;
-        //stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
-        //      Base::Console().Message("%s", stream.str().c_str());
+        std::stringstream stream;
+        stream<<"start jacobi: "<<std::endl<<sys.Jacobi<<std::endl<<std::endl;
+        Base::Console().Message("%s", stream.str().c_str());
+	stream.str(std::string());
 
         number_type err = sys.Residual.norm();
 
@@ -139,13 +157,13 @@ struct Dogleg {
         number_type nu_t=2., nu_r=2.;
         int iter=0, stop=0, reduce=0;
 
-        std::stringstream stream;
+/*        std::stringstream stream;
         stream<<"jacobi:"<<std::endl<<sys.Jacobi<<std::endl<<std::endl;
 	stream<<"parameter:"<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
         stream<<std::fixed<<std::setprecision(5)<<"delta_t: "<<delta_t<<",   delta_r: " << delta_r;
         stream<<", initial residual:"<<sys.Residual.transpose()<<std::endl;
         Base::Console().Message("%s", stream.str().c_str());
-
+*/
         while(!stop) {
 
             // check if finished
@@ -245,7 +263,7 @@ struct Dogleg {
                 if(dF_r<=0 && dL_r<=0) rho_t = -1;
                 // update delta
                 if(rho_r>0.75) {
-                    delta_r = std::max(delta_r,2*h_dlr.norm());
+                    delta_r = std::max(delta_r,3*h_dlr.norm());
                     nu_r = 2;
                 } else if(rho_r < 0.25) {
                     delta_r = delta_r/nu_r;
@@ -282,6 +300,8 @@ struct Dogleg {
             // count this iteration and start again
             iter++;
         }
+        stream<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl<<std::endl;
+        Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
         Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         //std::cout<<"DONE solving"<<std::endl;
@@ -335,6 +355,8 @@ struct Kernel {
             m_trans_offset = params;
             m_param_offset = 0;
             m_eqn_offset = 0;
+	    
+	    Jacobi.setZero(); //important as some places are never written
         };
 
         int setParameterMap(ParameterType t, int number, VectorMap& map) {
@@ -369,6 +391,7 @@ struct Kernel {
         };
         int setResidualMap(VectorMap& map) {
             new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
+	    Base::Console().Message("New residual added\n");
             return m_eqn_offset++;
         };
         void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {

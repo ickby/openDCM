@@ -136,7 +136,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
       //dp1°n / |n|
-        return (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
+	return (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {

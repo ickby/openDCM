@@ -627,10 +627,7 @@ struct Module3D {
                     m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
                 for(int i=0; i!=m_rotations; i++)
                     m_toplocal.block(i*3,0,3,1) = rot*m_toplocal.block(i*3,0,3,1);
-		std::stringstream stream;
 
-		stream<<"local geometry:"<<m_toplocal<<std::endl;
-		Base::Console().Message("%s", stream.str().c_str());
             };
             void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
