@@ -136,6 +136,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
       //dp1°n / |n|
+	//if(dparam1.norm()!=1) return 0;
 	return (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
     };
 
@@ -145,7 +146,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 	const typename Kernel::Vector3 dp2 = dparam2.head(3);
 	const typename Kernel::Vector3 n = param2.tail(3);
 	const typename Kernel::Vector3 dn = dparam2.tail(3);
-	
+	//if(dparam2.norm()!=1) return 0;
         return ((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3);
     };
 

@@ -54,8 +54,8 @@ struct Dogleg {
                       const double delta) {
 
          std::stringstream stream;
-         //stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
-         //stream<<"residual: "<<std::endl<<residual<<std::endl;
+         stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
+         stream<<"residual: "<<std::endl<<residual<<std::endl;
 
 
         // get the steepest descent stepsize and direction
@@ -98,8 +98,8 @@ struct Dogleg {
             h_dl = alpha*h_sd + beta*(b-a);
         }
         // stream<<"jacobi*h_dl"<<std::endl<<(jacobi*h_dl)<<std::endl<<std::endl;
-        // stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
-        // Base::Console().Message("%s", stream.str().c_str());
+         stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
+         Base::Console().Message("%s", stream.str().c_str());
         return 0;
     };
 
@@ -120,8 +120,8 @@ struct Dogleg {
         sys.recalculate();
 
         std::stringstream stream;
-        stream<<"start jacobi: "<<std::endl<<sys.Jacobi.block(0,npt,sys.m_eqns, npr)<<std::endl;
-	stream<<"parameter: "<<std::endl<<sys.Parameter.tail(npr).transpose()<<std::endl<<std::endl;
+        stream<<"start jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
+	stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
         Base::Console().Message("%s", stream.str().c_str());
 	stream.str(std::string());
 
@@ -170,60 +170,7 @@ struct Dogleg {
             if(stop)
                 break;
 	    
-	    number_type dF_r=0, dL_r=0;
-            number_type rho_r, err_new_r;
-            if(npr) {
-
-                //get the update step
-                calculateStep(g.tail(npr), sys.Jacobi.block(0,npt, sys.m_eqns, npr),
-                              sys.Residual, h_dlr, delta_r);
-
-                //calculate linear model
-                dL_r = 0.5*sys.Residual.squaredNorm() - 0.5*(sys.Residual
-                                                      + sys.Jacobi.block(0,npt, sys.m_eqns, npr)*h_dlr).squaredNorm();
-
-                sys.Parameter.tail(npr) += h_dlr;
-                sys.recalculate();
-
-                //calculate the rotation update ratio
-                err_new_r = sys.Residual.norm();
-                dF_r = err - err_new_r;
-                number_type rho_r = dF_r/dL_r;
-
-                if(dF_r<=0 || dL_r<=0) rho_r = -1;
-                // update delta
-                if(rho_r>0.75) {
-                    delta_r = std::max(delta_r,2*h_dlr.norm());
-                    nu_r = 2;
-                } else if(rho_r < 0.25) {
-                    delta_r = delta_r/nu_r;
-                    nu_r = 2*nu_r;
-                }
-
-                if(dF_r > 0 && dL_r > 0) {
-
-                    F_old = sys.Residual;
-                    J_old = sys.Jacobi;
-
-                    err = err_new_r;
-
-                    g = sys.Jacobi.transpose()*(sys.Residual);
-
-                    // get infinity norms
-                    g_inf = g.template lpNorm<E::Infinity>();
-                    fx_inf = sys.Residual.template lpNorm<E::Infinity>();
-                } else {
-                    // std::cout<<"Step Rejected"<<std::endl;
-                    sys.Residual = F_old;
-                    sys.Jacobi = J_old;
-                    sys.Parameter.tail(npr) -= h_dlr;
-                }
-                std::stringstream stream;
-		stream<<"delta_r: "<<delta_r<<"     ";
-                stream<<"residual:"<<sys.Residual.transpose()<<std::endl;
-                //Base::Console().Message("%s", stream.str().c_str());
-            }
-
+	    
             number_type dF_t=0, dL_t=0;
             number_type rho_t, err_new_t;
             if(npt && translate) {
@@ -278,6 +225,59 @@ struct Dogleg {
                     sys.Parameter.head(npt) -= h_dlt;
                 }
             }
+            
+	    number_type dF_r=0, dL_r=0;
+            number_type err_new_r;
+	    if(npr) {
+                //get the update step
+                calculateStep(g.tail(npr), sys.Jacobi.block(0, npt, sys.m_eqns, npr), sys.Residual, h_dlr, delta_r);
+
+                //calculate linear model
+                dL_r = 0.5*sys.Residual.norm() - 0.5*(sys.Residual
+                                                      + sys.Jacobi.block(0, npt, sys.m_eqns, npr)*h_dlr).norm();
+
+                sys.Parameter.tail(npr) += h_dlr;
+                sys.recalculate();
+
+                //calculate the rotation update ratio
+                err_new_r = sys.Residual.norm();
+                dF_r = err - err_new_r;
+                number_type rho_r = dF_r/dL_r;
+
+                if(dF_r<=0 || dL_r<=0) rho_r = -1;
+                // update delta
+                if(rho_r>0.75) {
+                    delta_r = std::max(delta_r,2*h_dlr.norm());
+                    nu_r = 2;
+                } else if(rho_r < 0.25) {
+                    delta_r = delta_r/nu_r;
+                    nu_r = 2*nu_r;
+                }
+
+                if(dF_r > 0 && dL_r > 0) {
+
+                    F_old = sys.Residual;
+                    J_old = sys.Jacobi;
+
+                    err = err_new_r;
+
+                    g = sys.Jacobi.transpose()*(sys.Residual);
+
+                    // get infinity norms
+                    g_inf = g.template lpNorm<E::Infinity>();
+                    fx_inf = sys.Residual.template lpNorm<E::Infinity>();
+                } else {
+                    // std::cout<<"Step Rejected"<<std::endl;
+                    sys.Residual = F_old;
+                    sys.Jacobi = J_old;
+                    sys.Parameter.tail(npr) -= h_dlr;
+		    Base::Console().Message("reject rotation\n");
+                }
+                std::stringstream stream;
+		stream<<"delta_r: "<<delta_r<<"     ";
+                stream<<"residual:"<<sys.Residual.transpose()<<std::endl;
+                //Base::Console().Message("%s", stream.str().c_str());
+	}
 
            // std::stringstream stream;
            // stream<<std::fixed<<std::setprecision(5)<<"delta_t: "<<delta_t<<",   delta_r: " << delta_r;
@@ -287,27 +287,14 @@ struct Dogleg {
             // count this iteration and start again
             iter++;
         }
-        stream<<"end jacobi: "<<std::endl<<sys.Jacobi.block(0,npt,sys.m_eqns, npr)<<std::endl;
-	stream<<"parameter: "<<std::endl<<sys.Parameter.tail(npr).transpose()<<std::endl<<std::endl;
+        stream<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
+	stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl;
+	stream<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
         Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
         Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         //std::cout<<"DONE solving"<<std::endl;
-	
-	
-	//test
-	Eigen::Vector3d w(1,2,3);
-	double n = w.norm();
-	w.normalize();
-	/*
-	Eigen::Vector3d vec = std::sin(n)*w;
-	Eigen::Quaterniond qi(1,2,3,4);
-	qi.normalize();
-	Eigen::Quaterniond expw(std::cos(n), vec(0), vec(1), vec(2));
-	Eigen::Quaterniond qi1 = expw*qi;
-	Base::Console().Error("norm qi1: %f, norm expw: %f\n", qi1.norm(), expw.norm());
-	*/
-	
+
         if(stop == 1) return true;
         return false; //TODO:throw
     }
