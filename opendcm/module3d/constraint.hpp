@@ -131,12 +131,15 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
 	//(p1-p2)°n / |n| - distance
-	return  (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+	return std::pow((param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance, 2);
     };
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
       //dp1°n / |n|
-        return (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
+	//if(dparam1.norm()!=1) return 0;
+	const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+
+	return 2*res*(dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
@@ -145,8 +148,10 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 	const typename Kernel::Vector3 dp2 = dparam2.head(3);
 	const typename Kernel::Vector3 n = param2.tail(3);
 	const typename Kernel::Vector3 dn = dparam2.tail(3);
-	
-        return ((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3);
+	//if(dparam2.norm()!=1) return 0;
+	const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+
+        return 2*res * (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
@@ -258,7 +263,7 @@ struct Parallel3D {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) {
-      Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
+    //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
     };
 
     //template definition

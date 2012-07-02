@@ -296,7 +296,7 @@ struct ModulePart {
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
                     (*it)->m_quaternion = cm.getQuaternion();
                     (*it)->m_translation = cm.getTranslation();
-                    (*it)->finishCalculation();
+                    (*it)->finishCalculation();		    
                 };
             };
         };
