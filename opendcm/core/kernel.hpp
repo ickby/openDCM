@@ -63,7 +63,7 @@ struct Dogleg {
         const typename Kernel::Vector h_sd  = -g;
 
         // get the gauss-newton step
-        const typename Kernel::Vector h_gn = (jacobi.transpose()*jacobi).fullPivLu().solve(-jacobi.transpose()*residual);
+        const typename Kernel::Vector h_gn = (jacobi).fullPivLu().solve(-residual);
 
         // compute the dogleg step
         if(h_gn.norm() <= delta) {
@@ -284,7 +284,7 @@ struct Dogleg {
             // std::stringstream stream;
             // stream<<std::fixed<<std::setprecision(5)<<"delta_t: "<<delta_t<<",   delta_r: " << delta_r;
             // stream<<",  parameter:"<<sys.Parameter.transpose()<<std::endl;
-             Base::Console().Message("%s", stream.str().c_str());
+            //Base::Console().Message("%s", stream.str().c_str());
             // std::cout<<"Delta: "<<delta<<std::endl<<std::endl;
             // count this iteration and start again
             iter++;
