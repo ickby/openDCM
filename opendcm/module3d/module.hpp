@@ -75,7 +75,7 @@ private:
     typename Kernel::Vector3	m_original_translation;
     typename Kernel::Vector3Map	m_normQ;
 
-    int m_parameterOffset;
+    int m_rot_offset, m_trans_offset;
     int count;
 
 public:
@@ -83,15 +83,19 @@ public:
 
         m_quaternion = typename Kernel::Quaternion(1,2,3,4);
         m_quaternion.normalize();
-	count = counter;
-	counter++;
+        count = counter;
+        counter++;
     };
 
-    void setParameterOffset(int offset) {
-        m_parameterOffset = offset;
+    void setParameterOffset(int roff, int toff) {
+        m_rot_offset = roff;
+        m_trans_offset = toff;
     };
-    int getParameterOffset() {
-        return m_parameterOffset;
+    int getRotationOffset() {
+        return m_rot_offset;
+    };
+    int getTranslationOffset() {
+        return m_trans_offset;
     };
 
     void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
@@ -109,12 +113,9 @@ public:
     };
     void initMaps() {
 
-        //nQ = a,b,c ; n = ||nQ»» ;  Q = x,y,z,w = a/n,b/n,c/n,n
-        // --> w = n; a = x*n = x*w ...
-        m_normQ(0) = m_quaternion.x()*m_quaternion.w();
-        m_normQ(1) = m_quaternion.y()*m_quaternion.w();
-        m_normQ(2) = m_quaternion.z()*m_quaternion.w();
-        m_translation = m_original_translation;
+        const Scalar s = std::sin(std::acos(m_quaternion.w()))/std::acos(m_quaternion.w());
+        m_normQ = m_quaternion.vec()*s;
+        m_translation = m_original_translation;	
     };
 
     typename Kernel::Quaternion& getQuaternion() {
@@ -125,73 +126,57 @@ public:
     };
 
     void finishCalculation() {
-        Scalar norm = m_normQ.norm();
-        m_quaternion = typename Kernel::Quaternion(norm, m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm);
+        const Scalar norm = m_normQ.norm();
+	const Scalar fac = std::sin(norm)/norm;
+        m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
         m_quaternion.normalize();
         m_original_translation = m_translation;
-	std::stringstream stream;
-	stream<<"calculated translation: "<<std::endl<<m_translation<<std::endl;
-	Base::Console().Message("%s", stream.str().c_str());
     };
 
     void recalculate() {
-      
-	std::stringstream stream;
-	stream<<"recalculated translation: "<<std::endl<<m_translation<<std::endl;
-	
 
         //get the Quaternion for the norm quaternion form and calculate the rotation matrix
-        Scalar norm = m_normQ.norm();
+        const Scalar norm = m_normQ.norm();
+	const Scalar fac = std::sin(norm)/norm;
 
-        typename Kernel::Quaternion Q(norm, m_normQ(0)/norm, m_normQ(1)/norm, m_normQ(2)/norm);
+        typename Kernel::Quaternion Q(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+	Q.normalize(); //not needed, just to avoid rounding errors
         if(Kernel::isSame(norm, 0)) {
             Q.setIdentity();
             m_rotation.setIdentity();
             m_diffrot.setZero();
             return;
         };
-        Q.normalize();
         m_rotation = Q.toRotationMatrix();
 
         /* now calculate the gradient quaternions and calculate the diff rotation matrices
          * normQ = (a,b,c)
-         * sn0 = ||normQ||^2, n0 = ||normQ||
+         * n = ||normQ||
          *
-         * Q = (a/n0, b/n0, c/n0, n0)
-         * ||Q|| = n = 1/n0 * sqrt( a^2+b^2+c^2+sn0^2 )
-         * n2 = sqrt( a^2+b^2+c^2+sn0^2 )
-         *
-         * unit Quaternion uQ = (x y z w) = (a/(n0*n), b/(n0*n), c/(n0*n), n0/n)
-         * uQ = (a/n2, b/n2, c/n2, sn0/n2)
+         * Q = (a/n sin(n), b/n sin(n), c/n sin(n), cos(n))
          */
 
-        const Scalar sn0 = m_normQ.squaredNorm();
-        const Scalar n0 = std::sqrt(sn0);
-        const Scalar n2 = std::sqrt(sn0 + std::pow(sn0, 2));
+	//n=||normQ||, sn = sin(n)/n, sn3 = sin(n)/n^3, cn = cos(n)/n, divn = 1/n;
+        const Scalar n    = m_normQ.norm();
+        const Scalar sn   = std::sin(n)/n;
+	const Scalar mul  = (std::cos(n)-sn)/std::pow(n,2);
 
-        // d(1/n2)/dx and dy and dz
-        const Scalar ddn2 = -(1+2*sn0)/std::pow(n2,3);
+        //dxa = dx/da
+        const Scalar dxa = sn + std::pow(m_normQ(0),2)*mul;
+	const Scalar dxb = m_normQ(0)*m_normQ(1)*mul;
+        const Scalar dxc = m_normQ(0)*m_normQ(2)*mul;
 
-        const Scalar n2_dda = m_normQ(0)*ddn2;
-        const Scalar n2_ddb = m_normQ(1)*ddn2;
-        const Scalar n2_ddc = m_normQ(2)*ddn2;
+        const Scalar dya = m_normQ(1)*m_normQ(0)*mul;
+        const Scalar dyb = sn + std::pow(m_normQ(1),2)*mul;
+        const Scalar dyc = m_normQ(1)*m_normQ(2)*mul;
 
-        //dxa = da/dx
-        const Scalar dxa = 1/n2 + m_normQ(0)*n2_dda;
-        const Scalar dxb = m_normQ(0)*n2_ddb;
-        const Scalar dxc = m_normQ(0)*n2_ddc;
+        const Scalar dza = m_normQ(2)*m_normQ(0)*mul;
+        const Scalar dzb = m_normQ(2)*m_normQ(1)*mul;
+        const Scalar dzc = sn + std::pow(m_normQ(2),2)*mul;
 
-        const Scalar dya = m_normQ(1)*n2_dda;
-        const Scalar dyb = 1/n2 + m_normQ(1)*n2_ddb;
-        const Scalar dyc = m_normQ(1)*n2_ddc;
-
-        const Scalar dza = m_normQ(2)*n2_dda;
-        const Scalar dzb = m_normQ(2)*n2_ddb;
-        const Scalar dzc = 1/n2 + m_normQ(2)*n2_ddc;
-
-        const Scalar dwa = 2*m_normQ(0)/n2 + sn0*n2_dda;
-        const Scalar dwb = 2*m_normQ(1)/n2 + sn0*n2_ddb;
-        const Scalar dwc = 2*m_normQ(2)/n2 + sn0*n2_ddc;
+        const Scalar dwa = -sn*m_normQ(0);
+        const Scalar dwb = -sn*m_normQ(1);
+        const Scalar dwc = -sn*m_normQ(2);
 
         //write in the diffrot matrix, starting with duQ/dx
         m_diffrot(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
@@ -223,9 +208,6 @@ public:
         m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
         m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
         m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
-	
-	stream<<"diffrot: "<<std::endl<<m_diffrot<<std::endl<<std::endl;
-	Base::Console().Message("%s", stream.str().c_str());
     };
 };
 
@@ -251,8 +233,9 @@ struct Module3D {
             typedef typename system_traits<Sys>::Cluster Cluster;
             Cluster& m_cluster;
 
-            MES(Cluster& cl, int par, int eqn) : system_traits<Sys>::Kernel::MappedEquationSystem(par, eqn),
-                m_cluster(cl) {};
+            MES(Cluster& cl, int par, int rpar, int tpar, int eqn)
+                : system_traits<Sys>::Kernel::MappedEquationSystem(par, rpar, tpar, eqn),
+                  m_cluster(cl) {};
 
             virtual void recalculate() {
 
@@ -307,6 +290,7 @@ struct Module3D {
                 //set out and solve all relevant subclusters
                 typedef typename Cluster::cluster_iterator citer;
                 std::pair<citer, citer> cit = cluster.clusters();
+                std::cout<<"hmmm"<<std::endl;
                 for(; cit.first != cit.second; cit.first++) {
 
                     if((*cit.first).second->template getClusterProperty<changed_prop>() &&
@@ -314,16 +298,18 @@ struct Module3D {
                         solveCluster(*(*cit.first).second);
                 }
 
-                uint parameters=0, constraints=0, offset=0, equation=0;
+                int params=0, trans_params=0, rot_params=0, constraints=0;
 
                 //get the ammount of parameters and constraint equations we need
                 typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
                 std::pair<iter, iter>  it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {
 
-                    if(cluster.isCluster(*it.first)) parameters += 6;
-                    else {
-                        parameters += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
+                    if(cluster.isCluster(*it.first)) {
+                        trans_params += 3;
+                        rot_params += 3;
+                    } else {
+                        params += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
                     };
                 }
 
@@ -333,7 +319,7 @@ struct Module3D {
                     constraints += cluster.getGlobalEdgeCount(*e_it.first);
 
                 //initialise the system with now known size
-                MES mes(cluster, parameters, constraints);
+                MES mes(cluster, params, rot_params, trans_params, constraints);
 
                 //iterate all geometrys again and set the needed maps
                 it = boost::vertices(cluster);
@@ -343,13 +329,13 @@ struct Module3D {
                         //set norm Quaternion as map to the parameter vector
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         details::ClusterMath<Sys>& cm =  c.template getClusterProperty<math_prop>();
-                        mes.setParameterMap(offset, cm.getNormQuaternionMap());
+                        int offset = mes.setParameterMap(Rotation, cm.getNormQuaternionMap());
                         //set translation as map to the parameter vector
-                        mes.setParameterMap(offset+3, cm.getTranslationMap());
+                        int transoffset = mes.setParameterMap(Translation, cm.getTranslationMap());
                         //write initail values to the parameter maps
                         cm.initMaps();
                         //remember the parameter offset as all downstream geometry must use this offset
-                        cm.setParameterOffset(offset);
+                        cm.setParameterOffset(offset, transoffset);
 
                         //map all geometrie within that cluster to it's rotation matrix
                         //for collecting all geometries which need updates
@@ -361,14 +347,12 @@ struct Module3D {
                         typename Kernel::Vector3 t(0,0,0);
                         mapClusterDownstreamGeometry(c, cm, vec, q, t);
 
-                        offset += 6;
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        mes.setParameterMap(offset, g->m_parameterCount, g->getParameterMap());
-                        g->m_parameterOffset = offset;
+                        int offset = mes.setParameterMap(Anything, g->m_parameterCount, g->getParameterMap());
+                        g->m_parameter_offset = offset;
                         //init the parametermap with initial values
                         g->initMap();
-                        offset += g->m_parameterCount;
                     }
                 }
                 //and now the constraints to set the residual and gradient maps
@@ -388,13 +372,16 @@ struct Module3D {
 
                             //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
                             //for every parameter in the geometry;
-                            int diff_coloum_number1 = c->first->getClusterMode() ? 6 : c->first->m_parameterCount;
-                            int diff_coloum_number2 = c->second->getClusterMode() ? 6 : c->second->m_parameterCount;
+                            int equation = mes.setResidualMap(c->m_residual);
+                            if(c->first->getClusterMode()) {
+                                mes.setJacobiMap(equation, c->first->m_trans_offset, 3, c->m_trans_diff_first);
+                                mes.setJacobiMap(equation, c->first->m_rot_offset, 3, c->m_rot_diff_first);
+                            } else  mes.setJacobiMap(equation, c->first->m_parameter_offset, c->first->m_parameterCount, c->m_diff_first);
 
-                            mes.setResidualMap(equation, c->m_residual);
-                            mes.setJacobiMap(equation, c->first->m_parameterOffset, diff_coloum_number1, c->m_diffFirst);
-                            mes.setJacobiMap(equation, c->second->m_parameterOffset, diff_coloum_number2, c->m_diffSecond);
-                            equation++;
+                            if(c->second->getClusterMode()) {
+                                mes.setJacobiMap(equation, c->second->m_trans_offset, 3, c->m_trans_diff_second);
+                                mes.setJacobiMap(equation, c->second->m_rot_offset, 3, c->m_rot_diff_second);
+                            } else mes.setJacobiMap(equation, c->second->m_parameter_offset, c->first->m_parameterCount, c->m_diff_second);
                         }
                         //TODO: else throw (as every global edge was counted as one equation)
                     }
@@ -414,8 +401,8 @@ struct Module3D {
                         std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
                         for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                             (*vit)->finishCalculation();
-			
-			c.template getClusterProperty<math_prop>().finishCalculation();
+
+                        c.template getClusterProperty<math_prop>().finishCalculation();
 
                     } else cluster.template getObject<Geometry3D>(*it.first)->finishCalculation();
                 }
@@ -448,11 +435,12 @@ struct Module3D {
                         //map translation from cluster to geometry
                         cm.setTranslationMap(g->getTranslationMap());
                         //set the appropriate local vlaues
-                        g->transform(nq.conjugate().toRotationMatrix(), -nt);
+                        g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
 
                         //position and offset of the parameters must be set to the clusters values
                         g->setClusterMode(true);
-                        g->m_parameterOffset = cm.getParameterOffset();
+                        g->m_rot_offset = cm.getRotationOffset();
+                        g->m_trans_offset = cm.getTranslationOffset();
                     }
                 }
 
@@ -499,7 +487,7 @@ struct Module3D {
             Variant m_geometry; //Variant holding the real geometry type
             int     m_baseParameterCount; //count of the parameters the variant geometry type needs
             int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_baseParameterCount)
-            int     m_parameterOffset; //the starting point of our parameters in the math system parameter vector
+            int     m_parameter_offset, m_trans_offset, m_rot_offset; //the starting point of our parameters in the math system parameter vector
             int     m_rotations; //count of rotations to be done when original vector gets rotated
             int     m_translations; //count of translations to be done when original vector gets rotated
             bool    m_isInCluster;
@@ -556,10 +544,10 @@ struct Module3D {
                     //we are in cluster, therfore the parameter map should not point to a solver value but to
                     //the rotated original value;
                     new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
-		    std::stringstream stream;
-		    stream<<"Geometry global: "<<m_global.transpose()<<std::endl;
-		    stream<<"Geometry local: "<<m_toplocal.transpose()<<std::endl<<std::endl;
-		    Base::Console().Message("%s", stream.str().c_str());
+                    std::stringstream stream;
+                    stream<<"Geometry global: "<<m_global.transpose()<<std::endl;
+                    stream<<"Geometry local: "<<m_toplocal.transpose()<<std::endl<<std::endl;
+                    //Base::Console().Message("%s", stream.str().c_str());
                 };
             }
             bool getClusterMode() {
@@ -610,21 +598,23 @@ struct Module3D {
 
             void transform(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
+                m_toplocal = m_global;    
                 for(int i=0; i!=m_rotations; i++)
                     m_toplocal.block(i*3,0,3,1) = rot*m_global.block(i*3,0,3,1);
 
                 //after rotating the needed parameters we translate the stuff that needs to be moved
                 for(int i=0; i!=m_translations; i++)
-                    m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
+                    m_toplocal.block(i*3,0,3,1) = m_toplocal.block(i*3,0,3,1) + trans;
             };
-	    //first translation, then rotation
-	    void transformInverse(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
+            //first translation, then rotation
+            void transformInverse(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
-	        //after rotating the needed parameters we translate the stuff that needs to be moved
+		m_toplocal = m_global;  
                 for(int i=0; i!=m_translations; i++)
                     m_toplocal.block(i*3,0,3,1) = m_global.block(i*3,0,3,1) + trans;
                 for(int i=0; i!=m_rotations; i++)
-                    m_toplocal.block(i*3,0,3,1) = rot*m_global.block(i*3,0,3,1);                
+                    m_toplocal.block(i*3,0,3,1) = rot*m_toplocal.block(i*3,0,3,1);
+
             };
             void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
@@ -681,8 +671,9 @@ struct Module3D {
 
         public:
             Constraint3D_base(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
-                first(f), second(s), content(0), m_diffFirst(NULL,0,DS(0,0)), m_diffSecond(NULL,0,DS(0,0)),
-                m_residual(NULL,0,DS(0,0))	{
+                first(f), second(s), content(0), m_diff_first(NULL,0,DS(0,0)), m_diff_second(NULL,0,DS(0,0)),
+                m_rot_diff_first(NULL,0,DS(0,0)), m_rot_diff_second(NULL,0,DS(0,0)),
+                m_trans_diff_first(NULL,0,DS(0,0)), m_trans_diff_second(NULL,0,DS(0,0)), m_residual(NULL,0,DS(0,0))	{
 
                 cf = first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
                 cs = second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
@@ -704,32 +695,44 @@ struct Module3D {
 
             Scalar calculate() {
 
-                //first the residual (operator= doeas not work with scalars)
+                //first the residual (operator= doeas not work as it's a one value vector)
                 m_residual(0) = content->calculate(first->m_parameter, second->m_parameter);
 
                 //now see which way we should calculate the gradient (may be diffrent for both geometries)
                 if(first->getClusterMode()) {
-                    //cluster mode, so we do a full calculation with all 6 diffparam vectors
-                    for(int i=0; i<6; i++) {
+                    //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
+                    for(int i=0; i<3; i++) {
                         typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                        m_diffFirst(i) = content->calculateGradientFirst(first->m_parameter,
-                                         second->m_parameter, block);
+                        m_rot_diff_first(i) = content->calculateGradientFirst(first->m_parameter,
+                                              second->m_parameter, block);
+                    }
+                    //now the translation stuff
+                    for(int i=3; i<6; i++) {
+                        typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
+                        m_trans_diff_first(i-3) = content->calculateGradientFirst(first->m_parameter,
+                                                  second->m_parameter, block);
                     }
                 } else {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
-                    content->calculateGradientFirstComplete(first->m_parameter, second->m_parameter, m_diffFirst);
+                    content->calculateGradientFirstComplete(first->m_parameter, second->m_parameter, m_diff_first);
                 }
 
                 if(second->getClusterMode()) {
-                    //cluster mode, so we do a full calculation with all 6 diffparam vectors
-                    for(int i=0; i<6; i++) {
+                    //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
+                    for(int i=0; i<3; i++) {
                         typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                        m_diffSecond(i) = content->calculateGradientSecond(first->m_parameter,
-                                          second->m_parameter, block);
+                        m_rot_diff_second(i) = content->calculateGradientSecond(first->m_parameter,
+                                               second->m_parameter, block);
+                    }
+                    //translational gradients
+                    for(int i=3; i<6; i++) {
+                        typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
+                        m_trans_diff_second(i-3) = content->calculateGradientSecond(first->m_parameter,
+                                                   second->m_parameter, block);
                     }
                 } else {
                     //not in cluster, so allow the constraint to optimize the gradient calculation
-                    content->calculateGradientSecondComplete(first->m_parameter, second->m_parameter, m_diffSecond);
+                    content->calculateGradientSecondComplete(first->m_parameter, second->m_parameter, m_diff_second);
                 }
             };
 
@@ -853,7 +856,9 @@ struct Module3D {
             Geom first, second;
             Connection cf, cs;
 
-            typename Kernel::VectorMap m_diffFirst, m_diffSecond, m_residual;
+            typename Kernel::VectorMap m_rot_diff_first, m_trans_diff_first, m_diff_first; //first geometry diff
+            typename Kernel::VectorMap m_rot_diff_second, m_trans_diff_second, m_diff_second; //second geometry diff
+            typename Kernel::VectorMap m_residual;
 
             friend class SystemSolver;
             friend class MES;
