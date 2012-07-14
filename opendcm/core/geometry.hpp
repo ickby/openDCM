@@ -56,6 +56,7 @@ namespace weight {
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};
 struct plane : mpl::int_<3> {};
+struct cylinder : mpl::int_<4> {};
 }
 }
 

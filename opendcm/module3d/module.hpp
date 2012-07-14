@@ -41,7 +41,10 @@
 #include "opendcm/core/traits.hpp"
 #include "opendcm/core/geometry.hpp"
 #include "geometry.hpp"
-#include "constraint.hpp"
+#include "coincident.hpp"
+#include "distance.hpp"
+#include "parallel.hpp"
+#include "angle.hpp"
 #include "dof.hpp"
 
 static int counter = 0;

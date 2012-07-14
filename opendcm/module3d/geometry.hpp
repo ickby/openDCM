@@ -52,6 +52,13 @@ struct plane3D  {
     typedef mpl::int_<1>  translations;
     typedef weight::plane weight; 
 };
+
+struct cylinder3D  {
+    typedef mpl::int_<7>  parameters;
+    typedef mpl::int_<2>  rotations;
+    typedef mpl::int_<1>  translations;
+    typedef weight::cylinder weight; 
+};
 }
 
 namespace modell {
@@ -84,9 +91,9 @@ namespace modell {
      * 0 = X;
      * 1 = Y;
      * 2 = Z;
-     * 3 = X;
-     * 4 = Y;
-     * 5 = Z;
+     * 3 = X dir;
+     * 4 = Y dir;
+     * 5 = Z dir;
      */    
     template<typename Scalar, typename Accessor, typename Vector, typename Type>
     void extract(Type& t, Vector& v) {
@@ -108,6 +115,41 @@ namespace modell {
       a.template set<Scalar, 3>(v(3), t);
       a.template set<Scalar, 4>(v(4), t);
       a.template set<Scalar, 5>(v(5), t);
+    };
+  };
+  
+  struct XYZ2P {
+    /*Modell XYZ2P: two xyz parts after each other and one parameter
+     * 0 = X;
+     * 1 = Y;
+     * 2 = Z;
+     * 3 = X dir;
+     * 4 = Y dir;
+     * 5 = Z dir;
+     * 6 = Parameter
+     */    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void extract(Type& t, Vector& v) {
+      Accessor a;
+      v(0) = a.template get<Scalar, 0>(t);
+      v(1) = a.template get<Scalar, 1>(t);
+      v(2) = a.template get<Scalar, 2>(t);
+      v(3) = a.template get<Scalar, 3>(t);
+      v(4) = a.template get<Scalar, 4>(t);
+      v(5) = a.template get<Scalar, 5>(t);
+      v(6) = a.template get<Scalar, 6>(t);
+    }
+    
+    template<typename Scalar, typename Accessor, typename Vector, typename Type>
+    void inject(Type& t, Vector& v) {
+      Accessor a;
+      a.template set<Scalar, 0>(v(0), t);
+      a.template set<Scalar, 1>(v(1), t);
+      a.template set<Scalar, 2>(v(2), t);
+      a.template set<Scalar, 3>(v(3), t);
+      a.template set<Scalar, 4>(v(4), t);
+      a.template set<Scalar, 5>(v(5), t);
+      a.template set<Scalar, 6>(v(6), t);
     };
   };
   
