@@ -25,7 +25,7 @@
 #include <eigen3/Eigen/Geometry>
 
 #include <iostream>
-#include <../FreeCAD/src/Base/Console.h>
+//#include <../FreeCAD/src/Base/Console.h>
 
 #include <boost/math/special_functions/fpclassify.hpp>
 
@@ -98,7 +98,7 @@ struct Dogleg {
         }
         // stream<<"jacobi*h_dl"<<std::endl<<(jacobi*h_dl)<<std::endl<<std::endl;
         stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
-      //  Base::Console().Message("%s", stream.str().c_str());
+        //  Base::Console().Message("%s", stream.str().c_str());
         return 0;
     };
 
@@ -121,7 +121,7 @@ struct Dogleg {
         std::stringstream stream;
         stream<<"start jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
         stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
-        Base::Console().Message("%s", stream.str().c_str());
+        //Base::Console().Message("%s", stream.str().c_str());
         stream.str(std::string());
 
         number_type err = sys.Residual.norm();
@@ -149,7 +149,7 @@ struct Dogleg {
         //        stream<<std::fixed<<std::setprecision(5)<<"delta_t: "<<delta_t<<",   delta_r: " << delta_r;
         //        stream<<", initial residual:"<<sys.Residual.transpose()<<std::endl;
         //        Base::Console().Message("%s", stream.str().c_str());
- 
+
         while(!stop) {
 
             // check if finished
@@ -168,8 +168,8 @@ struct Dogleg {
             // see if we are already finished
             if(stop)
                 break;
-	    
-	    std::stringstream stream, stream2;
+
+            std::stringstream stream, stream2;
 
             number_type err_new_r;
             if(npr) {
@@ -179,10 +179,10 @@ struct Dogleg {
                 //calculate linear model
                 BFR_Res = sys.Residual;
                 BFR_J   = sys.Jacobi;
-		
-				
-		stream<<"Jacobi npt: "<<std::endl<<sys.Jacobi.block(0, npt, sys.m_eqns, npr)<<std::endl;
-		stream<<"Update: "<<std::endl<<h_dlr<<std::endl;
+
+
+                stream<<"Jacobi npt: "<<std::endl<<sys.Jacobi.block(0, npt, sys.m_eqns, npr)<<std::endl;
+                stream<<"Update: "<<std::endl<<h_dlr<<std::endl;
 
                 sys.Parameter.tail(npr) += h_dlr;
                 sys.recalculate();
@@ -190,11 +190,11 @@ struct Dogleg {
                 //calculate the rotation update ratio
                 err_new_r = sys.Residual.norm();
             } else {
-	      err_new_r = err;
-	      h_dlr.setZero();
-	    }
-	    
-	    stream<<"after npr residual: "<<sys.Residual.transpose()<<std::endl;
+                err_new_r = err;
+                h_dlr.setZero();
+            }
+
+            stream<<"after npr residual: "<<sys.Residual.transpose()<<std::endl;
 
 
             number_type dF_t=0, dL_t=0;
@@ -230,34 +230,40 @@ struct Dogleg {
                     delta_t = delta_t/nu_t;
                     nu_t = 2*nu_t;
                 }
+            } else {
+                err_new_t = err_new_r;
+                h_dlt.setZero();
             }
-            else {
-	      err_new_t = err_new_r;
-	      h_dlt.setZero();
-	    }
-	    
-	    stream<<"after npt residual: "<<sys.Residual.transpose()<<std::endl;
 
-            // calculate the linear model
-            typename Kernel::Vector h_dl(npt+npr);
+            stream<<"after npt residual: "<<sys.Residual.transpose()<<std::endl;
+
+	    number_type dL, dF;
+	    typename Kernel::Vector h_dl(npt+npr);
             h_dl.head(npt) = h_dlt;
             h_dl.tail(npr) = h_dlr;
-            number_type dL = 0.5*BFR_Res.norm() - 0.5*(BFR_Res + BFR_J*h_dl).norm();
+            if(npr) {
+                // calculate the linear model
+                dL = 0.5*BFR_Res.norm() - 0.5*(BFR_Res + BFR_J*h_dl).norm();
 
 
-            //calculate the update ratio
-            number_type dF = err - err_new_t;
-            number_type rho = dF/dL;
+                //calculate the update ratio
+                dF = err - err_new_t;
+                number_type rho = dF/dL;
 
-            if(dF<=0 || dL<=0) rho = -1;
-            // update delta
-            if(rho>0.75) {
-                delta_r = std::max(delta_r,2*h_dlr.norm());
-                nu_r = 2;
-            } else if(rho < 0.25) {
-                delta_r = delta_r/nu_r;
-                nu_r = 2*nu_r;
+                if(dF<=0 || dL<=0) rho = -1;
+                // update delta
+                if(rho>0.75) {
+                    delta_r = std::max(delta_r,2*h_dlr.norm());
+                    nu_r = 2;
+                } else if(rho < 0.25) {
+                    delta_r = delta_r/nu_r;
+                    nu_r = 2*nu_r;
+                }
             }
+            else {
+	      dF = dF_t;
+	      dL = dL_t;
+	    }
 
             if(dF > 0 && dL > 0) {
 
@@ -271,8 +277,8 @@ struct Dogleg {
                 // get infinity norms
                 g_inf = g.template lpNorm<E::Infinity>();
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
-		
-		stream<<"accepted, dr and dt:"<<delta_r<<", "<<delta_t<<std::endl<<std::endl;
+
+                stream<<"accepted, dr and dt:"<<delta_r<<", "<<delta_t<<std::endl<<std::endl;
 
             } else {
                 // std::cout<<"Step Rejected"<<std::endl;
@@ -280,6 +286,7 @@ struct Dogleg {
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
             }
+
 
             // std::stringstream stream;
             // stream<<std::fixed<<std::setprecision(5)<<"delta_t: "<<delta_t<<",   delta_r: " << delta_r;
@@ -292,9 +299,9 @@ struct Dogleg {
         stream<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
         stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl;
         stream<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
-        Base::Console().Message("%s", stream.str().c_str());
+        //Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
-        Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
+        //Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;
