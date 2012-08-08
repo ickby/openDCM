@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_CONSTRAINT3D_H
-#define DCM_CONSTRAINT3D_H
+#ifndef GCM_CONSTRAINT3D_H
+#define GCM_CONSTRAINT3D_H
 
 #include "geometry.hpp"
 
-namespace dcm {
+namespace gcm {
 
 template< typename Kernel, typename Tag1, typename Tag2 >
 struct Distance3D {
@@ -136,4 +136,4 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 
 }
 
-#endif //DCM_CONSTRAINT3D_H
+#endif //GCM_CONSTRAINT3D_H

@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_SHEDULER_H
-#define DCM_SHEDULER_H
+#ifndef GCM_SHEDULER_H
+#define GCM_SHEDULER_H
 
 #include <set>
 #include <algorithm>
 
-namespace dcm {
+namespace gcm {
 
 template<typename Sys>
 struct Job {
@@ -98,4 +98,4 @@ protected:
 
 }
 
-#endif //DCM_SHEDULER_H
+#endif //GCM_SHEDULER_H

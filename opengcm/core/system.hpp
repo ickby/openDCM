@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_SYSTEM_H
-#define DCM_SYSTEM_H
+#ifndef GCM_SYSTEM_H
+#define GCM_SYSTEM_H
 
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/vector/vector0.hpp>
@@ -37,7 +37,7 @@
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 namespace details {
 
@@ -187,5 +187,5 @@ public:
 };
 
 }
-#endif //DCM_SYSTEM_H
+#endif //GCM_SYSTEM_H
 

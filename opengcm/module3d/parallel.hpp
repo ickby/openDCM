@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_PARALLEL_H
-#define DCM_PARALLEL_H
+#ifndef GCM_PARALLEL_H
+#define GCM_PARALLEL_H
 
 #include "geometry.hpp"
 
-namespace dcm {
+namespace gcm {
 
 //the possible directions
 enum Direction { Same, Opposite };
@@ -177,4 +177,4 @@ struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kerne
 
 }
 
-#endif //DCM_ANGLE
+#endif //GCM_ANGLE

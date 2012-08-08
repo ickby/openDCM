@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_ANGLE_HPP
-#define DCM_ANGLE_HPP
+#ifndef GCM_ANGLE_HPP
+#define GCM_ANGLE_HPP
 
 #include "geometry.hpp"
 
-namespace dcm {
+namespace gcm {
   
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
 namespace angle {
@@ -139,4 +139,4 @@ struct Angle3D< Kernel, tag::line3D, tag::plane3D > : public Angle3D<Kernel, tag
 
 }
 
-#endif //DCM_ANGLE_HPP
+#endif //GCM_ANGLE_HPP

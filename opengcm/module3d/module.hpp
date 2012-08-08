@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_MODULE_3D_H
-#define DCM_MODULE_3D_H
+#ifndef GCM_MODULE_3D_H
+#define GCM_MODULE_3D_H
 
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/map.hpp>
@@ -34,12 +34,12 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
-#include "opendcm/Core"
-#include "opendcm/core/object.hpp"
-#include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/sheduler.hpp"
-#include "opendcm/core/traits.hpp"
-#include "opendcm/core/geometry.hpp"
+#include "opengcm/Core"
+#include "opengcm/core/object.hpp"
+#include "opengcm/core/clustergraph.hpp"
+#include "opengcm/core/sheduler.hpp"
+#include "opengcm/core/traits.hpp"
+#include "opengcm/core/geometry.hpp"
 #include "geometry.hpp"
 #include "coincident.hpp"
 #include "distance.hpp"
@@ -51,7 +51,7 @@ static int counter = 0;
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 namespace details {
 
@@ -1139,7 +1139,7 @@ typename boost::add_reference<T>::type get(G geom) {
 
 }
 
-#endif //DCM_GEOMETRY3D_H
+#endif //GCM_GEOMETRY3D_H
 
 
 

@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_TRAITS_H
-#define DCM_TRAITS_H
+#ifndef GCM_TRAITS_H
+#define GCM_TRAITS_H
 
 #include <boost/type_traits.hpp>
 #include <boost/mpl/if.hpp>
@@ -28,7 +28,7 @@
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 template< typename T >
 struct system_traits {
@@ -68,4 +68,4 @@ struct compare_traits<std::string> {
 
 }
 
-#endif //DCM_TRAITS_H
+#endif //GCM_TRAITS_H

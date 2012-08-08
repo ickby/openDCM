@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_KERNEL_H
-#define DCM_KERNEL_H
+#ifndef GCM_KERNEL_H
+#define GCM_KERNEL_H
 
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
@@ -30,7 +30,7 @@
 #include <boost/math/special_functions/fpclassify.hpp>
 
 
-namespace dcm {
+namespace gcm {
 
 namespace E = Eigen;
 
@@ -301,7 +301,7 @@ struct Dogleg {
         stream<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
         //Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
-        //Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
+        Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;
@@ -431,6 +431,6 @@ struct Kernel {
 
 }
 
-#endif //DCM_KERNEL_H
+#endif //GCM_KERNEL_H
 
 

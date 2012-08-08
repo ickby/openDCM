@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,21 +17,21 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_MODULE_PART_H
-#define DCM_MODULE_PART_H
+#ifndef GCM_MODULE_PART_H
+#define GCM_MODULE_PART_H
 
-#include "opendcm/Core"
-#include "opendcm/core/traits.hpp"
-#include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/property.hpp"
-#include "opendcm/Module3D"
+#include "opengcm/Core"
+#include "opengcm/core/traits.hpp"
+#include "opengcm/core/clustergraph.hpp"
+#include "opengcm/core/property.hpp"
+#include "opengcm/Module3D"
 
 #include <boost/mpl/assert.hpp>
 #include <boost/utility/enable_if.hpp>
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 enum { clusterPart = 110};
 
@@ -310,7 +310,7 @@ struct ModulePart {
 
 }
 
-#endif //DCM_MODULEPART_H
+#endif //GCM_MODULEPART_H
 
 
 
