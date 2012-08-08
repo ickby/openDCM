@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/Core"
-#include "opendcm/Module3D"
+#include "opengcm/Core"
+#include "opengcm/Module3D"
 
 #include "test/Octave/debugsolver.hpp"
 
@@ -31,7 +31,7 @@
 struct point : std::vector<double> {};
 typedef Eigen::Matrix<double, 6,1> line_t;
 
-namespace dcm {
+namespace gcm {
 
 template<>
 struct geometry_traits<point> {
@@ -85,7 +85,7 @@ struct test_constraint {
 };
 
 template< typename Kernel >
-struct test_constraint<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {
+struct test_constraint<Kernel, gcm::tag::direction3D, gcm::tag::direction3D> {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
@@ -116,11 +116,11 @@ struct test_constraint<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {
 };
 
 
-using namespace dcm;
+using namespace gcm;
 
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
-typedef dcm::Kernel<double> Kernel;
+typedef gcm::Kernel<double> Kernel;
 typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t > > Module;
 typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
 typedef System<Kernel, Module::type> SystemNOID;
