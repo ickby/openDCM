@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_OBJECT_H
-#define DCM_OBJECT_H
+#ifndef GCM_OBJECT_H
+#define GCM_OBJECT_H
 
 #include <iostream>
 #include <list>
@@ -50,7 +50,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace dcm {
+namespace gcm {
 
 namespace details {
 template<typename T>
@@ -212,6 +212,6 @@ protected:
 
 }
 
-#endif //DCM_OBJECT_H
+#endif //GCM_OBJECT_H
 
 

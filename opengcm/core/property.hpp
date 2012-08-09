@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_PROPERTY_H
-#define DCM_PROPERTY_H
+#ifndef GCM_PROPERTY_H
+#define GCM_PROPERTY_H
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/fusion/sequence.hpp>
@@ -31,7 +31,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace dcm {
+namespace gcm {
 
 struct vertex_property {};
 struct edge_property {};
@@ -78,13 +78,13 @@ template <typename Property, typename Graph>
 class property_map  {
 
 public:
-    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::key_type key_type;
+    typedef typename gcm::details::property_selector<typename Property::kind, Graph>::key_type key_type;
     typedef typename Property::type value_type;
     typedef typename Property::type&  reference;
     typedef boost::lvalue_property_map_tag category;
 
     typedef Property property;
-    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::sequence_type sequence;
+    typedef typename gcm::details::property_selector<typename Property::kind, Graph>::sequence_type sequence;
 
     property_map(Graph& g)
         : m_graph(g) { }
@@ -141,4 +141,4 @@ struct changed_prop {
 }
 
 
-#endif //DCM_PROPERTY_H
+#endif //GCM_PROPERTY_H
