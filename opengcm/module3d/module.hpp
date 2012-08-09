@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_MODULE_3D_H
-#define DCM_MODULE_3D_H
+#ifndef GCM_MODULE_3D_H
+#define GCM_MODULE_3D_H
 
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/map.hpp>
@@ -34,21 +34,24 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
-#include "opendcm/Core"
-#include "opendcm/core/object.hpp"
-#include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/sheduler.hpp"
-#include "opendcm/core/traits.hpp"
-#include "opendcm/core/geometry.hpp"
+#include "opengcm/Core"
+#include "opengcm/core/object.hpp"
+#include "opengcm/core/clustergraph.hpp"
+#include "opengcm/core/sheduler.hpp"
+#include "opengcm/core/traits.hpp"
+#include "opengcm/core/geometry.hpp"
 #include "geometry.hpp"
-#include "constraint.hpp"
+#include "coincident.hpp"
+#include "distance.hpp"
+#include "parallel.hpp"
+#include "angle.hpp"
 #include "dof.hpp"
 
 static int counter = 0;
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 namespace details {
 
@@ -937,6 +940,9 @@ struct Module3D {
             inheriter_base() {
                 m_this = ((Sys*) this);
             };
+	    
+	    Geom drag_point, drag_goal;
+	    Cons drag_constraint;
 
         protected:
             Sys* m_this;
@@ -997,6 +1003,29 @@ struct Module3D {
                 process_constraint(c, first, second);
                 return c;
             };
+	    
+	     //only point draging up to now
+	    bool startPointDrag(Geom g) {
+
+	      inheriter_base::drag_point = g;
+	      inheriter_base::drag_goal.reset();
+	    };
+	    
+	    template<typename T>
+	    void pointDrag(T point) {
+	      BOOST_MPL_ASSERT((boost::is_same< typename geometry_traits<T>::tag, typename tag::point3D>));
+	      if(!inheriter_base::drag_goal) {
+		inheriter_base::drag_goal = this->createGeometry3D(point);
+		inheriter_base::drag_constraint = this->template createConstraint3D<Distance3D>(inheriter_base::drag_point, inheriter_base::drag_goal, 0);
+	      }
+	      inheriter_base::drag_goal->set(point);
+	      this->solve();
+	    };
+	    void finishPointDrag() {
+	      //TODO:remove constraints and drag goal
+	      inheriter_base::drag_goal.reset();
+	      inheriter_base::drag_constraint.reset();
+	    };
         };
 
         struct inheriter_id : public inheriter_base {
@@ -1066,6 +1095,29 @@ struct Module3D {
                 };
                 return Cons();
             };
+	    
+	     //only point draging up to now
+	    bool startPointDrag(Identifier id) {
+
+	      inheriter_base::drag_point = getGeometry3D(id);
+	      inheriter_base::drag_goal.reset();
+	    };
+	    
+	    template<typename T>
+	    void pointDrag(T point) {
+	      BOOST_MPL_ASSERT((boost::is_same< typename geometry_traits<T>::tag, typename tag::point3D>));
+	      if(!inheriter_base::drag_goal) {
+		inheriter_base::drag_goal = this->createGeometry3D(point, "drag_goal");
+		inheriter_base::drag_constraint = this->template createConstraint3D<Distance3D>("drag_constraint", inheriter_base::drag_point, inheriter_base::drag_goal, 0);
+	      }
+	      inheriter_base::drag_goal->set(point, "drag_goal");
+	      ((Sys*) this)->solve();
+	    };
+	    void finishPointDrag() {
+	      //TODO:remove constraints and drag goal
+	      inheriter_base::drag_goal.reset();
+	      inheriter_base::drag_constraint.reset();
+	    };
         };
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
@@ -1136,7 +1188,7 @@ typename boost::add_reference<T>::type get(G geom) {
 
 }
 
-#endif //DCM_GEOMETRY3D_H
+#endif //GCM_GEOMETRY3D_H
 
 
 

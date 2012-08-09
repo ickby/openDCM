@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,16 +17,16 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_CONSTRAINT3D_H
-#define DCM_CONSTRAINT3D_H
+#ifndef GCM_COINCIDENT_H
+#define GCM_COINCIDENT_H
 
 #include "geometry.hpp"
 
-namespace dcm {
+namespace gcm {
 
 
 template<typename Kernel, typename Tag1, typename Tag2>
-struct FixPart {
+struct Coincident3D {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
@@ -55,5 +55,4 @@ struct FixPart {
 
 }
 
-
-#endif //DCM_CONSTRAINT3D_H
+#endif //GCM_COINCIDENT_H

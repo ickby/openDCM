@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_GEOMETRY_PART_H
-#define DCM_GEOMETRY_PART_H
+#ifndef GCM_GEOMETRY_PART_H
+#define GCM_GEOMETRY_PART_H
 
-#include <opendcm/core/geometry.hpp>
+#include <opengcm/core/geometry.hpp>
 
-namespace dcm {
+namespace gcm {
 namespace tag {
 
 struct part  {};
@@ -72,4 +72,4 @@ namespace modell {
 
 }
 
-#endif //DCM_GEOMETRY_PART_H
+#endif //GCM_GEOMETRY_PART_H

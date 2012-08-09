@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,21 +17,21 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_MODULE_PART_H
-#define DCM_MODULE_PART_H
+#ifndef GCM_MODULE_PART_H
+#define GCM_MODULE_PART_H
 
-#include "opendcm/Core"
-#include "opendcm/core/traits.hpp"
-#include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/property.hpp"
-#include "opendcm/Module3D"
+#include "opengcm/Core"
+#include "opengcm/core/traits.hpp"
+#include "opengcm/core/clustergraph.hpp"
+#include "opengcm/core/property.hpp"
+#include "opengcm/Module3D"
 
 #include <boost/mpl/assert.hpp>
 #include <boost/utility/enable_if.hpp>
 
 namespace mpl = boost::mpl;
 
-namespace dcm {
+namespace gcm {
 
 enum { clusterPart = 110};
 
@@ -69,6 +69,20 @@ struct ModulePart {
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename Kernel::number_type Scalar;
 
+	    template<typename T>
+            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
+                Geom g(new Geometry3D(geom, m_system));
+                if(frame == Local)
+                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
+
+                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
+                m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
+                m_system.template objectVector<Geometry3D>().push_back(g);
+
+                return g;
+            };
+	    
         public:
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
@@ -91,20 +105,7 @@ struct ModulePart {
             typename Kernel::Quaternion m_quaternion;
             typename Kernel::Vector3 m_translation;
             Cluster& m_cluster;
-
-            template<typename T>
-            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
-                Geom g(new Geometry3D(geom, m_system));
-                if(frame == Local)
-                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
-
-                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
-                m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
-                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
-                m_system.template objectVector<Geometry3D>().push_back(g);
-
-                return g;
-            };
+      
 
             //visitor to write the calculated value into the variant
             struct apply_visitor : public boost::static_visitor<void> {
@@ -198,7 +199,7 @@ struct ModulePart {
 
 
         struct inheriter_base {
-
+	  
             inheriter_base() {
                 m_this = ((Sys*) this);
             };
@@ -229,6 +230,8 @@ struct ModulePart {
 
         struct inheriter_id : public inheriter_base {
 
+	    Identifier drag_id;
+	  	    
             template<typename T>
             Partptr createPart(T geometry, Identifier id) {
                 Partptr p = inheriter_base::partCreation(geometry);
@@ -310,7 +313,7 @@ struct ModulePart {
 
 }
 
-#endif //DCM_MODULEPART_H
+#endif //GCM_MODULEPART_H
 
 
 

@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -18,8 +18,8 @@
 */
 
 
-#ifndef DCM_GEOMETRY_H
-#define DCM_GEOMETRY_H
+#ifndef GCM_GEOMETRY_H
+#define GCM_GEOMETRY_H
 
 #include <iostream>
 
@@ -42,7 +42,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace dcm {
+namespace gcm {
 
 namespace tag {
 
@@ -51,11 +51,12 @@ struct undefined {
     typedef mpl::int_<0> transformations;
 };
 
-//we nee to order tags, this base make it easy for module tags
+//we need to order tags, this base make it easy for module tags
 namespace weight {
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};
 struct plane : mpl::int_<3> {};
+struct cylinder : mpl::int_<4> {};
 }
 }
 
@@ -108,4 +109,4 @@ struct geometry_traits {
 
 }
 
-#endif // DCM_GEOMETRY_H
+#endif // GCM_GEOMETRY_H

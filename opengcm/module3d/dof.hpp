@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_DOF_H
-#define DCM_DOF_H
+#ifndef GCM_DOF_H
+#define GCM_DOF_H
 
 #include <utility>
 #include <vector>
 
-namespace dcm {
+namespace gcm {
 
 enum remaining {
     nothing = 0,
@@ -130,4 +130,4 @@ private:
 
 }
 
-#endif //DCM_DOF_H
+#endif //GCM_DOF_H

@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/Core"
+#include "opengcm/Core"
 
 #include <boost/test/unit_test.hpp>
 
@@ -27,7 +27,7 @@ struct point {
   double x,y,z;
 };
 
-namespace dcm {
+namespace gcm {
 
 //template<>
 //struct geometry_traits<point> {
@@ -35,7 +35,7 @@ namespace dcm {
 //};
 }
 
-using namespace dcm;
+using namespace gcm;
 
 BOOST_AUTO_TEST_SUITE(Geometry_test_suit);
 
@@ -65,23 +65,23 @@ BOOST_AUTO_TEST_CASE(geometry_accessor) {
 }
 
 struct test_tag1 {
-  typedef dcm::tag::weight::point weight;
+  typedef gcm::tag::weight::point weight;
 };
 struct test_tag2 {
-  typedef dcm::tag::weight::line weight;
+  typedef gcm::tag::weight::line weight;
 };
 
 BOOST_AUTO_TEST_CASE(geometry_order) {
   
-  BOOST_CHECK( (!dcm::tag_order<test_tag1, test_tag2>::swapt::value) );
-  BOOST_CHECK( (dcm::tag_order<test_tag2, test_tag1>::swapt::value) );
+  BOOST_CHECK( (!gcm::tag_order<test_tag1, test_tag2>::swapt::value) );
+  BOOST_CHECK( (gcm::tag_order<test_tag2, test_tag1>::swapt::value) );
   
 
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1> ));
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2> ));
+  BOOST_MPL_ASSERT(( boost::is_same<gcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1> ));
+  BOOST_MPL_ASSERT(( boost::is_same<gcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2> ));
   
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1> ));
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2> ));
+  BOOST_MPL_ASSERT(( boost::is_same<gcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1> ));
+  BOOST_MPL_ASSERT(( boost::is_same<gcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2> ));
 
 }
 

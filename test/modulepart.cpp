@@ -1,5 +1,5 @@
 /*
-    openDCM, dimensional constraint manager
+    openGCM, geometric constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,9 +17,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/Core"
-#include "opendcm/Module3D"
-#include "opendcm/ModulePart"
+#include "opengcm/Core"
+#include "opengcm/Module3D"
+#include "opengcm/ModulePart"
 
 #include "test/Octave/debugsolver.hpp"
 
@@ -80,7 +80,7 @@ struct place_accessor {
     void finalize(T& t) {};
 };
 
-namespace dcm {
+namespace gcm {
 
 template<>
 struct geometry_traits< place > {
@@ -108,14 +108,14 @@ struct geometry_traits<line_t> {
 
 BOOST_AUTO_TEST_SUITE(modulepart_suit);
 
-typedef dcm::Kernel<double> Kernel;
-typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t> > Module3D;
-typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, line_t>, std::string > Module3DID;
-typedef dcm::ModulePart< mpl::vector< place > > ModulePart;
-typedef dcm::ModulePart< mpl::vector< place >, std::string > ModulePartID;
+typedef gcm::Kernel<double> Kernel;
+typedef gcm::Module3D< mpl::vector< Eigen::Vector3d, line_t> > Module3D;
+typedef gcm::Module3D< mpl::vector< Eigen::Vector3d, line_t>, std::string > Module3DID;
+typedef gcm::ModulePart< mpl::vector< place > > ModulePart;
+typedef gcm::ModulePart< mpl::vector< place >, std::string > ModulePartID;
 
-typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
-typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
+typedef gcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
+typedef gcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
 
 typedef typename ModulePart::type<SystemNOID>::Part Part;
 typedef typename ModulePartID::type<SystemID>::Part PartID;
@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   Geom g3 = part2->addGeometry3D( p3 );
   Geom g4 = part2->addGeometry3D( p4 );
   
-  sys.createConstraint3D<dcm::Distance3D>(g1,g3,5);
-  sys.createConstraint3D<dcm::Distance3D>(g2,g4,5);
+  sys.createConstraint3D<gcm::Distance3D>(g1,g3,5);
+  sys.createConstraint3D<gcm::Distance3D>(g2,g4,5);
   
   sys.solve();
   
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(modulepart_transformations) {
   p.quat.x()=1; p.quat.y()=2; p.quat.z()=3; p.quat.w()=4;
   p.quat.normalize();
   Part_ptr part1 = sys.createPart(p);
-  Geom g = part1->addGeometry3D(p1, dcm::Global);
+  Geom g = part1->addGeometry3D(p1, gcm::Global);
   
  // BOOST_CHECK( (g->m_global-p.quat.conjugate()._transformVector(p1)).norm() < 0.0001 );  
 }
@@ -197,8 +197,8 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D<dcm::Distance3D>("c1",g1,g3,5);
-  ConsID c2 = sys.createConstraint3D<dcm::Distance3D>("c2",g2,g4,5);
+  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
   
   BOOST_CHECK( !part1->getIdentifier().compare("part1") );
   BOOST_CHECK( !part2->getIdentifier().compare("part2") );
@@ -212,6 +212,71 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   
   BOOST_CHECK( sys.getPart("part1") == part1 );
   BOOST_CHECK( sys.getPart("part2") == part2 );
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_partsolve) {
+  
+  Eigen::Vector3d p1,p2,p3,p4, v1, v2;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+    
+  SystemID sys;
+  
+  Partid_ptr part1 = sys.createPart(place(), "part1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  GeomID g2 = part1->addGeometry3D( p2, "g2" );
+  
+  Partid_ptr part2 = sys.createPart(place(), "part2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3" );
+  GeomID g4 = part2->addGeometry3D( p4 , "g4" );
+  
+  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  //ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
+  
+  sys.solve();
+  
+  v1 = get<Eigen::Vector3d>(g1);
+  v2 = get<Eigen::Vector3d>(g3);
+
+  BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5.));
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_partgeomsolve) {
+  
+  Eigen::Vector3d p1,p2,p3,p4, v1, v2, v3, v4;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+    
+  SystemID sys;
+  
+  Partid_ptr part1 = sys.createPart(place(), "part1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  GeomID g2 = part1->addGeometry3D( p2, "g2" );
+  
+  Partid_ptr part2 = sys.createPart(place(), "part2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3" );
+  GeomID g4 = part2->addGeometry3D( p4 , "g4" );
+  
+  GeomID g5 = sys.createGeometry3D(p4, "g5");
+  
+  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g5,5);
+  
+  sys.solve();
+  
+  v1 = get<Eigen::Vector3d>(g1);
+  v2 = get<Eigen::Vector3d>(g3);
+  v3 = get<Eigen::Vector3d>(g2);
+  v4 = get<Eigen::Vector3d>(g5);
+
+  BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5.));
+  BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 5.));
 }
 
 BOOST_AUTO_TEST_SUITE_END();
