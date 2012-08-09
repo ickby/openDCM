@@ -299,7 +299,7 @@ struct Dogleg {
         stream<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
         stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl;
         stream<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
-        //Base::Console().Message("%s", stream.str().c_str());
+        Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
         Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
         //std::cout<<"DONE solving"<<std::endl;

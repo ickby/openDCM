@@ -214,4 +214,69 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   BOOST_CHECK( sys.getPart("part2") == part2 );
 }
 
+BOOST_AUTO_TEST_CASE(modulepart_partsolve) {
+  
+  Eigen::Vector3d p1,p2,p3,p4, v1, v2;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+    
+  SystemID sys;
+  
+  Partid_ptr part1 = sys.createPart(place(), "part1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  GeomID g2 = part1->addGeometry3D( p2, "g2" );
+  
+  Partid_ptr part2 = sys.createPart(place(), "part2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3" );
+  GeomID g4 = part2->addGeometry3D( p4 , "g4" );
+  
+  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  //ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
+  
+  sys.solve();
+  
+  v1 = get<Eigen::Vector3d>(g1);
+  v2 = get<Eigen::Vector3d>(g3);
+
+  BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5.));
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_partgeomsolve) {
+  
+  Eigen::Vector3d p1,p2,p3,p4, v1, v2, v3, v4;
+  p1 << 7, -0.5, 0.3;
+  p2 << 0.2, 0.5, -0.1;
+  
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+    
+  SystemID sys;
+  
+  Partid_ptr part1 = sys.createPart(place(), "part1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  GeomID g2 = part1->addGeometry3D( p2, "g2" );
+  
+  Partid_ptr part2 = sys.createPart(place(), "part2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3" );
+  GeomID g4 = part2->addGeometry3D( p4 , "g4" );
+  
+  GeomID g5 = sys.createGeometry3D(p4, "g5");
+  
+  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g5,5);
+  
+  sys.solve();
+  
+  v1 = get<Eigen::Vector3d>(g1);
+  v2 = get<Eigen::Vector3d>(g3);
+  v3 = get<Eigen::Vector3d>(g2);
+  v4 = get<Eigen::Vector3d>(g5);
+
+  BOOST_CHECK(Kernel::isSame((v1-v2).norm(), 5.));
+  BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 5.));
+}
+
 BOOST_AUTO_TEST_SUITE_END();

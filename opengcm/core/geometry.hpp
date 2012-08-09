@@ -51,7 +51,7 @@ struct undefined {
     typedef mpl::int_<0> transformations;
 };
 
-//we nee to order tags, this base make it easy for module tags
+//we need to order tags, this base make it easy for module tags
 namespace weight {
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};

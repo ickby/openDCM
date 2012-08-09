@@ -63,23 +63,27 @@ struct Distance3D< Kernel, tag::point3D, tag::point3D > {
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
-        return (param1-param2).norm() - m_distance;
+        return std::pow((param1-param2).norm() - m_distance, 2);
     };
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        return (param1-param2).dot(dparam1) / (param1-param2).norm();
+	Scalar res = (param1-param2).norm() - m_distance;
+        return 2*res*((param1-param2).dot(dparam1) / (param1-param2).norm());
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-        return (param1-param2).dot(-dparam2) / (param1-param2).norm();
+	Scalar res = (param1-param2).norm() - m_distance;
+        return 2*res*((param1-param2).dot(-dparam2) / (param1-param2).norm());
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        gradient = (param1-param2) / (param1-param2).norm();
+	Scalar res = (param1-param2).norm() - m_distance;
+        gradient = 2*res*((param1-param2) / (param1-param2).norm());
     };
 
     void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        gradient = (param2-param1) / (param1-param2).norm();
+	Scalar res = (param1-param2).norm() - m_distance;
+        gradient = 2*res*((param2-param1) / (param1-param2).norm());
     };
 };
 

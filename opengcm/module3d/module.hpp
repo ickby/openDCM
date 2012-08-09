@@ -940,6 +940,9 @@ struct Module3D {
             inheriter_base() {
                 m_this = ((Sys*) this);
             };
+	    
+	    Geom drag_point, drag_goal;
+	    Cons drag_constraint;
 
         protected:
             Sys* m_this;
@@ -1000,6 +1003,29 @@ struct Module3D {
                 process_constraint(c, first, second);
                 return c;
             };
+	    
+	     //only point draging up to now
+	    bool startPointDrag(Geom g) {
+
+	      inheriter_base::drag_point = g;
+	      inheriter_base::drag_goal.reset();
+	    };
+	    
+	    template<typename T>
+	    void pointDrag(T point) {
+	      BOOST_MPL_ASSERT((boost::is_same< typename geometry_traits<T>::tag, typename tag::point3D>));
+	      if(!inheriter_base::drag_goal) {
+		inheriter_base::drag_goal = this->createGeometry3D(point);
+		inheriter_base::drag_constraint = this->template createConstraint3D<Distance3D>(inheriter_base::drag_point, inheriter_base::drag_goal, 0);
+	      }
+	      inheriter_base::drag_goal->set(point);
+	      this->solve();
+	    };
+	    void finishPointDrag() {
+	      //TODO:remove constraints and drag goal
+	      inheriter_base::drag_goal.reset();
+	      inheriter_base::drag_constraint.reset();
+	    };
         };
 
         struct inheriter_id : public inheriter_base {
@@ -1069,6 +1095,29 @@ struct Module3D {
                 };
                 return Cons();
             };
+	    
+	     //only point draging up to now
+	    bool startPointDrag(Identifier id) {
+
+	      inheriter_base::drag_point = getGeometry3D(id);
+	      inheriter_base::drag_goal.reset();
+	    };
+	    
+	    template<typename T>
+	    void pointDrag(T point) {
+	      BOOST_MPL_ASSERT((boost::is_same< typename geometry_traits<T>::tag, typename tag::point3D>));
+	      if(!inheriter_base::drag_goal) {
+		inheriter_base::drag_goal = this->createGeometry3D(point, "drag_goal");
+		inheriter_base::drag_constraint = this->template createConstraint3D<Distance3D>("drag_constraint", inheriter_base::drag_point, inheriter_base::drag_goal, 0);
+	      }
+	      inheriter_base::drag_goal->set(point, "drag_goal");
+	      ((Sys*) this)->solve();
+	    };
+	    void finishPointDrag() {
+	      //TODO:remove constraints and drag goal
+	      inheriter_base::drag_goal.reset();
+	      inheriter_base::drag_constraint.reset();
+	    };
         };
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};

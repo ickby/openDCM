@@ -69,6 +69,20 @@ struct ModulePart {
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename Kernel::number_type Scalar;
 
+	    template<typename T>
+            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
+                Geom g(new Geometry3D(geom, m_system));
+                if(frame == Local)
+                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
+
+                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
+                m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
+                m_system.template objectVector<Geometry3D>().push_back(g);
+
+                return g;
+            };
+	    
         public:
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
@@ -91,20 +105,7 @@ struct ModulePart {
             typename Kernel::Quaternion m_quaternion;
             typename Kernel::Vector3 m_translation;
             Cluster& m_cluster;
-
-            template<typename T>
-            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
-                Geom g(new Geometry3D(geom, m_system));
-                if(frame == Local)
-                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
-
-                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
-                m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
-                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
-                m_system.template objectVector<Geometry3D>().push_back(g);
-
-                return g;
-            };
+      
 
             //visitor to write the calculated value into the variant
             struct apply_visitor : public boost::static_visitor<void> {
@@ -198,7 +199,7 @@ struct ModulePart {
 
 
         struct inheriter_base {
-
+	  
             inheriter_base() {
                 m_this = ((Sys*) this);
             };
@@ -229,6 +230,8 @@ struct ModulePart {
 
         struct inheriter_id : public inheriter_base {
 
+	    Identifier drag_id;
+	  	    
             template<typename T>
             Partptr createPart(T geometry, Identifier id) {
                 Partptr p = inheriter_base::partCreation(geometry);
