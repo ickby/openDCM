@@ -28,6 +28,7 @@
 //#include <../FreeCAD/src/Base/Console.h>
 
 #include <boost/math/special_functions/fpclassify.hpp>
+#include <time.h>
 
 
 namespace gcm {
@@ -53,9 +54,9 @@ struct Dogleg {
                       const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                       const double delta) {
 
-        std::stringstream stream;
-        stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
-        stream<<"residual: "<<std::endl<<residual<<std::endl;
+       // std::stringstream stream;
+       // stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
+       // stream<<"residual: "<<std::endl<<residual<<std::endl;
 
 
         // get the steepest descent stepsize and direction
@@ -97,14 +98,16 @@ struct Dogleg {
             h_dl = alpha*h_sd + beta*(b-a);
         }
         // stream<<"jacobi*h_dl"<<std::endl<<(jacobi*h_dl)<<std::endl<<std::endl;
-        stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
+        //stream<<"h_dl:"<<std::endl<<h_dl<<std::endl<<std::endl;
         //  Base::Console().Message("%s", stream.str().c_str());
         return 0;
     };
 
     bool solve(typename Kernel::MappedEquationSystem& sys) {
-        std::cout<<"start solving"<<std::endl;
-
+        //std::cout<<"start solving"<<std::endl;
+	clock_t start = clock();
+        
+        
         if(!sys.isValid()) return false;
 
         int npt = sys.m_params+sys.m_trans_params;
@@ -118,11 +121,11 @@ struct Dogleg {
 
         sys.recalculate();
 
-        std::stringstream stream;
-        stream<<"start jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-        stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
+       // std::stringstream stream;
+       // stream<<"start jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
+       // stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl<<std::endl;
         //Base::Console().Message("%s", stream.str().c_str());
-        stream.str(std::string());
+       // stream.str(std::string());
 
         number_type err = sys.Residual.norm();
 
@@ -181,8 +184,8 @@ struct Dogleg {
                 BFR_J   = sys.Jacobi;
 
 
-                stream<<"Jacobi npt: "<<std::endl<<sys.Jacobi.block(0, npt, sys.m_eqns, npr)<<std::endl;
-                stream<<"Update: "<<std::endl<<h_dlr<<std::endl;
+                //stream<<"Jacobi npt: "<<std::endl<<sys.Jacobi.block(0, npt, sys.m_eqns, npr)<<std::endl;
+                //stream<<"Update: "<<std::endl<<h_dlr<<std::endl;
 
                 sys.Parameter.tail(npr) += h_dlr;
                 sys.recalculate();
@@ -194,7 +197,7 @@ struct Dogleg {
                 h_dlr.setZero();
             }
 
-            stream<<"after npr residual: "<<sys.Residual.transpose()<<std::endl;
+            //stream<<"after npr residual: "<<sys.Residual.transpose()<<std::endl;
 
 
             number_type dF_t=0, dL_t=0;
@@ -235,7 +238,7 @@ struct Dogleg {
                 h_dlt.setZero();
             }
 
-            stream<<"after npt residual: "<<sys.Residual.transpose()<<std::endl;
+            //stream<<"after npt residual: "<<sys.Residual.transpose()<<std::endl;
 
 	    number_type dL, dF;
 	    typename Kernel::Vector h_dl(npt+npr);
@@ -278,7 +281,7 @@ struct Dogleg {
                 g_inf = g.template lpNorm<E::Infinity>();
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
 
-                stream<<"accepted, dr and dt:"<<delta_r<<", "<<delta_t<<std::endl<<std::endl;
+                //stream<<"accepted, dr and dt:"<<delta_r<<", "<<delta_t<<std::endl<<std::endl;
 
             } else {
                 // std::cout<<"Step Rejected"<<std::endl;
@@ -296,12 +299,14 @@ struct Dogleg {
             // count this iteration and start again
             iter++;
         }
-        stream<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-        stream<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl;
-        stream<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
-        Base::Console().Message("%s", stream.str().c_str());
+        //std::cout<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
+        //std::cout<<"parameter: "<<std::endl<<sys.Parameter.transpose()<<std::endl;
+        //std::cout<<"residual: "<<std::endl<<sys.Residual<<std::endl<<std::endl;
+        //Base::Console().Message("%s", stream.str().c_str());
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
-        Base::Console().Message("residual: %e, reason: %d, iterations: %d\n", err, stop, iter);
+        clock_t end = clock();
+	double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
+        //Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f\n", err, stop, iter, ms);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;

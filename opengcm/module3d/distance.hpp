@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_CONSTRAINT3D_H
-#define GCM_CONSTRAINT3D_H
+#ifndef GCM_DISTANCE3D_H
+#define GCM_DISTANCE3D_H
 
 #include "geometry.hpp"
 
@@ -140,4 +140,4 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
 
 }
 
-#endif //GCM_CONSTRAINT3D_H
+#endif //GCM_DISTANCE3D_H
