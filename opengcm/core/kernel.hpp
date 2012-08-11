@@ -306,7 +306,7 @@ struct Dogleg {
         // std::cout<<"Iterations used: "<<iter<<std::endl<<std::endl;
         clock_t end = clock();
 	double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
-        //Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f\n", err, stop, iter, ms);
+        Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f\n", err, stop, iter, ms);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;

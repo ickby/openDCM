@@ -117,7 +117,7 @@ public:
     };
     void initMaps() {
 
-        const Scalar s = std::sin(std::acos(m_quaternion.w()))/std::acos(m_quaternion.w());
+        const Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
         m_normQ = m_quaternion.vec()*s;
         m_translation = m_original_translation;
     };
