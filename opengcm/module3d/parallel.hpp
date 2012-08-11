@@ -25,7 +25,7 @@
 namespace gcm {
 
 //the possible directions
-enum Direction { Same, Opposite };
+enum Direction { Same, Opposite, Both };
 
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
 namespace parallel {
@@ -40,6 +40,8 @@ inline typename Kernel::number_type calc(T d1,
             return (d1-d2).norm();
         case Opposite:
             return (d1+d2).norm();
+        case Both:
+            return (d1/d1.norm() + d2/d2.norm()).norm();
     }
 };
 
@@ -55,6 +57,10 @@ inline typename Kernel::number_type calcGradFirst(T d1,
             return (d1-d2).dot(dd1) / (d1-d2).norm();
         case Opposite:
             return (d1+d2).dot(dd1) / (d1+d2).norm();
+        case Both:
+            const typename Kernel::number_type nd1 = d1.norm();
+            const typename Kernel::Vector3 f = d1/nd1 + d2/d2.norm();
+            return f.dot(dd1/nd1 - d1*d1.dot(dd1)/std::pow(nd1,3)) / f.norm();
     }
 };
 
@@ -69,6 +75,10 @@ inline typename Kernel::number_type calcGradSecond(T d1,
             return (d1-d2).dot(-dd2) / (d1-d2).norm();
         case Opposite:
             return (d1+d2).dot(dd2) / (d1+d2).norm();
+        case Both:
+            const typename Kernel::number_type nd2 = d2.norm();
+            const typename Kernel::Vector3 f = d1/d1.norm() + d2/nd2;
+            return f.dot(dd2/nd2 - d2*d2.dot(dd2)/std::pow(nd2,3)) / f.norm();
     }
 };
 
@@ -85,6 +95,8 @@ inline void calcGradFirstComp(T d1,
         case Opposite:
             grad = (d1+d2) / (d1+d2).norm();
             return;
+        case Both:
+            assert(false);
     }
 };
 
@@ -101,6 +113,8 @@ inline void calcGradSecondComp(T d1,
         case Opposite:
             grad = (d2+d1) / (d1+d2).norm();
             return;
+        case Both:
+            assert(false);
     }
 };
 
@@ -114,7 +128,7 @@ struct Parallel3D {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) {
-    //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
+        //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
     };
 
     //template definition
@@ -168,11 +182,11 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 //planes like lines have the direction as segment 3-5, so we can use the same implementations
 template< typename Kernel >
 struct Parallel3D< Kernel, tag::plane3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
-  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+    Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
 };
 template< typename Kernel >
 struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
-  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+    Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
 };
 
 template< typename Kernel >
@@ -184,7 +198,7 @@ struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) {
-      Base::Console().Message("Create parrallel cylinder");
+        Base::Console().Message("Create parrallel cylinder");
     };
 
     //template definition
