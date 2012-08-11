@@ -175,6 +175,37 @@ struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kerne
   Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
 };
 
+template< typename Kernel >
+struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
+
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    Direction m_dir;
+
+    Parallel3D(Direction d = Same) : m_dir(d) {
+      Base::Console().Message("Create parrallel cylinder");
+    };
+
+    //template definition
+    Scalar calculate(Vector& param1,  Vector& param2) {
+        return parallel::calc<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), m_dir);
+    };
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+        return parallel::calcGradFirst<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam1.template segment<3>(3), m_dir);
+    };
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+        return parallel::calcGradSecond<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam2.template segment<3>(3), m_dir);
+    };
+    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        gradient.template head<3>().setZero();
+        parallel::calcGradFirstComp<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), gradient.template segment<3>(3), m_dir);
+    };
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        gradient.template head<3>().setZero();
+        parallel::calcGradSecondComp<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), gradient.template segment<3>(3), m_dir);
+    };
+};
 }
 
 #endif //GCM_ANGLE

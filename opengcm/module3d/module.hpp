@@ -571,10 +571,6 @@ struct Module3D {
                     //we are in cluster, therfore the parameter map should not point to a solver value but to
                     //the rotated original value;
                     new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
-                    std::stringstream stream;
-                    stream<<"Geometry global: "<<m_global.transpose()<<std::endl;
-                    stream<<"Geometry local: "<<m_toplocal.transpose()<<std::endl<<std::endl;
-                    //Base::Console().Message("%s", stream.str().c_str());
                 };
 		//when fixed the parameter map needs to point to the global value as it never can get changed
 		if(iscluster && isFixed) {
