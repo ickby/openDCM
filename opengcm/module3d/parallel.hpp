@@ -41,7 +41,10 @@ inline typename Kernel::number_type calc(T d1,
         case Opposite:
             return (d1+d2).norm();
         case Both:
-            return (d1/d1.norm() + d2/d2.norm()).norm();
+	    if(d1.dot(d2) >= 0) {
+	      return (d1-d2).norm();
+	    }
+	    return (d1+d2).norm();
     }
 };
 
@@ -58,9 +61,10 @@ inline typename Kernel::number_type calcGradFirst(T d1,
         case Opposite:
             return (d1+d2).dot(dd1) / (d1+d2).norm();
         case Both:
-            const typename Kernel::number_type nd1 = d1.norm();
-            const typename Kernel::Vector3 f = d1/nd1 + d2/d2.norm();
-            return f.dot(dd1/nd1 - d1*d1.dot(dd1)/std::pow(nd1,3)) / f.norm();
+	    if(d1.dot(d2) >= 0) {
+	      return ((d1-d2).dot(dd1) / (d1-d2).norm());
+	    }
+	    return ((d1+d2).dot(dd1) / (d1+d2).norm());
     }
 };
 
@@ -76,9 +80,10 @@ inline typename Kernel::number_type calcGradSecond(T d1,
         case Opposite:
             return (d1+d2).dot(dd2) / (d1+d2).norm();
         case Both:
-            const typename Kernel::number_type nd2 = d2.norm();
-            const typename Kernel::Vector3 f = d1/d1.norm() + d2/nd2;
-            return f.dot(dd2/nd2 - d2*d2.dot(dd2)/std::pow(nd2,3)) / f.norm();
+            if(d1.dot(d2) >= 0) {
+	      return ((d1-d2).dot(-dd2) / (d1-d2).norm());
+	    }
+	    return ((d1+d2).dot(dd2) / (d1+d2).norm());
     }
 };
 
@@ -197,9 +202,7 @@ struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
 
     Direction m_dir;
 
-    Parallel3D(Direction d = Same) : m_dir(d) {
-        Base::Console().Message("Create parrallel cylinder");
-    };
+    Parallel3D(Direction d = Same) : m_dir(d) { };
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {

@@ -109,7 +109,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         //if(dparam1.norm()!=1) return 0;
         const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
 
-        return 2*res*(dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
+        return 1e-3*2*res*(dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
@@ -121,7 +121,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         //if(dparam2.norm()!=1) return 0;
         const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
 
-        return 2*res * (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
+        return 1e-3*2*res * (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
