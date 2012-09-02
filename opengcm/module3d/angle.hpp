@@ -82,6 +82,10 @@ struct Angle3D {
     Scalar m_angle;
 
     Angle3D(Scalar d = 0.) : m_angle(std::cos(d)) {};
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      assert(false);
+    }
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -110,6 +114,10 @@ struct Angle3D< Kernel, tag::line3D, tag::line3D > {
     Scalar m_angle;
 
     Angle3D(Scalar d = 0.) : m_angle(std::cos(d)) {};
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      return 1.;
+    }
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {

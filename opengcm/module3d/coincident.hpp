@@ -30,6 +30,10 @@ struct Coincident3D {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      assert(false);
+    }
 
     Scalar calculate(Vector& param1,  Vector& param2)  {
         assert(false);

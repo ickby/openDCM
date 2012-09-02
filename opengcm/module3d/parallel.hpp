@@ -56,15 +56,15 @@ inline typename Kernel::number_type calcGradFirst(T d1,
         Direction dir)  {
 
     switch(dir) {
-        case Same:
-            return (d1-d2).dot(dd1) / (d1-d2).norm();
+        case Same:	    
+            return ((d1-d2).dot(dd1) / (d1-d2).norm());
         case Opposite:
-            return (d1+d2).dot(dd1) / (d1+d2).norm();
+            return ((d1+d2).dot(dd1) / (d1+d2).norm());
         case Both:
 	    if(d1.dot(d2) >= 0) {
-	      return ((d1-d2).dot(dd1) / (d1-d2).norm());
+	      return (((d1-d2).dot(dd1) / (d1-d2).norm()));
 	    }
-	    return ((d1+d2).dot(dd1) / (d1+d2).norm());
+	    return (((d1+d2).dot(dd1) / (d1+d2).norm()));
     }
 };
 
@@ -76,14 +76,14 @@ inline typename Kernel::number_type calcGradSecond(T d1,
 
     switch(dir) {
         case Same:
-            return (d1-d2).dot(-dd2) / (d1-d2).norm();
+            return ((d1-d2).dot(-dd2) / (d1-d2).norm());
         case Opposite:
-            return (d1+d2).dot(dd2) / (d1+d2).norm();
+            return ((d1+d2).dot(dd2) / (d1+d2).norm());
         case Both:
             if(d1.dot(d2) >= 0) {
-	      return ((d1-d2).dot(-dd2) / (d1-d2).norm());
+	      return (((d1-d2).dot(-dd2) / (d1-d2).norm()));
 	    }
-	    return ((d1+d2).dot(dd2) / (d1+d2).norm());
+	    return (((d1+d2).dot(dd2) / (d1+d2).norm()));
     }
 };
 
@@ -135,6 +135,10 @@ struct Parallel3D {
     Parallel3D(Direction d = Same) : m_dir(d) {
         //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
     };
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      assert(false);
+    }
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -164,6 +168,9 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 
     Parallel3D(Direction d = Same) : m_dir(d) {};
 
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      return 1.;
+    }
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         return parallel::calc<Kernel>(param1.template tail<3>(), param2.template tail<3>(), m_dir);
@@ -203,7 +210,10 @@ struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) { };
-
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      return 1.;
+    }
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         return parallel::calc<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), m_dir);
