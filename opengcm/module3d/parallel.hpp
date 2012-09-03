@@ -42,9 +42,9 @@ inline typename Kernel::number_type calc(T d1,
             return (d1+d2).norm();
         case Both:
 	    if(d1.dot(d2) >= 0) {
-	      return (d1-d2).norm();
+	      return (d1-d2).norm()*0.1;
 	    }
-	    return (d1+d2).norm();
+	    return (d1+d2).norm()*0.1;
     }
 };
 
@@ -62,9 +62,9 @@ inline typename Kernel::number_type calcGradFirst(T d1,
             return ((d1+d2).dot(dd1) / (d1+d2).norm());
         case Both:
 	    if(d1.dot(d2) >= 0) {
-	      return (((d1-d2).dot(dd1) / (d1-d2).norm()));
+	      return (((d1-d2).dot(dd1) / (d1-d2).norm()))*0.1;
 	    }
-	    return (((d1+d2).dot(dd1) / (d1+d2).norm()));
+	    return (((d1+d2).dot(dd1) / (d1+d2).norm()))*0.1;
     }
 };
 
@@ -81,9 +81,9 @@ inline typename Kernel::number_type calcGradSecond(T d1,
             return ((d1+d2).dot(dd2) / (d1+d2).norm());
         case Both:
             if(d1.dot(d2) >= 0) {
-	      return (((d1-d2).dot(-dd2) / (d1-d2).norm()));
+	      return (((d1-d2).dot(-dd2) / (d1-d2).norm()))*0.1;
 	    }
-	    return (((d1+d2).dot(dd2) / (d1+d2).norm()));
+	    return (((d1+d2).dot(dd2) / (d1+d2).norm()))*0.1;
     }
 };
 

@@ -165,7 +165,8 @@ struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     Distance3D(Scalar d = 0, bool rot = true) {};
 
     Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-      return 1;
+	Scalar s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
+	return 1./s;
     }
 //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
