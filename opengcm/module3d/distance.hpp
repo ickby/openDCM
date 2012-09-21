@@ -33,7 +33,7 @@ struct Distance3D {
 
     Distance3D(Scalar d = 0, bool rot = true) : m_distance(d) {};
     Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-      assert(false);
+        assert(false);
     }
 
     //template definition
@@ -65,31 +65,31 @@ struct Distance3D< Kernel, tag::point3D, tag::point3D > {
     Distance3D(Scalar d = 0, bool rot = true) : m_distance(d) {};
 
     Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-      return 1;
+        return 1;
     }
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
-        return std::pow((param1-param2).norm() - m_distance, 2);
+        return (param1-param2).norm() - m_distance;
     };
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        Scalar res = (param1-param2).norm() - m_distance;
-        return 2*res*((param1-param2).dot(dparam1) / (param1-param2).norm());
+        //Scalar res = (param1-param2).norm() - m_distance;
+        return (param1-param2).dot(dparam1) / (param1-param2).norm();
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-        Scalar res = (param1-param2).norm() - m_distance;
-        return 2*res*((param1-param2).dot(-dparam2) / (param1-param2).norm());
+       // Scalar res = (param1-param2).norm() - m_distance;
+        return (param1-param2).dot(-dparam2) / (param1-param2).norm();
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        Scalar res = (param1-param2).norm() - m_distance;
-        gradient = 2*res*((param1-param2) / (param1-param2).norm());
+        //Scalar res = (param1-param2).norm() - m_distance;
+        gradient = (param1-param2) / (param1-param2).norm();
     };
 
     void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        Scalar res = (param1-param2).norm() - m_distance;
-        gradient = 2*res*((param2-param1) / (param1-param2).norm());
+        //Scalar res = (param1-param2).norm() - m_distance;
+        gradient = (param2-param1) / (param1-param2).norm();
     };
 };
 
@@ -105,7 +105,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
     bool m_rot;
 
 
-    Distance3D(Scalar d = 0, bool rot = true) : m_distance(d), m_rot(rot){};
+    Distance3D(Scalar d = 0, bool rot = true) : m_distance(d), m_rot(rot) {};
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -114,9 +114,9 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         return  dist;
     };
     Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-	
-	s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
-	return 1./s;
+
+        s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
+        return 1./s;
     }
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
@@ -125,11 +125,11 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
 
         const Scalar g = (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
-	return g;
+        return g;
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-      
+
         const typename Kernel::Vector3 p1 = param1.head(3);
         const typename Kernel::Vector3 p2 = param2.head(3);
         const typename Kernel::Vector3 dp2 = dparam2.head(3);
@@ -139,7 +139,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
 
         const Scalar g = (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
-	return g;
+        return g;
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
@@ -162,11 +162,11 @@ struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     typedef typename Kernel::VectorMap   Vector;
     typedef typename Kernel::Vector3     Vector3;
 
-    Distance3D(Scalar d = 0, bool rot = true) {};
+    Distance3D(Scalar d = 0) {};
 
     Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-	Scalar s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
-	return 1./s;
+        Scalar s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
+        return 1./s;
     }
 //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -186,6 +186,7 @@ struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
         const Vector3 r = diff - diff.dot(n1)*n1;
         const Vector3 dr =  dp1 - (dp1.dot(n1) + diff.dot(dn1))*n1 - diff.dot(n1)*dn1;
         return r.dot(dr)/r.norm();
+
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
@@ -216,6 +217,10 @@ struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     };
 };
 
+template< typename Kernel >
+struct Distance3D< Kernel, tag::line3D, tag::line3D > : public Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
+    Distance3D(typename Kernel::number_type d = 0) : Distance3D<Kernel, tag::cylinder3D, tag::cylinder3D>(d) {};
+};
 
 }
 

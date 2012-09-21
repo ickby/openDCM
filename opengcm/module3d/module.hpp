@@ -48,6 +48,10 @@
 #include "dof.hpp"
 #include "fix.hpp"
 
+
+#define maxfak 1.2
+#define minfak 0.8
+
 static int counter = 0;
 
 namespace mpl = boost::mpl;
@@ -74,7 +78,6 @@ private:
 
     typename Kernel::Matrix3	m_rotation;
     typename Kernel::Matrix39 	m_diffrot;
-    typename Kernel::Vector3Map m_translation;
     typename Kernel::Quaternion	m_quaternion;
     typename Kernel::Vector3	m_original_translation;
     typename Kernel::Vector3Map	m_normQ;
@@ -82,14 +85,30 @@ private:
 
     int m_rot_offset, m_trans_offset;
     int count;
+    bool init;
 
 public:
-    ClusterMath() : m_normQ(NULL), m_translation(NULL){
+    typename Kernel::Vector3Map m_translation;
+    //shift scale stuff
+    Scalar xmin, xmax, ymin, ymax, zmin, zmax;
+    typename Kernel::Vector3 midpoint, m_shift;
+    Scalar m_scale;
+
+public:
+    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
 
         m_quaternion = typename Kernel::Quaternion(1,2,3,4);
         m_quaternion.normalize();
+        m_shift.setZero();
         count = counter;
         counter++;
+        m_scale = 1.;
+        xmin=1e10;
+        xmax=-1e10;
+        ymin=1e10;
+        ymax=-1e10;
+        zmin=1e10;
+        zmax=-1e10;
     };
 
     void setParameterOffset(int roff, int toff) {
@@ -110,6 +129,9 @@ public:
     void setTranslationMap(typename Kernel::Vector3Map& map) {
         new(&map) typename Kernel::Vector3Map(&m_translation(0));
     };
+    void setShiftMap(typename Kernel::Vector3Map& map) {
+        new(&map) typename Kernel::Vector3Map(&m_shift(0));
+    };
     typename Kernel::Vector3Map& getNormQuaternionMap() {
         return m_normQ;
     };
@@ -119,7 +141,17 @@ public:
     void initMaps() {
         const Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
         m_normQ = m_quaternion.vec()*s;
-        m_translation = m_original_translation;
+        m_translation = m_original_translation + m_quaternion.toRotationMatrix()*m_shift;
+	init = true;
+	m_scale = 1.;
+        xmin=1e10;
+        xmax=-1e10;
+        ymin=1e10;
+        ymax=-1e10;
+        zmin=1e10;
+        zmax=-1e10;
+	midpoint.setZero();
+	m_shift.setZero();
     };
 
     typename Kernel::Quaternion& getQuaternion() {
@@ -128,15 +160,31 @@ public:
     typename Kernel::Vector3& getTranslation() {
         return m_original_translation;
     };
+    void setShift(typename Kernel::Vector3 s) {
+        m_shift = s;
+        //we remove shift from the local geometries, therefore we have to add it here
+        //to not change the global position
+        if(init) m_translation += m_quaternion.toRotationMatrix()*m_shift;
+    };
+    void setScale(Scalar s) {
+        m_scale = s;
+        if(init)m_translation *= s;
+    };
 
     void finishCalculation() {
         const Scalar norm = m_normQ.norm();
         const Scalar fac = std::sin(norm)/norm;
         m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
         m_quaternion.normalize();
-	m_original_translation = m_translation;
+        m_original_translation = m_translation/m_scale - m_quaternion.toRotationMatrix()*m_shift;
+
+        //needed to allow a correct global calculation in cluster geometries after this finish
+        m_shift.setZero();
+        m_translation = m_original_translation;
+	
+	init=false;
     };
-    
+
     void recalculate() {
 
         //get the Quaternion for the norm quaternion form and calculate the rotation matrix
@@ -256,10 +304,11 @@ struct Module3D {
                         typedef typename std::vector<Geom>::iterator iter;
 
                         for(iter it = vec.begin(); it != vec.end(); it++)
-                            (*it)->recalculate();
+                            (*it)->recalculate(system_traits<Sys>::Kernel::MappedEquationSystem::Scaling);
                     }
 
                 };
+                //TODO:Scale parameters outside cluster
 
                 //with everything updated just nicely we can compute the constraints
                 typedef typename Cluster::template object_iterator<Constraint3D> oiter;
@@ -282,6 +331,7 @@ struct Module3D {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename Kernel::number_type Scalar;
 
             SystemSolver() {
                 Job<Sys>::priority = 1000;
@@ -402,10 +452,29 @@ struct Module3D {
                                 }
                             } else mes.setJacobiMap(equation, c->second->m_parameter_offset, c->first->m_parameterCount, c->m_diff_second);
 
-			    mes.Scaling(equation) = c->getEquationScaling();
+                            //mes.Scaling(equation) = c->getEquationScaling();
                         }
                         //TODO: else throw (as every global edge was counted as one equation)
                     }
+                }
+
+                //get the maximal scale
+                Scalar sc = 0;
+                for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
+                    const Scalar s = scaleShiftCluster(*(*cit.first).second);
+                    sc = (s>sc) ? s : sc;
+                }
+                //Base::Console().Message("Scale is %f\n", sc);
+                if(!Kernel::isSame(sc,0)) {
+                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
+                        applyShiftCluster(*(*cit.first).second, sc);
+                    mes.Scaling = maxfak/sc;
+                }
+                //scaling needs to be 1 (all shifts are at all theri points)
+                else {
+                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
+                        applyShiftCluster(*(*cit.first).second, 1.);
+                    mes.Scaling = 1.;
                 }
 
                 //now it's time to solve
@@ -420,11 +489,11 @@ struct Module3D {
                     if(cluster.isCluster(*it.first)) {
                         if(!cluster.template getSubclusterProperty<fix_prop>(*it.first)) {
                             Cluster& c = cluster.getVertexCluster(*it.first);
+
+                            c.template getClusterProperty<math_prop>().finishCalculation();
                             std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
                             for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                                 (*vit)->finishCalculation();
-
-                            c.template getClusterProperty<math_prop>().finishCalculation();
                         }
                     } else cluster.template getObject<Geometry3D>(*it.first)->finishCalculation();
                 }
@@ -434,7 +503,7 @@ struct Module3D {
 
             };
 
-    
+
             void mapClusterDownstreamGeometry(Cluster& cluster,
                                               details::ClusterMath<Sys>& cm,
                                               std::vector<Geom>& vec,
@@ -458,6 +527,8 @@ struct Module3D {
                             cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
                             //map translation from cluster to geometry
                             cm.setTranslationMap(g->getTranslationMap());
+                            //map shift from cluster to geometry
+                            cm.setShiftMap(g->getShiftMap());
                             //set the offsets so that geometry knows where it is in the parameter map
                             g->m_rot_offset = cm.getRotationOffset();
                             g->m_trans_offset = cm.getTranslationOffset();
@@ -480,6 +551,139 @@ struct Module3D {
 
             };
 
+            Scalar scaleShiftCluster(Cluster& cluster) {
+
+                //first get the bonding box to get the center pof points
+                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
+                details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
+
+                std::stringstream str;
+                str<<"Start ScaleShift"<<std::endl;
+                //only one geometry scale = norm
+                if(vec.empty()) return 0.; //should never happen...
+                if(vec.size() == 1) {
+                    str<<"single geometry part: "<<vec[0]->getBigPoint().transpose()<<std::endl;
+                    //Base::Console().Message("%s",str.str().c_str());
+                    return vec[0]->getBigPoint().norm();
+                }
+
+                typedef typename std::vector<Geom>::iterator iter;
+                for(iter it = vec.begin(); it != vec.end(); it++) {
+                    typename Kernel::Vector3 v = (*it)->getBigPoint();
+                    math.xmin = (v(0)<math.xmin) ? v(0) : math.xmin;
+                    math.xmax = (v(0)<math.xmax) ? math.xmax : v(0);
+                    math.ymin = (v(1)<math.ymin) ? v(1) : math.ymin;
+                    math.ymax = (v(1)<math.ymax) ? math.ymax : v(1);
+                    math.zmin = (v(2)<math.zmin) ? v(2) : math.zmin;
+                    math.zmax = (v(2)<math.zmax) ? math.zmax : v(2);
+                    str<<"Testet point: "<<v.transpose()<<std::endl;
+                };
+
+                //now calculate the midpoint and use it as shift
+                math.midpoint << math.xmin+math.xmax, math.ymin+math.ymax, math.zmin+math.zmax;
+                math.midpoint /= 2.;
+                str<<"Midpoint:"<<math.midpoint.transpose()<<std::endl;
+                //the bounding box corner is the max allowed distance
+                typename Kernel::Vector3 max(math.xmax, math.ymax, math.zmax);
+                Scalar maxscale = (max-math.midpoint).norm();
+
+                //the maxscale is ||point||*scale=1.5, all other points are allowed to be in the
+                //range to ||point||*scale=0.5. therefore ||point|| > maxscale/3 must be ensured
+                bool inFrame = true;
+                for(iter it = vec.begin(); (it != vec.end()) && inFrame; it++)
+                    inFrame = (((*it)->getBigPoint()-math.midpoint).norm() > maxscale*minfak/maxfak);
+
+                if(!inFrame) str<<"Point not in right shift range"<<std::endl;
+                //all points are in frame, we are done here
+                //if(inFrame) return 2.*maxscale/3.;
+                math.m_scale =  maxscale;
+
+                str<<"Scale: "<<math.m_scale<<std::endl;
+
+                //set the calulated shift
+                math.m_shift = math.midpoint;
+
+                str<<"shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
+                //Base::Console().Message("%s",str.str().c_str());
+                return maxscale;
+
+                //some points are to close to the origin, lets shift again
+                //first get the flat boundingbox side
+
+            };
+
+            void applyShiftCluster(Cluster& cluster, Scalar scale) {
+
+                details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
+
+                //same scaling for us all
+                //math.m_scale = scale;
+
+                //if only one point exists we extend the origin-point-line to match the scale
+                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
+                if(vec.size()==1) {
+                    typename Kernel::Vector3 v = vec[0]->getBigPoint();
+                    const Scalar fak = 1. - scale/v.norm();
+                    if(Kernel::isSame(v.norm(),0))
+                        math.m_shift << scale, 0, 0;
+                    else math.m_shift = fak*v;
+
+                    math.setShift(math.m_shift);
+                    math.setScale(maxfak/scale);
+
+                    std::stringstream str;
+                    str<<"single shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
+                    //Base::Console().Message("%s",str.str().c_str());
+                    return;
+                };
+
+
+                //if this is our scale then just applie the midpoint as shift (already done)
+                if(Kernel::isSame(scale, math.m_scale)) {
+                    math.setShift(math.m_shift);
+                    math.setScale(maxfak/scale);
+                    return;
+                }
+
+                //now it gets more complicated. bahh. the most outer point should be at
+                //distance scale. of course we need the smallest heigh at midpoint to add
+                //the offset to
+                Scalar xh = math.xmax-math.xmin;
+                Scalar yh = math.ymax-math.ymin;
+                Scalar zh = math.zmax-math.zmin;
+
+                if((xh<=yh) && (xh<=zh)) {
+                    const Scalar a = std::sqrt(std::pow(math.ymax-math.midpoint(1),2)
+                                               +  std::pow(math.zmax-math.midpoint(2),2));
+                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
+
+                    //applie extra heigh to midpoint
+                    math.m_shift(0) += b-xh/2;
+                } else if((yh<xh) && (yh<zh)) {
+                    const Scalar a = std::sqrt(std::pow(math.xmax-math.midpoint(0),2)
+                                               +  std::pow(math.zmax-math.midpoint(2),2));
+                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
+
+                    //applie extra heigh to midpoint
+                    math.m_shift(1) += b-yh/2;
+                } else {
+                    const Scalar a = std::sqrt(std::pow(math.xmax-math.midpoint(0),2)
+                                               +  std::pow(math.ymax-math.midpoint(1),2));
+                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
+
+                    //applie extra heigh to midpoint
+                    math.m_shift(2) += b-zh/2;
+                }
+
+                math.setShift(math.m_shift);
+                math.setScale(maxfak/scale);
+
+                std::stringstream str;
+                str<<"changed shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
+                //Base::Console().Message("%s",str.str().c_str());
+
+            };
+
         };
 
         class Geometry3D_base : public Object<Sys, Geometry3D, GeomSignal > {
@@ -494,7 +698,7 @@ struct Module3D {
             template<typename T>
             Geometry3D_base(T geometry, Sys& system) : base(system), m_isInCluster(false),
                 m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
-                m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false)  {
+                m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false), m_shift(NULL),m_scale(1.)  {
 
                 init<T>(geometry);
             };
@@ -525,9 +729,11 @@ struct Module3D {
             typename Sys::Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
             typename Sys::Kernel::VectorMap   m_parameter; //map to the parameters in the solver
             typename Sys::Kernel::Vector3Map  m_translation; //map to the cluster translation
+            typename Sys::Kernel::Vector3Map  m_shift; //map to the cluster shift
             typename Sys::Kernel::Matrix3Map  m_rotation; //map to the cluster rotation
             typename Sys::Kernel::Matrix39Map m_diffrot; //map to the gradient rotations
 
+            Scalar m_scale;
 
             template<typename T>
             void init(T& t) {
@@ -563,6 +769,9 @@ struct Module3D {
             typename Sys::Kernel::Vector3Map&  getTranslationMap() {
                 return m_translation;
             };
+            typename Sys::Kernel::Vector3Map&  getShiftMap() {
+                return m_shift;
+            };
             void initMap() {
                 //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
                 m_parameter = m_global;
@@ -589,9 +798,14 @@ struct Module3D {
                 return m_clusterFixed;
             };
 
-            void recalculate() {
+            void recalculate(const Scalar scale = -1.) {
                 if(!m_isInCluster) return;
-		
+
+                Scalar s;
+                if(scale <= 0)
+                    s = m_scale;
+                else s=scale;
+
                 for(int i=0; i!=m_rotations; i++) {
                     //first rotate the original to the transformed value
                     m_rotated.block(i*3,0,3,1) = m_rotation*m_toplocal.template segment<3>(i*3);
@@ -603,12 +817,26 @@ struct Module3D {
                 }
                 //after rotating the needed parameters we translate the stuff that needs to be moved
                 for(int i=0; i!=m_translations; i++) {
-                    //first transform the original to the transformed value
-                    m_rotated.block(i*3,0,3,1) += m_translation;
+                    //first translate and shift the original to the transformed value
+                    m_rotated.block(i*3,0,3,1) *= s;
+                    m_rotated.block(i*3,0,3,1) += m_translation - m_rotation*m_shift*s;
 
                     //now calculate the gradient vectors and add them to diffparam
                     m_diffparam.block(i*3,3,3,3).setIdentity();
-                }            
+
+                    m_diffparam.block(i*3,0,3,1) -= m_diffrot.block(0,0,3,3) * m_shift;
+                    m_diffparam.block(i*3,1,3,1) -= m_diffrot.block(0,3,3,3) * m_shift;
+                    m_diffparam.block(i*3,2,3,1) -= m_diffrot.block(0,6,3,3) * m_shift;
+                    m_diffparam.block(i*3,0,3,3) *= s;
+                }
+            }
+
+            typename Kernel::Vector3 getBigPoint() {
+                typename Kernel::Vector3 v;
+		v.setZero();
+                for(int i=0; i<m_translations; i++)
+                    v = (v.norm()>m_toplocal.template segment<3>(i*3).norm()) ? v : m_toplocal.template segment<3>(i*3);
+                return v;
             }
 
             //visitor to write the calculated value into the variant
@@ -627,10 +855,14 @@ struct Module3D {
             void finishCalculation() {
                 //if fixed nothing needs to be changed
                 if(!m_clusterFixed) {
-                    if(m_isInCluster) m_global = m_rotated;
+                    if(m_isInCluster) {
+                        recalculate(1.); //remove scaling to get right global value
+                        m_global = m_rotated;
+                    }
+                    //TODO:non cluster paramter scaling
                     else m_global = m_parameter;
-		    apply_visitor v(m_global);
-		    apply(v);
+                    apply_visitor v(m_global);
+                    apply(v);
                 }
             };
             //get this geometrie largest part
@@ -666,7 +898,6 @@ struct Module3D {
                     m_toplocal.template segment<3>(i*3) = m_global.template segment<3>(i*3) + trans;
                 for(int i=0; i!=m_rotations; i++)
                     m_toplocal.template segment<3>(i*3) = rot*m_toplocal.template segment<3>(i*3);
-
             };
             void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
 
@@ -745,10 +976,10 @@ struct Module3D {
                 if(c.need_swap) first.swap(second);
             };
 
-	    Scalar getEquationScaling() {
-		return content->getEquationScaling(first->m_toplocal, second->m_toplocal);
-	    };
-	    
+            Scalar getEquationScaling() {
+                return content->getEquationScaling(first->m_toplocal, second->m_toplocal);
+            };
+
             Scalar calculate() {
 
                 m_residual(0) = content->calculate(first->m_parameter, second->m_parameter);
@@ -758,7 +989,7 @@ struct Module3D {
                     if(first->getClusterMode()) {
                         //when the cluster is fixed no maps are set as no parameters exist.
                         if(!first->isClusterFixed()) {
-	  
+
                             //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                             for(int i=0; i<3; i++) {
                                 typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));

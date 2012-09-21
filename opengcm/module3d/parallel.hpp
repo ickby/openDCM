@@ -21,6 +21,9 @@
 #define GCM_PARALLEL_H
 
 #include "geometry.hpp"
+#include <boost/math/special_functions/fpclassify.hpp>
+
+using boost::math::isnormal;
 
 namespace gcm {
 
@@ -42,9 +45,9 @@ inline typename Kernel::number_type calc(T d1,
             return (d1+d2).norm();
         case Both:
 	    if(d1.dot(d2) >= 0) {
-	      return (d1-d2).norm()*0.1;
+	      return (d1-d2).norm();
 	    }
-	    return (d1+d2).norm()*0.1;
+	    return (d1+d2).norm();
     }
 };
 
@@ -55,17 +58,24 @@ inline typename Kernel::number_type calcGradFirst(T d1,
         T dd1,
         Direction dir)  {
 
+    typename Kernel::number_type res;
     switch(dir) {
         case Same:	    
-            return ((d1-d2).dot(dd1) / (d1-d2).norm());
+            res = ((d1-d2).dot(dd1) / (d1-d2).norm());
+	    break;
         case Opposite:
-            return ((d1+d2).dot(dd1) / (d1+d2).norm());
+            res= ((d1+d2).dot(dd1) / (d1+d2).norm());
+	    break;
         case Both:
 	    if(d1.dot(d2) >= 0) {
-	      return (((d1-d2).dot(dd1) / (d1-d2).norm()))*0.1;
+	      res = (((d1-d2).dot(dd1) / (d1-d2).norm()));
+	      break;
 	    }
-	    return (((d1+d2).dot(dd1) / (d1+d2).norm()))*0.1;
+	    res = (((d1+d2).dot(dd1) / (d1+d2).norm()));
+	    break;
     }
+    if( (isnormal)(res) ) return res;
+    return 0;    
 };
 
 template<typename Kernel, typename T>
@@ -74,17 +84,24 @@ inline typename Kernel::number_type calcGradSecond(T d1,
         T dd2,
         Direction dir)  {
 
+    typename Kernel::number_type res;
     switch(dir) {
         case Same:
-            return ((d1-d2).dot(-dd2) / (d1-d2).norm());
+            res = ((d1-d2).dot(-dd2) / (d1-d2).norm());
+	    break;
         case Opposite:
-            return ((d1+d2).dot(dd2) / (d1+d2).norm());
+            res = ((d1+d2).dot(dd2) / (d1+d2).norm());
+	    break;
         case Both:
             if(d1.dot(d2) >= 0) {
-	      return (((d1-d2).dot(-dd2) / (d1-d2).norm()))*0.1;
+	      res = (((d1-d2).dot(-dd2) / (d1-d2).norm()));
+	      break;
 	    }
-	    return (((d1+d2).dot(dd2) / (d1+d2).norm()))*0.1;
+	    res = (((d1+d2).dot(dd2) / (d1+d2).norm()));
+	    break;
     }
+    if( (isnormal)(res) ) return res;
+    return 0;  
 };
 
 template<typename Kernel, typename T>
@@ -220,6 +237,7 @@ struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     };
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
         return parallel::calcGradFirst<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam1.template segment<3>(3), m_dir);
+
     };
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
         return parallel::calcGradSecond<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam2.template segment<3>(3), m_dir);
