@@ -39,6 +39,11 @@
 #include <boost/concept_check.hpp>
 #include <boost/graph/graph_concepts.hpp>
 
+#include <boost/variant.hpp>
+
+#include "object.hpp"
+#include "traits.hpp"
+
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -51,7 +56,7 @@ struct undefined {
     typedef mpl::int_<0> transformations;
 };
 
-//we need to order tags, this base make it easy for module tags
+//we need to order tags, this values make it easy for module tags
 namespace weight {
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};
@@ -104,9 +109,240 @@ struct tag_order {
 
 template< typename T>
 struct geometry_traits {
-    BOOST_MPL_ASSERT_MSG( false, NO_GEOMETRY_TRAITS_SPECIFIED_FOR_TYPE, (T) );
+    BOOST_MPL_ASSERT_MSG(false, NO_GEOMETRY_TRAITS_SPECIFIED_FOR_TYPE, (T));
 };
 
+struct reset {}; 	//signal namespace
+
+namespace detail {
+
+template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals>
+class Geometry : public Object<Sys, Derived, Signals > {
+  
+    typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
+    typedef Object<Sys, Derived, Signals> 		Base;
+    typedef typename system_traits<Sys>::Kernel 	Kernel;
+    typedef typename system_traits<Sys>::Cluster 	Cluster;
+    typedef typename Kernel::number_type 		Scalar;
+    typedef typename Kernel::DynStride 			DS;
+
+public:
+    template<typename T>
+    Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
+        m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
+        m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false), m_shift(NULL),m_scale(1.)  {
+
+        init<T>(geometry);
+    };
+
+    template<typename T>
+    void set(T geometry) {
+        m_geometry = geometry;
+        init<T>(geometry);
+        Base::template emitSignal<reset> (Base::shared_from_this());
+    };
+
+    template<typename Visitor>
+    typename Visitor::result_type apply(Visitor& vis) {
+        return boost::apply_visitor(vis, m_geometry);
+    };
+
+public:
+    Variant m_geometry; //Variant holding the real geometry type
+    int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
+    int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
+    int     m_parameter_offset, m_trans_offset, m_rot_offset; //the starting point of our parameters in the math system parameter vector
+    int     m_rotations; //count of rotations to be done when original vector gets rotated
+    int     m_translations; //count of translations to be done when original vector gets rotated
+    bool    m_isInCluster, m_clusterFixed;
+    typename Sys::Kernel::Vector      m_toplocal; //the local value in the toplevel cluster used for cuttent solving
+    typename Sys::Kernel::Vector      m_global; //the global value outside of all clusters
+    typename Sys::Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)
+    typename Sys::Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
+    typename Sys::Kernel::VectorMap   m_parameter; //map to the parameters in the solver
+    typename Sys::Kernel::Vector3Map  m_translation; //map to the cluster translation
+    typename Sys::Kernel::Vector3Map  m_shift; //map to the cluster shift
+    typename Sys::Kernel::Matrix3Map  m_rotation; //map to the cluster rotation
+    typename Sys::Kernel::Matrix39Map m_diffrot; //map to the gradient rotations
+
+    Scalar m_scale;
+
+    template<typename T>
+    void init(T& t) {
+        m_BaseParameterCount = geometry_traits<T>::tag::parameters::value;
+        m_parameterCount = m_BaseParameterCount;
+        m_rotations = geometry_traits<T>::tag::rotations::value;
+        m_translations = geometry_traits<T>::tag::translations::value;
+
+        m_toplocal.setZero(m_parameterCount);
+        m_global.resize(m_parameterCount);
+        m_rotated.resize(m_parameterCount);
+
+        m_diffparam.resize(m_parameterCount,6);
+        m_diffparam.setZero();
+
+        (typename geometry_traits<T>::modell()).template extract<Scalar,
+        typename geometry_traits<T>::accessor >(t, m_global);
+
+        //std::cout << "global value init:"<<std::endl <<m_global<<std::endl;
+    }
+
+    typename Sys::Kernel::VectorMap& getParameterMap() {
+        m_isInCluster = false;
+        m_parameterCount = m_BaseParameterCount;
+        return m_parameter;
+    }
+    typename Sys::Kernel::Matrix3Map&  getRotationMap() {
+        return m_rotation;
+    };
+    typename Sys::Kernel::Matrix39Map& getDiffRotationMap() {
+        return m_diffrot;
+    };
+    typename Sys::Kernel::Vector3Map&  getTranslationMap() {
+        return m_translation;
+    };
+    typename Sys::Kernel::Vector3Map&  getShiftMap() {
+        return m_shift;
+    };
+    void initMap() {
+        //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
+        m_parameter = m_global;
+    };
+
+    void setClusterMode(bool iscluster, bool isFixed) {
+        m_isInCluster = iscluster;
+        m_clusterFixed = isFixed;
+        if(iscluster && !isFixed) {
+            //we are in cluster, therfore the parameter map should not point to a solver value but to
+            //the rotated original value;
+            new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
+        };
+        //when fixed the parameter map needs to point to the global value as it never can get changed
+        if(iscluster && isFixed) {
+            //std::cout << "global value cluster mode:"<<std::endl <<m_global<<std::endl;
+            new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
+        }
+    }
+    bool getClusterMode() {
+        return m_isInCluster;
+    };
+    bool isClusterFixed() {
+        return m_clusterFixed;
+    };
+
+    void recalculate(const Scalar scale = -1.) {
+        if(!m_isInCluster) return;
+
+        Scalar s;
+        if(scale <= 0)
+            s = m_scale;
+        else s=scale;
+
+        for(int i=0; i!=m_rotations; i++) {
+            //first rotate the original to the transformed value
+            m_rotated.block(i*3,0,3,1) = m_rotation*m_toplocal.template segment<3>(i*3);
+
+            //now calculate the gradient vectors and add them to diffparam
+            m_diffparam.block(i*3,0,3,1) = m_diffrot.block(0,0,3,3) * m_toplocal.template segment<3>(i*3);
+            m_diffparam.block(i*3,1,3,1) = m_diffrot.block(0,3,3,3) * m_toplocal.template segment<3>(i*3);
+            m_diffparam.block(i*3,2,3,1) = m_diffrot.block(0,6,3,3) * m_toplocal.template segment<3>(i*3);
+        }
+        //after rotating the needed parameters we translate the stuff that needs to be moved
+        for(int i=0; i!=m_translations; i++) {
+            //first translate and shift the original to the transformed value
+            m_rotated.block(i*3,0,3,1) *= s;
+            m_rotated.block(i*3,0,3,1) += m_translation - m_rotation*m_shift*s;
+
+            //now calculate the gradient vectors and add them to diffparam
+            m_diffparam.block(i*3,3,3,3).setIdentity();
+
+            m_diffparam.block(i*3,0,3,1) -= m_diffrot.block(0,0,3,3) * m_shift;
+            m_diffparam.block(i*3,1,3,1) -= m_diffrot.block(0,3,3,3) * m_shift;
+            m_diffparam.block(i*3,2,3,1) -= m_diffrot.block(0,6,3,3) * m_shift;
+            m_diffparam.block(i*3,0,3,3) *= s;
+        }
+    }
+
+    typename Kernel::Vector3 getBigPoint() {
+        typename Kernel::Vector3 v;
+        v.setZero();
+        for(int i=0; i<m_translations; i++)
+            v = (v.norm()>m_toplocal.template segment<3>(i*3).norm()) ? v : m_toplocal.template segment<3>(i*3);
+        return v;
+    }
+
+    //visitor to write the calculated value into the variant
+    struct apply_visitor : public boost::static_visitor<void> {
+
+        apply_visitor(typename Kernel::Vector& v) : value(v) {};
+        template <typename T>
+        void operator()(T& t) const  {
+            (typename geometry_traits<T>::modell()).template inject<typename Kernel::number_type,
+            typename geometry_traits<T>::accessor >(t, value);
+        }
+        typename Kernel::Vector& value;
+    };
+
+    //use m_value or parametermap as new value, dependend on the solving mode
+    void finishCalculation() {
+        //if fixed nothing needs to be changed
+        if(!m_clusterFixed) {
+            if(m_isInCluster) {
+                recalculate(1.); //remove scaling to get right global value
+                m_global = m_rotated;
+            }
+            //TODO:non cluster paramter scaling
+            else m_global = m_parameter;
+            apply_visitor v(m_global);
+            apply(v);
+        }
+    };
+    //get this geometrie largest part
+    typename Kernel::number_type getScaleValue() {
+        typename Kernel::number_type val = 0;
+
+        //when we are not in a cluster our value is unintresting. same for fixed clusters: dosn't matter.
+        if(!m_isInCluster || m_clusterFixed) return 1.;
+
+        //only translated parts are relevant, as rotation only values get normalised anyway
+        //(and other parameters are not rotation diff relevant, radius for example)
+        for(int i=0; i!=m_translations; i++)
+            val = std::max(m_toplocal.template segment<3>(i*3).norm(), val);
+        return val;
+    };
+
+    //normal transformation
+    void transform(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
+
+        m_toplocal = m_global;
+        for(int i=0; i!=m_rotations; i++)
+            m_toplocal.template segment<3>(i*3) = rot*m_global.template segment<3>(i*3);
+
+        //after rotating the needed parameters we translate the stuff that needs to be moved
+        for(int i=0; i!=m_translations; i++)
+            m_toplocal.template segment<3>(i*3) = m_toplocal.template segment<3>(i*3) + trans;
+    };
+    //first translation, then rotation
+    void transformInverse(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
+
+        m_toplocal = m_global;
+        for(int i=0; i!=m_translations; i++)
+            m_toplocal.template segment<3>(i*3) = m_global.template segment<3>(i*3) + trans;
+        for(int i=0; i!=m_rotations; i++)
+            m_toplocal.template segment<3>(i*3) = rot*m_toplocal.template segment<3>(i*3);
+    };
+    void transformGlobal(typename Kernel::Matrix3 rot, typename Kernel::Vector3 trans) {
+
+        for(int i=0; i!=m_rotations; i++)
+            m_global.template segment<3>(i*3) = rot*m_global.template segment<3>(i*3);
+
+        //after rotating the needed parameters we translate the stuff that needs to be moved
+        for(int i=0; i!=m_translations; i++)
+            m_global.template segment<3>(i*3) = m_global.template segment<3>(i*3) + trans;
+    };
+};
+
+}
 }
 
 #endif // GCM_GEOMETRY_H
