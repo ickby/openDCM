@@ -241,6 +241,10 @@ public:
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
         return fusion::at<distance>(m_cluster_bundle);
     };
+    template<typename P>
+    typename P::type& getSubclusterProperty(LocalVertex v) {
+        return getVertexCluster(v).getClusterProperty<P>();
+    };
 
     template<typename P>
     void setClusterProperty(typename P::type p) {
@@ -289,6 +293,7 @@ public:
     ClusterGraph&	 getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return *m_clusters[v];
+	//TODO:throw if not a cluster
     };
 
     LocalVertex		getClusterVertex(ClusterGraph& g) {
