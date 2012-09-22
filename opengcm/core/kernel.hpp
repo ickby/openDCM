@@ -277,7 +277,7 @@ struct Simple {
     bool solve(typename Kernel::MappedEquationSystem& sys) {
         //std::cout<<"start solving"<<std::endl;
         clock_t start = clock();
-
+	clock_t inc_rec = clock();
 
         if(!sys.isValid()) return false;
 
@@ -346,7 +346,11 @@ struct Simple {
 
             // get the new values
             sys.Parameter += h_dl;
+	    
+	    clock_t start_rec = clock();
             sys.recalculate();
+	    clock_t end_rec = clock();
+	    inc_rec += end_rec-start_rec;
 
             //calculate the translation update ratio
             err_new = sys.Residual.norm();
@@ -406,8 +410,9 @@ struct Simple {
 		 
 	clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
-        Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, unused %d\n",
-                                err, stop, iter, ms, unused);
+	double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
+        Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, recalc time %f\n",
+                                err, stop, iter, ms, ms_rec);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;
