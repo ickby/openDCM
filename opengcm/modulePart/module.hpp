@@ -93,6 +93,8 @@ struct ModulePart {
 
                 Part_base::m_quaternion.normalize();		
 		//the cluster needs initial values but they are set by preprocess job
+		
+		cluster.template setClusterProperty<typename module3d::fix_prop>(false);
             };
 
             template<typename Visitor>
@@ -126,6 +128,10 @@ struct ModulePart {
                 apply_visitor vis(m_quaternion, m_translation);
                 apply(vis);
             };
+	    
+	    void fix(bool fix_value) {
+	      m_cluster.template setClusterProperty<typename module3d::fix_prop>(fix_value);
+	    };
         };
 
         class Part_noid : public Part_base {
@@ -154,7 +160,7 @@ struct ModulePart {
             Part_id(T geometry, Sys& system,  typename Part_base::Cluster& cluster) : Part_base(geometry, system, cluster) {};
 
             template<typename T>
-            typename Part_base::Geom addGeometry3D(T geom, Identifier id, CoordinateFrame frame = Local) {
+            typename Part_base::Geom addGeometry3D(T geom, Identifier id, CoordinateFrame frame = Global) {
 
                 typename Part_base::Geom g = Part_base::addGeometry(geom, frame);
                 g->setIdentifier(id);

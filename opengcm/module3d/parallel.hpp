@@ -21,11 +21,14 @@
 #define GCM_PARALLEL_H
 
 #include "geometry.hpp"
+#include <boost/math/special_functions/fpclassify.hpp>
+
+using boost::math::isnormal;
 
 namespace gcm {
 
 //the possible directions
-enum Direction { Same, Opposite };
+enum Direction { Same, Opposite, Both };
 
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
 namespace parallel {
@@ -40,6 +43,11 @@ inline typename Kernel::number_type calc(T d1,
             return (d1-d2).norm();
         case Opposite:
             return (d1+d2).norm();
+        case Both:
+	    if(d1.dot(d2) >= 0) {
+	      return (d1-d2).norm();
+	    }
+	    return (d1+d2).norm();
     }
 };
 
@@ -50,12 +58,24 @@ inline typename Kernel::number_type calcGradFirst(T d1,
         T dd1,
         Direction dir)  {
 
+    typename Kernel::number_type res;
     switch(dir) {
-        case Same:
-            return (d1-d2).dot(dd1) / (d1-d2).norm();
+        case Same:	    
+            res = ((d1-d2).dot(dd1) / (d1-d2).norm());
+	    break;
         case Opposite:
-            return (d1+d2).dot(dd1) / (d1+d2).norm();
+            res= ((d1+d2).dot(dd1) / (d1+d2).norm());
+	    break;
+        case Both:
+	    if(d1.dot(d2) >= 0) {
+	      res = (((d1-d2).dot(dd1) / (d1-d2).norm()));
+	      break;
+	    }
+	    res = (((d1+d2).dot(dd1) / (d1+d2).norm()));
+	    break;
     }
+    if( (isnormal)(res) ) return res;
+    return 0;    
 };
 
 template<typename Kernel, typename T>
@@ -64,12 +84,24 @@ inline typename Kernel::number_type calcGradSecond(T d1,
         T dd2,
         Direction dir)  {
 
+    typename Kernel::number_type res;
     switch(dir) {
         case Same:
-            return (d1-d2).dot(-dd2) / (d1-d2).norm();
+            res = ((d1-d2).dot(-dd2) / (d1-d2).norm());
+	    break;
         case Opposite:
-            return (d1+d2).dot(dd2) / (d1+d2).norm();
+            res = ((d1+d2).dot(dd2) / (d1+d2).norm());
+	    break;
+        case Both:
+            if(d1.dot(d2) >= 0) {
+	      res = (((d1-d2).dot(-dd2) / (d1-d2).norm()));
+	      break;
+	    }
+	    res = (((d1+d2).dot(dd2) / (d1+d2).norm()));
+	    break;
     }
+    if( (isnormal)(res) ) return res;
+    return 0;  
 };
 
 template<typename Kernel, typename T>
@@ -85,6 +117,8 @@ inline void calcGradFirstComp(T d1,
         case Opposite:
             grad = (d1+d2) / (d1+d2).norm();
             return;
+        case Both:
+            assert(false);
     }
 };
 
@@ -101,6 +135,8 @@ inline void calcGradSecondComp(T d1,
         case Opposite:
             grad = (d2+d1) / (d1+d2).norm();
             return;
+        case Both:
+            assert(false);
     }
 };
 
@@ -114,8 +150,12 @@ struct Parallel3D {
     Direction m_dir;
 
     Parallel3D(Direction d = Same) : m_dir(d) {
-    //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
+        //  Base::Console().Message("choosen direction (0=same, 1=opposite): %d\n",m_dir);
     };
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      assert(false);
+    }
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -145,6 +185,9 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 
     Parallel3D(Direction d = Same) : m_dir(d) {};
 
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      return 1.;
+    }
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         return parallel::calc<Kernel>(param1.template tail<3>(), param2.template tail<3>(), m_dir);
@@ -168,13 +211,46 @@ struct Parallel3D< Kernel, tag::line3D, tag::line3D > {
 //planes like lines have the direction as segment 3-5, so we can use the same implementations
 template< typename Kernel >
 struct Parallel3D< Kernel, tag::plane3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
-  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+    Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
 };
 template< typename Kernel >
 struct Parallel3D< Kernel, tag::line3D, tag::plane3D > : public Parallel3D<Kernel, tag::line3D, tag::line3D> {
-  Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
+    Parallel3D(Direction d = Same) : Parallel3D<Kernel, tag::line3D, tag::line3D>(d) {};
 };
 
+template< typename Kernel >
+struct Parallel3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
+
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    Direction m_dir;
+
+    Parallel3D(Direction d = Same) : m_dir(d) { };
+    
+    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
+      return 1.;
+    }
+    //template definition
+    Scalar calculate(Vector& param1,  Vector& param2) {
+        return parallel::calc<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), m_dir);
+    };
+    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+        return parallel::calcGradFirst<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam1.template segment<3>(3), m_dir);
+
+    };
+    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+        return parallel::calcGradSecond<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), dparam2.template segment<3>(3), m_dir);
+    };
+    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        gradient.template head<3>().setZero();
+        parallel::calcGradFirstComp<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), gradient.template segment<3>(3), m_dir);
+    };
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        gradient.template head<3>().setZero();
+        parallel::calcGradSecondComp<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), gradient.template segment<3>(3), m_dir);
+    };
+};
 }
 
 #endif //GCM_ANGLE
