@@ -53,193 +53,6 @@ struct Dogleg {
                       const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                       const double delta) {
 
-        // std::stringstream stream;
-        // stream<</*"g: "<<std::endl<<g<<std::endl<<*/"jacobi: "<<std::endl<<jacobi<<std::endl;
-        // stream<<"residual: "<<std::endl<<residual<<std::endl;
-
-
-        // get the steepest descent stepsize and direction
-        const double alpha(g.squaredNorm()/(jacobi*g).squaredNorm());
-        const typename Kernel::Vector h_sd  = -g;
-
-        // get the gauss-newton step
-        const typename Kernel::Vector h_gn = (jacobi).fullPivLu().solve(-residual);
-
-        // compute the dogleg step
-        if(h_gn.norm() <= delta) {
-            // std::cout<<"Gauss Newton"<<std::endl;
-            h_dl = h_gn;
-            //if(h_dl.norm() <= tolx*(tolx + sys.Parameter.norm())) {
-            //    return 5;
-            //}
-        } else if((alpha*h_sd).norm() >= delta) {
-            // std::cout<<"Steepest descent"<<std::endl;
-            //h_dl = alpha*h_sd;
-            h_dl = (delta/(h_sd.norm()))*h_sd;
-            //stream<<"h_dl steepest: "<<std::endl<<h_dl<<std::endl;
-        } else {
-            // std::cout<<"Dogleg"<<std::endl;
-            //compute beta
-            number_type beta = 0;
-            typename Kernel::Vector a = alpha*h_sd;
-            typename Kernel::Vector b = h_gn;
-            number_type c = a.transpose()*(b-a);
-            number_type bas = (b-a).squaredNorm(), as = a.squaredNorm();
-            if(c<0) {
-                beta = -c+std::sqrt(std::pow(c,2)+bas*(std::pow(delta,2)-as));
-                beta /= bas;
-            } else {
-                beta = std::pow(delta,2)-as;
-                beta /= c+std::sqrt(std::pow(c,2) + bas*(std::pow(delta,2)-as));
-            };
-
-            // and update h_dl and dL with beta
-            h_dl = alpha*h_sd + beta*(b-a);
-        }
-        return 0;
-    };
-
-    bool solve(typename Kernel::MappedEquationSystem& sys) {
-
-        return false; //TODO:throw
-    }
-};
-
-template<typename Scalar, template<class> class Solver = Dogleg>
-struct Kernel {
-
-    //basics
-    typedef Scalar number_type;
-
-    //Linear algebra types
-    typedef E::Matrix<Scalar, 3, 1> Vector3;
-    typedef E::Matrix<Scalar, 1, 3> CVector3;
-    typedef E::Matrix<Scalar, 3, 3> Matrix3;
-    typedef E::Matrix<Scalar, E::Dynamic, 1> Vector;
-    typedef E::Matrix<Scalar, 1, E::Dynamic> CVector;
-    typedef E::Matrix<Scalar, E::Dynamic, E::Dynamic> Matrix;
-
-    //mapped types
-    typedef E::Stride<E::Dynamic, E::Dynamic> DynStride;
-    typedef E::Map< Vector3 > Vector3Map;
-    typedef E::Map< CVector3> CVector3Map;
-    typedef E::Map< Matrix3 > Matrix3Map;
-    typedef E::Map< Vector, 0, DynStride > VectorMap;
-    typedef E::Map< CVector, 0, DynStride > CVectorMap;
-    typedef E::Map< Matrix, 0, DynStride > MatrixMap;
-
-    //Special types
-    typedef E::Quaternion<Scalar>   Quaternion;
-    typedef E::Matrix<Scalar, 3, 9> Matrix39;
-    typedef E::Map< Matrix39 >      Matrix39Map;
-    typedef E::Block<Matrix>	    MatrixBlock;
-
-    struct MappedEquationSystem {
-
-        Matrix Jacobi;
-        Vector Parameter;
-        Vector Residual;
-	number_type Scaling;
-        int m_params, m_rot_params, m_trans_params, m_eqns; //total amount
-        int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
-
-        MappedEquationSystem(int params, int rotparams, int transparams, int equations)
-            : Jacobi(equations, params+rotparams+transparams),
-              Parameter(params+rotparams+transparams), Residual(equations),
-              m_params(params), m_rot_params(rotparams), m_trans_params(transparams), m_eqns(equations) {
-            m_rot_offset = params+transparams;
-            m_trans_offset = params;
-            m_param_offset = 0;
-            m_eqn_offset = 0;
-
-            Jacobi.setZero(); //important as some places are never written
-        };
-
-        int setParameterMap(ParameterType t, int number, VectorMap& map) {
-            if(t==Anything) {
-                new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
-                m_param_offset += number;
-                return m_param_offset-number;
-            } else if(t==Rotation) {
-                new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
-                m_rot_offset += number;
-                return m_rot_offset-number;
-            } else if(t==Translation) {
-                new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
-                m_trans_offset += number;
-                return m_trans_offset-number;
-            }
-        };
-        int setParameterMap(ParameterType t, Vector3Map& map) {
-            if(t==Anything) {
-                new(&map) Vector3Map(&Parameter(m_param_offset));
-                m_param_offset += 3;
-                return m_param_offset-3;
-            } else if(t==Rotation) {
-                new(&map) Vector3Map(&Parameter(m_rot_offset));
-                m_rot_offset += 3;
-                return m_rot_offset-3;
-            } else if(t==Translation) {
-                new(&map) Vector3Map(&Parameter(m_trans_offset));
-                m_trans_offset += 3;
-                return m_trans_offset-3;
-            }
-        };
-        int setResidualMap(VectorMap& map) {
-            new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
-            return m_eqn_offset++;
-        };
-        void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
-            new(&map) CVectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
-        };
-        void setJacobiMap(int eqn, int offset, int number, VectorMap& map) {
-            new(&map) VectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
-        };
-
-        bool isValid() {
-            if(!(m_params+m_trans_params+m_rot_params) || !m_eqns) return false;
-
-            return true;
-        };
-
-        virtual void recalculate() = 0;
-
-    };
-
-    Kernel()  {};
-
-    template <typename DerivedA,typename DerivedB>
-    static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
-        return ((p1-p2).squaredNorm() < 0.001);
-    }
-    static bool isSame(number_type t1, number_type t2) {
-        return ((t1-t2) < 0.001);
-    }
-    template <typename DerivedA,typename DerivedB>
-    static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
-        return ((p1+p2).squaredNorm() < 0.001);
-    }
-
-    static bool solve(MappedEquationSystem& mes) {
-        return Solver< Kernel<Scalar, Solver> >().solve(mes);
-    };
-
-};
-
-
-template<typename Kernel>
-struct Simple {
-
-    typedef typename Kernel::number_type number_type;
-    number_type tolg, tolx, tolf;
-
-    Simple() : tolg(1e-80), tolx(1e-10), tolf(1e-5) {};
-
-    template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
-    int calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
-                      const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
-                      const double delta) {
-
         // get the steepest descent stepsize and direction
         const double alpha(g.squaredNorm()/(jacobi*g).squaredNorm());
         const typename Kernel::Vector h_sd  = -g;
@@ -411,8 +224,8 @@ struct Simple {
 	clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
 	double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
-        Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, recalc time %f\n",
-                                err, stop, iter, ms, ms_rec);
+        //Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, recalc time %f\n",
+         //                       err, stop, iter, ms, ms_rec);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;
@@ -420,6 +233,125 @@ struct Simple {
     }
 };
 
+template<typename Scalar, template<class> class Solver = Dogleg>
+struct Kernel {
+
+    //basics
+    typedef Scalar number_type;
+
+    //Linear algebra types
+    typedef E::Matrix<Scalar, 3, 1> Vector3;
+    typedef E::Matrix<Scalar, 1, 3> CVector3;
+    typedef E::Matrix<Scalar, 3, 3> Matrix3;
+    typedef E::Matrix<Scalar, E::Dynamic, 1> Vector;
+    typedef E::Matrix<Scalar, 1, E::Dynamic> CVector;
+    typedef E::Matrix<Scalar, E::Dynamic, E::Dynamic> Matrix;
+
+    //mapped types
+    typedef E::Stride<E::Dynamic, E::Dynamic> DynStride;
+    typedef E::Map< Vector3 > Vector3Map;
+    typedef E::Map< CVector3> CVector3Map;
+    typedef E::Map< Matrix3 > Matrix3Map;
+    typedef E::Map< Vector, 0, DynStride > VectorMap;
+    typedef E::Map< CVector, 0, DynStride > CVectorMap;
+    typedef E::Map< Matrix, 0, DynStride > MatrixMap;
+
+    //Special types
+    typedef E::Quaternion<Scalar>   Quaternion;
+    typedef E::Matrix<Scalar, 3, 9> Matrix39;
+    typedef E::Map< Matrix39 >      Matrix39Map;
+    typedef E::Block<Matrix>	    MatrixBlock;
+
+    struct MappedEquationSystem {
+
+        Matrix Jacobi;
+        Vector Parameter;
+        Vector Residual;
+	number_type Scaling;
+        int m_params, m_rot_params, m_trans_params, m_eqns; //total amount
+        int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
+
+        MappedEquationSystem(int params, int rotparams, int transparams, int equations)
+            : Jacobi(equations, params+rotparams+transparams),
+              Parameter(params+rotparams+transparams), Residual(equations),
+              m_params(params), m_rot_params(rotparams), m_trans_params(transparams), m_eqns(equations) {
+            m_rot_offset = params+transparams;
+            m_trans_offset = params;
+            m_param_offset = 0;
+            m_eqn_offset = 0;
+
+            Jacobi.setZero(); //important as some places are never written
+        };
+
+        int setParameterMap(ParameterType t, int number, VectorMap& map) {
+            if(t==Anything) {
+                new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
+                m_param_offset += number;
+                return m_param_offset-number;
+            } else if(t==Rotation) {
+                new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
+                m_rot_offset += number;
+                return m_rot_offset-number;
+            } else if(t==Translation) {
+                new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
+                m_trans_offset += number;
+                return m_trans_offset-number;
+            }
+        };
+        int setParameterMap(ParameterType t, Vector3Map& map) {
+            if(t==Anything) {
+                new(&map) Vector3Map(&Parameter(m_param_offset));
+                m_param_offset += 3;
+                return m_param_offset-3;
+            } else if(t==Rotation) {
+                new(&map) Vector3Map(&Parameter(m_rot_offset));
+                m_rot_offset += 3;
+                return m_rot_offset-3;
+            } else if(t==Translation) {
+                new(&map) Vector3Map(&Parameter(m_trans_offset));
+                m_trans_offset += 3;
+                return m_trans_offset-3;
+            }
+        };
+        int setResidualMap(VectorMap& map) {
+            new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
+            return m_eqn_offset++;
+        };
+        void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
+            new(&map) CVectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
+        };
+        void setJacobiMap(int eqn, int offset, int number, VectorMap& map) {
+            new(&map) VectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
+        };
+
+        bool isValid() {
+            if(!(m_params+m_trans_params+m_rot_params) || !m_eqns) return false;
+            return true;
+        };
+
+        virtual void recalculate() = 0;
+
+    };
+
+    Kernel()  {};
+
+    template <typename DerivedA,typename DerivedB>
+    static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
+        return ((p1-p2).squaredNorm() < 0.001);
+    }
+    static bool isSame(number_type t1, number_type t2) {
+        return ((t1-t2) < 0.001);
+    }
+    template <typename DerivedA,typename DerivedB>
+    static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
+        return ((p1+p2).squaredNorm() < 0.001);
+    }
+
+    static bool solve(MappedEquationSystem& mes) {
+        return Solver< Kernel<Scalar, Solver> >().solve(mes);
+    };
+
+};
 
 }
 

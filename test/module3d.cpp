@@ -58,62 +58,68 @@ struct geometry_traits<line_t> {
 }
 
 //again, two vectors perpendicular, maybe the easiest constraints of them all
-template< typename Kernel, typename Tag1, typename Tag2 >
 struct test_constraint {
-    typedef typename Kernel::number_type Scalar;
-    typedef typename Kernel::VectorMap   Vector;
 
-    Scalar calculate(Vector& param1,  Vector& param2)  {
-        assert(false);
+    template< typename Kernel, typename Tag1, typename Tag2 >
+    struct type {
+        typedef typename Kernel::number_type Scalar;
+        typedef typename Kernel::VectorMap   Vector;
+
+        Scalar calculate(Vector& param1,  Vector& param2)  {
+            assert(false);
+        };
+
+        Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
+            assert(false);
+        };
+
+        Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
+            assert(false);
+        };
+
+        void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+            assert(false);
+        };
+
+        void calculateGradientSecondComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+            assert(false);
+        };
     };
 
-    Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
-        assert(false);
-    };
 
-    Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
-        assert(false);
-    };
+    template< typename Kernel >
+    struct type<Kernel, gcm::tag::direction3D, gcm::tag::direction3D> {
 
-    void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
-        assert(false);
-    };
+        typedef typename Kernel::number_type Scalar;
+        typedef typename Kernel::VectorMap   Vector;
 
-    void calculateGradientSecondComplete(Vector& param1,  Vector& param2, Vector& gradient) {
-        assert(false);
+        Scalar calculate(Vector& param1,  Vector& param2) {
+            return param1.dot(param2);
+        };
+        Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+
+            return dparam1.dot(param2);
+        };
+        Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+
+            return param1.dot(dparam2);
+        };
+        void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+
+            gradient(0) = param2(0);
+            gradient(1) = param2(1);
+            gradient(2) = param2(2);
+        };
+        void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+
+            gradient(0) = param1(0);
+            gradient(1) = param1(1);
+            gradient(2) = param1(2);
+        };
     };
 };
 
-template< typename Kernel >
-struct test_constraint<Kernel, gcm::tag::direction3D, gcm::tag::direction3D> {
-
-    typedef typename Kernel::number_type Scalar;
-    typedef typename Kernel::VectorMap   Vector;
-
-    Scalar calculate(Vector& param1,  Vector& param2) {
-        return param1.dot(param2);
-    };
-    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-
-        return dparam1.dot(param2);
-    };
-    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-
-        return param1.dot(dparam2);
-    };
-    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-
-        gradient(0) = param2(0);
-        gradient(1) = param2(1);
-        gradient(2) = param2(2);
-    };
-    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-
-        gradient(0) = param1(0);
-        gradient(1) = param1(1);
-        gradient(2) = param1(2);
-    };
-};
+test_constraint test;
 
 
 using namespace gcm;
@@ -163,9 +169,9 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     sys.solve();
 
     //simple constraint and fire
-    cons_ptr c1 = sys.createConstraint3D<test_constraint>(g1, g2);
-    cons_ptr c2 = sys.createConstraint3D<test_constraint>(g2, g3);
-    cons_ptr c3 = sys.createConstraint3D<test_constraint>(g3, g1);
+    cons_ptr c1 = sys.createConstraint3D(g1, g2, test);
+    cons_ptr c2 = sys.createConstraint3D(g2, g3, test);
+    cons_ptr c3 = sys.createConstraint3D(g3, g1, test);
     sys.solve();
 
     typename Kernel::Vector3 v1,v2,v3;
@@ -181,7 +187,7 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
     BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
 
-}
+};
 
 BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
@@ -210,9 +216,9 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     sc.first.setClusterProperty<type_prop>(details::cluster3D);
 
     //and finally add constraints
-    cons_ptr c1 = sys.createConstraint3D<test_constraint>(g1, g2);
-    cons_ptr c2 = sys.createConstraint3D<test_constraint>(g2, g3);
-    cons_ptr c3 = sys.createConstraint3D<test_constraint>(g3, g1);
+    cons_ptr c1 = sys.createConstraint3D(g1, g2, test);
+    cons_ptr c2 = sys.createConstraint3D(g2, g3, test);
+    cons_ptr c3 = sys.createConstraint3D(g3, g1, test);
 
     sys.solve();
 
@@ -240,7 +246,7 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
     geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
     geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
 
-    consid_ptr c1 = sys.createConstraint3D<Distance3D>("constraint", g1, g2, 5);
+    consid_ptr c1 = sys.createConstraint3D("constraint", g1, g2, distance=5);
 
     BOOST_CHECK(!g1->getIdentifier().compare("g1"));
     BOOST_CHECK(!g2->getIdentifier().compare("g2"));
@@ -268,7 +274,7 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
     geom_ptr g1 = sys1.createGeometry3D(p1);
     geom_ptr g2 = sys1.createGeometry3D(p2);
 
-    cons_ptr c1 = sys1.createConstraint3D<Distance3D>(g1, g2, 5);
+    cons_ptr c1 = sys1.createConstraint3D(g1, g2, distance=5);
 
     sys1.solve();
 
@@ -291,7 +297,7 @@ BOOST_AUTO_TEST_CASE(module3d_distance_constraint) {
     sc1.first.setClusterProperty<changed_prop>(false);//dont need to solve as it's only one point
     sc1.first.setClusterProperty<changed_prop>(false);
 
-    cons_ptr c2 = sys2.createConstraint3D<Distance3D>(g3, g4, 5);
+    cons_ptr c2 = sys2.createConstraint3D(g3, g4, distance=5);
 
     sys2.solve();
 
@@ -312,7 +318,7 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
     geom_ptr g1 = sys1.createGeometry3D(l1);
     geom_ptr g2 = sys1.createGeometry3D(l2);
 
-    cons_ptr c1 = sys1.createConstraint3D<Parallel3D>(g1, g2, Same);
+    cons_ptr c1 = sys1.createConstraint3D(g1, g2, parallel=Same);
 
     sys1.solve();
 
@@ -324,25 +330,25 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
 }
 
 BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
-/*
-    SystemNOID sys1; //line line parallel
+    /*
+        SystemNOID sys1; //line line parallel
 
-    line_t l1,l2;
-    l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;
-    l2 << 0.2, 0.5, -0.1, -2.1, 1.2, 0;
+        line_t l1,l2;
+        l1 << 7, -0.5, 0.3, 2.3, 1.2, -0.2;
+        l2 << 0.2, 0.5, -0.1, -2.1, 1.2, 0;
 
-    geom_ptr g1 = sys1.createGeometry3D(l1);
-    geom_ptr g2 = sys1.createGeometry3D(l2);
+        geom_ptr g1 = sys1.createGeometry3D(l1);
+        geom_ptr g2 = sys1.createGeometry3D(l2);
 
-    cons_ptr c1 = sys1.createConstraint3D<Angle3D>(g1, g2, 0.2);
+        cons_ptr c1 = sys1.createConstraint3D<Angle3D>(g1, g2, 0.2);
 
-    sys1.solve();
+        sys1.solve();
 
-    line_t rl1,rl2;
-    rl1 = get<line_t>(g1);
-    rl2 = get<line_t>(g2);
+        line_t rl1,rl2;
+        rl1 = get<line_t>(g1);
+        rl2 = get<line_t>(g2);
 
-    BOOST_CHECK(Kernel::isSame(std::acos((rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2));*/
+        BOOST_CHECK(Kernel::isSame(std::acos((rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2));*/
 }
 
 BOOST_AUTO_TEST_SUITE_END();

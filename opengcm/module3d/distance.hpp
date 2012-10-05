@@ -21,108 +21,54 @@
 #define GCM_DISTANCE3D_H
 
 #include "geometry.hpp"
+#include <opengcm/core/constraint.hpp>
 
 namespace gcm {
 
-template< typename Kernel, typename Tag1, typename Tag2 >
-struct Distance3D {
-
-    typedef typename Kernel::number_type Scalar;
-    typedef typename Kernel::VectorMap   Vector;
-    Scalar m_distance;
-
-    Distance3D(Scalar d = 0, bool rot = true) : m_distance(d) {};
-    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-        assert(false);
-    }
-
-    //template definition
-    Scalar calculate(Vector& param1,  Vector& param2) {
-        assert(false);
-    };
-    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        assert(false);
-    };
-    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-        assert(false);
-    };
-    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        assert(false);
-    };
-    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        assert(false);
-    };
-};
-
-template< typename Kernel >
-struct Distance3D< Kernel, tag::point3D, tag::point3D > {
+template<typename Kernel>
+struct Distance::type< Kernel, tag::point3D, tag::point3D > {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
-    Scalar m_distance;
+    Scalar value;
 
-    Distance3D(Scalar d = 0, bool rot = true) : m_distance(d) {};
-
-    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-        return 1;
-    }
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
-        return (param1-param2).norm() - m_distance;
+        return (param1-param2).norm() - value;
     };
-
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        //Scalar res = (param1-param2).norm() - m_distance;
         return (param1-param2).dot(dparam1) / (param1-param2).norm();
     };
-
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-       // Scalar res = (param1-param2).norm() - m_distance;
         return (param1-param2).dot(-dparam2) / (param1-param2).norm();
     };
-
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        //Scalar res = (param1-param2).norm() - m_distance;
         gradient = (param1-param2) / (param1-param2).norm();
     };
-
     void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        //Scalar res = (param1-param2).norm() - m_distance;
         gradient = (param2-param1) / (param1-param2).norm();
     };
 };
 
-//remember: only valid for parallel planes (as intersecting have always minimal distance 0)
-template< typename Kernel >
-struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
-
+template<typename Kernel>
+struct Distance::type< Kernel, tag::plane3D, tag::plane3D > {
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
-    Scalar m_distance;
-    Scalar s;
-    bool m_rot;
-
-
-    Distance3D(Scalar d = 0, bool rot = true) : m_distance(d), m_rot(rot) {};
+    Scalar value;
 
     //template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         //(p1-p2)°n / |n| - distance
-        const Scalar dist = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+        const Scalar dist = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - value;
         return  dist;
     };
-    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-
-        s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
-        return 1./s;
-    }
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
         //dp1°n / |n|
         //if(dparam1.norm()!=1) return 0;
-        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - value;
 
         const Scalar g = (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
         return g;
@@ -136,7 +82,7 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
         const typename Kernel::Vector3 n = param2.tail(3);
         const typename Kernel::Vector3 dn = dparam2.tail(3);
         //if(dparam2.norm()!=1) return 0;
-        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - m_distance;
+        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - value;
 
         const Scalar g = (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
         return g;
@@ -155,20 +101,15 @@ struct Distance3D< Kernel, tag::plane3D, tag::plane3D > {
     };
 };
 
-template< typename Kernel >
-struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
+template<typename Kernel>
+struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
     typedef typename Kernel::Vector3     Vector3;
 
-    Distance3D(Scalar d = 0) {};
+    Scalar value;
 
-    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-        Scalar s =  std::max(std::max(local1.template head<3>().norm(), local2.template head<3>().norm()),1.);
-        return 1./s;
-    }
-//template definition
     Scalar calculate(Vector& param1,  Vector& param2) {
         //diff = point1 - point2
         const Vector3 diff = param1.template head<3>() - param2.template head<3>();
@@ -217,10 +158,8 @@ struct Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
     };
 };
 
-template< typename Kernel >
-struct Distance3D< Kernel, tag::line3D, tag::line3D > : public Distance3D< Kernel, tag::cylinder3D, tag::cylinder3D > {
-    Distance3D(typename Kernel::number_type d = 0) : Distance3D<Kernel, tag::cylinder3D, tag::cylinder3D>(d) {};
-};
+template<typename Kernel>
+struct Distance::type< Kernel, tag::line3D, tag::line3D > : public Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {};
 
 }
 

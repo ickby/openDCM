@@ -84,7 +84,7 @@ struct EmptyModule {
     struct type {
         struct inheriter {};
         typedef mpl::vector<>	properties;
-        typedef mpl::vector<>  objects;
+        typedef mpl::vector<>   objects;
 
         static void system_init(T& sys) {};
     };

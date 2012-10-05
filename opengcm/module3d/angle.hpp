@@ -25,7 +25,7 @@
 namespace gcm {
   
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
-namespace angle {
+namespace angle_detail {
 
 template<typename Kernel, typename T>
 inline typename Kernel::number_type calc(T d1,
@@ -73,7 +73,7 @@ inline void calcGradSecondComp(T d1,
 };
 
 }
-
+/*
 template< typename Kernel, typename Tag1, typename Tag2 >
 struct Angle3D {
 
@@ -144,7 +144,7 @@ template< typename Kernel >
 struct Angle3D< Kernel, tag::plane3D, tag::plane3D > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
 template< typename Kernel >
 struct Angle3D< Kernel, tag::line3D, tag::plane3D > : public Angle3D<Kernel, tag::line3D, tag::line3D> {};
-
+*/
 }
 
 #endif //GCM_ANGLE_HPP

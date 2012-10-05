@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   Geom g3 = part2->addGeometry3D( p3 );
   Geom g4 = part2->addGeometry3D( p4 );
   
-  sys.createConstraint3D<gcm::Distance3D>(g1,g3,5);
-  sys.createConstraint3D<gcm::Distance3D>(g2,g4,5);
+  sys.createConstraint3D(g1,g3,gcm::distance=5);
+  sys.createConstraint3D(g2,g4,gcm::distance=5);
   
   sys.solve();
   
@@ -197,8 +197,8 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
-  ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,gcm::distance=5);
+  ConsID c2 = sys.createConstraint3D("c2",g2,g4,gcm::distance=5);
   
   BOOST_CHECK( !part1->getIdentifier().compare("part1") );
   BOOST_CHECK( !part2->getIdentifier().compare("part2") );
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(modulepart_partsolve) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,gcm::distance=5);
   //ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
   
   sys.solve();
@@ -265,8 +265,8 @@ BOOST_AUTO_TEST_CASE(modulepart_partgeomsolve) {
   
   GeomID g5 = sys.createGeometry3D(p4, "g5");
   
-  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
-  ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g5,5);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,gcm::distance=5);
+  ConsID c2 = sys.createConstraint3D("c2",g2,g5,gcm::distance=5);
   
   sys.solve();
   
@@ -299,7 +299,7 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D<gcm::Distance3D>("c1",g1,g3,5);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,gcm::distance=5);
   //ConsID c2 = sys.createConstraint3D<gcm::Distance3D>("c2",g2,g4,5);
   
   sys.solve();
