@@ -280,6 +280,7 @@ struct Module3D {
         typedef boost::shared_ptr<Constraint3D> Cons;
 
         typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > > >  GeomSignal;
+        typedef mpl::map<  >  ConsSignal;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -386,7 +387,7 @@ struct Module3D {
 
 
                 //initialise the system with now known size
-		std::cout<<"constraints: "<<constraints<<", params: "<<params+rot_params+trans_params<<std::endl;
+                std::cout<<"constraints: "<<constraints<<", params: "<<params+rot_params+trans_params<<std::endl;
                 MES mes(cluster, params, rot_params, trans_params, constraints);
 
                 //iterate all geometrys again and set the needed maps
@@ -712,315 +713,13 @@ struct Module3D {
         };
 
 
-        //type erasure container for constraints
-        class Constraint3D_base : public Object<Sys, Constraint3D, mpl::map<> > {
+        template<typename Derived>
+        class Constraint3D_id : public detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> {
 
-            typedef typename system_traits<Sys>::Kernel Kernel;
-            typedef typename Kernel::number_type Scalar;
-            typedef typename Kernel::DynStride DS;
-
-        public:
-            Constraint3D_base(Sys& system, Geom f, Geom s) : Object<Sys, Constraint3D, mpl::map<> > (system),
-                first(f), second(s), content(0)	{
-
-                cf = first->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
-                cs = second->template connectSignal<reset> (boost::bind(&Constraint3D::geometryReset, this, _1));
-            };
-
-            ~Constraint3D_base()  {
-                delete content;
-                first->template disconnectSignal<reset>(cf);
-                second->template disconnectSignal<reset>(cs);
-            }
-
-            template<typename ConstraintVector>
-            void initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj) {
-
-                //first create the new placeholder
-                creator<ConstraintVector> c(obj);
-                boost::apply_visitor(c, first->m_geometry, second->m_geometry);
-
-                //and now store it
-                content = c.p;
-                //geometry order needs to be the one needed by equations
-                if(c.need_swap) first.swap(second);
-
-            };
-
-        protected:
-
-            int equationCount() {
-                return content->equationCount();
-            };
-
-            template< typename creator_type>
-            void resetType(creator_type& c) {
-                boost::apply_visitor(c, first->m_geometry, second->m_geometry);
-                content = c.p;
-                if(c.need_swap) first.swap(second);
-            };
-
-            void calculate() {
-                content->calculate(first, second);
-            };
-
-            void setMaps(MES& mes) {
-                content->setMaps(mes, first, second);
-            };
-
-            void geometryReset(Geom g) {
-                /*    placeholder* p = content->resetConstraint(first, second);
-                    delete content;
-                    content = p;*/
-            };
-
-            //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
-            template<typename Equation>
-            struct EquationSet {
-                EquationSet() : m_diff_first(NULL,0,DS(0,0)), m_diff_second(NULL,0,DS(0,0)),
-                    m_rot_diff_first(NULL,0,DS(0,0)), m_rot_diff_second(NULL,0,DS(0,0)),
-                    m_trans_diff_first(NULL,0,DS(0,0)), m_trans_diff_second(NULL,0,DS(0,0)), m_residual(NULL,0,DS(0,0)) {};
-
-                Equation m_eq;
-                typename Kernel::VectorMap m_rot_diff_first, m_trans_diff_first, m_diff_first; //first geometry diff
-                typename Kernel::VectorMap m_rot_diff_second, m_trans_diff_second, m_diff_second; //second geometry diff
-                typename Kernel::VectorMap m_residual;
-            };
-
-            struct placeholder  {
-                virtual ~placeholder() {}
-                virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
-                virtual void calculate(Geom first, Geom second) = 0;
-                virtual int  equationCount() = 0;
-                virtual void setMaps(MES& mes, Geom first, Geom second) = 0;
-            };
-
-            template< typename ConstraintVector, typename EquationVector>
-            struct holder : public placeholder  {
-
-                //create a vector of EquationSets with some mpl trickery
-                typedef typename mpl::fold< EquationVector, mpl::vector<>,
-                        mpl::push_back<mpl::_1, EquationSet<mpl::_2> > >::type eq_set_vector;
-                typedef typename fusion::result_of::as_vector<eq_set_vector>::type EquationSets;
-
-                typedef typename fusion::result_of::as_vector<ConstraintVector>::type Objects;
-
-                template<typename T>
-                struct has_option {
-                    //we get the index of the eqaution in the eqaution vector, and as it is the same
-                    //as the index of the constraint in the constraint vector we can extract the
-                    //option type and check if it is no_option
-                    typedef typename mpl::find<EquationVector, T>::type iterator;
-                    typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
-                    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
-                    typedef typename mpl::at<ConstraintVector, distance>::type option_type;
-                    typedef boost::is_same<option_type, no_option> type;
-                };
-
-                struct OptionSetter {
-
-                    Objects& objects;
-
-                    OptionSetter(Objects& val) : objects(val) {};
-
-                    //only set the value if the equation has a option
-                    template< typename T >
-                    typename boost::enable_if<typename has_option<T>::type, void>::type
-                    operator()(EquationSet<T>& val) const {
-
-                        //get the index of the corresbonding equation
-                        typedef typename mpl::find<EquationVector, T>::type iterator;
-                        typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
-                        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
-                        val.m_eq.value = fusion::at<distance>(objects).value;
-                    }
-                    //if the equation has no otpion we do nothing!
-                    template< typename T >
-                    typename boost::enable_if<mpl::not_<typename has_option<T>::type>, void>::type
-                    operator()(EquationSet<T>& val) const {}
-                };
-
-                struct Calculater {
-
-                    Geom first, second;
-                    Calculater(Geom f, Geom s) : first(f), second(s) {};
-
-                    template< typename T >
-                    void operator()(T& val) const {
-
-                        val.m_residual(0) = val.m_eq.calculate(first->m_parameter, second->m_parameter);
-
-                        //now see which way we should calculate the gradient (may be diffrent for both geometries)
-                        if(first->m_parameterCount) {
-                            if(first->getClusterMode()) {
-                                //when the cluster is fixed no maps are set as no parameters exist.
-                                if(!first->isClusterFixed()) {
-
-                                    //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                                    for(int i=0; i<3; i++) {
-                                        typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                                        val.m_rot_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                                  second->m_parameter, block);
-                                    }
-                                    //now the translation stuff
-                                    for(int i=3; i<6; i++) {
-                                        typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                                        val.m_trans_diff_first(i-3) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                                      second->m_parameter, block);
-                                    }
-                                }
-                            } else {
-                                //not in cluster, so allow the constraint to optimize the gradient calculation
-                                val.m_eq.calculateGradientFirstComplete(first->m_parameter, second->m_parameter, val.m_diff_first);
-                            }
-                        }
-                        if(second->m_parameterCount) {
-                            if(second->getClusterMode()) {
-                                if(!second->isClusterFixed()) {
-
-                                    //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                                    for(int i=0; i<3; i++) {
-                                        typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                                        val.m_rot_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                                   second->m_parameter, block);
-                                    }
-                                    //translational gradients
-                                    for(int i=3; i<6; i++) {
-                                        typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                                        val.m_trans_diff_second(i-3) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                                       second->m_parameter, block);
-                                    }
-                                }
-                            } else {
-                                //not in cluster, so allow the constraint to optimize the gradient calculation
-                                val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
-                            }
-
-                        }
-                    };
-                };
-
-                struct MapSetter {
-                    MES& mes;
-		    Geom first, second;
-
-                    MapSetter(MES& m, Geom f, Geom s) : mes(m), first(s), second(s) {};
-
-                    template< typename T >
-                    void operator()(T& val) const {
-
-                        //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
-                        //for every parameter in the geometry;
-                        int equation = mes.setResidualMap(val.m_residual);
-                        if(first->getClusterMode()) {
-                            if(!first->isClusterFixed()) {
-                                mes.setJacobiMap(equation, first->m_trans_offset, 3, val.m_trans_diff_first);
-                                mes.setJacobiMap(equation, first->m_rot_offset, 3, val.m_rot_diff_first);
-                            }
-                        } else  mes.setJacobiMap(equation, first->m_parameter_offset, first->m_parameterCount, val.m_diff_first);
-
-                        if(second->getClusterMode()) {
-                            if(!second->isClusterFixed()) {
-                                mes.setJacobiMap(equation, second->m_trans_offset, 3, val.m_trans_diff_second);
-                                mes.setJacobiMap(equation, second->m_rot_offset, 3, val.m_rot_diff_second);
-                            }
-                        } else mes.setJacobiMap(equation, second->m_parameter_offset, first->m_parameterCount, val.m_diff_second);
-                    };
-                };
-
-                holder(Objects& obj)  {
-                    //set the initial values in the equations
-                    fusion::for_each(m_sets, OptionSetter(obj));
-                };
-
-                virtual void calculate(Geom first, Geom second) {
-                    fusion::for_each(m_sets, Calculater(first, second));
-                };
-
-                virtual placeholder* resetConstraint(Geom first, Geom second) const {
-                    /*creator<ConstraintVector> creator;
-                    boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
-                    if(creator.need_swap) first.swap(second);
-                    return creator.p;*/
-                };
-                virtual int equationCount() {
-                    return mpl::size<EquationVector>::value;
-                };
-
-                virtual void setMaps(MES& mes, Geom first, Geom second) {
-		  fusion::for_each(m_sets, MapSetter(mes, first, second));
-                };
-
-                EquationSets m_sets;
-            };
-
-            template< typename  ConstraintVector >
-            struct creator : public boost::static_visitor<void> {
-
-                typedef typename fusion::result_of::as_vector<ConstraintVector>::type Objects;
-                Objects& objects;
-
-                creator(Objects& obj) : objects(obj) {};
-
-                template<typename C, typename T1, typename T2>
-                struct equation {
-                    typedef typename C::template type<Kernel, T1, T2> type;
-                };
-
-                template<typename T1, typename T2>
-                void operator()(const T1&, const T2&) {
-                    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
-
-                    //transform the constraints into eqautions with the now known types
-                    typedef typename mpl::fold< ConstraintVector, mpl::vector<>,
-                            mpl::push_back<mpl::_1, equation<mpl::_2, typename order::first_tag,
-                            typename order::second_tag> > >::type EquationVector;
-
-                    //and build the placeholder
-                    p = new holder<ConstraintVector, EquationVector>(objects);
-                    need_swap = order::swapt::value;
-                };
-                placeholder* p;
-                bool need_swap;
-            };
-
-            placeholder* content;
-            Geom first, second;
-            Connection cf, cs;
-
-            friend class SystemSolver;
-            friend class MES;
-        };
-
-        class Constraint3D_noid : public Constraint3D_base {
-
-            using Constraint3D_base::resetType;
-        public:
-            Constraint3D_noid(Sys& system, Geom f, Geom s) : Constraint3D_base(system, f, s) {};
-
-            template< typename T>
-            void set() {
-                typename Constraint3D_base::template creator<T> c;
-                resetType(c);
-            };
-            template< typename T, typename Value1>
-            void set(Value1 v) {
-                //typename Constraint3D_base::template creator_1v<T, Value1> c(v);
-                //resetType(c);
-            };
-            template< typename T, typename Value1, typename Value2>
-            void set(Value1 v1, Value2 v2) {
-                //typename Constraint3D_base::template creator_2v<T, Value1, Value2> c(v1,v2);
-                //resetType(c);
-            };
-        };
-
-        class Constraint3D_id : public Constraint3D_base {
-
-            using Constraint3D_base::resetType;
+            typedef detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> base;
             Identifier m_id;
         public:
-            Constraint3D_id(Sys& system, Geom f, Geom s) : Constraint3D_base(system, f, s) {};
+            Constraint3D_id(Sys& system, Geom f, Geom s) : base(system, f, s) {};
 
             Identifier& getIdentifier() {
                 return m_id;
@@ -1028,34 +727,17 @@ struct Module3D {
             void setIdentifier(Identifier id) {
                 m_id = id;
             };
-
-            template< typename T>
-            void set(Identifier id) {
-                typename Constraint3D_base::template creator<T> c;
-                resetType(c);
-                m_id = id;
-            };
-            template< typename T, typename Value1>
-            void set(Identifier id, Value1 v) {
-                //typename Constraint3D_base::template creator_1v<T, Value1> c(v);
-                //resetType(c);
-                //m_id = id;
-            };
-            template< typename T, typename Value1, typename Value2>
-            void set(Identifier id, Value1 v1, Value2 v2) {
-                //typename Constraint3D_base::template creator_2v<T, Value1, Value2> c(v1,v2);
-                //resetType(c);
-                //m_id = id;
-            };
         };
 
         struct Constraint3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                Constraint3D_noid, Constraint3D_id>::type {
+                detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
+		Constraint3D_id<Constraint3D> >::type {
 
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                    Constraint3D_noid, Constraint3D_id>::type base;
+                    detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
+                    Constraint3D_id<Constraint3D> >::type base;
 
-            Constraint3D(Sys& system, Geom f, Geom s) : base(system, f, s) { };
+            Constraint3D(Sys& system, Geom first, Geom second) : base(system, first, second) { };
         };
 
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
@@ -1112,7 +794,7 @@ struct Module3D {
                 //store the constraint in general object vector of main system
                 m_this->template objectVector<Constraint3D>().push_back(c);
 
-		return c;
+                return c;
             };
 
         protected:
@@ -1169,8 +851,8 @@ struct Module3D {
             Cons createConstraint3D(Identifier id, Geom first, Geom second, T1 constraint1) {
 
                 Cons c = inheriter_base::createConstraint3D(first, second, constraint1);
-		c->setIdentifier(id);
-		return c;
+                c->setIdentifier(id);
+                return c;
             };
 
             bool hasGeometry3D(Identifier id) {
@@ -1300,6 +982,7 @@ typename boost::add_reference<T>::type get(G geom) {
 }
 
 #endif //GCM_GEOMETRY3D_H
+
 
 
 
