@@ -21,9 +21,9 @@
 #define GCM_DISTANCE3D_H
 
 #include "geometry.hpp"
-#include <opengcm/core/constraint.hpp>
+#include <opendcm/core/constraint.hpp>
 
-namespace gcm {
+namespace dcm {
 
 template<typename Kernel>
 struct Distance::type< Kernel, tag::point3D, tag::point3D > {

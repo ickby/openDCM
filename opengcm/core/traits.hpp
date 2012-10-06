@@ -28,7 +28,7 @@
 
 namespace mpl = boost::mpl;
 
-namespace gcm {
+namespace dcm {
 
 template< typename T >
 struct system_traits {

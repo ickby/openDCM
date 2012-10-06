@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace gcm {
+namespace dcm {
 
 enum remaining {
     nothing = 0,

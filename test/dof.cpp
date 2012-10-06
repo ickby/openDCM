@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opengcm/core/kernel.hpp"
-#include "opengcm/module3d/dof.hpp"
+#include "opendcm/core/kernel.hpp"
+#include "opendcm/module3d/dof.hpp"
 
 #include <boost/test/unit_test.hpp>
 
@@ -26,10 +26,10 @@ BOOST_AUTO_TEST_SUITE(dof);
 
 BOOST_AUTO_TEST_CASE(dof_translation) {
 
-    typedef gcm::Kernel<double> Kernel;
-    typedef typename gcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
-    typedef gcm::Dof<Kernel, int>::Result Result;
-    gcm::Dof<Kernel, int> d;
+    typedef dcm::Kernel<double> Kernel;
+    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::Result Result;
+    dcm::Dof<Kernel, int> d;
 
     BOOST_CHECK(d.dofTranslational() == 3);
     BOOST_CHECK(d.dofRotational() == 3);
@@ -82,10 +82,10 @@ BOOST_AUTO_TEST_CASE(dof_translation) {
 
 BOOST_AUTO_TEST_CASE(dof_rotational) {
 
-    typedef gcm::Kernel<double> Kernel;
-    typedef typename gcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
-    typedef gcm::Dof<Kernel, int>::Result Result;
-    gcm::Dof<Kernel, int> d;
+    typedef dcm::Kernel<double> Kernel;
+    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::Result Result;
+    dcm::Dof<Kernel, int> d;
 
     Kernel::Vector3 v(1,0,0);
     Result r = d.allowOnlyRotationDirection(v, 1);

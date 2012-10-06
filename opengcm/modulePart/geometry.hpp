@@ -20,9 +20,9 @@
 #ifndef GCM_GEOMETRY_PART_H
 #define GCM_GEOMETRY_PART_H
 
-#include <opengcm/core/geometry.hpp>
+#include <opendcm/core/geometry.hpp>
 
-namespace gcm {
+namespace dcm {
 namespace tag {
 
 struct part  {};

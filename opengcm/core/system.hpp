@@ -37,7 +37,7 @@
 
 namespace mpl = boost::mpl;
 
-namespace gcm {
+namespace dcm {
 
 namespace details {
 

@@ -23,7 +23,7 @@
 #include <set>
 #include <algorithm>
 
-namespace gcm {
+namespace dcm {
 
 template<typename Sys>
 struct Job {

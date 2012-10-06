@@ -20,14 +20,14 @@
 #ifndef GCM_PARALLEL_H
 #define GCM_PARALLEL_H
 
-#include <opengcm/core/constraint.hpp>
+#include <opendcm/core/constraint.hpp>
 
 #include "geometry.hpp"
 #include <boost/math/special_functions/fpclassify.hpp>
 
 using boost::math::isnormal;
 
-namespace gcm {
+namespace dcm {
 
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
 namespace parallel_detail {

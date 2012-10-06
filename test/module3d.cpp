@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opengcm/Core"
-#include "opengcm/Module3D"
+#include "opendcm/Core"
+#include "opendcm/Module3D"
 
 #include "test/Octave/debugsolver.hpp"
 
@@ -31,7 +31,7 @@
 struct point : std::vector<double> {};
 typedef Eigen::Matrix<double, 6,1> line_t;
 
-namespace gcm {
+namespace dcm {
 
 template<>
 struct geometry_traits<point> {
@@ -88,7 +88,7 @@ struct test_constraint {
 
 
     template< typename Kernel >
-    struct type<Kernel, gcm::tag::direction3D, gcm::tag::direction3D> {
+    struct type<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
@@ -122,11 +122,11 @@ struct test_constraint {
 test_constraint test;
 
 
-using namespace gcm;
+using namespace dcm;
 
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
-typedef gcm::Kernel<double> Kernel;
+typedef dcm::Kernel<double> Kernel;
 typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t > > Module;
 typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
 typedef System<Kernel, Module::type> SystemNOID;

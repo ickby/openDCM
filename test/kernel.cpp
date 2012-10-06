@@ -17,7 +17,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opengcm/Core"
+#include "opendcm/Core"
 
 #include <iostream>
 
@@ -25,7 +25,7 @@
 
 BOOST_AUTO_TEST_SUITE(kernel_suit);
 
-typedef gcm::Kernel<double> kernel;
+typedef dcm::Kernel<double> kernel;
 
 //3 vectors constraint by 3 perpendicular constraints
 struct EqnSystem : public kernel::MappedEquationSystem {
@@ -40,9 +40,9 @@ struct EqnSystem : public kernel::MappedEquationSystem {
     e1_dv2(NULL,0,DS(0,0)), e2_dv2(NULL,0,DS(0,0)), e2_dv3(NULL,0,DS(0,0)),
     e3_dv3(NULL,0,DS(0,0)), e3_dv1(NULL,0,DS(0,0)) {
 
-        int o1 = setParameterMap(gcm::Anything,3,v1);
-        int o2 = setParameterMap(gcm::Anything,3,v2);
-        int o3 = setParameterMap(gcm::Anything,3,v3);
+        int o1 = setParameterMap(dcm::Anything,3,v1);
+        int o2 = setParameterMap(dcm::Anything,3,v2);
+        int o3 = setParameterMap(dcm::Anything,3,v3);
 
         int eq1 = setResidualMap(eqn1);
         int eq2 = setResidualMap(eqn2);

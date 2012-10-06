@@ -20,18 +20,18 @@
 #ifndef GCM_MODULE_PART_H
 #define GCM_MODULE_PART_H
 
-#include "opengcm/Core"
-#include "opengcm/core/traits.hpp"
-#include "opengcm/core/clustergraph.hpp"
-#include "opengcm/core/property.hpp"
-#include "opengcm/Module3D"
+#include "opendcm/Core"
+#include "opendcm/core/traits.hpp"
+#include "opendcm/core/clustergraph.hpp"
+#include "opendcm/core/property.hpp"
+#include "opendcm/Module3D"
 
 #include <boost/mpl/assert.hpp>
 #include <boost/utility/enable_if.hpp>
 
 namespace mpl = boost::mpl;
 
-namespace gcm {
+namespace dcm {
 
 enum { clusterPart = 110};
 

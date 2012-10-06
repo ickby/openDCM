@@ -49,7 +49,7 @@
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
-namespace gcm {
+namespace dcm {
 
 namespace details {
 

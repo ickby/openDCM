@@ -38,12 +38,12 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
-#include "opengcm/Core"
-#include "opengcm/core/object.hpp"
-#include "opengcm/core/clustergraph.hpp"
-#include "opengcm/core/sheduler.hpp"
-#include "opengcm/core/traits.hpp"
-#include "opengcm/core/geometry.hpp"
+#include "opendcm/Core"
+#include "opendcm/core/object.hpp"
+#include "opendcm/core/clustergraph.hpp"
+#include "opendcm/core/sheduler.hpp"
+#include "opendcm/core/traits.hpp"
+#include "opendcm/core/geometry.hpp"
 #include "geometry.hpp"
 #include "distance.hpp"
 #include "parallel.hpp"
@@ -58,7 +58,7 @@ static int counter = 0;
 
 namespace mpl = boost::mpl;
 
-namespace gcm {
+namespace dcm {
 
 namespace details {
 

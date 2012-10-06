@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opengcm/core/clustergraph.hpp"
-#include "opengcm/core/property.hpp"
+#include "opendcm/core/clustergraph.hpp"
+#include "opendcm/core/property.hpp"
 
 #include <boost/fusion/sequence.hpp>
 #include <boost/mpl/vector.hpp>
@@ -29,28 +29,28 @@
 #define BOOST_TEST_MODULE openGCM
 #include <boost/test/unit_test.hpp>
 
-using namespace gcm;
+using namespace dcm;
 namespace mpl = boost::mpl;
 
 BOOST_AUTO_TEST_SUITE(ClusterGraph_test_suit);
 
 struct test_edge_property {
-    typedef gcm::edge_property kind;
+    typedef dcm::edge_property kind;
     typedef int type;
 };
 
 struct test_edge_property2 {
-    typedef gcm::edge_property kind;
+    typedef dcm::edge_property kind;
     typedef int type;
 };
 
 struct test_vertex_property {
-    typedef gcm::vertex_property kind;
+    typedef dcm::vertex_property kind;
     typedef int type;
 };
 
 struct test_cluster_property {
-    typedef gcm::cluster_property kind;
+    typedef dcm::cluster_property kind;
     typedef int type;
 };
 

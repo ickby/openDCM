@@ -30,7 +30,7 @@
 #include <boost/math/special_functions/fpclassify.hpp>
 #include <time.h>
 
-namespace gcm {
+namespace dcm {
 
 namespace E = Eigen;
 

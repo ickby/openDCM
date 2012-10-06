@@ -22,7 +22,7 @@
 
 #include <assert.h>
 
-namespace gcm {
+namespace dcm {
 
 struct no_option {};
 

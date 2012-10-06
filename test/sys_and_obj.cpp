@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opengcm/Core"
-#include "opengcm/core/object.hpp"
+#include "opendcm/Core"
+#include "opendcm/core/object.hpp"
 
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
@@ -28,19 +28,19 @@
 BOOST_AUTO_TEST_SUITE(system_and_object);
 
 struct test_edge_property1 {
-    typedef gcm::edge_property kind;
+    typedef dcm::edge_property kind;
     typedef int type;
 };
 struct test_vertex_property1 {
-    typedef gcm::vertex_property kind;
+    typedef dcm::vertex_property kind;
     typedef int type;
 };
 struct test_edge_property2 {
-    typedef gcm::edge_property kind;
+    typedef dcm::edge_property kind;
     typedef int type;
 };
 struct test_vertex_property2 {
-    typedef gcm::vertex_property kind;
+    typedef dcm::vertex_property kind;
     typedef int type;
 };
 struct test_signal1 {};
@@ -53,15 +53,15 @@ struct TestModule1 {
         typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
                 mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
 
-        struct test_object1 : public gcm::Object<Sys, test_object1, signal_map > {
-            test_object1(Sys& system) : gcm::Object<Sys, test_object1, signal_map >(system) { };
+        struct test_object1 : public dcm::Object<Sys, test_object1, signal_map > {
+            test_object1(Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
             int value;
 
             void emit_test_void() {
-                gcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal1>();
+                dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal1>();
             };
             void emit_test_double(const double& d1, const double& d2) {
-                gcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
+                dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
             };
         };
 
@@ -91,8 +91,8 @@ struct TestModule2 {
 
     template<typename Sys>
     struct type {
-        struct test_object2 : public gcm::Object<Sys, test_object2, mpl::map<> > {
-            test_object2(Sys& system) : gcm::Object<Sys, test_object2, mpl::map<> >(system) { };
+        struct test_object2 : public dcm::Object<Sys, test_object2, mpl::map<> > {
+            test_object2(Sys& system) : dcm::Object<Sys, test_object2, mpl::map<> >(system) { };
             int value;
         };
 
@@ -121,7 +121,7 @@ struct TestModule2 {
     };
 };
 
-typedef gcm::System<gcm::Kernel<double>, TestModule1::type, TestModule2::type> System;
+typedef dcm::System<dcm::Kernel<double>, TestModule1::type, TestModule2::type> System;
 
 BOOST_AUTO_TEST_CASE(inherit_functions) {
 
@@ -135,14 +135,14 @@ BOOST_AUTO_TEST_CASE(graph_properties) {
 
     System sys;
 
-    gcm::GlobalVertex v = fusion::at_c<1>(sys.m_cluster.addVertex());
+    dcm::GlobalVertex v = fusion::at_c<1>(sys.m_cluster.addVertex());
     sys.m_cluster.setProperty<test_vertex_property1>(v, 1);
     sys.m_cluster.setProperty<test_vertex_property2>(v, 2);
     BOOST_CHECK(sys.m_cluster.getProperty<test_vertex_property1>(v) == 1);
     BOOST_CHECK(sys.m_cluster.getProperty<test_vertex_property2>(v) == 2);
 
-    gcm::GlobalVertex v2 = fusion::at_c<1>(sys.m_cluster.addVertex());
-    gcm::GlobalEdge e = fusion::at_c<1>(sys.m_cluster.addEdge(v, v2));
+    dcm::GlobalVertex v2 = fusion::at_c<1>(sys.m_cluster.addVertex());
+    dcm::GlobalEdge e = fusion::at_c<1>(sys.m_cluster.addEdge(v, v2));
     sys.m_cluster.setProperty<test_edge_property1>(e, 1);
     sys.m_cluster.setProperty<test_edge_property2>(e, 2);
     BOOST_CHECK(sys.m_cluster.getProperty<test_edge_property1>(e) == 1);
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 
     test_functor_void s, s2;
 
-    gcm::Connection c1 = o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s));
+    dcm::Connection c1 = o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s));
     o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s2));
 
     o1.emit_test_void();

@@ -20,9 +20,9 @@
 #ifndef GCM_GEOMETRY_3D_H
 #define GCM_GEOMETRY_3D_H
 
-#include <opengcm/core/geometry.hpp>
+#include <opendcm/core/geometry.hpp>
 
-namespace gcm {
+namespace dcm {
 namespace tag {
 
 struct point3D  {

@@ -22,7 +22,7 @@
 
 #include "geometry.hpp"
 
-namespace gcm {
+namespace dcm {
 
 
 template<typename Kernel, typename Tag1, typename Tag2>

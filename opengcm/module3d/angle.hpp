@@ -22,7 +22,7 @@
 
 #include "geometry.hpp"
 
-namespace gcm {
+namespace dcm {
   
 //the calculations( same as we always calculate directions we can outsource the work to this functions)
 namespace angle_detail {
