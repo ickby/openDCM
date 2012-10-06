@@ -244,7 +244,7 @@ protected:
             MES& mes;
             Geom first, second;
 
-            MapSetter(MES& m, Geom f, Geom s) : mes(m), first(s), second(s) {};
+            MapSetter(MES& m, Geom f, Geom s) : mes(m), first(f), second(s) {};
 
             template< typename T >
             void operator()(T& val) const {
@@ -257,7 +257,8 @@ protected:
                         mes.setJacobiMap(equation, first->m_trans_offset, 3, val.m_trans_diff_first);
                         mes.setJacobiMap(equation, first->m_rot_offset, 3, val.m_rot_diff_first);
                     }
-                } else  mes.setJacobiMap(equation, first->m_parameter_offset, first->m_parameterCount, val.m_diff_first);
+                } else mes.setJacobiMap(equation, first->m_parameter_offset, first->m_parameterCount, val.m_diff_first);
+
 
                 if(second->getClusterMode()) {
                     if(!second->isClusterFixed()) {
