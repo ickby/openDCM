@@ -1,5 +1,5 @@
 /*
-    openGCM, geometric constraint manager
+    openDCM, dimensional constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -387,7 +387,7 @@ struct Module3D {
 
 
                 //initialise the system with now known size
-                std::cout<<"constraints: "<<constraints<<", params: "<<params+rot_params+trans_params<<std::endl;
+                //std::cout<<"constraints: "<<constraints<<", params: "<<params+rot_params+trans_params<<std::endl;
                 MES mes(cluster, params, rot_params, trans_params, constraints);
 
                 //iterate all geometrys again and set the needed maps
@@ -429,6 +429,7 @@ struct Module3D {
                         g->initMap();
                     }
                 }
+                
                 //and now the constraints to set the residual and gradient maps
                 typedef typename Cluster::template object_iterator<Constraint3D> oiter;
                 e_it = boost::edges(cluster);

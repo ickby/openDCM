@@ -1,5 +1,5 @@
 /*
-    openGCM, geometric constraint manager
+    openDCM, dimensional constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -325,6 +325,9 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
     line_t rl1,rl2;
     rl1 = get<line_t>(g1);
     rl2 = get<line_t>(g2);
+    
+    std::cout<<"direction 1: "<<rl1.tail<3>().transpose()<<std::endl;
+    std::cout<<"direction 2: "<<rl2.tail<3>().transpose()<<std::endl;
 
     BOOST_CHECK(Kernel::isSame((rl1.tail<3>()-rl2.tail<3>()).norm(), 0));
 }
