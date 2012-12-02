@@ -317,7 +317,6 @@ struct Module3D {
                 typedef typename boost::graph_traits<Cluster>::edge_iterator eiter;
                 std::pair<eiter, eiter>  eit = boost::edges(m_cluster);
                 for(; eit.first != eit.second; eit.first++) {
-
                     //as always: every local edge can hold multiple global ones, so iterate over all constraints
                     //hold by the individual edge
                     std::pair< oiter, oiter > oit = m_cluster.template getObjects<Constraint3D>(*eit.first);
@@ -429,7 +428,7 @@ struct Module3D {
                         g->initMap();
                     }
                 }
-                
+
                 //and now the constraints to set the residual and gradient maps
                 typedef typename Cluster::template object_iterator<Constraint3D> oiter;
                 e_it = boost::edges(cluster);
@@ -732,7 +731,7 @@ struct Module3D {
 
         struct Constraint3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
                 detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
-		Constraint3D_id<Constraint3D> >::type {
+                Constraint3D_id<Constraint3D> >::type {
 
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
                     detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,

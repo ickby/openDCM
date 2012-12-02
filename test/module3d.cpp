@@ -60,10 +60,13 @@ struct geometry_traits<line_t> {
 //again, two vectors perpendicular, maybe the easiest constraints of them all
 struct test_constraint {
 
+    int value;
+    
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
+	int value;
 
         Scalar calculate(Vector& param1,  Vector& param2)  {
             assert(false);
@@ -92,6 +95,7 @@ struct test_constraint {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
+	int value;
 
         Scalar calculate(Vector& param1,  Vector& param2) {
             return param1.dot(param2);
@@ -320,6 +324,7 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
 
     cons_ptr c1 = sys1.createConstraint3D(g1, g2, parallel=Same);
 
+    std::cout<<"solve relevant example"<<std::endl;
     sys1.solve();
 
     line_t rl1,rl2;

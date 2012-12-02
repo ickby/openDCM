@@ -47,6 +47,8 @@ inline typename Kernel::number_type calc(T d1,
                 return (d1-d2).norm();
             }
             return (d1+d2).norm();
+	default:
+	    assert(false);
     }
 };
 

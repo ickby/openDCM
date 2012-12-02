@@ -36,6 +36,8 @@
 #include <boost/fusion/include/mpl.hpp>
 #include <boost/fusion/include/at.hpp>
 #include <boost/fusion/include/for_each.hpp>
+#include <boost/fusion/sequence/intrinsic/size.hpp>
+#include <boost/fusion/include/size.hpp>
 
 #include "traits.hpp"
 #include "object.hpp"
@@ -154,7 +156,7 @@ protected:
             typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
             BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
             typedef typename mpl::at<ConstraintVector, distance>::type option_type;
-            typedef boost::is_same<option_type, no_option> type;
+            typedef mpl::not_<boost::is_same<option_type, no_option> > type;
         };
 
         struct OptionSetter {
@@ -172,7 +174,7 @@ protected:
                 typedef typename mpl::find<EquationVector, T>::type iterator;
                 typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
                 BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
-                val.m_eq.value = fusion::at<distance>(objects).value;
+		val.m_eq.value = fusion::at<distance>(objects).value;
             }
             //if the equation has no otpion we do nothing!
             template< typename T >
