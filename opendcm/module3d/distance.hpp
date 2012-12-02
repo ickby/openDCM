@@ -102,7 +102,7 @@ struct Distance::type< Kernel, tag::plane3D, tag::plane3D > {
 };
 
 template<typename Kernel>
-struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {
+struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
@@ -113,7 +113,7 @@ struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {
     Scalar calculate(Vector& param1,  Vector& param2) {
         //diff = point1 - point2
         const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        return (diff - diff.dot(param1.template segment<3>(3))*param1.template segment<3>(3)).norm();
+        return (diff - diff.dot(param1.template segment<3>(3))*param1.template segment<3>(3)).norm() - value;
     };
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
@@ -159,7 +159,7 @@ struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {
 };
 
 template<typename Kernel>
-struct Distance::type< Kernel, tag::line3D, tag::line3D > : public Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > {};
+struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public Distance::type< Kernel, tag::line3D, tag::line3D > {};
 
 }
 
