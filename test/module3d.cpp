@@ -68,6 +68,9 @@ struct test_constraint {
         typedef typename Kernel::VectorMap   Vector;
 	int value;
 
+	void setScale(Scalar scale){
+            assert(false);
+        };
         Scalar calculate(Vector& param1,  Vector& param2)  {
             assert(false);
         };
@@ -97,6 +100,7 @@ struct test_constraint {
         typedef typename Kernel::VectorMap   Vector;
 	int value;
 
+	void setScale(Scalar scale){ };
         Scalar calculate(Vector& param1,  Vector& param2) {
             return param1.dot(param2);
         };

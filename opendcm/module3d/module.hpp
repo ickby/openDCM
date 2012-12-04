@@ -182,6 +182,7 @@ public:
 
         //needed to allow a correct global calculation in cluster geometries after this finish
         m_shift.setZero();
+	m_rotation = m_quaternion.toRotationMatrix();
         m_translation = m_original_translation;
 
         init=false;
@@ -322,7 +323,7 @@ struct Module3D {
                     std::pair< oiter, oiter > oit = m_cluster.template getObjects<Constraint3D>(*eit.first);
                     for(; oit.first != oit.second; oit.first++) {
                         if(*oit.first)
-                            (*oit.first)->calculate();
+                            (*oit.first)->calculate(system_traits<Sys>::Kernel::MappedEquationSystem::Scaling);
                     }
                 }
             }
@@ -453,23 +454,27 @@ struct Module3D {
                     const Scalar s = scaleShiftCluster(*(*cit.first).second);
                     sc = (s>sc) ? s : sc;
                 }
+                //std::cout<<"scaling: "<<sc<<std::endl;
                 //Base::Console().Message("Scale is %f\n", sc);
                 if(!Kernel::isSame(sc,0)) {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
                         applyShiftCluster(*(*cit.first).second, sc);
                     mes.Scaling = maxfak/sc;
+		    //std::cout<<"if"<<std::endl;
                 }
                 //scaling needs to be 1 (all shifts are at all theri points)
                 else {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
                         applyShiftCluster(*(*cit.first).second, 1.);
                     mes.Scaling = 1.;
+		    //std::cout<<"else"<<std::endl;
                 }
 
                 //now it's time to solve
                 Kernel::solve(mes);
 
-                std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+                //std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+		//std::cout<<"mes scaling: "<<mes.Scaling<<std::endl;
 
                 //now go to all relevant geometries and clusters and write the values back
                 it = boost::vertices(cluster);
@@ -552,6 +557,7 @@ struct Module3D {
                 if(vec.empty()) return 0.; //should never happen...
                 if(vec.size() == 1) {
                     str<<"single geometry part: "<<vec[0]->getBigPoint().transpose()<<std::endl;
+		    //std::cout<<str.str();
                     //Base::Console().Message("%s",str.str().c_str());
                     return vec[0]->getBigPoint().norm();
                 }
@@ -594,6 +600,7 @@ struct Module3D {
 
                 str<<"shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
                 //Base::Console().Message("%s",str.str().c_str());
+		//std::cout<<str.str();
                 return maxscale;
 
                 //some points are to close to the origin, lets shift again

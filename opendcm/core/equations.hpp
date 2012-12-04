@@ -45,6 +45,9 @@ struct Distance {
 
         Scalar value;
         //template definition
+	void setScale(Scalar scale){
+            assert(false);
+        };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
         };
@@ -86,6 +89,9 @@ struct Parallel {
 	option_type value;
 
         //template definition
+	void setScale(Scalar scale){
+            assert(false);
+        };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
         };
@@ -124,6 +130,9 @@ struct Angle {
 	option_type value;
 	
         //template definition
+	void setScale(Scalar scale){
+            assert(false);
+        };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
         };

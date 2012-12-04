@@ -155,9 +155,9 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   Eigen::Vector3d v1,v2,v3,v4;
   v1 = get<Eigen::Vector3d>(g1);
   v2 = get<Eigen::Vector3d>(g2);
-  v1 = get<Eigen::Vector3d>(g3);
-  v2 = get<Eigen::Vector3d>(g4);
-  
+  v3 = get<Eigen::Vector3d>(g3);
+  v4 = get<Eigen::Vector3d>(g4);
+
   BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
   BOOST_CHECK( Kernel::isSame((v2-v4).norm(),5.) );
   

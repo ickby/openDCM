@@ -44,12 +44,12 @@
 #include "equations.hpp"
 
 namespace mpl = boost::mpl;
-namespace fusion = boost::fusion; 
+namespace fusion = boost::fusion;
 
 namespace dcm {
 
 namespace detail {
-  
+
 //type erasure container for constraints
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 class Constraint : public Object<Sys, Derived, Signals > {
@@ -57,7 +57,7 @@ class Constraint : public Object<Sys, Derived, Signals > {
     typedef typename system_traits<Sys>::Kernel Kernel;
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::DynStride DS;
-    
+
     typedef boost::shared_ptr<Geometry> Geom;
 
 public:
@@ -101,8 +101,8 @@ public:
         if(c.need_swap) first.swap(second);
     };
 
-    void calculate() {
-        content->calculate(first, second);
+    void calculate(Scalar scale) {
+        content->calculate(first, second, scale);
     };
 
     void setMaps(MES& mes) {
@@ -114,7 +114,7 @@ public:
             delete content;
             content = p;*/
     };
-    
+
 protected:
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
@@ -132,7 +132,7 @@ protected:
     struct placeholder  {
         virtual ~placeholder() {}
         virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
-        virtual void calculate(Geom first, Geom second) = 0;
+        virtual void calculate(Geom first, Geom second, Scalar scale) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, Geom first, Geom second) = 0;
     };
@@ -174,7 +174,7 @@ protected:
                 typedef typename mpl::find<EquationVector, T>::type iterator;
                 typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
                 BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
-		val.m_eq.value = fusion::at<distance>(objects).value;
+                val.m_eq.value = fusion::at<distance>(objects).value;
             }
             //if the equation has no otpion we do nothing!
             template< typename T >
@@ -185,10 +185,13 @@ protected:
         struct Calculater {
 
             Geom first, second;
-            Calculater(Geom f, Geom s) : first(f), second(s) {};
+            Scalar scale;
+            Calculater(Geom f, Geom s, Scalar sc) : first(f), second(s), scale(sc) {};
 
             template< typename T >
             void operator()(T& val) const {
+
+                val.m_eq.setScale(scale);
 
                 val.m_residual(0) = val.m_eq.calculate(first->m_parameter, second->m_parameter);
 
@@ -276,8 +279,8 @@ protected:
             fusion::for_each(m_sets, OptionSetter(obj));
         };
 
-        virtual void calculate(Geom first, Geom second) {
-            fusion::for_each(m_sets, Calculater(first, second));
+        virtual void calculate(Geom first, Geom second, Scalar scale) {
+            fusion::for_each(m_sets, Calculater(first, second, scale));
         };
 
         virtual placeholder* resetConstraint(Geom first, Geom second) const {

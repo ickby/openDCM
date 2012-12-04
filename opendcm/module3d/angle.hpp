@@ -82,12 +82,11 @@ struct Angle3D {
     Scalar m_angle;
 
     Angle3D(Scalar d = 0.) : m_angle(std::cos(d)) {};
-    
-    Scalar getEquationScaling(typename Kernel::Vector& local1, typename Kernel::Vector& local2) {
-      assert(false);
-    }
 
     //template definition
+    void setScale(Scalar scale){
+            assert(false);
+    };
     Scalar calculate(Vector& param1,  Vector& param2) {
         assert(false);
     };
