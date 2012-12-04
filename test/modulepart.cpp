@@ -32,6 +32,7 @@ struct place {
   
   place():quat(1,2,3,4) {
     quat.normalize();
+    trans.setZero();
   };
 };
 struct place_accessor {
@@ -149,7 +150,7 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   
   sys.createConstraint3D(g1,g3,dcm::distance=5);
   sys.createConstraint3D(g2,g4,dcm::distance=5);
-  
+
   sys.solve();
   
   Eigen::Vector3d v1,v2,v3,v4;

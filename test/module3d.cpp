@@ -315,8 +315,9 @@ BOOST_AUTO_TEST_CASE(module3d_parallel_constraint) {
     BOOST_CHECK(Kernel::isSame((rl1.tail<3>()-rl2.tail<3>()).norm(), 0));
 }
 
+/*
 BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
-    /*
+    
         SystemNOID sys1; //line line parallel
 
         line_t l1,l2;
@@ -334,7 +335,7 @@ BOOST_AUTO_TEST_CASE(module3d_angle_constraint) {
         rl1 = get<line_t>(g1);
         rl2 = get<line_t>(g2);
 
-        BOOST_CHECK(Kernel::isSame(std::acos((rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2));*/
-}
+        BOOST_CHECK(Kernel::isSame(std::acos((rl1.tail<3>().dot(rl2.tail<3>())) / (rl1.tail<3>().norm()*rl2.tail<3>().norm())) , 0.2));
+}*/
 
 BOOST_AUTO_TEST_SUITE_END();
