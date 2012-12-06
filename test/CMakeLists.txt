@@ -7,7 +7,7 @@ set(framework_SRC framework.cpp)
 set(test_SRC  clustergraph.cpp
 	      #geometry.cpp
 	      #sys_and_obj.cpp
-	      module3d.cpp
+	      #module3d.cpp
 	      #kernel.cpp
 	      #dof.cpp
 	      modulepart.cpp

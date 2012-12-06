@@ -143,7 +143,23 @@ public:
     void initMaps() {
         const Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
         m_normQ = m_quaternion.vec()*s;
-        m_translation = m_original_translation + m_quaternion.toRotationMatrix()*m_shift;
+        m_translation = m_original_translation;
+        init = true;
+        m_scale = 1.;
+        xmin=1e10;
+        xmax=-1e10;
+        ymin=1e10;
+        ymax=-1e10;
+        zmin=1e10;
+        zmax=-1e10;
+        midpoint.setZero();
+        m_shift.setZero();
+    };
+    void initFixMaps() {
+        //when fixed no maps exist
+        m_diffrot.setZero();
+        m_rotation = m_quaternion.toRotationMatrix();
+        new(&m_translation) typename Kernel::Vector3Map(&m_original_translation(0));
         init = true;
         m_scale = 1.;
         xmin=1e10;
@@ -182,11 +198,16 @@ public:
 
         //needed to allow a correct global calculation in cluster geometries after this finish
         m_shift.setZero();
-	m_rotation = m_quaternion.toRotationMatrix();
+        m_rotation = m_quaternion.toRotationMatrix();
         m_translation = m_original_translation;
 
         init=false;
     };
+    void finishFixCalculation() {
+        //needed to allow a correct global calculation in cluster geometries after this finish
+        m_shift.setZero();
+        m_translation /= m_scale;
+    }
 
     void recalculate() {
 
@@ -408,7 +429,7 @@ struct Module3D {
                             cm.setParameterOffset(offset, transoffset);
                             //wirte initial values
                             cm.initMaps();
-                        }
+                        } else cm.initFixMaps();
 
                         //map all geometrie within that cluster to it's rotation matrix
                         //for collecting all geometries which need updates
@@ -451,6 +472,10 @@ struct Module3D {
                 //get the maximal scale
                 Scalar sc = 0;
                 for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
+                    //fixed cluster are irrelevant for scaling
+                    if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
+
+                    //get the biggest scale factor
                     const Scalar s = scaleShiftCluster(*(*cit.first).second);
                     sc = (s>sc) ? s : sc;
                 }
@@ -460,35 +485,37 @@ struct Module3D {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
                         applyShiftCluster(*(*cit.first).second, sc);
                     mes.Scaling = maxfak/sc;
-		    //std::cout<<"if"<<std::endl;
+                    //std::cout<<"if"<<std::endl;
                 }
                 //scaling needs to be 1 (all shifts are at all theri points)
                 else {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
                         applyShiftCluster(*(*cit.first).second, 1.);
                     mes.Scaling = 1.;
-		    //std::cout<<"else"<<std::endl;
+                    //std::cout<<"else"<<std::endl;
                 }
 
                 //now it's time to solve
                 Kernel::solve(mes);
 
-                //std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
-		//std::cout<<"mes scaling: "<<mes.Scaling<<std::endl;
+                std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+                //std::cout<<"mes scaling: "<<mes.Scaling<<std::endl;
 
                 //now go to all relevant geometries and clusters and write the values back
                 it = boost::vertices(cluster);
                 for(; it.first != it.second; it.first++) {
 
                     if(cluster.isCluster(*it.first)) {
-                        if(!cluster.template getSubclusterProperty<fix_prop>(*it.first)) {
-                            Cluster& c = cluster.getVertexCluster(*it.first);
-
+                        Cluster& c = cluster.getVertexCluster(*it.first);
+                        if(!cluster.template getSubclusterProperty<fix_prop>(*it.first))
                             c.template getClusterProperty<math_prop>().finishCalculation();
-                            std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
-                            for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
-                                (*vit)->finishCalculation();
-                        }
+                        else
+                            c.template getClusterProperty<math_prop>().finishFixCalculation();
+
+                        std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
+                        for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
+                            (*vit)->finishCalculation();
+
                     } else cluster.template getObject<Geometry3D>(*it.first)->finishCalculation();
                 }
 
@@ -514,19 +541,19 @@ struct Module3D {
                 for(; it.first != it.second; it.first++) {
                     Geom g = cluster.template getObject<Geometry3D>(*it.first);
                     if(g) {
-                        if(!cluster.template getClusterProperty<fix_prop>()) {
-                            //allow iteration over all maped geometries
-                            vec.push_back(g);
-                            //map rotation and diffrotation from cluster to geometry
-                            cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
-                            //map translation from cluster to geometry
-                            cm.setTranslationMap(g->getTranslationMap());
-                            //map shift from cluster to geometry
-                            cm.setShiftMap(g->getShiftMap());
-                            //set the offsets so that geometry knows where it is in the parameter map
-                            g->m_rot_offset = cm.getRotationOffset();
-                            g->m_trans_offset = cm.getTranslationOffset();
-                        }
+                        //  if(!cluster.template getClusterProperty<fix_prop>()) {
+                        //allow iteration over all maped geometries
+                        vec.push_back(g);
+                        //map rotation and diffrotation from cluster to geometry
+                        cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
+                        //map translation from cluster to geometry
+                        cm.setTranslationMap(g->getTranslationMap());
+                        //map shift from cluster to geometry
+                        cm.setShiftMap(g->getShiftMap());
+                        //set the offsets so that geometry knows where it is in the parameter map
+                        g->m_rot_offset = cm.getRotationOffset();
+                        g->m_trans_offset = cm.getTranslationOffset();
+                        //   }
                         //calculate the appropriate local values
                         g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
 
@@ -557,7 +584,7 @@ struct Module3D {
                 if(vec.empty()) return 0.; //should never happen...
                 if(vec.size() == 1) {
                     str<<"single geometry part: "<<vec[0]->getBigPoint().transpose()<<std::endl;
-		    //std::cout<<str.str();
+                    //std::cout<<str.str();
                     //Base::Console().Message("%s",str.str().c_str());
                     return vec[0]->getBigPoint().norm();
                 }
@@ -600,7 +627,7 @@ struct Module3D {
 
                 str<<"shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
                 //Base::Console().Message("%s",str.str().c_str());
-		//std::cout<<str.str();
+                //std::cout<<str.str();
                 return maxscale;
 
                 //some points are to close to the origin, lets shift again
@@ -611,15 +638,27 @@ struct Module3D {
             void applyShiftCluster(Cluster& cluster, Scalar scale) {
 
                 details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
+                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
 
-                //same scaling for us all
-                //math.m_scale = scale;
+                //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
+                //to alow the adoption of the scale. and no shift should been set.
+                if(cluster.template getClusterProperty<fix_prop>()) {
+                    //scale needs to be set to have the correct translation value
+                    math.setScale(maxfak/scale);
+
+                    //now calculate the scaled geometrys
+                    typedef typename std::vector<Geom>::iterator iter;
+                    for(iter it = vec.begin(); it != vec.end(); it++) {
+                        (*it)->recalculate(maxfak/scale);
+                    };
+                    return;
+                }
 
                 //if only one point exists we extend the origin-point-line to match the scale
-                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
                 if(vec.size()==1) {
                     typename Kernel::Vector3 v = vec[0]->getBigPoint();
                     const Scalar fak = 1. - scale/v.norm();
+
                     if(Kernel::isSame(v.norm(),0))
                         math.m_shift << scale, 0, 0;
                     else math.m_shift = fak*v;
@@ -989,6 +1028,7 @@ typename boost::add_reference<T>::type get(G geom) {
 }
 
 #endif //GCM_GEOMETRY3D_H
+
 
 
 

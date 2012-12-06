@@ -118,7 +118,7 @@ namespace detail {
 
 template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dimension = 3>
 class Geometry : public Object<Sys, Derived, Signals > {
-  
+
     typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
     typedef Object<Sys, Derived, Signals> 		Base;
     typedef typename system_traits<Sys>::Kernel 	Kernel;
@@ -163,7 +163,7 @@ public:
     Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >  m_translation; //map to the cluster translation
     Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >  m_shift; //map to the cluster shift
     Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension> >  m_rotation; //map to the cluster rotation
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension*Dimension> >  m_diffrot; //map to the gradient rotations
+    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension* Dimension> >  m_diffrot; //map to the gradient rotations
 
     Scalar m_scale;
 
@@ -195,7 +195,7 @@ public:
     Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension> >&  getRotationMap() {
         return m_rotation;
     };
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension*Dimension> >& getDiffRotationMap() {
+    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension* Dimension> >& getDiffRotationMap() {
         return m_diffrot;
     };
     Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >&  getTranslationMap() {
@@ -212,16 +212,12 @@ public:
     void setClusterMode(bool iscluster, bool isFixed) {
         m_isInCluster = iscluster;
         m_clusterFixed = isFixed;
-        if(iscluster && !isFixed) {
+        if(iscluster) {
             //we are in cluster, therfore the parameter map should not point to a solver value but to
             //the rotated original value;
             new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
-        };
-        //when fixed the parameter map needs to point to the global value as it never can get changed
-        if(iscluster && isFixed) {
-            //std::cout << "global value cluster mode:"<<std::endl <<m_global<<std::endl;
-            new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
-        }
+        } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
+
     }
     bool getClusterMode() {
         return m_isInCluster;
@@ -243,9 +239,9 @@ public:
             m_rotated.block(i*Dimension,0,Dimension,1) = m_rotation*m_toplocal.template segment<Dimension>(i*Dimension);
 
             //now calculate the gradient vectors and add them to diffparam
-	    for(int j=0; j<Dimension; j++)
-	      m_diffparam.block(i*Dimension,j,Dimension,1) = m_diffrot.block(0,j*3,Dimension,Dimension) * m_toplocal.template segment<Dimension>(i*Dimension);
-         }
+            for(int j=0; j<Dimension; j++)
+                m_diffparam.block(i*Dimension,j,Dimension,1) = m_diffrot.block(0,j*3,Dimension,Dimension) * m_toplocal.template segment<Dimension>(i*Dimension);
+        }
         //after rotating the needed parameters we translate the stuff that needs to be moved
         for(int i=0; i!=m_translations; i++) {
             //first translate and shift the original to the transformed value
@@ -255,10 +251,10 @@ public:
             //now calculate the gradient vectors and add them to diffparam
             m_diffparam.block(i*Dimension,Dimension,Dimension,Dimension).setIdentity();
 
-	    for(int j=0; j<Dimension; j++)
-	      m_diffparam.block(i*Dimension,j,Dimension,1) -= m_diffrot.block(0,j*3,Dimension,Dimension) * m_shift;
-  
-	    m_diffparam.block(i*Dimension,0,Dimension,Dimension) *= s;
+            for(int j=0; j<Dimension; j++)
+                m_diffparam.block(i*Dimension,j,Dimension,1) -= m_diffrot.block(0,j*3,Dimension,Dimension) * m_shift;
+
+            m_diffparam.block(i*Dimension,0,Dimension,Dimension) *= s;
         }
     }
 
@@ -285,16 +281,14 @@ public:
     //use m_value or parametermap as new value, dependend on the solving mode
     void finishCalculation() {
         //if fixed nothing needs to be changed
-        if(!m_clusterFixed) {
-            if(m_isInCluster) {
-                recalculate(1.); //remove scaling to get right global value
-                m_global = m_rotated;
-            }
-            //TODO:non cluster paramter scaling
-            else m_global = m_parameter;
-            apply_visitor v(m_global);
-            apply(v);
+        if(m_isInCluster) {
+            recalculate(1.); //remove scaling to get right global value
+            m_global = m_rotated;
         }
+        //TODO:non cluster paramter scaling
+        else m_global = m_parameter;
+        apply_visitor v(m_global);
+        apply(v);
     };
     //get this geometrie largest part
     typename Kernel::number_type getScaleValue() {
@@ -312,7 +306,7 @@ public:
 
     //normal transformation
     void transform(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-		   const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                   const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         m_toplocal = m_global;
         for(int i=0; i!=m_rotations; i++)
@@ -324,7 +318,7 @@ public:
     };
     //first translation, then rotation
     void transformInverse(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-			  const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                          const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         m_toplocal = m_global;
         for(int i=0; i!=m_translations; i++)
@@ -333,7 +327,7 @@ public:
             m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
     };
     void transformGlobal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-			 const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         for(int i=0; i!=m_rotations; i++)
             m_global.template segment<Dimension>(i*Dimension) = rot*m_global.template segment<Dimension>(i*Dimension);
