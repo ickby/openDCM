@@ -476,21 +476,21 @@ struct Module3D {
                     if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
 
                     //get the biggest scale factor
-                    const Scalar s = scaleShiftCluster(*(*cit.first).second);
+                    const Scalar s = calculateClusterScale(*(*cit.first).second);
                     sc = (s>sc) ? s : sc;
                 }
                 //std::cout<<"scaling: "<<sc<<std::endl;
                 //Base::Console().Message("Scale is %f\n", sc);
                 if(!Kernel::isSame(sc,0)) {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
-                        applyShiftCluster(*(*cit.first).second, sc);
+                        applyClusterScale(*(*cit.first).second, sc);
                     mes.Scaling = maxfak/sc;
                     //std::cout<<"if"<<std::endl;
                 }
                 //scaling needs to be 1 (all shifts are at all theri points)
                 else {
                     for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
-                        applyShiftCluster(*(*cit.first).second, 1.);
+                        applyClusterScale(*(*cit.first).second, 1.);
                     mes.Scaling = 1.;
                     //std::cout<<"else"<<std::endl;
                 }
@@ -572,23 +572,20 @@ struct Module3D {
 
             };
 
-            Scalar scaleShiftCluster(Cluster& cluster) {
+	    /*Calculate the scale of the cluster. Therefore the midpoint is calculated and the scale is
+	     * defined as the max distance between the midpoint and the points.  
+	    */
+            Scalar calculateClusterScale(Cluster& cluster) {
 
-                //first get the bonding box to get the center pof points
                 std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
                 details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
 
-                std::stringstream str;
-                str<<"Start ScaleShift"<<std::endl;
-                //only one geometry scale = norm
-                if(vec.empty()) return 0.; //should never happen...
-                if(vec.size() == 1) {
-                    str<<"single geometry part: "<<vec[0]->getBigPoint().transpose()<<std::endl;
-                    //std::cout<<str.str();
-                    //Base::Console().Message("%s",str.str().c_str());
-                    return vec[0]->getBigPoint().norm();
-                }
+                //only one geometry scale = 1 as the shift can ge to arbitrary positions in regard
+		//to the point
+                if(vec.empty()) assert(false); //should never happen...
+                if(vec.size() == 1) return 1.;
 
+		//get the bonding box to get the center of points
                 typedef typename std::vector<Geom>::iterator iter;
                 for(iter it = vec.begin(); it != vec.end(); it++) {
                     typename Kernel::Vector3 v = (*it)->getBigPoint();
@@ -598,44 +595,22 @@ struct Module3D {
                     math.ymax = (v(1)<math.ymax) ? math.ymax : v(1);
                     math.zmin = (v(2)<math.zmin) ? v(2) : math.zmin;
                     math.zmax = (v(2)<math.zmax) ? math.zmax : v(2);
-                    str<<"Testet point: "<<v.transpose()<<std::endl;
                 };
 
-                //now calculate the midpoint and use it as shift
+                //now calculate the midpoint
                 math.midpoint << math.xmin+math.xmax, math.ymin+math.ymax, math.zmin+math.zmax;
                 math.midpoint /= 2.;
-                str<<"Midpoint:"<<math.midpoint.transpose()<<std::endl;
-                //the bounding box corner is the max allowed distance
+
+		//the bounding box corner is the max allowed distance
                 typename Kernel::Vector3 max(math.xmax, math.ymax, math.zmax);
-                Scalar maxscale = (max-math.midpoint).norm();
-
-                //the maxscale is ||point||*scale=1.5, all other points are allowed to be in the
-                //range to ||point||*scale=0.5. therefore ||point|| > maxscale/3 must be ensured
-                bool inFrame = true;
-                for(iter it = vec.begin(); (it != vec.end()) && inFrame; it++)
-                    inFrame = (((*it)->getBigPoint()-math.midpoint).norm() > maxscale*minfak/maxfak);
-
-                if(!inFrame) str<<"Point not in right shift range"<<std::endl;
-                //all points are in frame, we are done here
-                //if(inFrame) return 2.*maxscale/3.;
-                math.m_scale =  maxscale;
-
-                str<<"Scale: "<<math.m_scale<<std::endl;
-
-                //set the calulated shift
-                math.m_shift = math.midpoint;
-
-                str<<"shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
-                //Base::Console().Message("%s",str.str().c_str());
-                //std::cout<<str.str();
-                return maxscale;
-
-                //some points are to close to the origin, lets shift again
-                //first get the flat boundingbox side
-
+                Scalar scale = (max-math.midpoint).norm();
+		
+		//set the clusters scale for later calculations
+		math.m_scale = scale;
+		return scale;
             };
 
-            void applyShiftCluster(Cluster& cluster, Scalar scale) {
+            void applyClusterScale(Cluster& cluster, Scalar scale) {
 
                 details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
                 std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
@@ -645,7 +620,6 @@ struct Module3D {
                 if(cluster.template getClusterProperty<fix_prop>()) {
                     //scale needs to be set to have the correct translation value
                     math.setScale(maxfak/scale);
-
                     //now calculate the scaled geometrys
                     typedef typename std::vector<Geom>::iterator iter;
                     for(iter it = vec.begin(); it != vec.end(); it++) {
@@ -665,22 +639,18 @@ struct Module3D {
 
                     math.setShift(math.m_shift);
                     math.setScale(maxfak/scale);
-
-                    std::stringstream str;
-                    str<<"single shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
-                    //Base::Console().Message("%s",str.str().c_str());
                     return;
                 };
 
 
-                //if this is our scale then just applie the midpoint as shift (already done)
+                //if this is our scale then just applie the midpoint as shift
                 if(Kernel::isSame(scale, math.m_scale)) {
-                    math.setShift(math.m_shift);
+                    math.setShift(math.midpoint);
                     math.setScale(maxfak/scale);
                     return;
                 }
 
-                //now it gets more complicated. bahh. the most outer point should be at
+                //now it gets more complicated. the most outer point should be at
                 //distance scale. of course we need the smallest heigh at midpoint to add
                 //the offset to
                 Scalar xh = math.xmax-math.xmin;
