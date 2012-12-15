@@ -340,7 +340,7 @@ struct Kernel {
         return ((p1-p2).squaredNorm() < 0.001);
     }
     static bool isSame(number_type t1, number_type t2) {
-        return ((t1-t2) < 0.001);
+        return ( std::abs(t1-t2) < 0.001);
     }
     template <typename DerivedA,typename DerivedB>
     static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
