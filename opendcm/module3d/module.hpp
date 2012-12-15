@@ -50,10 +50,6 @@
 #include "angle.hpp"
 #include "dof.hpp"
 
-
-#define maxfak 1.2
-#define minfak 0.8
-
 static int counter = 0;
 
 namespace mpl = boost::mpl;
@@ -70,226 +66,12 @@ struct distance {
     typedef typename mpl::distance<typename mpl::begin<seq>::type, iterator>::type type;
     BOOST_MPL_ASSERT((mpl::not_< boost::is_same<iterator, typename mpl::end<seq>::type > >));
 };
-
-template<typename Sys>
-struct ClusterMath {
-
-private:
-    typedef typename system_traits<Sys>::Kernel Kernel;
-    typedef typename Kernel::number_type Scalar;
-
-    typename Kernel::Matrix3	m_rotation;
-    typename Kernel::Matrix39 	m_diffrot;
-    typename Kernel::Quaternion	m_quaternion;
-    typename Kernel::Vector3	m_original_translation;
-    typename Kernel::Vector3Map	m_normQ;
-    typename Kernel::Vector3 	m_origNormQ;
-
-    int m_rot_offset, m_trans_offset;
-    int count;
-    bool init;
-
-public:
-    typename Kernel::Vector3Map m_translation;
-    //shift scale stuff
-    Scalar xmin, xmax, ymin, ymax, zmin, zmax;
-    typename Kernel::Vector3 midpoint, m_shift;
-    Scalar m_scale;
-
-public:
-    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
-
-        m_quaternion = typename Kernel::Quaternion(1,2,3,4);
-        m_quaternion.normalize();
-        m_shift.setZero();
-        count = counter;
-        counter++;
-        m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
-    };
-
-    void setParameterOffset(int roff, int toff) {
-        m_rot_offset = roff;
-        m_trans_offset = toff;
-    };
-    int getRotationOffset() {
-        return m_rot_offset;
-    };
-    int getTranslationOffset() {
-        return m_trans_offset;
-    };
-
-    void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
-        new(&map) typename Kernel::Matrix3Map(&m_rotation(0,0),3,3);
-        new(&diffmap) typename Kernel::Matrix39Map(&m_diffrot(0,0));
-    };
-    void setTranslationMap(typename Kernel::Vector3Map& map) {
-        new(&map) typename Kernel::Vector3Map(&m_translation(0));
-    };
-    void setShiftMap(typename Kernel::Vector3Map& map) {
-        new(&map) typename Kernel::Vector3Map(&m_shift(0));
-    };
-    typename Kernel::Vector3Map& getNormQuaternionMap() {
-        return m_normQ;
-    };
-    typename Kernel::Vector3Map& getTranslationMap() {
-        return m_translation;
-    };
-    void initMaps() {
-        const Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
-        m_normQ = m_quaternion.vec()*s;
-        m_translation = m_original_translation;
-        init = true;
-        m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
-        midpoint.setZero();
-        m_shift.setZero();
-    };
-    void initFixMaps() {
-        //when fixed no maps exist
-        m_diffrot.setZero();
-        m_rotation = m_quaternion.toRotationMatrix();
-        new(&m_translation) typename Kernel::Vector3Map(&m_original_translation(0));
-        init = true;
-        m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
-        midpoint.setZero();
-        m_shift.setZero();
-    };
-
-    typename Kernel::Quaternion& getQuaternion() {
-        return m_quaternion;
-    };
-    typename Kernel::Vector3& getTranslation() {
-        return m_original_translation;
-    };
-    void setShift(typename Kernel::Vector3 s) {
-        m_shift = s;
-        //we remove shift from the local geometries, therefore we have to add it here
-        //to not change the global position
-        if(init) m_translation += m_quaternion.toRotationMatrix()*m_shift;
-    };
-    void setScale(Scalar s) {
-        m_scale = s;
-        if(init)m_translation *= s;
-    };
-
-    void finishCalculation() {
-        const Scalar norm = m_normQ.norm();
-        const Scalar fac = std::sin(norm)/norm;
-        m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-        m_quaternion.normalize();
-        m_original_translation = m_translation/m_scale - m_quaternion.toRotationMatrix()*m_shift;
-
-        //needed to allow a correct global calculation in cluster geometries after this finish
-        m_shift.setZero();
-        m_rotation = m_quaternion.toRotationMatrix();
-        m_translation = m_original_translation;
-
-        init=false;
-    };
-    void finishFixCalculation() {
-        //needed to allow a correct global calculation in cluster geometries after this finish
-        m_shift.setZero();
-        m_translation /= m_scale;
-    }
-
-    void recalculate() {
-
-        //get the Quaternion for the norm quaternion form and calculate the rotation matrix
-        const Scalar norm = m_normQ.norm();
-        const Scalar fac = std::sin(norm)/norm;
-
-        typename Kernel::Quaternion Q(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-        Q.normalize(); //not needed, just to avoid rounding errors
-        if(Kernel::isSame(norm, 0)) {
-            Q.setIdentity();
-            m_rotation.setIdentity();
-            m_diffrot.setZero();
-            return;
-        };
-        m_rotation = Q.toRotationMatrix();
-
-        /* now calculate the gradient quaternions and calculate the diff rotation matrices
-         * m_normQ = (a,b,c)
-         * n = ||m_normQ||
-         *
-         * Q = (a/n sin(n), b/n sin(n), c/n sin(n), cos(n))
-         */
-
-        //n=||m_normQ||, sn = sin(n)/n, sn3 = sin(n)/n^3, cn = cos(n)/n, divn = 1/n;
-        const Scalar n    = m_normQ.norm();
-        const Scalar sn   = std::sin(n)/n;
-        const Scalar mul  = (std::cos(n)-sn)/std::pow(n,2);
-
-        //dxa = dx/da
-        const Scalar dxa = sn + std::pow(m_normQ(0),2)*mul;
-        const Scalar dxb = m_normQ(0)*m_normQ(1)*mul;
-        const Scalar dxc = m_normQ(0)*m_normQ(2)*mul;
-
-        const Scalar dya = m_normQ(1)*m_normQ(0)*mul;
-        const Scalar dyb = sn + std::pow(m_normQ(1),2)*mul;
-        const Scalar dyc = m_normQ(1)*m_normQ(2)*mul;
-
-        const Scalar dza = m_normQ(2)*m_normQ(0)*mul;
-        const Scalar dzb = m_normQ(2)*m_normQ(1)*mul;
-        const Scalar dzc = sn + std::pow(m_normQ(2),2)*mul;
-
-        const Scalar dwa = -sn*m_normQ(0);
-        const Scalar dwb = -sn*m_normQ(1);
-        const Scalar dwc = -sn*m_normQ(2);
-
-        //write in the diffrot matrix, starting with duQ/dx
-        m_diffrot(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
-        m_diffrot(0,1) = -2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
-        m_diffrot(0,2) = 2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
-        m_diffrot(1,0) = 2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
-        m_diffrot(1,1) = -4.0*(Q.x()*dxa+Q.z()*dza);
-        m_diffrot(1,2) = -2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
-        m_diffrot(2,0) = -2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
-        m_diffrot(2,1) = 2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
-        m_diffrot(2,2) = -4.0*(Q.x()*dxa+Q.y()*dya);
-
-        m_diffrot(0,3) = -4.0*(Q.y()*dyb+Q.z()*dzb);
-        m_diffrot(0,4) = -2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
-        m_diffrot(0,5) = 2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
-        m_diffrot(1,3) = 2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
-        m_diffrot(1,4) = -4.0*(Q.x()*dxb+Q.z()*dzb);
-        m_diffrot(1,5) = -2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
-        m_diffrot(2,3) = -2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
-        m_diffrot(2,4) = 2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
-        m_diffrot(2,5) = -4.0*(Q.x()*dxb+Q.y()*dyb);
-
-        m_diffrot(0,6) = -4.0*(Q.y()*dyc+Q.z()*dzc);
-        m_diffrot(0,7) = -2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
-        m_diffrot(0,8) = 2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
-        m_diffrot(1,6) = 2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
-        m_diffrot(1,7) = -4.0*(Q.x()*dxc+Q.z()*dzc);
-        m_diffrot(1,8) = -2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
-        m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
-        m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
-        m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
-    };
-};
-
 }
 
 struct m3d {}; 	//base of module3d::type to allow other modules check for it
+
+//needs to be here to access m3d struct 
+#include "clustermath.hpp"
 
 template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
@@ -324,7 +106,7 @@ struct Module3D {
                         (*cit.first).second->template getClusterProperty<math_prop>().recalculate();
 
                         //now with the new rotation matrix we calculate all geometries in that cluster
-                        std::vector<Geom>& vec = (*cit.first).second->template getClusterProperty<gmap_prop>();
+                        std::vector<Geom>& vec = (*cit.first).second->template getClusterProperty<math_prop>().getGeometry();
                         typedef typename std::vector<Geom>::iterator iter;
 
                         for(iter it = vec.begin(); it != vec.end(); it++)
@@ -433,13 +215,13 @@ struct Module3D {
 
                         //map all geometrie within that cluster to it's rotation matrix
                         //for collecting all geometries which need updates
-                        std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
-                        vec.clear();
+                        cm.clearGeometry();
+
                         //to allow a corect calculation of geometries toplocal value we need the quaternion
                         //which transforms from toplevel to this "to be solved" cluster and the aquivalent translation
                         typename Kernel::Quaternion q(1,0,0,0);
                         typename Kernel::Vector3 t(0,0,0);
-                        mapClusterDownstreamGeometry(c, cm, vec, q, t);
+                        cm.mapClusterDownstreamGeometry(c, q, t, cm);
 
 
                     } else {
@@ -476,21 +258,27 @@ struct Module3D {
                     if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
 
                     //get the biggest scale factor
-                    const Scalar s = calculateClusterScale(*(*cit.first).second);
+                    const Scalar s = (*cit.first).second->template getClusterProperty<math_prop>().calculateClusterScale();
                     sc = (s>sc) ? s : sc;
                 }
                 //std::cout<<"scaling: "<<sc<<std::endl;
                 //Base::Console().Message("Scale is %f\n", sc);
                 if(!Kernel::isSame(sc,0)) {
-                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
-                        applyClusterScale(*(*cit.first).second, sc);
+                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
+                        (*cit.first).second->template getClusterProperty<math_prop>().applyClusterScale(sc,
+                                (*cit.first).second->template getClusterProperty<fix_prop>()
+                                                                                                       );
+                    }
                     mes.Scaling = maxfak/sc;
                     //std::cout<<"if"<<std::endl;
                 }
                 //scaling needs to be 1 (all shifts are at all theri points)
                 else {
-                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++)
-                        applyClusterScale(*(*cit.first).second, 1.);
+                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
+                        (*cit.first).second->template getClusterProperty<math_prop>().applyClusterScale(1,
+                                (*cit.first).second->template getClusterProperty<fix_prop>()
+                                                                                                       );
+                    }
                     mes.Scaling = 1.;
                     //std::cout<<"else"<<std::endl;
                 }
@@ -512,7 +300,7 @@ struct Module3D {
                         else
                             c.template getClusterProperty<math_prop>().finishFixCalculation();
 
-                        std::vector<Geom>& vec = c.template getClusterProperty<gmap_prop>();
+                        std::vector<Geom>& vec = c.template getClusterProperty<math_prop>().getGeometry();
                         for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                             (*vit)->finishCalculation();
 
@@ -521,171 +309,6 @@ struct Module3D {
 
                 //we have solved this cluster
                 cluster.template setClusterProperty<changed_prop>(false);
-
-            };
-
-
-            void mapClusterDownstreamGeometry(Cluster& cluster,
-                                              details::ClusterMath<Sys>& cm,
-                                              std::vector<Geom>& vec,
-                                              typename Kernel::Quaternion& q,
-                                              typename Kernel::Vector3& t) {
-                //all geometry within that cluster needs to be mapped to the provided rotation matrix (in cm)
-                //also the geometries toplocal value needs to be set so that it matches this cm
-                typename Kernel::Quaternion nq = q*cluster.template getClusterProperty<math_prop>().getQuaternion();
-                typename Kernel::Vector3 nt = t+cluster.template getClusterProperty<math_prop>().getTranslation();
-
-                //get all vertices and map the geometries if existend
-                typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
-                std::pair<iter, iter>  it = boost::vertices(cluster);
-                for(; it.first != it.second; it.first++) {
-                    Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                    if(g) {
-                        //  if(!cluster.template getClusterProperty<fix_prop>()) {
-                        //allow iteration over all maped geometries
-                        vec.push_back(g);
-                        //map rotation and diffrotation from cluster to geometry
-                        cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
-                        //map translation from cluster to geometry
-                        cm.setTranslationMap(g->getTranslationMap());
-                        //map shift from cluster to geometry
-                        cm.setShiftMap(g->getShiftMap());
-                        //set the offsets so that geometry knows where it is in the parameter map
-                        g->m_rot_offset = cm.getRotationOffset();
-                        g->m_trans_offset = cm.getTranslationOffset();
-                        //   }
-                        //calculate the appropriate local values
-                        g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
-
-                        //position and offset of the parameters must be set to the clusters values
-                        g->setClusterMode(true, cluster.template getClusterProperty<fix_prop>());
-                    }
-                }
-
-                //go downstream and map
-                typedef typename Cluster::cluster_iterator citer;
-                std::pair<citer, citer> cit = cluster.clusters();
-                for(; cit.first != cit.second; cit.first++)
-                    mapClusterDownstreamGeometry(*(*cit.first).second, cm, vec, nq, nt);
-                //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
-                //	dof's remaining between parts and so nothing can be moved when one part is fixed.
-
-            };
-
-	    /*Calculate the scale of the cluster. Therefore the midpoint is calculated and the scale is
-	     * defined as the max distance between the midpoint and the points.  
-	    */
-            Scalar calculateClusterScale(Cluster& cluster) {
-
-                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
-                details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
-
-                //only one geometry scale = 1 as the shift can ge to arbitrary positions in regard
-		//to the point
-                if(vec.empty()) assert(false); //should never happen...
-                if(vec.size() == 1) return 1.;
-
-		//get the bonding box to get the center of points
-                typedef typename std::vector<Geom>::iterator iter;
-                for(iter it = vec.begin(); it != vec.end(); it++) {
-                    typename Kernel::Vector3 v = (*it)->getBigPoint();
-                    math.xmin = (v(0)<math.xmin) ? v(0) : math.xmin;
-                    math.xmax = (v(0)<math.xmax) ? math.xmax : v(0);
-                    math.ymin = (v(1)<math.ymin) ? v(1) : math.ymin;
-                    math.ymax = (v(1)<math.ymax) ? math.ymax : v(1);
-                    math.zmin = (v(2)<math.zmin) ? v(2) : math.zmin;
-                    math.zmax = (v(2)<math.zmax) ? math.zmax : v(2);
-                };
-
-                //now calculate the midpoint
-                math.midpoint << math.xmin+math.xmax, math.ymin+math.ymax, math.zmin+math.zmax;
-                math.midpoint /= 2.;
-
-		//the bounding box corner is the max allowed distance
-                typename Kernel::Vector3 max(math.xmax, math.ymax, math.zmax);
-                Scalar scale = (max-math.midpoint).norm();
-		
-		//set the clusters scale for later calculations
-		math.m_scale = scale;
-		return scale;
-            };
-
-            void applyClusterScale(Cluster& cluster, Scalar scale) {
-
-                details::ClusterMath<Sys>& math = cluster.template getClusterProperty<math_prop>();
-                std::vector<Geom>& vec = cluster.template getClusterProperty<gmap_prop>();
-
-                //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
-                //to alow the adoption of the scale. and no shift should been set.
-                if(cluster.template getClusterProperty<fix_prop>()) {
-                    //scale needs to be set to have the correct translation value
-                    math.setScale(maxfak/scale);
-                    //now calculate the scaled geometrys
-                    typedef typename std::vector<Geom>::iterator iter;
-                    for(iter it = vec.begin(); it != vec.end(); it++) {
-                        (*it)->recalculate(maxfak/scale);
-                    };
-                    return;
-                }
-
-                //if only one point exists we extend the origin-point-line to match the scale
-                if(vec.size()==1) {
-                    typename Kernel::Vector3 v = vec[0]->getBigPoint();
-                    const Scalar fak = 1. - scale/v.norm();
-
-                    if(Kernel::isSame(v.norm(),0))
-                        math.m_shift << scale, 0, 0;
-                    else math.m_shift = fak*v;
-
-                    math.setShift(math.m_shift);
-                    math.setScale(maxfak/scale);
-                    return;
-                };
-
-
-                //if this is our scale then just applie the midpoint as shift
-                if(Kernel::isSame(scale, math.m_scale)) {
-                    math.setShift(math.midpoint);
-                    math.setScale(maxfak/scale);
-                    return;
-                }
-
-                //now it gets more complicated. the most outer point should be at
-                //distance scale. of course we need the smallest heigh at midpoint to add
-                //the offset to
-                Scalar xh = math.xmax-math.xmin;
-                Scalar yh = math.ymax-math.ymin;
-                Scalar zh = math.zmax-math.zmin;
-
-                if((xh<=yh) && (xh<=zh)) {
-                    const Scalar a = std::sqrt(std::pow(math.ymax-math.midpoint(1),2)
-                                               +  std::pow(math.zmax-math.midpoint(2),2));
-                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-                    //applie extra heigh to midpoint
-                    math.m_shift(0) += b-xh/2;
-                } else if((yh<xh) && (yh<zh)) {
-                    const Scalar a = std::sqrt(std::pow(math.xmax-math.midpoint(0),2)
-                                               +  std::pow(math.zmax-math.midpoint(2),2));
-                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-                    //applie extra heigh to midpoint
-                    math.m_shift(1) += b-yh/2;
-                } else {
-                    const Scalar a = std::sqrt(std::pow(math.xmax-math.midpoint(0),2)
-                                               +  std::pow(math.ymax-math.midpoint(1),2));
-                    const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-                    //applie extra heigh to midpoint
-                    math.m_shift(2) += b-zh/2;
-                }
-
-                math.setShift(math.m_shift);
-                math.setScale(maxfak/scale);
-
-                std::stringstream str;
-                str<<"changed shift: "<<math.m_shift.transpose()<<std::endl<<std::endl;
-                //Base::Console().Message("%s",str.str().c_str());
 
             };
 
@@ -933,10 +556,6 @@ struct Module3D {
             typedef cluster_property kind;
             typedef details::ClusterMath<Sys> type;
         };
-        struct gmap_prop {
-            typedef cluster_property kind;
-            typedef std::vector<Geom> type;
-        };
         struct fix_prop {
             typedef cluster_property kind;
             typedef bool type;
@@ -950,7 +569,7 @@ struct Module3D {
             typedef GlobalEdge type;
         };
 
-        typedef mpl::vector<vertex_prop, edge_prop, math_prop, gmap_prop, fix_prop>  properties;
+        typedef mpl::vector<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
@@ -995,7 +614,7 @@ typename boost::add_reference<T>::type get(G geom) {
     return *result;
 };
 
-}
+}//dcm
 
 #endif //GCM_GEOMETRY3D_H
 
