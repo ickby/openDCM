@@ -28,6 +28,13 @@
 
 namespace details {
 
+enum Scalemode {
+    one,
+    two,
+    three,
+    multiple
+};
+
 template<typename Sys>
 struct ClusterMath {
 
@@ -53,12 +60,12 @@ private:
     bool init;
     std::vector<Geom> m_geometry;
 
-public:
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
     Scalar xmin, xmax, ymin, ymax, zmin, zmax;
-    typename Kernel::Vector3 midpoint, m_shift;
+    typename Kernel::Vector3 midpoint, m_shift, scale_dir;
     Scalar m_scale;
+    Scalemode mode;
 
 public:
     ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
@@ -248,9 +255,15 @@ public:
         m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
     };
 
-    void addGeometry(Geom g) { m_geometry.push_back(g); };
-    void clearGeometry() {m_geometry.clear(); };    
-    std::vector<Geom>& getGeometry() { return m_geometry;};
+    void addGeometry(Geom g) {
+        m_geometry.push_back(g);
+    };
+    void clearGeometry() {
+        m_geometry.clear();
+    };
+    std::vector<Geom>& getGeometry() {
+        return m_geometry;
+    };
 
 
     void mapClusterDownstreamGeometry(Cluster& cluster,
@@ -306,31 +319,64 @@ public:
         //only one geometry scale = 1 as the shift can ge to arbitrary positions in regard
         //to the point
         if(m_geometry.empty()) assert(false); //should never happen...
-        if(m_geometry.size() == 1) return 1.;
+        else if(m_geometry.size() == 1) {
+            midpoint  = m_geometry[0]->getPoint();
+            scale_dir = -midpoint;
+            scale_dir.normalize();
+            mode = details::one;
+            m_scale = 0.;
+            return 0.;
+        }
+        //two points: get the midpoint as shift and the new scale direction perpendicular to
+        //the connecting line
+        else if(m_geometry.size() == 2) {
+            typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
+            typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
 
-        //get the bonding box to get the center of points
-        typedef typename std::vector<Geom>::iterator iter;
-        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-            typename Kernel::Vector3 v = (*it)->getBigPoint();
-            xmin = (v(0)<xmin) ? v(0) : xmin;
-            xmax = (v(0)<xmax) ? xmax : v(0);
-            ymin = (v(1)<ymin) ? v(1) : ymin;
-            ymax = (v(1)<ymax) ? ymax : v(1);
-            zmin = (v(2)<zmin) ? v(2) : zmin;
-            zmax = (v(2)<zmax) ? zmax : v(2);
-        };
+            if(Kernel::isSame((p1-p2).norm(), 0)) {
+                midpoint  = p1;
+                scale_dir = midpoint;
+                scale_dir.normalize();
+                mode = details::one;
+                m_scale = 0.;
+                return 0.;
+            }
 
-        //now calculate the midpoint
-        midpoint << xmin+xmax, ymin+ymax, zmin+zmax;
-        midpoint /= 2.;
+            midpoint  = p1+(p2-p1)/2.;
+            scale_dir = (p2-p1).cross(midpoint);
+            scale_dir = scale_dir.cross(p2-p1);
+            scale_dir.normalize();
+            mode = details::two;
+            m_scale = (p2-p1).norm()/2.;
+        }
+        //three points: midpoint is the center of the connecting circle, scale direction is the m_geometry
+        //from midpoint perpendicualar to the plane
+        else if(m_geometry.size() == 3) {
+	    //TODO: change calculation style if the points don't form a triangle
+	    //possible: |d| != 0 && |e| != 0 && |(e/|e| - d/|d|)| != 0
+	  
+            typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
 
-        //the bounding box corner is the max allowed distance
-        typename Kernel::Vector3 max(xmax, ymax, zmax);
-        Scalar scale = (max-midpoint).norm();
+            typename Kernel::Vector3 d = m_geometry[1]->getPoint()-p1;
+            typename Kernel::Vector3 e = m_geometry[2]->getPoint()-p1;
+            typename Kernel::Vector3 f = p1+0.5*d;
+            typename Kernel::Vector3 g = p1+0.5*e;
+            scale_dir = d.cross(e);
 
-        //set the clusters scale for later calculations
-        m_scale = scale;
-        return scale;
+            typename Kernel::Matrix3 m;
+            m.row(0) = d.transpose();
+            m.row(1) = e.transpose();
+            m.row(2) = scale_dir.transpose();
+
+            typename Kernel::Vector3 res;
+            res << d.transpose()*f, e.transpose()*g, scale_dir.transpose()*p1;
+
+            midpoint =  m.colPivHouseholderQr().solve(res);
+            scale_dir.normalize();
+            mode = details::three;
+            m_scale = (midpoint-p1).norm();
+
+        }
     };
 
     void applyClusterScale(Scalar scale, bool isFixed) {
@@ -339,74 +385,38 @@ public:
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
             //scale needs to be set to have the correct translation value
-            setScale(maxfak/scale);
+            setScale(1./scale);
             //now calculate the scaled geometrys
             typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-                (*it)->recalculate(maxfak/scale);
+                (*it)->recalculate(1./scale);
             };
             return;
         }
 
-        //if only one point exists we extend the origin-point-line to match the scale
-        if(m_geometry.size()==1) {
-            typename Kernel::Vector3 v = m_geometry[0]->getBigPoint();
-            const Scalar fak = 1. - scale/v.norm();
+        //if this is our scale then just applie the midpoint as shift
+//         if(Kernel::isSame(scale, m_scale)) {
+//             setShift(midpoint);
+//             setScale(1./scale);    
+//             return;
+//         }
 
-            if(Kernel::isSame(v.norm(),0))
+        //if only one point exists we extend the origin-point-line to match the scale
+        if(mode==details::one) {
+            if(Kernel::isSame(midpoint.norm(),0))
                 m_shift << scale, 0, 0;
-            else m_shift = fak*v;
+            else m_shift = midpoint + scale*scale_dir;
 
             setShift(m_shift);
-            setScale(maxfak/scale);
-            return;
-        };
-
-
-        //if this is our scale then just applie the midpoint as shift
-        if(Kernel::isSame(scale, m_scale)) {
-            setShift(midpoint);
-            setScale(maxfak/scale);
-            return;
+            setScale(1./scale);
         }
-
-        //now it gets more complicated. the most outer point should be at
-        //distance scale. of course we need the smallest heigh at midpoint to add
-        //the offset to
-        Scalar xh = xmax-xmin;
-        Scalar yh = ymax-ymin;
-        Scalar zh = zmax-zmin;
-
-        if((xh<=yh) && (xh<=zh)) {
-            const Scalar a = std::sqrt(std::pow(ymax-midpoint(1),2)
-                                       +  std::pow(zmax-midpoint(2),2));
-            const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-            //applie extra heigh to midpoint
-            m_shift(0) += b-xh/2;
-        } else if((yh<xh) && (yh<zh)) {
-            const Scalar a = std::sqrt(std::pow(xmax-midpoint(0),2)
-                                       +  std::pow(zmax-midpoint(2),2));
-            const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-            //applie extra heigh to midpoint
-            m_shift(1) += b-yh/2;
-        } else {
-            const Scalar a = std::sqrt(std::pow(xmax-midpoint(0),2)
-                                       +  std::pow(ymax-midpoint(1),2));
-            const Scalar b = std::sqrt(std::pow(scale,2) - std::pow(a,2));
-
-            //applie extra heigh to midpoint
-            m_shift(2) += b-zh/2;
-        }
-
-        setShift(m_shift);
-        setScale(maxfak/scale);
-
-        std::stringstream str;
-        str<<"changed shift: "<<m_shift.transpose()<<std::endl<<std::endl;
-        //Base::Console().Message("%s",str.str().c_str());
-
+        //two and three points form a rectangular triangle, so same procedure
+        else if(mode==details::two || mode==details::three) {
+   
+            setShift(midpoint+scale_dir*std::sqrt(std::pow(scale,2) + std::pow(m_scale,2)));
+            setScale(1./scale);
+	  
+	} else std::cout<<"mode multiple"<<std::endl;
     };
 
 };

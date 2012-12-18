@@ -258,12 +258,8 @@ public:
         }
     }
 
-    typename Kernel::Vector3 getBigPoint() {
-        Eigen::Matrix<Scalar, Dimension, 1> v;
-        v.setZero();
-        for(int i=0; i<m_translations; i++)
-            v = (v.norm()>m_toplocal.template segment<Dimension>(i*Dimension).norm()) ? v : m_toplocal.template segment<Dimension>(i*Dimension);
-        return v;
+    typename Kernel::Vector3 getPoint() {
+        return m_toplocal.template segment<Dimension>(0);
     }
 
     //visitor to write the calculated value into the variant

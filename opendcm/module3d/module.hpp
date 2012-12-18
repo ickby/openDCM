@@ -269,7 +269,7 @@ struct Module3D {
                                 (*cit.first).second->template getClusterProperty<fix_prop>()
                                                                                                        );
                     }
-                    mes.Scaling = maxfak/sc;
+                    mes.Scaling = 1./sc;
                     //std::cout<<"if"<<std::endl;
                 }
                 //scaling needs to be 1 (all shifts are at all theri points)
