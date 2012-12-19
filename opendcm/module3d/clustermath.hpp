@@ -32,7 +32,8 @@ enum Scalemode {
     one,
     two,
     three,
-    multiple
+    multiple_inrange,
+    multiple_outrange
 };
 
 template<typename Sys>
@@ -64,7 +65,7 @@ private:
     //shift scale stuff
     Scalar xmin, xmax, ymin, ymax, zmin, zmax;
     typename Kernel::Vector3 midpoint, m_shift, scale_dir;
-    Scalar m_scale;
+    Scalar m_scale, added, dist;
     Scalemode mode;
 
 public:
@@ -352,9 +353,9 @@ public:
         //three points: midpoint is the center of the connecting circle, scale direction is the m_geometry
         //from midpoint perpendicualar to the plane
         else if(m_geometry.size() == 3) {
-	    //TODO: change calculation style if the points don't form a triangle
-	    //possible: |d| != 0 && |e| != 0 && |(e/|e| - d/|d|)| != 0
-	  
+            //TODO: change calculation style if the points don't form a triangle
+            //possible: |d| != 0 && |e| != 0 && |(e/|e| - d/|d|)| != 0
+
             typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
 
             typename Kernel::Vector3 d = m_geometry[1]->getPoint()-p1;
@@ -377,6 +378,102 @@ public:
             m_scale = (midpoint-p1).norm();
 
         }
+        //more than 3 points dont have a exakt solution. we search for a midpoint from which all points
+        //are at least maxfak*scale away, but not closer than minfak*scale
+        else {
+
+            //get the bonding box to get the center of points
+            typedef typename std::vector<Geom>::iterator iter;
+            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+                typename Kernel::Vector3 v = (*it)->getPoint();
+                xmin = (v(0)<xmin) ? v(0) : xmin;
+                xmax = (v(0)<xmax) ? xmax : v(0);
+                ymin = (v(1)<ymin) ? v(1) : ymin;
+                ymax = (v(1)<ymax) ? ymax : v(1);
+                zmin = (v(2)<zmin) ? v(2) : zmin;
+                zmax = (v(2)<zmax) ? zmax : v(2);
+            };
+            //now calculate the midpoint
+            midpoint << xmin+xmax, ymin+ymax, zmin+zmax;
+            midpoint /= 2.;
+
+
+            //get the scale direction an the resulting nearest point indexes
+            double xh = xmax-xmin;
+            double yh = ymax-ymin;
+            double zh = zmax-zmin;
+            int i1, i2, i3;
+            if((xh<=yh) && (xh<=zh)) {
+                i1=1;
+                i2=2;
+                i3=0;
+            } else if((yh<xh) && (yh<zh)) {
+                i1=0;
+                i2=2;
+                i3=1;
+            } else {
+                i1=0;
+                i2=1;
+                i3=2;
+            }
+            scale_dir.setZero();
+            scale_dir(i3) = 1;
+
+            double start=-1e10;
+	    dist = 1e10;
+	    
+            //get the closest point
+            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+                const typename Kernel::Vector3 v = (*it)->getPoint()-midpoint;
+                const double d = std::pow(v(i1),2) + std::pow(v(i2),2);
+                //if the current point is beneath the last closest one we need to check if
+                //the distance to the current point at the height of the last closest is smaller
+                //than the last short distance
+                if(start>v(i3)) {
+                    if(std::pow(start-v(i3),2) + std::pow(d,2)<dist) {
+                        dist = d;
+                        start = v(i3);
+                    };
+                } else {
+                    if(std::pow(v(i3)-start,2) + std::pow(dist,2)>d) {
+                        dist = d;
+                        start = v(i3);
+                    };
+                }
+            };
+
+            //recalc the midpoint and scale
+            midpoint(i3) += start;
+            const Eigen::Vector3d max(xmin,ymin,zmin);
+            m_scale = (midpoint-max).norm()/maxfak;
+
+            //check if the nearest point lies within the allowed scale range
+            if(std::sqrt(dist) < minfak*m_scale) {
+                //not in allowed range
+                const Eigen::Vector3d maxm = midpoint-max;
+                const double h = maxm(i3);
+                const double k = std::pow(minfak/maxfak,2);
+                double q = dist - (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
+                q /= 1.-k;
+
+                const double p = h*k/(1.-k);
+
+                if(std::pow(p,2)<q) assert(false);
+		
+		added = p + std::sqrt(std::pow(p,2)-q);
+                midpoint(i3) += added;
+                m_scale = (max-midpoint).norm()/maxfak;
+		
+		mode = multiple_outrange;
+
+            } else {
+                //we are in the range, let's get the perfect balanced scale value
+                m_scale = (std::sqrt(dist)+(max-midpoint).norm())/2.;
+		mode = multiple_inrange;
+            }
+
+        }
+        return m_scale;
     };
 
     void applyClusterScale(Scalar scale, bool isFixed) {
@@ -397,7 +494,7 @@ public:
         //if this is our scale then just applie the midpoint as shift
 //         if(Kernel::isSame(scale, m_scale)) {
 //             setShift(midpoint);
-//             setScale(1./scale);    
+//             setScale(1./scale);
 //             return;
 //         }
 
@@ -411,12 +508,18 @@ public:
             setScale(1./scale);
         }
         //two and three points form a rectangular triangle, so same procedure
-        else if(mode==details::two || mode==details::three) {
-   
-            setShift(midpoint+scale_dir*std::sqrt(std::pow(scale,2) + std::pow(m_scale,2)));
+        else if(mode==details::two || mode==details::three || mode == multiple_inrange) {
+
+            setShift(midpoint+scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2)));
             setScale(1./scale);
+
+        } else {
 	  
-	} else std::cout<<"mode multiple"<<std::endl;
+	  Scalar b =  std::sqrt(std::pow(minfak*scale,2) - std::pow(dist,2));
+	  setShift(midpoint+scale_dir*(b-added));
+          setScale(1./scale);
+	  std::cout<<"mode multiple"<<std::endl;
+	}
     };
 
 };
@@ -425,3 +528,4 @@ public:
 
 
 #endif //GCM_CLUSTERMATH_H
+
