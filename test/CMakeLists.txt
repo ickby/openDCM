@@ -7,10 +7,11 @@ set(framework_SRC framework.cpp)
 set(test_SRC  clustergraph.cpp
 	      #geometry.cpp
 	      #sys_and_obj.cpp
+	      clustermath.cpp
 	      #module3d.cpp
 	      #kernel.cpp
 	      #dof.cpp
-	      modulepart.cpp
+	      #modulepart.cpp
 )
 
 add_library(framework ${framework_SRC})
