@@ -125,6 +125,7 @@ public:
         zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
+        dist=1e10;
     };
     void initFixMaps() {
         //when fixed no maps exist
@@ -141,6 +142,7 @@ public:
         zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
+        dist=1e10;
     };
 
     typename Kernel::Quaternion& getQuaternion() {
@@ -418,60 +420,44 @@ public:
             }
             scale_dir.setZero();
             scale_dir(i3) = 1;
-
-            double start=-1e10;
-            dist = 1e10;
-
-            std::cout<<std::endl;
-            //get the closest point
-            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-                const typename Kernel::Vector3 v = (*it)->getPoint()-midpoint;
-                std::cout<<v.transpose()<<std::endl;
-                const double d = std::pow(v(i1),2) + std::pow(v(i2),2);
-                //if the current point is beneath the last closest one we need to check if
-                //the distance to the current point at the height of the last closest is smaller
-                //than the last short distance
-                if(start>v(i3)) {
-                    if((std::pow(start-v(i3),2) + d) < dist) {
-                        dist = d;
-                        start = v(i3);
-                    };
-                } else {
-                    if((std::pow(v(i3)-start,2) + dist) > d) {
-                        dist = d;
-                        start = v(i3);
-                    };
-                }
-            };
-
-            //recalc the midpoint and scale
-            midpoint(i3) += start;
             const Eigen::Vector3d max(xmin,ymin,zmin);
             m_scale = (midpoint-max).norm()/maxfak;
+            mode = multiple_inrange;
 
-            //check if the nearest point lies within the allowed scale range
-            if(std::sqrt(dist) < minfak*m_scale) {
-                //not in allowed range
-                const Eigen::Vector3d maxm = max-midpoint;
-                const double h = std::abs(maxm(i3));
-                const double k = std::pow(minfak/maxfak,2);
-                double q = dist - (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
-                q /= 1.-k;
+            Eigen::Vector3d maxm = max-midpoint;
+            Scalar minscale = 1e10;
 
-                const double p = h*k/(1.-k);
+            //get the closest point
+            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
 
-                if(std::pow(p,2)<q) assert(false);
+                const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
+                if(point.norm()<minfak*m_scale) {
 
-                added = p + std::sqrt(std::pow(p,2)-q);
-                midpoint(i3) += added;
-                m_scale = (max-midpoint).norm()/maxfak;
+                    const double h = std::abs(point(i3)-maxm(i3));
+                    const double k = std::pow(minfak/maxfak,2);
+                    double q = std::pow(point(i1),2) + std::pow(point(i2),2);
+                    q -= (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
+                    q /= 1.-k;
 
-                mode = multiple_outrange;
+                    const double p = h*k/(1.-k);
 
-            } else {
+                    if(std::pow(p,2)<q) assert(false);
+
+                    added = p + std::sqrt(std::pow(p,2)-q);
+                    midpoint(i3) += added;
+                    maxm = max-midpoint;
+                    m_scale = maxm.norm()/maxfak;
+
+                    mode = multiple_outrange;
+                } else if(point.norm()<minscale) {
+                    minscale = point.norm();
+                }
+
+            };
+
+            if(mode==multiple_inrange) {
                 //we are in the range, let's get the perfect balanced scale value
-                m_scale = (std::sqrt(dist)+(max-midpoint).norm())/2.;
-                mode = multiple_inrange;
+                m_scale = (minscale+maxm.norm())/2.;
             }
 
         }
