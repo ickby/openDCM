@@ -26,6 +26,7 @@
 #define maxfak 1.2
 #define minfak 0.8
 
+namespace dcm {
 namespace details {
 
 enum Scalemode {
@@ -39,7 +40,7 @@ enum Scalemode {
 template<typename Sys>
 struct ClusterMath {
 
-private:
+public:
     typedef typename system_traits<Sys>::Kernel Kernel;
     typedef typename system_traits<Sys>::Cluster Cluster;
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
@@ -336,7 +337,7 @@ public:
 
             if(Kernel::isSame((p1-p2).norm(), 0)) {
                 midpoint  = p1;
-                scale_dir = midpoint;
+                scale_dir = -midpoint;
                 scale_dir.normalize();
                 mode = details::one;
                 m_scale = 0.;
@@ -369,8 +370,7 @@ public:
             m.row(1) = e.transpose();
             m.row(2) = scale_dir.transpose();
 
-            typename Kernel::Vector3 res;
-            res << d.transpose()*f, e.transpose()*g, scale_dir.transpose()*p1;
+            typename Kernel::Vector3 res(d.transpose()*f, e.transpose()*g, scale_dir.transpose()*p1);
 
             midpoint =  m.colPivHouseholderQr().solve(res);
             scale_dir.normalize();
@@ -420,22 +420,24 @@ public:
             scale_dir(i3) = 1;
 
             double start=-1e10;
-	    dist = 1e10;
-	    
+            dist = 1e10;
+
+            std::cout<<std::endl;
             //get the closest point
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
                 const typename Kernel::Vector3 v = (*it)->getPoint()-midpoint;
+                std::cout<<v.transpose()<<std::endl;
                 const double d = std::pow(v(i1),2) + std::pow(v(i2),2);
                 //if the current point is beneath the last closest one we need to check if
                 //the distance to the current point at the height of the last closest is smaller
                 //than the last short distance
                 if(start>v(i3)) {
-                    if(std::pow(start-v(i3),2) + std::pow(d,2)<dist) {
+                    if((std::pow(start-v(i3),2) + d) < dist) {
                         dist = d;
                         start = v(i3);
                     };
                 } else {
-                    if(std::pow(v(i3)-start,2) + std::pow(dist,2)>d) {
+                    if((std::pow(v(i3)-start,2) + dist) > d) {
                         dist = d;
                         start = v(i3);
                     };
@@ -450,8 +452,8 @@ public:
             //check if the nearest point lies within the allowed scale range
             if(std::sqrt(dist) < minfak*m_scale) {
                 //not in allowed range
-                const Eigen::Vector3d maxm = midpoint-max;
-                const double h = maxm(i3);
+                const Eigen::Vector3d maxm = max-midpoint;
+                const double h = std::abs(maxm(i3));
                 const double k = std::pow(minfak/maxfak,2);
                 double q = dist - (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
                 q /= 1.-k;
@@ -459,17 +461,17 @@ public:
                 const double p = h*k/(1.-k);
 
                 if(std::pow(p,2)<q) assert(false);
-		
-		added = p + std::sqrt(std::pow(p,2)-q);
+
+                added = p + std::sqrt(std::pow(p,2)-q);
                 midpoint(i3) += added;
                 m_scale = (max-midpoint).norm()/maxfak;
-		
-		mode = multiple_outrange;
+
+                mode = multiple_outrange;
 
             } else {
                 //we are in the range, let's get the perfect balanced scale value
                 m_scale = (std::sqrt(dist)+(max-midpoint).norm())/2.;
-		mode = multiple_inrange;
+                mode = multiple_inrange;
             }
 
         }
@@ -514,17 +516,18 @@ public:
             setScale(1./scale);
 
         } else {
-	  
-	  Scalar b =  std::sqrt(std::pow(minfak*scale,2) - std::pow(dist,2));
-	  setShift(midpoint+scale_dir*(b-added));
-          setScale(1./scale);
-	  std::cout<<"mode multiple"<<std::endl;
-	}
+
+            Scalar b =  std::sqrt(std::pow(minfak*scale,2) - std::pow(dist,2));
+            setShift(midpoint+scale_dir*(b-added));
+            setScale(1./scale);
+            std::cout<<"mode multiple"<<std::endl;
+        }
     };
 
 };
 
 }//details
+}//dcm
 
 
 #endif //GCM_CLUSTERMATH_H
