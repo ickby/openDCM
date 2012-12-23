@@ -21,7 +21,6 @@
 #define DCM_MODULEPART_H
 
 #include "modulePart/geometry.hpp"
-#include "modulePart/constraint.hpp"
 #include "modulePart/module.hpp"
 
 #endif //DCM_MODULEPART_H
