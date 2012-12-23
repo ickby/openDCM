@@ -75,6 +75,17 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
                 BOOST_REQUIRE_LE(val / scale , 1.2111);
             };
         } else BOOST_REQUIRE(scale==0);
+	
+	//see if we can set arbitrary bigger scale values. no hart checking as currently the alogrithm
+	//is not perfect
+	math.applyClusterScale(2.*scale, false);
+        if(i!=1) {
+            for(int j=0; j<i; j++) {
+                double val = (math.getGeometry()[j]->getPoint() - math.m_shift).norm();
+                BOOST_CHECK_GE(val / (2.*scale) , 0.7999);
+                BOOST_CHECK_LE(val / (2.*scale) , 1.2111);
+            };
+        } else BOOST_REQUIRE(scale==0);
 
         math.clearGeometry();
         math.initFixMaps();

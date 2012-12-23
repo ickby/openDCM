@@ -70,9 +70,14 @@ struct distance {
 
 struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
+  
+}//dcm
+
 //needs to be here to access m3d struct 
 #include "clustermath.hpp"
 
+namespace dcm {
+  
 template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
 

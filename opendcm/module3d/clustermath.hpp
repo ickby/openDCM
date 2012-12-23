@@ -65,8 +65,8 @@ public:
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
     Scalar xmin, xmax, ymin, ymax, zmin, zmax;
-    typename Kernel::Vector3 midpoint, m_shift, scale_dir;
-    Scalar m_scale, added, dist;
+    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm;
+    Scalar m_scale;
     Scalemode mode;
 
 public:
@@ -125,7 +125,6 @@ public:
         zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
-        dist=1e10;
     };
     void initFixMaps() {
         //when fixed no maps exist
@@ -142,7 +141,6 @@ public:
         zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
-        dist=1e10;
     };
 
     typename Kernel::Quaternion& getQuaternion() {
@@ -424,7 +422,7 @@ public:
             m_scale = (midpoint-max).norm()/maxfak;
             mode = multiple_inrange;
 
-            Eigen::Vector3d maxm = max-midpoint;
+            maxm = max-midpoint;
             Scalar minscale = 1e10;
 
             //get the closest point
@@ -443,17 +441,16 @@ public:
 
                     if(std::pow(p,2)<q) assert(false);
 
-                    added = p + std::sqrt(std::pow(p,2)-q);
-                    midpoint(i3) += added;
+                    midpoint(i3) += p + std::sqrt(std::pow(p,2)-q);
                     maxm = max-midpoint;
                     m_scale = maxm.norm()/maxfak;
 
                     mode = multiple_outrange;
+                    minm = (*it)->getPoint()-midpoint;
                 } else if(point.norm()<minscale) {
                     minscale = point.norm();
                 }
-
-            };
+            }
 
             if(mode==multiple_inrange) {
                 //we are in the range, let's get the perfect balanced scale value
@@ -480,11 +477,11 @@ public:
         }
 
         //if this is our scale then just applie the midpoint as shift
-//         if(Kernel::isSame(scale, m_scale)) {
-//             setShift(midpoint);
-//             setScale(1./scale);
-//             return;
-//         }
+        if(Kernel::isSame(scale, m_scale)) {
+            setShift(midpoint);
+            setScale(1./scale);
+            return;
+        }
 
         //if only one point exists we extend the origin-point-line to match the scale
         if(mode==details::one) {
@@ -496,17 +493,59 @@ public:
             setScale(1./scale);
         }
         //two and three points form a rectangular triangle, so same procedure
-        else if(mode==details::two || mode==details::three || mode == multiple_inrange) {
+        else if(mode==details::two || mode==details::three) {
 
             setShift(midpoint+scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2)));
             setScale(1./scale);
+        }
+        //multiple points
+        else if(mode==details::multiple_outrange) {
 
+            if(scale_dir(0)) {
+                Scalar d = std::pow(maxm(1),2) + std::pow(maxm(2),2);
+                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                midpoint(0) += maxm(0) + h;
+            } else if(scale_dir(1)) {
+                Scalar d = std::pow(maxm(0),2) + std::pow(maxm(2),2);
+                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                midpoint(1) += maxm(1) + h;
+            } else {
+                Scalar d = std::pow(maxm(0),2) + std::pow(maxm(1),2);
+                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                midpoint(2) += maxm(2) + h;
+            }
+            setShift(midpoint);
+            setScale(1./scale);
         } else {
 
-            Scalar b =  std::sqrt(std::pow(minfak*scale,2) - std::pow(dist,2));
-            setShift(midpoint+scale_dir*(b-added));
+	    //TODO: it's possible that for this case we get too far away from the outer points.
+	    //	    The m_scale for "midpoint outside the bounding box" may be bigger than the 
+	    //      scale to applie, so it results in an error.
+            //get the closest point
+            const Eigen::Vector3d max(xmin,ymin,zmin);
+	    typedef typename std::vector<Geom>::iterator iter;
+            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+
+                const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
+                if(point.norm()<minfak*scale) {
+
+                    if(scale_dir(0)) {
+                        Scalar d = std::pow(point(1),2) + std::pow(point(2),2);
+                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        midpoint(0) += point(0) + h;
+                    } else if(scale_dir(1)) {
+                        Scalar d = std::pow(point(0),2) + std::pow(point(2),2);
+                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        midpoint(1) += point(1) + h;
+                    } else {
+                        Scalar d = std::pow(point(0),2) + std::pow(point(1),2);
+                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        midpoint(2) += point(2) + h;
+                    }
+                }
+            }
+            setShift(midpoint);
             setScale(1./scale);
-            std::cout<<"mode multiple"<<std::endl;
         }
     };
 
@@ -517,4 +556,7 @@ public:
 
 
 #endif //GCM_CLUSTERMATH_H
+
+
+
 
