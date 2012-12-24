@@ -33,8 +33,9 @@ struct Distance {
 
     Distance() : value(0) {};
 
-    Distance& operator=(const option_type& val) {
+    Distance& operator=(const option_type val) {
         value = val;
+	return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
@@ -76,8 +77,9 @@ struct Parallel {
 
     Parallel() : value(Both) {};
 
-    Parallel& operator=(const option_type& val) {
+    Parallel& operator=(const option_type val) {
         value = val;
+	return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
@@ -117,8 +119,9 @@ struct Angle {
 
     Angle() : value(0) {};
 
-    Parallel& operator=(const option_type& val) {
+    Angle& operator=(const option_type val) {
         value = val;
+	return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
