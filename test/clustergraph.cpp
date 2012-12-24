@@ -26,7 +26,6 @@
 
 #include <iostream>
 
-#define BOOST_TEST_MODULE openGCM
 #include <boost/test/unit_test.hpp>
 
 using namespace dcm;
@@ -171,8 +170,8 @@ BOOST_AUTO_TEST_CASE(object_handling) {
     BOOST_CHECK(o2 == g1.getObject<test_object2>(e1));
 
     BOOST_CHECK(o2 == *g1.getObjects<test_object2>(e1).first);
-    BOOST_CHECK(*g1.getObjects<test_object2>(e1).first != *g1.getObjects<test_object2>(e1).second);
-    BOOST_CHECK(*(++g1.getObjects<test_object2>(e1).first) == *g1.getObjects<test_object2>(e1).second);
+    BOOST_CHECK(g1.getObjects<test_object2>(e1).first != g1.getObjects<test_object2>(e1).second);
+    BOOST_CHECK(++g1.getObjects<test_object2>(e1).first == g1.getObjects<test_object2>(e1).second);
 }
 
 BOOST_AUTO_TEST_CASE(property_handling) {
