@@ -62,6 +62,9 @@ struct IDgen {
     IDgen() {
         counter = new universalID(10);
     };
+    ~IDgen() {
+      delete counter;
+    };
     universalID generate() {
         return ++(*counter);
     };
