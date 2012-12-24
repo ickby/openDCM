@@ -389,25 +389,37 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     BOOST_CHECK(boost::num_vertices(sub3.first) == 1);
 
     //nc to sub1 should have one global edge
-    LocalEdge et4 = g.edge(nc, sub1.second).first;
+    std::pair<LocalEdge, bool> res = g.edge(nc, sub1.second);
+    BOOST_REQUIRE(res.second);
+    
+    LocalEdge et4 = res.first;
     it = g.getGlobalEdges(et4);
     BOOST_CHECK(*it.first == e34);
     BOOST_CHECK(++it.first == it.second);
 
     //nc to sub3 should have one global edge
-    LocalEdge et5 = g.edge(nc, sub3.second).first;
+    res = g.edge(nc, sub3.second);
+    BOOST_REQUIRE(res.second);
+    
+    LocalEdge et5 = res.first;
     it = g.getGlobalEdges(et5);
     BOOST_CHECK(*it.first == e45);
     BOOST_CHECK(++it.first == it.second);
 
     //sub1 to sub3 should have one global edge
-    LocalEdge et6 = g.edge(sub1.second, sub3.second).first;
+    res = g.edge(sub1.second, sub3.second);
+    BOOST_REQUIRE(res.second);
+    
+    LocalEdge et6 = res.first;
     it = g.getGlobalEdges(et6);
     BOOST_CHECK(*it.first == e35);
     BOOST_CHECK(++it.first == it.second);
 
     //v2 to sub2 should have one global edge
-    LocalEdge et7 = g.edge(fusion::at_c<0>(v2), sub2.second).first;
+    res = g.edge(fusion::at_c<0>(v2), sub2.second);
+    BOOST_REQUIRE(res.second);
+    
+    LocalEdge et7 = res.first;
     it = g.getGlobalEdges(et7);
     BOOST_CHECK(*it.first == e24);
     BOOST_CHECK(++it.first == it.second);
