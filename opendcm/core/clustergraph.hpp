@@ -63,7 +63,7 @@ struct IDgen {
         counter = new universalID(10);
     };
     ~IDgen() {
-      delete counter;
+        delete counter;
     };
     universalID generate() {
         return ++(*counter);
@@ -211,12 +211,10 @@ public:
 
     ~ClusterGraph() {
 
-        if(!m_parent) {
-            for(typename ClusterMap::iterator i = m_clusters.begin(); i != m_clusters.end(); ++i)  {
-                delete(*i).second;
-            }
+        //delete all child cluster
+        for(typename ClusterMap::iterator i = m_clusters.begin(); i != m_clusters.end(); ++i)  {
+            delete(*i).second;
         }
-        //TODO: if parent exists all vertices have to be transfered to it;
     };
 
 
@@ -296,7 +294,7 @@ public:
     ClusterGraph&	 getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return *m_clusters[v];
-	//TODO:throw if not a cluster
+        //TODO:throw if not a cluster
     };
 
     LocalVertex		getClusterVertex(ClusterGraph& g) {
@@ -404,7 +402,7 @@ public:
         bool d1,d2,d3;
         boost::tie(v1,d1) = getContainingVertex(source);
         boost::tie(v2,d2) = getContainingVertex(target);
-	
+
         //if one vertex is not accessible from here this function fails
         if(!(d1&&d2)) return fusion::make_vector(LocalEdge(), GlobalEdge(), false, false);
 
