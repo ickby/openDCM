@@ -21,7 +21,7 @@
 #define GCM_CLUSTERMATH_H
 
 #include <vector>
-#include "module.hpp"
+#include <math.h>
 
 #define maxfak 1.2
 #define minfak 0.8
