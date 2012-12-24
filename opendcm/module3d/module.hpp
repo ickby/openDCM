@@ -70,14 +70,14 @@ struct distance {
 
 struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
-  
+
 }//dcm
 
-//needs to be here to access m3d struct 
+//needs to be here to access m3d struct
 #include "clustermath.hpp"
 
 namespace dcm {
-  
+
 template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
 
@@ -430,7 +430,8 @@ struct Module3D {
                 res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
                                                 second->template getProperty<vertex_prop>());
                 if(!fusion::at_c<2>(res))  {
-                    return Cons(); //TODO: throw
+                    Cons rc;
+                    return rc; //TODO: throw
                 };
                 m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
                 //add the coresbondig edge to the constraint
@@ -498,6 +499,7 @@ struct Module3D {
                 c->setIdentifier(id);
                 return c;
             };
+
 
             bool hasGeometry3D(Identifier id) {
                 if(getGeometry3D(id)) return true;

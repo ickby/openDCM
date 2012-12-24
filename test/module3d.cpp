@@ -253,8 +253,8 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
 
     geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
     geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
-
-    consid_ptr c1 = sys.createConstraint3D("constraint", g1, g2, distance=5);
+    
+    consid_ptr c1 = sys.createConstraint3D("constraint", g1, g2, parallel=dcm::Same);
 
     BOOST_CHECK(!g1->getIdentifier().compare("g1"));
     BOOST_CHECK(!g2->getIdentifier().compare("g2"));
