@@ -108,7 +108,9 @@ public:
         return m_translation;
     };
     void initMaps() {
-        const Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
+        Scalar s;
+        if(m_quaternion.w() < 1.) s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
+        else s = 0;
         m_normQ = m_quaternion.vec()*s;
         m_translation = m_original_translation;
         init = true;
@@ -416,8 +418,8 @@ public:
 
                 mode = multiple_outrange;
                 minm = (*it)->getPoint()-midpoint;
-		
-		it = m_geometry.begin();
+
+                it = m_geometry.begin();
             } else if(point.norm()<minscale) {
                 minscale = point.norm();
             }
