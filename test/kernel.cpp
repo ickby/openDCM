@@ -35,14 +35,14 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 
     typename kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
 
-    EqnSystem() : Base(9,0,0,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
+    EqnSystem() : Base(9,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
     eqn1(NULL,0,DS(0,0)), eqn2(NULL,0,DS(0,0)), eqn3(NULL,0,DS(0,0)), e1_dv1(NULL,0,DS(0,0)),
     e1_dv2(NULL,0,DS(0,0)), e2_dv2(NULL,0,DS(0,0)), e2_dv3(NULL,0,DS(0,0)),
     e3_dv3(NULL,0,DS(0,0)), e3_dv1(NULL,0,DS(0,0)) {
 
-        int o1 = setParameterMap(dcm::Anything,3,v1);
-        int o2 = setParameterMap(dcm::Anything,3,v2);
-        int o3 = setParameterMap(dcm::Anything,3,v3);
+        int o1 = setParameterMap(3,v1);
+        int o2 = setParameterMap(3,v2);
+        int o3 = setParameterMap(3,v3);
 
         int eq1 = setResidualMap(eqn1);
         int eq2 = setResidualMap(eqn2);

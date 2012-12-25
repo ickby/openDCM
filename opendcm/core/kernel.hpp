@@ -34,12 +34,6 @@ namespace dcm {
 
 namespace E = Eigen;
 
-enum ParameterType {
-    Rotation,
-    Translation,
-    Anything
-};
-
 template<typename Kernel>
 struct Dogleg {
 
@@ -90,24 +84,22 @@ struct Dogleg {
     bool solve(typename Kernel::MappedEquationSystem& sys) {
         //std::cout<<"start solving"<<std::endl;
         clock_t start = clock();
-	clock_t inc_rec = clock();
+        clock_t inc_rec = clock();
 
         if(!sys.isValid()) return false;
 
-        int npt = sys.m_params+sys.m_trans_params;
-        int npr = sys.m_rot_params;
         bool translate = true;
 
         //Base::Console().Message("\nparams: %d, rot_params: %d, trans_params: %d\n", sys.m_params, sys.m_rot_params, sys.m_trans_params);
         typename Kernel::Vector h_dl, F_old(sys.m_eqns), g(sys.m_eqns);
-        typename Kernel::Matrix J_old(sys.m_eqns, npt+npr);
+        typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
         sys.recalculate();
-	
- 	std::stringstream s;
-                 s<<"initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-                 s<<"residual: "<<sys.Residual.transpose()<<std::endl;
-                // Base::Console().Message("%s", s.str().c_str());
+
+        std::stringstream s;
+        s<<"initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
+        s<<"residual: "<<sys.Residual.transpose()<<std::endl;
+        // Base::Console().Message("%s", s.str().c_str());
 
         number_type err = sys.Residual.norm();
 
@@ -159,11 +151,11 @@ struct Dogleg {
 
             // get the new values
             sys.Parameter += h_dl;
-	    
-	    clock_t start_rec = clock();
+
+            clock_t start_rec = clock();
             sys.recalculate();
-	    clock_t end_rec = clock();
-	    inc_rec += end_rec-start_rec;
+            clock_t end_rec = clock();
+            inc_rec += end_rec-start_rec;
 
             //calculate the translation update ratio
             err_new = sys.Residual.norm();
@@ -179,7 +171,7 @@ struct Dogleg {
                 delta = delta/nu;
                 nu = 2*nu;
             }
-            
+
             //Base::Console().Message("delta: %e, error: %e\n", delta, err);
 
 
@@ -211,21 +203,21 @@ struct Dogleg {
                 sys.Residual = F_old;
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
-		unused++;
+                unused++;
             }
 
-           iter++;
+            iter++;
         }
-        
+
         std::stringstream ss;
         ss<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-       //Base::Console().Message("%s", ss.str().c_str());
-		 
-	clock_t end = clock();
+        //Base::Console().Message("%s", ss.str().c_str());
+
+        clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
-	double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
+        double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
         //Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, recalc time %f\n",
-         //                       err, stop, iter, ms, ms_rec);
+        //                       err, stop, iter, ms, ms_rec);
         //std::cout<<"DONE solving"<<std::endl;
 
         if(stop == 1) return true;
@@ -267,51 +259,32 @@ struct Kernel {
         Matrix Jacobi;
         Vector Parameter;
         Vector Residual;
-	number_type Scaling;
-        int m_params, m_rot_params, m_trans_params, m_eqns; //total amount
-        int m_rot_offset, m_trans_offset, m_param_offset, m_eqn_offset;   //current positions while creation
+        number_type Scaling;
+        int m_params, m_eqns; //total amount
+        int m_param_offset, m_eqn_offset;   //current positions while creation
 
-        MappedEquationSystem(int params, int rotparams, int transparams, int equations)
-            : Jacobi(equations, params+rotparams+transparams),
-              Parameter(params+rotparams+transparams), Residual(equations),
-              m_params(params), m_rot_params(rotparams), m_trans_params(transparams), m_eqns(equations) {
-            m_rot_offset = params+transparams;
-            m_trans_offset = params;
+        MappedEquationSystem(int params, int equations)
+            : Jacobi(equations, params),
+              Parameter(params), Residual(equations),
+              m_params(params), m_eqns(equations) {
+
             m_param_offset = 0;
             m_eqn_offset = 0;
 
             Jacobi.setZero(); //important as some places are never written
         };
 
-        int setParameterMap(ParameterType t, int number, VectorMap& map) {
-            if(t==Anything) {
-                new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
-                m_param_offset += number;
-                return m_param_offset-number;
-            } else if(t==Rotation) {
-                new(&map) VectorMap(&Parameter(m_rot_offset), number, DynStride(1,1));
-                m_rot_offset += number;
-                return m_rot_offset-number;
-            } else if(t==Translation) {
-                new(&map) VectorMap(&Parameter(m_trans_offset), number, DynStride(1,1));
-                m_trans_offset += number;
-                return m_trans_offset-number;
-            }
+        int setParameterMap(int number, VectorMap& map) {
+
+            new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
+            m_param_offset += number;
+            return m_param_offset-number;
         };
-        int setParameterMap(ParameterType t, Vector3Map& map) {
-            if(t==Anything) {
-                new(&map) Vector3Map(&Parameter(m_param_offset));
-                m_param_offset += 3;
-                return m_param_offset-3;
-            } else if(t==Rotation) {
-                new(&map) Vector3Map(&Parameter(m_rot_offset));
-                m_rot_offset += 3;
-                return m_rot_offset-3;
-            } else if(t==Translation) {
-                new(&map) Vector3Map(&Parameter(m_trans_offset));
-                m_trans_offset += 3;
-                return m_trans_offset-3;
-            }
+        int setParameterMap(Vector3Map& map) {
+
+            new(&map) Vector3Map(&Parameter(m_param_offset));
+            m_param_offset += 3;
+            return m_param_offset-3;
         };
         int setResidualMap(VectorMap& map) {
             new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
@@ -325,7 +298,7 @@ struct Kernel {
         };
 
         bool isValid() {
-            if(!(m_params+m_trans_params+m_rot_params) || !m_eqns) return false;
+            if(!m_params || !m_eqns) return false;
             return true;
         };
 
@@ -340,7 +313,7 @@ struct Kernel {
         return ((p1-p2).squaredNorm() < 0.001);
     }
     static bool isSame(number_type t1, number_type t2) {
-        return ( std::abs(t1-t2) < 0.001);
+        return (std::abs(t1-t2) < 0.001);
     }
     template <typename DerivedA,typename DerivedB>
     static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {

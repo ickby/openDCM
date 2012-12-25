@@ -96,8 +96,8 @@ struct Module3D {
             typedef typename system_traits<Sys>::Cluster Cluster;
             Cluster& m_cluster;
 
-            MES(Cluster& cl, int par, int rpar, int tpar, int eqn)
-                : system_traits<Sys>::Kernel::MappedEquationSystem(par, rpar, tpar, eqn),
+            MES(Cluster& cl, int par, int eqn)
+                : system_traits<Sys>::Kernel::MappedEquationSystem(par, eqn),
                   m_cluster(cl) {};
 
             virtual void recalculate() {
@@ -164,7 +164,7 @@ struct Module3D {
                         solveCluster(*(*cit.first).second, sys);
                 }
 
-                int params=0, trans_params=0, rot_params=0, constraints=0;
+                int params=0, constraints=0;
                 typename Kernel::number_type scale = 1;
 
                 //get the ammount of parameters and constraint equations we need
@@ -175,8 +175,7 @@ struct Module3D {
                     //when cluster and not fixed it has trans and rot parameter
                     if(cluster.isCluster(*it.first)) {
                         if(!cluster.template getSubclusterProperty<fix_prop>(*it.first)) {
-                            trans_params += 3;
-                            rot_params += 3;
+                            params += 6;
                         }
                     } else {
                         params += cluster.template getObject<Geometry3D>(*it.first)->m_parameterCount;
@@ -196,7 +195,7 @@ struct Module3D {
 
                 //initialise the system with now known size
                 //std::cout<<"constraints: "<<constraints<<", params: "<<params+rot_params+trans_params<<std::endl;
-                MES mes(cluster, params, rot_params, trans_params, constraints);
+                MES mes(cluster, params, constraints);
 
                 //iterate all geometrys again and set the needed maps
                 it = boost::vertices(cluster);
@@ -208,12 +207,12 @@ struct Module3D {
                         //only get maps and propagate downstream if not fixed
                         if(!c.template getClusterProperty<fix_prop>()) {
                             //set norm Quaternion as map to the parameter vector
-                            int offset = mes.setParameterMap(Rotation, cm.getNormQuaternionMap());
+                            int offset = mes.setParameterMap(cm.getNormQuaternionMap());
                             //set translation as map to the parameter vector
-                            int transoffset = mes.setParameterMap(Translation, cm.getTranslationMap());
+                            mes.setParameterMap(cm.getTranslationMap());
                             //write initail values to the parameter maps
                             //remember the parameter offset as all downstream geometry must use this offset
-                            cm.setParameterOffset(offset, transoffset);
+                            cm.setParameterOffset(offset);
                             //wirte initial values
                             cm.initMaps();
                         } else cm.initFixMaps();
@@ -231,8 +230,8 @@ struct Module3D {
 
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        int offset = mes.setParameterMap(Anything, g->m_parameterCount, g->getParameterMap());
-                        g->m_parameter_offset = offset;
+                        int offset = mes.setParameterMap(g->m_parameterCount, g->getParameterMap());
+                        g->m_offset = offset;
                         //init the parametermap with initial values
                         g->initMap();
                     }

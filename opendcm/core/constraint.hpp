@@ -120,12 +120,11 @@ protected:
     template<typename Equation>
     struct EquationSet {
         EquationSet() : m_diff_first(NULL,0,DS(0,0)), m_diff_second(NULL,0,DS(0,0)),
-            m_rot_diff_first(NULL,0,DS(0,0)), m_rot_diff_second(NULL,0,DS(0,0)),
-            m_trans_diff_first(NULL,0,DS(0,0)), m_trans_diff_second(NULL,0,DS(0,0)), m_residual(NULL,0,DS(0,0)) {};
+            m_residual(NULL,0,DS(0,0)) {};
 
         Equation m_eq;
-        typename Kernel::VectorMap m_rot_diff_first, m_trans_diff_first, m_diff_first; //first geometry diff
-        typename Kernel::VectorMap m_rot_diff_second, m_trans_diff_second, m_diff_second; //second geometry diff
+        typename Kernel::VectorMap m_diff_first; //first geometry diff
+        typename Kernel::VectorMap m_diff_second; //second geometry diff
         typename Kernel::VectorMap m_residual;
     };
 
@@ -202,16 +201,10 @@ protected:
                         if(!first->isClusterFixed()) {
 
                             //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                            for(int i=0; i<3; i++) {
+                            for(int i=0; i<6; i++) {
                                 typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                                val.m_rot_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
                                                           second->m_parameter, block);
-                            }
-                            //now the translation stuff
-                            for(int i=3; i<6; i++) {
-                                typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                                val.m_trans_diff_first(i-3) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                              second->m_parameter, block);
                             }
                         }
                     } else {
@@ -224,16 +217,10 @@ protected:
                         if(!second->isClusterFixed()) {
 
                             //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                            for(int i=0; i<3; i++) {
+                            for(int i=0; i<6; i++) {
                                 typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                                val.m_rot_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                                val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
                                                            second->m_parameter, block);
-                            }
-                            //translational gradients
-                            for(int i=3; i<6; i++) {
-                                typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                                val.m_trans_diff_second(i-3) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                               second->m_parameter, block);
                             }
                         }
                     } else {
@@ -259,18 +246,16 @@ protected:
                 int equation = mes.setResidualMap(val.m_residual);
                 if(first->getClusterMode()) {
                     if(!first->isClusterFixed()) {
-                        mes.setJacobiMap(equation, first->m_trans_offset, 3, val.m_trans_diff_first);
-                        mes.setJacobiMap(equation, first->m_rot_offset, 3, val.m_rot_diff_first);
+                        mes.setJacobiMap(equation, first->m_offset, 6, val.m_diff_first);
                     }
-                } else mes.setJacobiMap(equation, first->m_parameter_offset, first->m_parameterCount, val.m_diff_first);
+                } else mes.setJacobiMap(equation, first->m_offset, first->m_parameterCount, val.m_diff_first);
 
 
                 if(second->getClusterMode()) {
                     if(!second->isClusterFixed()) {
-                        mes.setJacobiMap(equation, second->m_trans_offset, 3, val.m_trans_diff_second);
-                        mes.setJacobiMap(equation, second->m_rot_offset, 3, val.m_rot_diff_second);
+                        mes.setJacobiMap(equation, second->m_offset, 6, val.m_diff_second);
                     }
-                } else mes.setJacobiMap(equation, second->m_parameter_offset, first->m_parameterCount, val.m_diff_second);
+                } else mes.setJacobiMap(equation, second->m_offset, first->m_parameterCount, val.m_diff_second);
             };
         };
 

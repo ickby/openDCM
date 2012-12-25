@@ -58,7 +58,7 @@ public:
     typename Kernel::Vector3Map	m_normQ;
     typename Kernel::Vector3 	m_origNormQ;
 
-    int m_rot_offset, m_trans_offset;
+    int m_offset;
     bool init;
     std::vector<Geom> m_geometry;
 
@@ -84,15 +84,11 @@ public:
         zmax=-1e10;
     };
 
-    void setParameterOffset(int roff, int toff) {
-        m_rot_offset = roff;
-        m_trans_offset = toff;
+    void setParameterOffset(int offset) {
+        m_offset = offset;
     };
-    int getRotationOffset() {
-        return m_rot_offset;
-    };
-    int getTranslationOffset() {
-        return m_trans_offset;
+    int getParameterOffset() {
+        return m_offset;
     };
 
     void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
@@ -293,8 +289,7 @@ public:
                 //map shift from cluster to geometry
                 cm.setShiftMap(g->getShiftMap());
                 //set the offsets so that geometry knows where it is in the parameter map
-                g->m_rot_offset = cm.getRotationOffset();
-                g->m_trans_offset = cm.getTranslationOffset();
+                g->m_offset = cm.getParameterOffset();
                 //calculate the appropriate local values
                 g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
 
