@@ -318,145 +318,119 @@ public:
     */
     Scalar calculateClusterScale() {
 
-        //only one geometry scale = 1 as the shift can ge to arbitrary positions in regard
-        //to the point
-        if(m_geometry.empty()) assert(false); //should never happen...
+        if(m_geometry.empty()) assert(false); //TODO: Throw
         else if(m_geometry.size() == 1) {
-            midpoint  = m_geometry[0]->getPoint();
-            scale_dir = -midpoint;
-            scale_dir.normalize();
-            mode = details::one;
-            m_scale = 0.;
-            return 0.;
-        }
-        //two points: get the midpoint as shift and the new scale direction perpendicular to
-        //the connecting line
-        else if(m_geometry.size() == 2) {
-            typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
-            typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
+            return calcOnePoint(m_geometry[0]->getPoint());
+        } else if(m_geometry.size() == 2) {
+            const typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
+            const typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
 
-            if(Kernel::isSame((p1-p2).norm(), 0)) {
-                midpoint  = p1;
-                scale_dir = -midpoint;
-                scale_dir.normalize();
-                mode = details::one;
-                m_scale = 0.;
-                return 0.;
+            if(Kernel::isSame((p1-p2).norm(), 0.))
+                return calcOnePoint(p1);
+
+            return calcTwoPoints(p1, p2);
+        } else if(m_geometry.size() == 3) {
+
+            const typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
+            const typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
+            const typename Kernel::Vector3 p3 = m_geometry[2]->getPoint();
+
+            const typename Kernel::Vector3 d = p2-p1;
+            const typename Kernel::Vector3 e = p3-p1;
+
+            if(Kernel::isSame(d.norm(), 0.)) {
+
+                if(Kernel::isSame(e.norm(), 0.))
+                    return calcOnePoint(p1);
+
+                return calcTwoPoints(p1, p3);
+            } else if(Kernel::isSame(e.norm(), 0.)) {
+                return calcTwoPoints(p1, p2);
+            } else if(!Kernel::isSame((d/d.norm() - e/e.norm()).norm(), 0.) &&
+                      !Kernel::isSame((d/d.norm() + e/e.norm()).norm(), 0.)) {
+                return calcThreePoints(p1, p2, p3);
             }
-
-            midpoint  = p1+(p2-p1)/2.;
-            scale_dir = (p2-p1).cross(midpoint);
-            scale_dir = scale_dir.cross(p2-p1);
-            scale_dir.normalize();
-            mode = details::two;
-            m_scale = (p2-p1).norm()/2.;
+            //three points on a line need to be treaded as multiple points
         }
-        //three points: midpoint is the center of the connecting circle, scale direction is the m_geometry
-        //from midpoint perpendicualar to the plane
-        else if(m_geometry.size() == 3) {
-            //TODO: change calculation style if the points don't form a triangle
-            //possible: |d| != 0 && |e| != 0 && |(e/|e| - d/|d|)| != 0
 
-            typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
-
-            typename Kernel::Vector3 d = m_geometry[1]->getPoint()-p1;
-            typename Kernel::Vector3 e = m_geometry[2]->getPoint()-p1;
-            typename Kernel::Vector3 f = p1+0.5*d;
-            typename Kernel::Vector3 g = p1+0.5*e;
-            scale_dir = d.cross(e);
-
-            typename Kernel::Matrix3 m;
-            m.row(0) = d.transpose();
-            m.row(1) = e.transpose();
-            m.row(2) = scale_dir.transpose();
-
-            typename Kernel::Vector3 res(d.transpose()*f, e.transpose()*g, scale_dir.transpose()*p1);
-
-            midpoint =  m.colPivHouseholderQr().solve(res);
-            scale_dir.normalize();
-            mode = details::three;
-            m_scale = (midpoint-p1).norm();
-
-        }
         //more than 3 points dont have a exakt solution. we search for a midpoint from which all points
         //are at least maxfak*scale away, but not closer than minfak*scale
-        else {
 
-            //get the bonding box to get the center of points
-            typedef typename std::vector<Geom>::iterator iter;
-            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-                typename Kernel::Vector3 v = (*it)->getPoint();
-                xmin = (v(0)<xmin) ? v(0) : xmin;
-                xmax = (v(0)<xmax) ? xmax : v(0);
-                ymin = (v(1)<ymin) ? v(1) : ymin;
-                ymax = (v(1)<ymax) ? ymax : v(1);
-                zmin = (v(2)<zmin) ? v(2) : zmin;
-                zmax = (v(2)<zmax) ? zmax : v(2);
-            };
-            //now calculate the midpoint
-            midpoint << xmin+xmax, ymin+ymax, zmin+zmax;
-            midpoint /= 2.;
+        //get the bonding box to get the center of points
+        typedef typename std::vector<Geom>::iterator iter;
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+            typename Kernel::Vector3 v = (*it)->getPoint();
+            xmin = (v(0)<xmin) ? v(0) : xmin;
+            xmax = (v(0)<xmax) ? xmax : v(0);
+            ymin = (v(1)<ymin) ? v(1) : ymin;
+            ymax = (v(1)<ymax) ? ymax : v(1);
+            zmin = (v(2)<zmin) ? v(2) : zmin;
+            zmax = (v(2)<zmax) ? zmax : v(2);
+        };
+        //now calculate the midpoint
+        midpoint << xmin+xmax, ymin+ymax, zmin+zmax;
+        midpoint /= 2.;
 
 
-            //get the scale direction an the resulting nearest point indexes
-            double xh = xmax-xmin;
-            double yh = ymax-ymin;
-            double zh = zmax-zmin;
-            int i1, i2, i3;
-            if((xh<=yh) && (xh<=zh)) {
-                i1=1;
-                i2=2;
-                i3=0;
-            } else if((yh<xh) && (yh<zh)) {
-                i1=0;
-                i2=2;
-                i3=1;
-            } else {
-                i1=0;
-                i2=1;
-                i3=2;
+        //get the scale direction an the resulting nearest point indexes
+        double xh = xmax-xmin;
+        double yh = ymax-ymin;
+        double zh = zmax-zmin;
+        int i1, i2, i3;
+        if((xh<=yh) && (xh<=zh)) {
+            i1=1;
+            i2=2;
+            i3=0;
+        } else if((yh<xh) && (yh<zh)) {
+            i1=0;
+            i2=2;
+            i3=1;
+        } else {
+            i1=0;
+            i2=1;
+            i3=2;
+        }
+        scale_dir.setZero();
+        scale_dir(i3) = 1;
+        const Eigen::Vector3d max(xmin,ymin,zmin);
+        m_scale = (midpoint-max).norm()/maxfak;
+        mode = multiple_inrange;
+
+        maxm = max-midpoint;
+        Scalar minscale = 1e10;
+
+        //get the closest point
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+
+            const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
+            if(point.norm()<minfak*m_scale) {
+
+                const double h = std::abs(point(i3)-maxm(i3));
+                const double k = std::pow(minfak/maxfak,2);
+                double q = std::pow(point(i1),2) + std::pow(point(i2),2);
+                q -= (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
+                q /= 1.-k;
+
+                const double p = h*k/(1.-k);
+
+                if(std::pow(p,2)<q) assert(false);
+
+                midpoint(i3) += p + std::sqrt(std::pow(p,2)-q);
+                maxm = max-midpoint;
+                m_scale = maxm.norm()/maxfak;
+
+                mode = multiple_outrange;
+                minm = (*it)->getPoint()-midpoint;
+		
+		it = m_geometry.begin();
+            } else if(point.norm()<minscale) {
+                minscale = point.norm();
             }
-            scale_dir.setZero();
-            scale_dir(i3) = 1;
-            const Eigen::Vector3d max(xmin,ymin,zmin);
-            m_scale = (midpoint-max).norm()/maxfak;
-            mode = multiple_inrange;
+        }
 
-            maxm = max-midpoint;
-            Scalar minscale = 1e10;
-
-            //get the closest point
-            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-
-                const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
-                if(point.norm()<minfak*m_scale) {
-
-                    const double h = std::abs(point(i3)-maxm(i3));
-                    const double k = std::pow(minfak/maxfak,2);
-                    double q = std::pow(point(i1),2) + std::pow(point(i2),2);
-                    q -= (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
-                    q /= 1.-k;
-
-                    const double p = h*k/(1.-k);
-
-                    if(std::pow(p,2)<q) assert(false);
-
-                    midpoint(i3) += p + std::sqrt(std::pow(p,2)-q);
-                    maxm = max-midpoint;
-                    m_scale = maxm.norm()/maxfak;
-
-                    mode = multiple_outrange;
-                    minm = (*it)->getPoint()-midpoint;
-                } else if(point.norm()<minscale) {
-                    minscale = point.norm();
-                }
-            }
-
-            if(mode==multiple_inrange) {
-                //we are in the range, let's get the perfect balanced scale value
-                m_scale = (minscale+maxm.norm())/2.;
-            }
-
+        if(mode==multiple_inrange) {
+            //we are in the range, let's get the perfect balanced scale value
+            m_scale = (minscale+maxm.norm())/2.;
         }
         return m_scale;
     };
@@ -518,12 +492,12 @@ public:
             setScale(1./scale);
         } else {
 
-	    //TODO: it's possible that for this case we get too far away from the outer points.
-	    //	    The m_scale for "midpoint outside the bounding box" may be bigger than the 
-	    //      scale to applie, so it results in an error.
+            //TODO: it's possible that for this case we get too far away from the outer points.
+            //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
+            //      scale to applie, so it results in an error.
             //get the closest point
             const Eigen::Vector3d max(xmin,ymin,zmin);
-	    typedef typename std::vector<Geom>::iterator iter;
+            typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
 
                 const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
@@ -548,6 +522,60 @@ public:
             setScale(1./scale);
         }
     };
+
+private:
+    Scalar calcOnePoint(typename Kernel::Vector3 p) {
+
+        //one point can have every scale when moving the midpoint on the origin - point vector
+        midpoint  = p;
+        scale_dir = -midpoint;
+        scale_dir.normalize();
+        mode = details::one;
+        m_scale = 0.;
+        return 0.;
+    };
+
+    Scalar calcTwoPoints(typename Kernel::Vector3 p1, typename Kernel::Vector3 p2) {
+
+        //two points have their minimal scale at the mid position. Scaling perpendicular to this
+        //line allows arbitrary scale values. Best is to have the scale dir move towards the origin
+        //as good as possible.
+        midpoint  = p1+(p2-p1)/2.;
+        scale_dir = (p2-p1).cross(midpoint);
+        scale_dir = scale_dir.cross(p2-p1);
+        scale_dir.normalize();
+        mode = details::two;
+        m_scale = (p2-p1).norm()/2.;
+        return m_scale;
+    };
+
+    Scalar calcThreePoints(typename Kernel::Vector3 p1,
+                           typename Kernel::Vector3 p2, typename Kernel::Vector3 p3) {
+
+        //Three points form a triangle with it's minimal scale at the center of it's outer circle.
+        //Arbitrary scale values can be achieved by moving perpendicular to the triangle plane.
+        typename Kernel::Vector3 d = p2-p1;
+        typename Kernel::Vector3 e = p3-p1;
+
+        typename Kernel::Vector3 f = p1+0.5*d;
+        typename Kernel::Vector3 g = p1+0.5*e;
+        scale_dir = d.cross(e);
+
+        typename Kernel::Matrix3 m;
+        m.row(0) = d.transpose();
+        m.row(1) = e.transpose();
+        m.row(2) = scale_dir.transpose();
+
+        typename Kernel::Vector3 res(d.transpose()*f, e.transpose()*g, scale_dir.transpose()*p1);
+
+        midpoint =  m.colPivHouseholderQr().solve(res);
+        scale_dir.normalize();
+        mode = details::three;
+        m_scale = (midpoint-p1).norm();
+
+        return m_scale;
+
+    }
 
 };
 

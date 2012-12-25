@@ -71,8 +71,8 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         if(i!=1) {
             for(int j=0; j<i; j++) {
                 double val = (math.getGeometry()[j]->getPoint() - math.midpoint).norm();
-                BOOST_REQUIRE_GE(val / scale , 0.7999);
-                BOOST_REQUIRE_LE(val / scale , 1.2111);
+                BOOST_CHECK_GE(val / scale , 0.7999);
+                BOOST_CHECK_LE(val / scale , 1.2111);
             };
         } else BOOST_REQUIRE(scale==0);
 	
@@ -82,8 +82,8 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         if(i!=1) {
             for(int j=0; j<i; j++) {
                 double val = (math.getGeometry()[j]->getPoint() - math.m_shift).norm();
-                BOOST_CHECK_GE(val / (2.*scale) , 0.7999);
-                BOOST_CHECK_LE(val / (2.*scale) , 1.2111);
+                BOOST_CHECK_GE(val / scale , 2.*0.7999);
+                BOOST_CHECK_LE(val / scale , 2.*1.2111);
             };
         } else BOOST_REQUIRE(scale==0);
 
