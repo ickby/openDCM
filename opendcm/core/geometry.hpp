@@ -332,6 +332,12 @@ public:
         for(int i=0; i!=m_translations; i++)
             m_global.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
     };
+    void scale(Scalar value) {
+
+        for(int i=0; i!=m_translations; i++)
+            m_parameter.template segment<Dimension>(i*Dimension) *= 1./value;
+
+    };
 };
 
 }

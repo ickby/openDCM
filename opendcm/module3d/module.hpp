@@ -265,27 +265,26 @@ struct Module3D {
                     const Scalar s = (*cit.first).second->template getClusterProperty<math_prop>().calculateClusterScale();
                     sc = (s>sc) ? s : sc;
                 }
+                //if no scaling-value returned we can use 1
+                sc = (Kernel::isSame(sc,0)) ? 1. : sc;
                 //std::cout<<"scaling: "<<sc<<std::endl;
                 //Base::Console().Message("Scale is %f\n", sc);
-                if(!Kernel::isSame(sc,0)) {
-                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
-                        (*cit.first).second->template getClusterProperty<math_prop>().applyClusterScale(sc,
-                                (*cit.first).second->template getClusterProperty<fix_prop>()
-                                                                                                       );
+                it = boost::vertices(cluster);
+                for(; it.first != it.second; it.first++) {
+
+                    if(cluster.isCluster(*it.first)) {
+                        Cluster& c = cluster.getVertexCluster(*it.first);
+                        c.template getClusterProperty<math_prop>().applyClusterScale(sc,
+                                c.template getClusterProperty<fix_prop>());
                     }
-                    mes.Scaling = 1./sc;
-                    //std::cout<<"if"<<std::endl;
-                }
-                //scaling needs to be 1 (all shifts are at all theri points)
-                else {
-                    for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
-                        (*cit.first).second->template getClusterProperty<math_prop>().applyClusterScale(1,
-                                (*cit.first).second->template getClusterProperty<fix_prop>()
-                                                                                                       );
+                    else {
+                        Geom g = cluster.template getObject<Geometry3D>(*it.first);
+                        g->scale(sc);
                     }
-                    mes.Scaling = 1.;
-                    //std::cout<<"else"<<std::endl;
                 }
+                mes.Scaling = 1./sc;
+                //std::cout<<"if"<<std::endl;
+
 
                 //now it's time to solve
                 Kernel::solve(mes);
@@ -308,7 +307,11 @@ struct Module3D {
                         for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                             (*vit)->finishCalculation();
 
-                    } else cluster.template getObject<Geometry3D>(*it.first)->finishCalculation();
+                    } else {
+		      Geom g = cluster.template getObject<Geometry3D>(*it.first);
+		      g->scale(1./sc);
+		      g->finishCalculation();
+		    }
                 }
 
                 //we have solved this cluster
