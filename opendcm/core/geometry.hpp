@@ -323,7 +323,7 @@ public:
             m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
     };
     void transformGlobal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                          const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         for(int i=0; i!=m_rotations; i++)
             m_global.template segment<Dimension>(i*Dimension) = rot*m_global.template segment<Dimension>(i*Dimension);
@@ -331,6 +331,24 @@ public:
         //after rotating the needed parameters we translate the stuff that needs to be moved
         for(int i=0; i!=m_translations; i++)
             m_global.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
+    };
+    void transformLocal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
+                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+
+        for(int i=0; i!=m_rotations; i++)
+            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
+
+        //after rotating the needed parameters we translate the stuff that needs to be moved
+        for(int i=0; i!=m_translations; i++)
+            m_toplocal.template segment<Dimension>(i*Dimension) = m_toplocal.template segment<Dimension>(i*Dimension) + trans;
+    };
+    void transformLocalInverse(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
+				const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+
+        for(int i=0; i!=m_translations; i++)
+            m_toplocal.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
+        for(int i=0; i!=m_rotations; i++)
+            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
     };
     void scale(Scalar value) {
 
