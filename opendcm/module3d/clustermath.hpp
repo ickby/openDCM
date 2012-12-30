@@ -222,8 +222,8 @@ public:
         Q.normalize(); //not needed, just to avoid rounding errors
 
         //also being too close to the identity sucks
-        if(norm < 0.1) 
-            resetClusterRotation(Q);        
+        if(norm < 0.1)
+            resetClusterRotation(Q);
 
         m_rotation = Q.toRotationMatrix();
 
@@ -573,7 +573,8 @@ private:
         midpoint  = p1+(p2-p1)/2.;
         scale_dir = (p2-p1).cross(midpoint);
         scale_dir = scale_dir.cross(p2-p1);
-        scale_dir.normalize();
+        if(!Kernel::isSame(scale_dir.norm(),0)) scale_dir.normalize();
+        else scale_dir(0) = 1;
         mode = details::two;
         m_scale = (p2-p1).norm()/2.;
         return m_scale;
