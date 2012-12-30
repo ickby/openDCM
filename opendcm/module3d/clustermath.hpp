@@ -21,7 +21,7 @@
 #define GCM_CLUSTERMATH_H
 
 #include <vector>
-#include <math.h>
+#include <cmath>
 
 #define maxfak 1.2
 #define minfak 0.8
@@ -57,31 +57,26 @@ public:
     typename Kernel::Vector3	m_original_translation;
     typename Kernel::Vector3Map	m_normQ;
     typename Kernel::Vector3 	m_origNormQ;
+    typename Kernel::Quaternion m_resetQuaternion;
 
     int m_offset;
-    bool init;
+    bool init, reset;
     std::vector<Geom> m_geometry;
 
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
-    Scalar xmin, xmax, ymin, ymax, zmin, zmax;
-    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm;
+    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, added;
     Scalar m_scale;
     Scalemode mode;
 
 public:
-    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
+    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false),
+        m_resetQuaternion(1,1,1,1), reset(false) {
 
-        m_quaternion = typename Kernel::Quaternion(1,2,3,4);
-        m_quaternion.normalize();
+        m_quaternion.setIdentity();
+        m_resetQuaternion.normalize();
         m_shift.setZero();
         m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
     };
 
     void setParameterOffset(int offset) {
@@ -108,19 +103,18 @@ public:
         return m_translation;
     };
     void initMaps() {
-        Scalar s;
-        if(m_quaternion.w() < 1.) s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
-        else s = 0;
-        m_normQ = m_quaternion.vec()*s;
+
+        //if we start with unit quaternion we need to reset the geometry to something else
+        if(m_quaternion.w() < 1.) {
+            Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
+            m_normQ = m_quaternion.vec()*s;
+        } else {
+            m_normQ.setZero();
+        }
+
         m_translation = m_original_translation;
         init = true;
         m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
     };
@@ -131,12 +125,6 @@ public:
         new(&m_translation) typename Kernel::Vector3Map(&m_original_translation(0));
         init = true;
         m_scale = 1.;
-        xmin=1e10;
-        xmax=-1e10;
-        ymin=1e10;
-        ymax=-1e10;
-        zmin=1e10;
-        zmax=-1e10;
         midpoint.setZero();
         m_shift.setZero();
     };
@@ -151,7 +139,10 @@ public:
         m_shift = s;
         //we remove shift from the local geometries, therefore we have to add it here
         //to not change the global position
-        if(init) m_translation += m_quaternion.toRotationMatrix()*m_shift;
+        if(init) {
+            added = m_quaternion._transformVector(m_shift);
+            m_translation += added;
+        }
     };
     void setScale(Scalar s) {
         m_scale = s;
@@ -163,7 +154,13 @@ public:
         const Scalar fac = std::sin(norm)/norm;
         m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
         m_quaternion.normalize();
-        m_original_translation = m_translation/m_scale - m_quaternion.toRotationMatrix()*m_shift;
+
+        //if the rotation was resetet we have to calc the real quaternion now
+        if(reset)
+            resetClusterRotation(m_quaternion);
+
+
+        m_original_translation = m_translation/m_scale - m_quaternion._transformVector(m_shift);
 
         //needed to allow a correct global calculation in cluster geometries after this finish
         m_shift.setZero();
@@ -178,20 +175,56 @@ public:
         m_translation /= m_scale;
     }
 
+    void resetClusterRotation(typename Kernel::Quaternion& Q) {
+
+        typename Kernel::Matrix3 rot;
+        const typename Kernel::Vector3 trans(0,0,0);
+        if(!reset) {
+            Q = Q*m_resetQuaternion.conjugate();
+            rot = m_resetQuaternion.toRotationMatrix();
+            reset = true;
+        } else {
+            Q = Q*m_resetQuaternion;
+            rot = m_resetQuaternion.conjugate().toRotationMatrix();
+            reset = false;
+        }
+
+        //apply the needed transformation to all geometries local values
+        typedef typename std::vector<Geom>::iterator iter;
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+            (*it)->transformLocal(rot, trans);
+        };
+        //also transform the shift (as it is calculated from the local values which are transformed now)
+        m_shift = rot*m_shift;
+
+        if(Q.w() < 1.) {
+            //set the normQ map to the new quaternion value
+            const Scalar s = std::acos(Q.w())/std::sin(std::acos(Q.w()));
+            m_normQ = Q.vec()*s;
+        } else m_normQ.setZero();
+    };
+
     void recalculate() {
 
-        //get the Quaternion for the norm quaternion form and calculate the rotation matrix
-        const Scalar norm = m_normQ.norm();
-        const Scalar fac = std::sin(norm)/norm;
+        typename Kernel::Quaternion Q;
+        Scalar norm = m_normQ.norm();
 
-        typename Kernel::Quaternion Q(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-        Q.normalize(); //not needed, just to avoid rounding errors
-        if(Kernel::isSame(norm, 0)) {
+        //prevent the quaternion to be the idendity form
+        if(norm == 0) {
             Q.setIdentity();
-            m_rotation.setIdentity();
-            m_diffrot.setZero();
-            return;
-        };
+            resetClusterRotation(Q);
+            norm = m_normQ.norm();
+        }
+
+        //get the Quaternion for the norm quaternion form and calculate the rotation matrix
+        const Scalar fac = std::sin(norm)/norm;
+        Q = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+        Q.normalize(); //not needed, just to avoid rounding errors
+
+        //also being too close to the identity sucks
+        if(norm < 0.1) 
+            resetClusterRotation(Q);        
+
         m_rotation = Q.toRotationMatrix();
 
         /* now calculate the gradient quaternions and calculate the diff rotation matrices
@@ -354,6 +387,7 @@ public:
         //are at least maxfak*scale away, but not closer than minfak*scale
 
         //get the bonding box to get the center of points
+        Scalar xmin=1e10, xmax=1e-10, ymin=1e10, ymax=1e-10, zmin=1e10, zmax=1e-10;
         typedef typename std::vector<Geom>::iterator iter;
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
             typename Kernel::Vector3 v = (*it)->getPoint();
@@ -389,7 +423,7 @@ public:
         }
         scale_dir.setZero();
         scale_dir(i3) = 1;
-        const Eigen::Vector3d max(xmin,ymin,zmin);
+        max = Eigen::Vector3d(xmin,ymin,zmin);
         m_scale = (midpoint-max).norm()/maxfak;
         mode = multiple_inrange;
 
@@ -493,7 +527,6 @@ public:
             //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
             //      scale to applie, so it results in an error.
             //get the closest point
-            const Eigen::Vector3d max(xmin,ymin,zmin);
             typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
 

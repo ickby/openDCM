@@ -284,4 +284,51 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
   BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0.));
 }
 
+BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
+
+  plane_t p1,p2;
+  p1 << 7, -0.5, 0.3, 9, -2, 3;
+  p2 << -2, -1.3, -2.8, 1.2, 0.3, -1.3;
+  Eigen::Vector3d p3, p4;
+  p3<<1,1,1;
+  p4<<0,0,0;
+  
+  //directions should be normalized
+  p1.tail<3>().normalize();
+  p2.tail<3>().normalize();
+ 
+  place p;
+  p.quat.x()=0;
+  p.quat.y()=0;
+  p.quat.z()=0;
+  p.quat.w()=1;
+  p.quat.normalize();
+    
+  SystemNOID sys;
+  Part_ptr part1 = sys.createPart(p);
+  Geom g1 = part1->addGeometry3D( p1 );
+  Geom g3 = part1->addGeometry3D( p3 );
+  
+  Part_ptr part2 = sys.createPart(p);
+  Geom g2 = part2->addGeometry3D( p2 );
+  Geom g4 = part2->addGeometry3D( p4 );
+  
+  sys.createConstraint3D(g1,g2,dcm::parallel = dcm::Same);
+  sys.createConstraint3D(g3,g4,dcm::distance = 5);
+
+  sys.solve();
+  
+  plane_t v1,v2;
+  v1 = get<plane_t>(g1);
+  v2 = get<plane_t>(g2);
+  
+  Eigen::Vector3d v3, v4;
+  v3 = get<Eigen::Vector3d>(g3);
+  v4 = get<Eigen::Vector3d>(g4);
+
+  BOOST_CHECK( Kernel::isSame((v1.tail<3>()-v2.tail<3>()).norm(),0.) );
+  BOOST_CHECK( Kernel::isSame((v3-v4).norm(),5.) );
+
+}
+
 BOOST_AUTO_TEST_SUITE_END();
