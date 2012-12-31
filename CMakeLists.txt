@@ -6,10 +6,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}, ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
 #options for build-finetuning
 option(GENERATE_DOCS "Generate the documentation if doxygen is available" OFF)
+option(LOGGING "Log internals to a file. Warning: serious speed tradeoff" OFF)
 
 
-find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+find_package(Boost COMPONENTS unit_test_framework filesystem thread REQUIRED)
 FIND_PACKAGE(Eigen3)
+
+if(LOGGING)
+  add_definitions( -DUSE_LOGGING)
+ENDIF(LOGGING)
 
 if(GENERATE_DOCS)
   FIND_PACKAGE(Doxygen)
