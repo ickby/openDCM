@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   BOOST_CHECK( sys.getPart("part1") == part1 );
   BOOST_CHECK( sys.getPart("part2") == part2 );
 }
-
+/*
 BOOST_AUTO_TEST_CASE(modulepart_combined) {
   
   Eigen::Vector3d p1,p2,p3,p4, v1, v2, v3, v4;
@@ -329,6 +329,6 @@ BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
   BOOST_CHECK( Kernel::isSame((v1.tail<3>()-v2.tail<3>()).norm(),0.) );
   BOOST_CHECK( Kernel::isSame((v3-v4).norm(),5.) );
 
-}
+}*/
 
 BOOST_AUTO_TEST_SUITE_END();

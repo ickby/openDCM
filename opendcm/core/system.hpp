@@ -34,6 +34,7 @@
 #include "property.hpp"
 #include "clustergraph.hpp"
 #include "sheduler.hpp"
+#include "logging.hpp"
 
 namespace mpl = boost::mpl;
 
@@ -147,6 +148,10 @@ public:
         Type1::system_init(*this);
         Type2::system_init(*this);
         Type3::system_init(*this);
+
+#ifdef USE_LOGGING
+        init_log();
+#endif
     };
 
     template<typename Object>
@@ -177,12 +182,12 @@ public:
     };
 
     void solve() {
-	clock_t start = clock();
+        clock_t start = clock();
         m_sheduler.execute();
-	clock_t end = clock();
-	double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
+        clock_t end = clock();
+        double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
         //Base::Console().Message("overall solving time in ms: %f\n", ms);
-        
+
     };
 
     Cluster m_cluster;

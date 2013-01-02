@@ -276,8 +276,7 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         c.template getClusterProperty<math_prop>().applyClusterScale(sc,
                                 c.template getClusterProperty<fix_prop>());
-                    }
-                    else {
+                    } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
                         g->scale(sc);
                     }
@@ -308,10 +307,10 @@ struct Module3D {
                             (*vit)->finishCalculation();
 
                     } else {
-		      Geom g = cluster.template getObject<Geometry3D>(*it.first);
-		      g->scale(1./sc);
-		      g->finishCalculation();
-		    }
+                        Geom g = cluster.template getObject<Geometry3D>(*it.first);
+                        g->scale(1./sc);
+                        g->finishCalculation();
+                    }
                 }
 
                 //we have solved this cluster
@@ -329,7 +328,9 @@ struct Module3D {
             Identifier m_id;
         public:
             template<typename T>
-            Geometry3D_id(T geometry, Sys& system) : Base(geometry, system) { };
+            Geometry3D_id(T geometry, Sys& system) : Base(geometry, system) {
+                Base::tag.set("Geometry3D: ID");
+            };
 
             template<typename T>
             void set(T geometry, Identifier id) {
@@ -344,6 +345,12 @@ struct Module3D {
             };
             void setIdentifier(Identifier id) {
                 m_id = id;
+#ifdef USE_LOGGING
+                BOOST_LOG(Base::log)<<"Identifyer set: "<<id;
+                std::stringstream str;
+                str<<"Geometry3D: "<<id;
+                Base::tag.set(str.str());
+#endif
             };
         };
 

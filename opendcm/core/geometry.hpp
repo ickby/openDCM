@@ -43,6 +43,8 @@
 
 #include "object.hpp"
 #include "traits.hpp"
+#include "logging.hpp"
+
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -126,12 +128,27 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
 
+#ifdef USE_LOGGING
+protected:
+    src::logger log;
+    attrs::mutable_constant< std::string > tag;
+#endif
+
 public:
     template<typename T>
     Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
         m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
-        m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false), m_shift(NULL),m_scale(1.)  {
+        m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false),
+        m_shift(NULL),m_scale(1.)
+#ifdef USE_LOGGING
+	, tag("Geometry3D")
+#endif
+	{
 
+#ifdef USE_LOGGING
+        log.add_attribute("Tag", tag);
+#endif
+	
         init<T>(geometry);
     };
 
@@ -184,7 +201,10 @@ public:
         (typename geometry_traits<T>::modell()).template extract<Scalar,
         typename geometry_traits<T>::accessor >(t, m_global);
 
-        //std::cout << "global value init:"<<std::endl <<m_global<<std::endl;
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Init: "<<m_global.transpose();
+#endif
+
     }
 
     typename Sys::Kernel::VectorMap& getParameterMap() {
@@ -323,7 +343,7 @@ public:
             m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
     };
     void transformGlobal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                          const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         for(int i=0; i!=m_rotations; i++)
             m_global.template segment<Dimension>(i*Dimension) = rot*m_global.template segment<Dimension>(i*Dimension);
@@ -333,7 +353,7 @@ public:
             m_global.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
     };
     void transformLocal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                        const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         for(int i=0; i!=m_rotations; i++)
             m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
@@ -343,7 +363,7 @@ public:
             m_toplocal.template segment<Dimension>(i*Dimension) = m_toplocal.template segment<Dimension>(i*Dimension) + trans;
     };
     void transformLocalInverse(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-				const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+                               const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 
         for(int i=0; i!=m_translations; i++)
             m_toplocal.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;

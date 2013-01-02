@@ -9,7 +9,7 @@ option(GENERATE_DOCS "Generate the documentation if doxygen is available" OFF)
 option(LOGGING "Log internals to a file. Warning: serious speed tradeoff" OFF)
 
 
-find_package(Boost COMPONENTS unit_test_framework filesystem thread REQUIRED)
+find_package(Boost COMPONENTS unit_test_framework system filesystem thread REQUIRED)
 FIND_PACKAGE(Eigen3)
 
 if(LOGGING)

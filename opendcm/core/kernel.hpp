@@ -25,7 +25,6 @@
 #include <eigen3/Eigen/Geometry>
 
 #include <iostream>
-//#include <../FreeCAD/src/Base/Console.h>
 
 #include <boost/math/special_functions/fpclassify.hpp>
 #include <time.h>
