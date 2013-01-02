@@ -138,20 +138,30 @@ protected:
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
 
+#ifdef USE_LOGGING
+    boost::shared_ptr< sink_t > sink;
+#endif
+
 public:
     typedef ClusterGraph<edge_properties, vertex_properties, cluster_properties, objects> Cluster;
     typedef Sheduler< BaseType > Shedule;
     typedef KernelType Kernel;
 
 public:
-    System() : m_sheduler(*this) {
+    System() : m_sheduler(*this)
+#ifdef USE_LOGGING
+        , sink(init_log())
+#endif
+    {
         Type1::system_init(*this);
         Type2::system_init(*this);
         Type3::system_init(*this);
-
+    };
+    
+    ~System() {
 #ifdef USE_LOGGING
-        init_log();
-#endif
+        stop_log(sink);
+#endif      
     };
 
     template<typename Object>

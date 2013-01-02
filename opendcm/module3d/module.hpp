@@ -288,7 +288,7 @@ struct Module3D {
                 //now it's time to solve
                 Kernel::solve(mes);
 
-                std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
+                //std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
                 //std::cout<<"mes scaling: "<<mes.Scaling<<std::endl;
 
                 //now go to all relevant geometries and clusters and write the values back
@@ -326,10 +326,20 @@ struct Module3D {
             typedef detail::Geometry<Sys, Derived, Typelist, GeomSignal> Base;
 
             Identifier m_id;
+#ifdef USE_LOGGING
+	    attrs::mutable_constant< std::string > log_id;
+#endif
         public:
             template<typename T>
-            Geometry3D_id(T geometry, Sys& system) : Base(geometry, system) {
-                Base::tag.set("Geometry3D: ID");
+            Geometry3D_id(T geometry, Sys& system) : Base(geometry, system)
+#ifdef USE_LOGGING
+	    , log_id("No ID")
+#endif
+	    {
+
+#ifdef USE_LOGGING
+                Base::log.add_attribute("ID", log_id);
+#endif
             };
 
             template<typename T>
@@ -346,10 +356,10 @@ struct Module3D {
             void setIdentifier(Identifier id) {
                 m_id = id;
 #ifdef USE_LOGGING
+		std::stringstream str;
+                str<<id;
+                log_id.set(str.str());
                 BOOST_LOG(Base::log)<<"Identifyer set: "<<id;
-                std::stringstream str;
-                str<<"Geometry3D: "<<id;
-                Base::tag.set(str.str());
 #endif
             };
         };

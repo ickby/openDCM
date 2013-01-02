@@ -33,9 +33,10 @@
 #include <boost/log/formatters.hpp>
 #include <boost/log/filters.hpp>
 
+#include <boost/shared_ptr.hpp>
 
 namespace logging = boost::log;
-//namespace sinks = boost::log::sinks;
+namespace sinks = boost::log::sinks;
 namespace src = boost::log::sources;
 namespace fmt = boost::log::formatters;
 namespace flt = boost::log::filters;
@@ -43,20 +44,50 @@ namespace attrs = boost::log::attributes;
 namespace keywords = boost::log::keywords;
 
 namespace dcm {
-void init_log() {
-  
-    //regiser a sink for file ouput
-    logging::init_log_to_file(
-	keywords::file_name = "openDCM_%N.log",                 // file name pattern
-        keywords::rotation_size = 10 * 1024 * 1024, 		//Rotation size is 10MB
-	keywords::format =
-        (
-           fmt::stream <<"[" << fmt::attr<std::string>("Tag") <<"] " << fmt::message()
-        )
+
+static int counter = 0;
+typedef sinks::synchronous_sink< sinks::text_file_backend > sink_t;
+
+boost::shared_ptr< sink_t > init_log() {
+
+    //create the filename
+    std::stringstream str;
+    str<<"openDCM_"<<counter<<"_%N.log";
+    counter++;
+
+    boost::shared_ptr< logging::core > core = logging::core::get();
+
+    boost::shared_ptr< sinks::text_file_backend > backend =
+        boost::make_shared< sinks::text_file_backend >(
+            keywords::file_name = str.str(),             //file name pattern
+            keywords::rotation_size = 10 * 1024 * 1024 	//Rotation size is 10MB
+        );
+
+    // Wrap it into the frontend and register in the core.
+    // The backend requires synchronization in the frontend.
+    boost::shared_ptr< sink_t > sink(new sink_t(backend));
+    
+    sink->set_formatter(
+        fmt::stream <<"[" << fmt::attr<std::string>("Tag") <<"] "
+        << fmt::if_(flt::has_attr<std::string>("ID")) [
+            fmt::stream << "["<< fmt::attr< std::string >("ID")<<"] "]
+        << fmt::message()
     );
-    //logging::add_common_attributes();
+
+    core->add_sink(sink);
+    return sink;
 };
-} //dcm
+
+void stop_log(boost::shared_ptr< sink_t >& sink) {
+
+    boost::shared_ptr< logging::core > core = logging::core::get();
+
+    // Remove the sink from the core, so that no records are passed to it
+    core->remove_sink(sink);
+    sink.reset();
+};
+
+}; //dcm
 
 #endif //USE_LOGGING
 

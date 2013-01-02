@@ -131,7 +131,6 @@ class Geometry : public Object<Sys, Derived, Signals > {
 #ifdef USE_LOGGING
 protected:
     src::logger log;
-    attrs::mutable_constant< std::string > tag;
 #endif
 
 public:
@@ -140,13 +139,10 @@ public:
         m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
         m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false),
         m_shift(NULL),m_scale(1.)
-#ifdef USE_LOGGING
-	, tag("Geometry3D")
-#endif
 	{
 
 #ifdef USE_LOGGING
-        log.add_attribute("Tag", tag);
+        log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 	
         init<T>(geometry);
