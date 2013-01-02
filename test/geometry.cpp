@@ -19,12 +19,13 @@
 
 #include "opendcm/Core"
 
+
 #include <boost/test/unit_test.hpp>
 
 
 
 struct point {
-  double x,y,z;
+    double x,y,z;
 };
 
 namespace dcm {
@@ -65,24 +66,85 @@ BOOST_AUTO_TEST_CASE(geometry_accessor) {
 }
 
 struct test_tag1 {
-  typedef dcm::tag::weight::point weight;
+    typedef dcm::tag::weight::point weight;
 };
 struct test_tag2 {
-  typedef dcm::tag::weight::line weight;
+    typedef dcm::tag::weight::line weight;
 };
 
 BOOST_AUTO_TEST_CASE(geometry_order) {
-  
-  BOOST_CHECK( (!dcm::tag_order<test_tag1, test_tag2>::swapt::value) );
-  BOOST_CHECK( (dcm::tag_order<test_tag2, test_tag1>::swapt::value) );
-  
 
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1> ));
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2> ));
-  
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1> ));
-  BOOST_MPL_ASSERT(( boost::is_same<dcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2> ));
+    BOOST_CHECK((!dcm::tag_order<test_tag1, test_tag2>::swapt::value));
+    BOOST_CHECK((dcm::tag_order<test_tag2, test_tag1>::swapt::value));
 
+
+    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1>));
+    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2>));
+
+    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1>));
+    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2>));
+
+}
+
+BOOST_AUTO_TEST_CASE(geometry_transformation) {
+
+    typedef dcm::Kernel<double> Kernel;
+
+    dcm::detail::Transformation<Kernel, 3> trans3d;
+
+    //check if initial initialisation is correct
+    BOOST_CHECK(trans3d.rotation().isApprox(typename Kernel::Quaternion(1,0,0,0), 1e-10));
+    BOOST_CHECK(trans3d.translation().isApprox(typename Kernel::Vector3(0,0,0), 1e-10));
+    BOOST_CHECK(Kernel::isSame(trans3d.scale(), 1.));
+
+    //check the transformations
+    typename Kernel::Vector3 vec(1,2,3);
+    trans3d.scale() = 0.5;
+    trans3d.transform(vec);
+    BOOST_CHECK((typename Kernel::Vector3(1,2,3)*0.5).isApprox(vec, 1e-10));
+
+    vec << 1,2,3;
+    trans3d.translation()<<1,2,3;
+    trans3d.transform(vec);
+    BOOST_CHECK((typename Kernel::Vector3(2,4,6)*0.5).isApprox(vec, 1e-10));
+
+    vec << 1,2,3;
+    trans3d.rotation((typename Kernel::Quaternion(1,2,3,4)).normalized());
+    trans3d.transform(vec);
+    typename Kernel::Vector3 res = (typename Kernel::Quaternion(1,2,3,4)).normalized()._transformVector(typename Kernel::Vector3(1,2,3));
+    res += typename Kernel::Vector3(1,2,3);
+    res *= 0.5;
+    BOOST_CHECK(res.isApprox(vec, 1e-10));
+
+    //check the invertion
+    trans3d.invert();
+    trans3d.transform(vec);
+    BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
+
+    //check successive transformations
+    trans3d.scale()=1;
+    dcm::detail::Transformation<Kernel, 3> trans3d_2(trans3d);
+    trans3d.invert();
+    trans3d += trans3d_2;
+    trans3d.transform(vec);
+    BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
+
+    dcm::detail::Transformation<Kernel, 3> trans3d_3((typename Kernel::Quaternion(4,9,1,2)).normalized(),
+            typename Kernel::Vector3(4,2,-6), 3);
+    dcm::detail::Transformation<Kernel, 3> trans3d_4((typename Kernel::Quaternion(1,2,4,3)).normalized(),
+            typename Kernel::Vector3(-4,1,0), 2);
+    
+    vec << 1,2,3;
+    trans3d_3.transform(vec);
+    trans3d_4.transform(vec);
+    typename Kernel::Vector3 v1 = vec;
+    std::cout<<vec.transpose()<<std::endl;
+
+    vec << 1,2,3;
+    dcm::detail::Transformation<Kernel, 3> trans3d_5 = trans3d_3 + trans3d_4;
+    trans3d_5.transform(vec);
+    std::cout<<vec.transpose()<<std::endl;
+    BOOST_CHECK(vec.isApprox(v1, 1e-10));
 }
 
 
