@@ -38,7 +38,7 @@ class Transformation {
     Rotation   	m_rotation;
     Vector 	m_translation;
     Scalar  	m_scale;
-    bool 	m_inverted;
+
 #ifdef USE_LOGGING
     src::logger log;
 #endif
@@ -46,7 +46,7 @@ class Transformation {
 private:
     template<int Dim>
     static inline typename boost::enable_if_c< Dim == 3, typename Kernel::Quaternion>::type initRotation() {
-        return typename Kernel::Quaternion(1,0,0,0);
+        return Kernel::Quaternion::Identity();
     };
     template<int Dim>
     static inline typename boost::enable_if_c< Dim == 2, Scalar>::type initRotation() {
@@ -103,7 +103,7 @@ public:
     Transformation(Rotation q = initRotation<Dimension>(),
                    Vector v = Vector::Zero(),
                    Scalar s = Scalar(1.))
-        : m_rotation(q), m_translation(v), m_scale(s), m_inverted(false) {
+        : m_rotation(q), m_translation(v), m_scale(s) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Transformation"));
@@ -136,70 +136,61 @@ public:
     //Transforming stuff
     void transform(Vector& v) {
 
-        //if(!m_inverted) {
-            rotateSingle<Dimension>(v) += m_translation;
-            v *= m_scale;
-        /*} else {
-            v =  v*m_scale + m_translation;
-            rotateSingle<Dimension>(v);
-        }*/
+        rotateSingle<Dimension>(v) += m_translation;
+        v *= m_scale;
     };
 
     Vector& rotate(Vector& v) {
         rotateSingle<Dimension>(v);
-	return v;
+        return v;
     };
 
     Vector& translate(Vector& v) {
         v += m_translation;
-	return v;
+        return v;
     };
 
     Vector& scale(Vector& v) {
         v *= m_scale;
-	return v;
+        return v;
     };
 
     Transformation<Kernel, Dimension>& invert() {
-        m_inverted = !m_inverted;
         rotateInvert<Dimension>(m_rotation);
-        m_translation = -rotate(m_translation) * m_scale;
+        m_translation = rotate(m_translation) * (-m_scale);
         m_scale = 1./m_scale;
         return *this;
     };
 
     Transformation<Kernel, Dimension> inverse() {
         Transformation<Kernel, Dimension> trans(*this);
-        return trans.invert();
+	trans.invert();
+        return trans;
     };
 
     //successive transformations
     Transformation<Kernel, Dimension> operator+(Transformation<Kernel, Dimension>& sec) {
-        return Transformation<Kernel, Dimension>(
-                   combineRotation<Dimension>(m_rotation, sec.rotation()),
-                   sec.rotate(m_translation) + sec.translation()/m_scale,
-                   m_scale * sec.scale());
+	Transformation<Kernel, Dimension> tmp(*this);
+        return tmp+= sec;
     };
-
     Transformation<Kernel, Dimension>& operator+=(Transformation<Kernel, Dimension>& sec) {
         combineRotation<Dimension>(sec.rotation());
-	sec.rotate(m_translation);
+        sec.rotate(m_translation);
         m_translation += sec.translation()/m_scale;
         m_scale *= sec.scale();
         return *this;
     };
     Transformation<Kernel, Dimension> operator-(Transformation<Kernel, Dimension>& sec) {
-        return Transformation<Kernel, Dimension>(
-                   combineRotation<Dimension>(m_rotation, rotateInvert<Dimension>(sec.rotation())),
-                   m_translation - sec.translation(),
-                   m_scale / sec.scale());
+	Transformation<Kernel, Dimension> tmp1(*this);
+	Transformation<Kernel, Dimension> tmp2(sec);
+	tmp2.invert();
+        return tmp1+=tmp2;
     };
 
     Transformation<Kernel, Dimension>& operator-=(Transformation<Kernel, Dimension>& sec) {
-        combineRotation<Dimension>(rotateInvert<Dimension>(sec.rotation()));
-        m_translation -= sec.translation();
-        m_scale /= sec.scale();
-        return *this;
+        Transformation<Kernel, Dimension> tmp(sec);
+	tmp.invert();
+        return operator+=(tmp);
     };
 };
 

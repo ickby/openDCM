@@ -122,28 +122,57 @@ BOOST_AUTO_TEST_CASE(geometry_transformation) {
     BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
 
     //check successive transformations
-    trans3d.scale()=1;
+    trans3d.scale()=2;
     dcm::detail::Transformation<Kernel, 3> trans3d_2(trans3d);
     trans3d.invert();
-    trans3d += trans3d_2;
-    trans3d.transform(vec);
+    trans3d_2 += trans3d;
+    trans3d_2.transform(vec);
     BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
 
     dcm::detail::Transformation<Kernel, 3> trans3d_3((typename Kernel::Quaternion(4,9,1,2)).normalized(),
-            typename Kernel::Vector3(4,2,-6), 3);
+            typename Kernel::Vector3(4,2,-6), 2);
     dcm::detail::Transformation<Kernel, 3> trans3d_4((typename Kernel::Quaternion(1,2,4,3)).normalized(),
-            typename Kernel::Vector3(-4,1,0), 2);
+            typename Kernel::Vector3(-4,1,0), 3);
+    dcm::detail::Transformation<Kernel, 3> trans3d_5((typename Kernel::Quaternion(4,2,1,3)).normalized(),
+            typename Kernel::Vector3(-4,-1,2), 4);
     
     vec << 1,2,3;
     trans3d_3.transform(vec);
     trans3d_4.transform(vec);
+    trans3d_5.transform(vec);
     typename Kernel::Vector3 v1 = vec;
-    std::cout<<vec.transpose()<<std::endl;
 
     vec << 1,2,3;
-    dcm::detail::Transformation<Kernel, 3> trans3d_5 = trans3d_3 + trans3d_4;
+    dcm::detail::Transformation<Kernel, 3> trans3d_34 = trans3d_3 + trans3d_4;
+    dcm::detail::Transformation<Kernel, 3> trans3d_345 = trans3d_34  + trans3d_5;
+    trans3d_345.transform(vec);
+    BOOST_CHECK(vec.isApprox(v1, 1e-10));
+    
+    vec << 1,2,3;
+    trans3d_34.transform(vec);
+    v1 = vec;
+
     trans3d_5.transform(vec);
-    std::cout<<vec.transpose()<<std::endl;
+    dcm::detail::Transformation<Kernel, 3> trans3d_5I = trans3d_5.inverse();
+    trans3d_5I.transform(vec);
+    BOOST_CHECK(vec.isApprox(v1, 1e-10));
+
+    vec << 1,2,3;    
+    trans3d_34.transform(vec);
+    v1 = vec;
+    vec << 1,2,3;  
+    dcm::detail::Transformation<Kernel, 3> trans3d_3455I = trans3d_345 + trans3d_5I;
+    trans3d_3455I.transform(vec);
+    BOOST_CHECK(vec.isApprox(v1, 1e-10));
+    
+    vec << 1,2,3;  
+    dcm::detail::Transformation<Kernel, 3> trans3d_345M5 = trans3d_345 - trans3d_5;
+    trans3d_345M5.transform(vec);
+    BOOST_CHECK(vec.isApprox(v1, 1e-10));
+    
+    vec << 1,2,3;  
+    trans3d_345 -= trans3d_5;
+    trans3d_345.transform(vec);
     BOOST_CHECK(vec.isApprox(v1, 1e-10));
 }
 
