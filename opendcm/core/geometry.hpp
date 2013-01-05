@@ -139,7 +139,7 @@ public:
     Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
         m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
         m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false),
-        m_shift(NULL),m_scale(1.) {
+        m_shift(NULL),m_scale(1.), m_init(false) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
@@ -167,7 +167,7 @@ public:
     int     m_offset; //the starting point of our parameters in the math system parameter vector
     int     m_rotations; //count of rotations to be done when original vector gets rotated
     int     m_translations; //count of translations to be done when original vector gets rotated
-    bool    m_isInCluster, m_clusterFixed;
+    bool    m_isInCluster, m_clusterFixed, m_init;
     typename Sys::Kernel::Vector      m_toplocal; //the local value in the toplevel cluster used for cuttent solving
     typename Sys::Kernel::Vector      m_global; //the global value outside of all clusters
     typename Sys::Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)
@@ -197,6 +197,9 @@ public:
         (typename geometry_traits<T>::modell()).template extract<Scalar,
         typename geometry_traits<T>::accessor >(t, m_global);
 
+        //new value which is not set into parameter, so init is false
+        m_init = false;
+
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Init: "<<m_global.transpose();
 #endif
@@ -223,6 +226,7 @@ public:
     void initMap() {
         //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
         m_parameter = m_global;
+        m_init = true;
     };
 
     void setClusterMode(bool iscluster, bool isFixed) {
@@ -233,7 +237,7 @@ public:
             //the rotated original value;
             new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
             //the local value is the global one as no transformation was applied  yet
-            //m_toplocal = m_global;
+            m_toplocal = m_global;
         } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 
     }
@@ -307,33 +311,31 @@ public:
 
 
     //normal transformation
-    void transform(Transform& t) {
-        m_toplocal = m_global;
-        //everything that needs to be translated needs to be fully transformed
-        for(int i=0; i!=m_translations; i++) {
-            typename Kernel::Vector3 vec = m_toplocal.template segment<Dimension>(i*Dimension);
-            m_toplocal.template segment<Dimension>(i*Dimension) = t*vec;
-        }
+    void transform(const Transform& t) {
 
-        for(int i=m_translations; i!=m_rotations; i++) {
-            typename Kernel::Vector3 vec = m_toplocal.template segment<Dimension>(i*Dimension);
-            m_toplocal.template segment<Dimension>(i*Dimension) = t.rotate(vec);
-        }
+        if(m_isInCluster) 
+	  transform(t, m_toplocal);
+        else if(m_init) 
+	  transform(t, m_rotated);        
+        else
+	  transform(t, m_global);  
     }
 
-    void transformGlobal(Transform& t) {
+    template<typename VectorType>
+    void transform(const Transform& t, VectorType& vec) {
 
         //everything that needs to be translated needs to be fully transformed
         for(int i=0; i!=m_translations; i++) {
-            typename Kernel::Vector3 vec(m_global.template segment<Dimension>(i*Dimension));
-            t.transform(vec);
-        };
+            typename Kernel::Vector3 v = vec.template segment<Dimension>(i*Dimension);
+            vec.template segment<Dimension>(i*Dimension) = t*v;
+        }
 
         for(int i=m_translations; i!=m_rotations; i++) {
-            typename Kernel::Vector3 vec = m_global.template segment<Dimension>(i*Dimension);
-            t.rotate(vec);
+            typename Kernel::Vector3 v = vec.template segment<Dimension>(i*Dimension);
+            vec.template segment<Dimension>(i*Dimension) = t.rotate(v);
         }
     }
+
     void transformLocal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 

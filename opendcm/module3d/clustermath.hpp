@@ -323,11 +323,10 @@ public:
                 cm.setShiftMap(g->getShiftMap());
                 //set the offsets so that geometry knows where it is in the parameter map
                 g->m_offset = cm.getParameterOffset();
-                //calculate the appropriate local values
-                g->transform(trans);
-
                 //position and offset of the parameters must be set to the clusters values
                 g->setClusterMode(true, cluster.template getClusterProperty<fix_prop>());
+		//calculate the appropriate local values
+                g->transform(trans);
             }
         }
 

@@ -74,7 +74,7 @@ struct ModulePart {
             Geom addGeometry(T geom, CoordinateFrame frame = Global) {
                 Geom g(new Geometry3D(geom, m_system));
                 if(frame == Local) 
-                    g->transformGlobal(m_transform);
+                    g->transform(m_transform);
 
                 fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
                 m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
