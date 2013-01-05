@@ -51,13 +51,11 @@ public:
 
     typedef typename Kernel::number_type Scalar;
 
-    typename Kernel::Matrix3	m_rotation;
-    typename Kernel::Matrix39 	m_diffrot;
-    typename Kernel::Quaternion	m_quaternion;
-    typename Kernel::Vector3	m_original_translation;
-    typename Kernel::Vector3Map	m_normQ;
-    typename Kernel::Vector3 	m_origNormQ;
-    typename Kernel::Quaternion m_resetQuaternion;
+    typename Kernel::Matrix3	 m_rotation;
+    typename Kernel::Matrix39 	 m_diffrot;
+    typename Kernel::Transform3D m_transform;
+    typename Kernel::Vector3Map	 m_normQ;
+    typename Kernel::Quaternion  m_resetQuaternion;
 
     int m_offset;
     bool init, reset;
@@ -65,7 +63,7 @@ public:
 
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
-    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, added;
+    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, fixtrans;
     Scalar m_scale;
     Scalemode mode;
 
@@ -73,7 +71,6 @@ public:
     ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false),
         m_resetQuaternion(1,1,1,1), reset(false) {
 
-        m_quaternion.setIdentity();
         m_resetQuaternion.normalize();
         m_shift.setZero();
         m_scale = 1.;
@@ -105,6 +102,7 @@ public:
     void initMaps() {
 
         //if we start with unit quaternion we need to reset the geometry to something else
+        const typename Kernel::Quaternion& m_quaternion = m_transform.rotation();
         if(m_quaternion.w() < 1.) {
             Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
             m_normQ = m_quaternion.vec()*s;
@@ -112,7 +110,7 @@ public:
             m_normQ.setZero();
         }
 
-        m_translation = m_original_translation;
+        m_translation = m_transform.translation().vector();
         init = true;
         m_scale = 1.;
         midpoint.setZero();
@@ -121,28 +119,25 @@ public:
     void initFixMaps() {
         //when fixed no maps exist
         m_diffrot.setZero();
-        m_rotation = m_quaternion.toRotationMatrix();
-        new(&m_translation) typename Kernel::Vector3Map(&m_original_translation(0));
+        m_rotation = m_transform.rotation().toRotationMatrix();
+        new(&m_translation) typename Kernel::Vector3Map(&fixtrans(0));
+	m_translation = m_transform.translation().vector();
         init = true;
         m_scale = 1.;
         midpoint.setZero();
         m_shift.setZero();
     };
 
-    typename Kernel::Quaternion& getQuaternion() {
-        return m_quaternion;
-    };
-    typename Kernel::Vector3& getTranslation() {
-        return m_original_translation;
+    typename Kernel::Transform3D& getTransform() {
+        return m_transform;
     };
     void setShift(typename Kernel::Vector3 s) {
         m_shift = s;
         //we remove shift from the local geometries, therefore we have to add it here
         //to not change the global position
-        if(init) {
-            added = m_quaternion._transformVector(m_shift);
-            m_translation += added;
-        }
+        if(init) 
+             m_translation += m_transform*m_shift;
+
     };
     void setScale(Scalar s) {
         m_scale = s;
@@ -152,7 +147,7 @@ public:
     void finishCalculation() {
         const Scalar norm = m_normQ.norm();
         const Scalar fac = std::sin(norm)/norm;
-        m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+        typename Kernel::Quaternion m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
         m_quaternion.normalize();
 
         //if the rotation was resetet we have to calc the real quaternion now
@@ -160,7 +155,7 @@ public:
             resetClusterRotation(m_quaternion);
 
 
-        m_original_translation = m_translation/m_scale - m_quaternion._transformVector(m_shift);
+        typename Kernel::Vector3 m_original_translation = m_translation/m_scale - m_quaternion._transformVector(m_shift);
 
         //needed to allow a correct global calculation in cluster geometries after this finish
         m_shift.setZero();
@@ -168,6 +163,10 @@ public:
         m_translation = m_original_translation;
 
         init=false;
+	
+	m_transform = m_quaternion;
+	m_transform *= typename Kernel::Transform3D::Translation(m_original_translation);
+	m_transform *= typename Kernel::Transform3D::Scaling(m_scale);
     };
     void finishFixCalculation() {
         //needed to allow a correct global calculation in cluster geometries after this finish
@@ -300,15 +299,14 @@ public:
 
 
     void mapClusterDownstreamGeometry(Cluster& cluster,
-                                      typename Kernel::Quaternion& q,
-                                      typename Kernel::Vector3& t,
+                                      typename Kernel::Transform3D& t,
                                       details::ClusterMath<Sys>& cm
                                      ) {
         //all geometry within that cluster needs to be mapped to the provided rotation matrix (in cm)
         //also the geometries toplocal value needs to be set so that it matches this cm
-        typename Kernel::Quaternion nq = q*cluster.template getClusterProperty<math_prop>().getQuaternion();
-        typename Kernel::Vector3 nt = t+cluster.template getClusterProperty<math_prop>().getTranslation();
-
+        typename Kernel::Transform3D nt = t*cluster.template getClusterProperty<math_prop>().getTransform();
+	typename Kernel::Transform3D trans = nt.inverse();
+		
         //get all vertices and map the geometries if existend
         typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
         std::pair<iter, iter>  it = boost::vertices(cluster);
@@ -326,7 +324,7 @@ public:
                 //set the offsets so that geometry knows where it is in the parameter map
                 g->m_offset = cm.getParameterOffset();
                 //calculate the appropriate local values
-                g->transformInverse(nq.conjugate().toRotationMatrix(), -nt);
+                g->transform(trans);
 
                 //position and offset of the parameters must be set to the clusters values
                 g->setClusterMode(true, cluster.template getClusterProperty<fix_prop>());
@@ -337,7 +335,7 @@ public:
         typedef typename Cluster::cluster_iterator citer;
         std::pair<citer, citer> cit = cluster.clusters();
         for(; cit.first != cit.second; cit.first++)
-            mapClusterDownstreamGeometry(*(*cit.first).second, nq, nt, cm);
+            mapClusterDownstreamGeometry(*(*cit.first).second, nt, cm);
         //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
         //	dof's remaining between parts and so nothing can be moved when one part is fixed.
 

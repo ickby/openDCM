@@ -119,7 +119,6 @@ struct Module3D {
                     }
 
                 };
-                //TODO:Scale parameters outside cluster
 
                 //with everything updated just nicely we can compute the constraints
                 typedef typename Cluster::template object_iterator<Constraint3D> oiter;
@@ -156,12 +155,12 @@ struct Module3D {
                 //set out and solve all relevant subclusters
                 typedef typename Cluster::cluster_iterator citer;
                 std::pair<citer, citer> cit = cluster.clusters();
-                //std::cout<<"hmmm"<<std::endl;
                 for(; cit.first != cit.second; cit.first++) {
 
-                    if((*cit.first).second->template getClusterProperty<changed_prop>() &&
-                            (*cit.first).second->template getClusterProperty<type_prop>() == details::cluster3D)
-                        solveCluster(*(*cit.first).second, sys);
+                    Cluster& c = *(*cit.first).second;
+                    if(c.template getClusterProperty<changed_prop>() &&
+                            c.template getClusterProperty<type_prop>() == details::cluster3D)
+                        solveCluster(c, sys);
                 }
 
                 int params=0, constraints=0;
@@ -223,9 +222,8 @@ struct Module3D {
 
                         //to allow a corect calculation of geometries toplocal value we need the quaternion
                         //which transforms from toplevel to this "to be solved" cluster and the aquivalent translation
-                        typename Kernel::Quaternion q(1,0,0,0);
-                        typename Kernel::Vector3 t(0,0,0);
-                        cm.mapClusterDownstreamGeometry(c, q, t, cm);
+                       	typename Kernel::Transform3D trans;
+                        cm.mapClusterDownstreamGeometry(c, trans, cm);
 
 
                     } else {
@@ -321,21 +319,21 @@ struct Module3D {
         };
 
         template<typename Derived>
-        class Geometry3D_id : public detail::Geometry<Sys, Derived, Typelist, GeomSignal> {
+        class Geometry3D_id : public detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3> {
 
-            typedef detail::Geometry<Sys, Derived, Typelist, GeomSignal> Base;
+            typedef detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3> Base;
 
             Identifier m_id;
 #ifdef USE_LOGGING
-	    attrs::mutable_constant< std::string > log_id;
+            attrs::mutable_constant< std::string > log_id;
 #endif
         public:
             template<typename T>
             Geometry3D_id(T geometry, Sys& system) : Base(geometry, system)
 #ifdef USE_LOGGING
-	    , log_id("No ID")
+                , log_id("No ID")
 #endif
-	    {
+            {
 
 #ifdef USE_LOGGING
                 Base::log.add_attribute("ID", log_id);
@@ -356,7 +354,7 @@ struct Module3D {
             void setIdentifier(Identifier id) {
                 m_id = id;
 #ifdef USE_LOGGING
-		std::stringstream str;
+                std::stringstream str;
                 str<<id;
                 log_id.set(str.str());
                 BOOST_LOG(Base::log)<<"Identifyer set: "<<id;
@@ -365,10 +363,10 @@ struct Module3D {
         };
 
         struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal>, Geometry3D_id<Geometry3D> >::type {
+                detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
 
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                    detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal>,
+                    detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
                     Geometry3D_id<Geometry3D> >::type base;
 
             template<typename T>

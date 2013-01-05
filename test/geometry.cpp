@@ -86,11 +86,11 @@ BOOST_AUTO_TEST_CASE(geometry_order) {
 
 }
 
-BOOST_AUTO_TEST_CASE(geometry_transformation) {
+BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
 
     typedef dcm::Kernel<double> Kernel;
 
-    typedef dcm::detail::Transform<Kernel, 3> Transform;
+    typedef typename Kernel::Transform3D Transform;
     Transform trans3d;
 
     //check if initial initialisation is correct
@@ -186,6 +186,11 @@ BOOST_AUTO_TEST_CASE(geometry_transformation) {
     trans3d_345 *= trans3d_5.inverse();
     trans3d_345.transform(vec);
     BOOST_CHECK(vec.isApprox(v1, 1e-10));
+}
+
+BOOST_AUTO_TEST_CASE(geometry_geometry3d) {
+  
+  
 }
 
 

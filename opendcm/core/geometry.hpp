@@ -118,7 +118,7 @@ struct reset {}; 	//signal namespace
 
 namespace detail {
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dimension = 3>
+template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dimension>
 class Geometry : public Object<Sys, Derived, Signals > {
 
     typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
@@ -127,6 +127,7 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename system_traits<Sys>::Cluster 	Cluster;
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
+    typedef typename Kernel::Transform3D		Transform;
 
 #ifdef USE_LOGGING
 protected:
@@ -138,13 +139,12 @@ public:
     Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
         m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
         m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false),
-        m_shift(NULL),m_scale(1.)
-	{
+        m_shift(NULL),m_scale(1.) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
-	
+
         init<T>(geometry);
     };
 
@@ -232,6 +232,8 @@ public:
             //we are in cluster, therfore the parameter map should not point to a solver value but to
             //the rotated original value;
             new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
+            //the local value is the global one as no transformation was applied  yet
+            //m_toplocal = m_global;
         } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 
     }
@@ -302,52 +304,36 @@ public:
         apply_visitor v(m_global);
         apply(v);
     };
-    //get this geometrie largest part
-    typename Kernel::number_type getScaleValue() {
-        typename Kernel::number_type val = 0;
 
-        //when we are not in a cluster our value is unintresting. same for fixed clusters: dosn't matter.
-        if(!m_isInCluster || m_clusterFixed) return 1.;
-
-        //only translated parts are relevant, as rotation only values get normalised anyway
-        //(and other parameters are not rotation diff relevant, radius for example)
-        for(int i=0; i!=m_translations; i++)
-            val = std::max(m_toplocal.template segment<Dimension>(i*Dimension).norm(), val);
-        return val;
-    };
 
     //normal transformation
-    void transform(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                   const Eigen::Matrix<Scalar, Dimension, 1> trans) {
-
+    void transform(Transform& t) {
         m_toplocal = m_global;
-        for(int i=0; i!=m_rotations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_global.template segment<Dimension>(i*Dimension);
+        //everything that needs to be translated needs to be fully transformed
+        for(int i=0; i!=m_translations; i++) {
+            typename Kernel::Vector3 vec = m_toplocal.template segment<Dimension>(i*Dimension);
+            m_toplocal.template segment<Dimension>(i*Dimension) = t*vec;
+        }
 
-        //after rotating the needed parameters we translate the stuff that needs to be moved
-        for(int i=0; i!=m_translations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = m_toplocal.template segment<Dimension>(i*Dimension) + trans;
-    };
-    //first translation, then rotation
-    void transformInverse(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                          const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+        for(int i=m_translations; i!=m_rotations; i++) {
+            typename Kernel::Vector3 vec = m_toplocal.template segment<Dimension>(i*Dimension);
+            m_toplocal.template segment<Dimension>(i*Dimension) = t.rotate(vec);
+        }
+    }
 
-        m_toplocal = m_global;
-        for(int i=0; i!=m_translations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
-        for(int i=0; i!=m_rotations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
-    };
-    void transformGlobal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
+    void transformGlobal(Transform& t) {
 
-        for(int i=0; i!=m_rotations; i++)
-            m_global.template segment<Dimension>(i*Dimension) = rot*m_global.template segment<Dimension>(i*Dimension);
+        //everything that needs to be translated needs to be fully transformed
+        for(int i=0; i!=m_translations; i++) {
+            typename Kernel::Vector3 vec(m_global.template segment<Dimension>(i*Dimension));
+            t.transform(vec);
+        };
 
-        //after rotating the needed parameters we translate the stuff that needs to be moved
-        for(int i=0; i!=m_translations; i++)
-            m_global.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
-    };
+        for(int i=m_translations; i!=m_rotations; i++) {
+            typename Kernel::Vector3 vec = m_global.template segment<Dimension>(i*Dimension);
+            t.rotate(vec);
+        }
+    }
     void transformLocal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
                         const Eigen::Matrix<Scalar, Dimension, 1> trans) {
 

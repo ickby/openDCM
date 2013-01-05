@@ -7,8 +7,8 @@ set(framework_SRC framework.cpp)
 set(test_SRC  define.cpp
 	      #kernel.cpp
 	      #clustergraph.cpp
-	      #geometry.cpp
 	      #sys_and_obj.cpp
+	      #geometry.cpp
 	      #clustermath.cpp
 	      #module3d.cpp
 	      #dof.cpp

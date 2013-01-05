@@ -279,8 +279,7 @@ struct ModulePart {
                 for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
-                    cm.getQuaternion() = (*it)->m_transform.rotation();
-                    cm.getTranslation() = (*it)->m_transform.translation().vector();
+                    cm.getTransform() = (*it)->m_transform;
                 };
             };
         };
@@ -301,8 +300,7 @@ struct ModulePart {
                 for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
-                    (*it)->m_transform =  cm.getQuaternion();
-                    (*it)->m_transform *= typename Kernel::Transform3D::Translation(cm.getTranslation());
+                    (*it)->m_transform =  cm.getTransform();
                     (*it)->finishCalculation();		    
                 };
             };

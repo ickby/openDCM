@@ -167,22 +167,22 @@ public:
     template<typename Derived>
     inline Derived& rotate(Eigen::MatrixBase<Derived>& vec) const {
         vec = m_rotation*vec;
-	return vec.derived();
+        return vec.derived();
     }
     template<typename Derived>
     inline Derived& translate(Eigen::MatrixBase<Derived>& vec) const {
         vec = m_translation*vec;
-	return vec.derived();
+        return vec.derived();
     }
     template<typename Derived>
     inline Derived& scale(Eigen::MatrixBase<Derived>& vec) const {
         vec*=m_scale;
-	return vec.derived();
+        return vec.derived();
     }
     template<typename Derived>
     inline Derived& transform(Eigen::MatrixBase<Derived>& vec) const {
         vec = (m_rotation*vec + m_translation.vector())*m_scale;
-	return vec.derived();
+        return vec.derived();
     }
     template<typename Derived>
     inline Derived operator*(const Eigen::MatrixBase<Derived>& vec) const {
@@ -212,10 +212,22 @@ public:
     Transform& normalize() {
         m_rotation.normalize();
         return *this;
-    };
+    }
 };
 
 }//detail
 }//DCM
+
+/*When you overload a binary operator as a member function of a class the overload is used
+ * when the first operand is of the class type.For stream operators, the first operand 
+ * is the stream and not (usually) the custom class.
+*/
+template<typename Kernel, int Dim>
+std::ostream& operator<<(std::ostream& os, const dcm::detail::Transform<Kernel, Dim>& t) {
+    os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
+       << "Translation: " << t.translation().vector().transpose() <<std::endl
+       << "Scale:       " << t.scaling();
+    return os;
+}
 
 #endif //DCM_TRANSFORMATION
