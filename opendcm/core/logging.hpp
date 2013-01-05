@@ -48,7 +48,7 @@ namespace dcm {
 static int counter = 0;
 typedef sinks::synchronous_sink< sinks::text_file_backend > sink_t;
 
-boost::shared_ptr< sink_t > init_log() {
+inline boost::shared_ptr< sink_t > init_log() {
 
     //create the filename
     std::stringstream str;
@@ -78,7 +78,7 @@ boost::shared_ptr< sink_t > init_log() {
     return sink;
 };
 
-void stop_log(boost::shared_ptr< sink_t >& sink) {
+inline void stop_log(boost::shared_ptr< sink_t >& sink) {
 
     boost::shared_ptr< logging::core > core = logging::core::get();
 
