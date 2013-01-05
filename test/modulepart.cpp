@@ -290,8 +290,8 @@ BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
   p1 << 7, -0.5, 0.3, 9, -2, 3;
   p2 << -2, -1.3, -2.8, 1.2, 0.3, -1.3;
   Eigen::Vector3d p3, p4;
-  p3<<1,1,1;
-  p4<<0,0,0;
+  p3<<1.,1.,1.;
+  p4<<0.,0.,0.;
   
   //directions should be normalized
   p1.tail<3>().normalize();

@@ -28,15 +28,12 @@
 namespace dcm {
 namespace detail {
 
-template<typename Kernel, int Dim>
+template<typename Scalar, int Dim>
 class Transform {
 
 public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(typename Kernel::number_type,(Dim+1)*(Dim+1))
-
-    typedef typename Kernel::number_type  Scalar;
     typedef Eigen::Matrix<Scalar, Dim, 1> Vector;
-    typedef typename mpl::if_c< Dim== 3,
+    typedef typename mpl::if_c< Dim == 3,
             Eigen::Quaternion<Scalar>,
             Eigen::Rotation2D<Scalar> >::type     Rotation;
     typedef Eigen::Translation<Scalar, Dim>	  Translation;
@@ -53,8 +50,8 @@ public:
               Translation v = Translation::Identity(),
               Scalar s = Scalar(1.))
         : m_rotation(q), m_translation(v), m_scale(s) {
-	  
-	  m_rotation.normalize();
+
+        m_rotation.normalize();
     };
 
     //access the single parts and manipulate them
@@ -62,9 +59,9 @@ public:
     const Rotation& rotation() const {
         return m_rotation;
     }
-    template<typename RotationType>
-    Transform& rotate(const RotationType& rotation) {
-        m_rotation = rotation.normalized()*m_rotation;
+    template<typename Derived>
+    Transform& rotate(const Eigen::RotationBase<Derived,Dim>& rotation) {
+        m_rotation = rotation.derived().normalized()*m_rotation;
         return *this;
     }
 
@@ -111,7 +108,7 @@ public:
     }
     inline Transform operator*(const Translation& t) const {
         Transform res = *this;
-        res.translate(t.vector());
+        res.translate(t);
         return res;
     }
     inline Transform& operator*=(const Translation& t) {
@@ -136,7 +133,7 @@ public:
     template<typename Derived>
     inline Transform& operator=(const Eigen::RotationBase<Derived,Dim>& r) {
         m_rotation = r.derived();
-	m_rotation.normalize();
+        m_rotation.normalize();
         m_translation = Translation::Identity();
         m_scale = 1;
         return *this;
@@ -159,7 +156,7 @@ public:
     }
     inline Transform& operator*= (const Transform& other) {
         rotate(other.rotation());
-        m_translation.vector() = other.rotate(m_translation.vector());
+        other.rotate(m_translation.vector());
         m_translation.vector() += other.translation().vector()/m_scale;
         m_scale *= other.scaling();
         return *this;
@@ -167,24 +164,33 @@ public:
 
     //transform Vectors
     //*****************
-    inline Vector rotate(const Vector& vec) const {
-        return m_rotation*vec;
+    template<typename Derived>
+    inline Derived& rotate(Eigen::MatrixBase<Derived>& vec) const {
+        vec = m_rotation*vec;
+	return vec.derived();
     }
-    inline Vector translate(const Vector& vec) const {
-        return m_translation*vec;
+    template<typename Derived>
+    inline Derived& translate(Eigen::MatrixBase<Derived>& vec) const {
+        vec = m_translation*vec;
+	return vec.derived();
     }
-    inline Vector scale(const Vector& vec) const {
-        return vec*m_scale;
+    template<typename Derived>
+    inline Derived& scale(Eigen::MatrixBase<Derived>& vec) const {
+        vec*=m_scale;
+	return vec.derived();
     }
-    inline Vector& transform(Vector& vec) const {
+    template<typename Derived>
+    inline Derived& transform(Eigen::MatrixBase<Derived>& vec) const {
         vec = (m_rotation*vec + m_translation.vector())*m_scale;
-        return vec;
+	return vec.derived();
     }
-    inline Vector operator*(const Vector& vec) const {
-        return (*this)(vec);
-    }
-    inline Vector operator()(const Vector& vec) const {
+    template<typename Derived>
+    inline Derived operator*(const Eigen::MatrixBase<Derived>& vec) const {
         return (m_rotation*vec + m_translation.vector())*m_scale;
+    }
+    template<typename Derived>
+    inline void operator()(Eigen::MatrixBase<Derived>& vec) const {
+        transform(vec);
     }
 
     //Stuff
@@ -203,91 +209,10 @@ public:
         return Transform(Rotation::Identity(), Translation::Identity, 1.);
     }
 
-
-    /*
-
-    //Accessing the values
-    Rotation& rotation() {
-        return m_rotation;
-    };
-    Rotation& rotation(Rotation r) {
-        m_rotation = r;
-        return m_rotation;
-    };
-    Vector& translation() {
-        return m_translation;
-    };
-    Vector& translation(Vector v) {
-        m_translation = v;
-        return m_translation;
-    };
-    Scalar& scale() {
-        return m_scale;
-    };
-    Scalar& scale(Scalar s) {
-        m_scale = s;
-        return m_scale;
-    };
-
-    //Transforming stuff
-    void transform(Vector& v) {
-
-        rotateSingle<Dimension>(v) += m_translation;
-        v *= m_scale;
-    };
-
-    Vector& rotate(Vector& v) {
-        rotateSingle<Dimension>(v);
-        return v;
-    };
-
-    Vector& translate(Vector& v) {
-        v += m_translation;
-        return v;
-    };
-
-    Vector& scale(Vector& v) {
-        v *= m_scale;
-        return v;
-    };
-
-    Transformation<Kernel, Dimension>& invert() {
-        rotateInvert<Dimension>(m_rotation);
-        m_translation = rotate(m_translation) * (-m_scale);
-        m_scale = 1./m_scale;
+    Transform& normalize() {
+        m_rotation.normalize();
         return *this;
     };
-
-    Transformation<Kernel, Dimension> inverse() {
-        Transformation<Kernel, Dimension> trans(*this);
-    trans.invert();
-        return trans;
-    };
-
-    //successive transformations
-    Transformation<Kernel, Dimension> operator+(Transformation<Kernel, Dimension>& sec) {
-    Transformation<Kernel, Dimension> tmp(*this);
-        return tmp+= sec;
-    };
-    Transformation<Kernel, Dimension>& operator+=(Transformation<Kernel, Dimension>& sec) {
-        combineRotation<Dimension>(sec.rotation());
-        sec.rotate(m_translation);
-        m_translation += sec.translation()/m_scale;
-        m_scale *= sec.scale();
-        return *this;
-    };
-    Transformation<Kernel, Dimension> operator-(Transformation<Kernel, Dimension>& sec) {
-    Transformation<Kernel, Dimension> tmp1(*this);
-    Transformation<Kernel, Dimension> tmp2(sec);
-    tmp2.invert();
-        return tmp1+=tmp2;
-    };
-
-    Transformation<Kernel, Dimension>& operator-=(Transformation<Kernel, Dimension>& sec) {
-        Transformation<Kernel, Dimension> tmp(sec);
-    tmp.invert();
-        return operator+=(tmp);
-    };*/
 };
 
 }//detail

@@ -29,6 +29,8 @@
 #include <boost/math/special_functions/fpclassify.hpp>
 #include <time.h>
 
+#include "transformation.hpp"
+
 namespace dcm {
 
 namespace E = Eigen;
@@ -252,6 +254,8 @@ struct Kernel {
     typedef E::Matrix<Scalar, 3, 9> Matrix39;
     typedef E::Map< Matrix39 >      Matrix39Map;
     typedef E::Block<Matrix>	    MatrixBlock;
+    
+    typedef detail::Transform<Scalar, 3> Transform3D;
 
     struct MappedEquationSystem {
 

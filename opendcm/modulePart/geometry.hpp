@@ -21,6 +21,7 @@
 #define GCM_GEOMETRY_PART_H
 
 #include <opendcm/core/geometry.hpp>
+#include <opendcm/core/kernel.hpp>
 
 namespace dcm {
 namespace tag {
@@ -38,32 +39,48 @@ namespace modell {
      * 2 = y;
      * 3 = z;
      */    
-    template<typename Scalar, typename Accessor, typename Vector1, typename Vector2, typename Type>
-    void extract(Type& t, Vector1& v, Vector2& v2) {
-      //Vector is a Quaternion here
-      Accessor a;
-      v.w() = a.template get<Scalar, 0>(t);
-      v.x() = a.template get<Scalar, 1>(t);
-      v.y() = a.template get<Scalar, 2>(t);
-      v.z() = a.template get<Scalar, 3>(t);
-      //Vector2 is a Eigen::Vector3
-      v2(0) = a.template get<Scalar, 4>(t);
-      v2(1) = a.template get<Scalar, 5>(t);
-      v2(2) = a.template get<Scalar, 6>(t);
+    template<typename Kernel, typename Accessor, typename Type>
+    void extract(Type& t, typename Kernel::Transform3D& trans) {
       
+      typedef typename Kernel::number_type Scalar;
+      typedef typename Kernel::Transform3D::Rotation 	Rotation;
+      typedef typename Kernel::Transform3D::Translation Translation;
+      
+      Accessor a;
+      Rotation r;
+      r.w() = a.template get<Scalar, 0>(t);
+      r.x() = a.template get<Scalar, 1>(t);
+      r.y() = a.template get<Scalar, 2>(t);
+      r.z() = a.template get<Scalar, 3>(t);
+      
+      Translation tr;;
+      tr.vector()(0) = a.template get<Scalar, 4>(t);
+      tr.vector()(1) = a.template get<Scalar, 5>(t);
+      tr.vector()(2) = a.template get<Scalar, 6>(t);
+      
+      trans =  r;
+      trans *= tr;      
     }
     
-    template<typename Scalar, typename Accessor, typename Vector1, typename Vector2, typename Type>
-    void inject(Type& t, Vector1& v, Vector2& v2) {
-      Accessor a;
-      a.template set<Scalar, 0>(v.w(), t);
-      a.template set<Scalar, 1>(v.x(), t);
-      a.template set<Scalar, 2>(v.y(), t);
-      a.template set<Scalar, 3>(v.z(), t);
+    template<typename Kernel, typename Accessor, typename Type>
+    void inject(Type& t, typename Kernel::Transform3D& trans) {
       
-      a.template set<Scalar, 4>(v2(0), t);
-      a.template set<Scalar, 5>(v2(1), t);
-      a.template set<Scalar, 6>(v2(2), t);
+      typedef typename Kernel::number_type Scalar;
+      typedef typename Kernel::Transform3D::Rotation 	Rotation;
+      typedef typename Kernel::Transform3D::Translation Translation;
+      
+      Accessor a;
+      
+      const Rotation& r = trans.rotation();
+      a.template set<Scalar, 0>(r.w(), t);
+      a.template set<Scalar, 1>(r.x(), t);
+      a.template set<Scalar, 2>(r.y(), t);
+      a.template set<Scalar, 3>(r.z(), t);
+      
+      const Translation& tr = trans.translation();
+      a.template set<Scalar, 4>(tr.vector()(0), t);
+      a.template set<Scalar, 5>(tr.vector()(1), t);
+      a.template set<Scalar, 6>(tr.vector()(2), t);
       
       a.finalize(t);
     };

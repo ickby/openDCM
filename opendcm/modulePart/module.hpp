@@ -68,12 +68,13 @@ struct ModulePart {
             typedef typename system_traits<Sys>::Kernel Kernel;
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename Kernel::number_type Scalar;
+	    typedef typename Kernel::Transform3D Transform;
 
 	    template<typename T>
             Geom addGeometry(T geom, CoordinateFrame frame = Global) {
                 Geom g(new Geometry3D(geom, m_system));
-                if(frame == Local)
-                    g->transformGlobal(m_quaternion.toRotationMatrix(), m_translation);
+                if(frame == Local) 
+                    g->transformGlobal(m_transform);
 
                 fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
                 m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
@@ -88,10 +89,9 @@ struct ModulePart {
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
                 m_geometry(geometry), m_cluster(cluster)  {
 
-                (typename geometry_traits<T>::modell()).template extract<typename Part_base::Scalar,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
+                (typename geometry_traits<T>::modell()).template extract<Kernel,
+                typename geometry_traits<T>::accessor >(geometry, m_transform);
 
-                Part_base::m_quaternion.normalize();		
 		//the cluster needs initial values but they are set by preprocess job
 		
 		cluster.template setClusterProperty<typename module3d::fix_prop>(false);
@@ -103,29 +103,27 @@ struct ModulePart {
             };
 
         public:
-            Variant m_geometry;
-            typename Kernel::Quaternion m_quaternion;
-            typename Kernel::Vector3 m_translation;
-            Cluster& m_cluster;
+            Variant 	m_geometry;
+            Transform 	m_transform;
+            Cluster& 	m_cluster;
       
 
             //visitor to write the calculated value into the variant
             struct apply_visitor : public boost::static_visitor<void> {
 
-                apply_visitor(typename Kernel::Quaternion& v1,typename Kernel::Vector3& v2) : quaternion(v1),
-                    translation(v2) {};
+                apply_visitor(Transform& t) : m_transform(t) {};
+		    
                 template <typename T>
                 void operator()(T& t) const  {
-                    (typename geometry_traits<T>::modell()).template inject<typename Part_base::Scalar,
-                    typename geometry_traits<T>::accessor >(t, quaternion, translation);
+                    (typename geometry_traits<T>::modell()).template inject<Kernel,
+                    typename geometry_traits<T>::accessor >(t, m_transform);
                 }
-                typename Kernel::Vector3& translation;
-                typename Kernel::Quaternion& quaternion;
+                Transform& m_transform;
             };
 
             void finishCalculation() {
-                m_quaternion.normalize();
-                apply_visitor vis(m_quaternion, m_translation);
+                m_transform.normalize();
+                apply_visitor vis(m_transform);
                 apply(vis);
             };
 	    
@@ -148,8 +146,8 @@ struct ModulePart {
             template<typename T>
             void set(T geometry) {
                 Part_base::m_geometry = geometry;
-                (typename geometry_traits<T>::modell()).template extract<typename Part_base::Scalar,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
+                (typename geometry_traits<T>::modell()).template extract<Kernel,
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_transform);
             };
         };
         class Part_id : public Part_base {
@@ -171,8 +169,8 @@ struct ModulePart {
             void set(T geometry, Identifier id) {
                 Part_base::m_geometry = geometry;
                 m_id = id;
-                (typename geometry_traits<T>::modell()).template extract< typename Part_base::Scalar,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_quaternion, Part_base::m_translation);
+                (typename geometry_traits<T>::modell()).template extract< Kernel,
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_transform);
             };
 
             bool hasGeometry3D(Identifier id) {
@@ -281,8 +279,8 @@ struct ModulePart {
                 for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
-                    cm.getQuaternion() = (*it)->m_quaternion;
-                    cm.getTranslation() = (*it)->m_translation;
+                    cm.getQuaternion() = (*it)->m_transform.rotation();
+                    cm.getTranslation() = (*it)->m_transform.translation().vector();
                 };
             };
         };
@@ -303,8 +301,8 @@ struct ModulePart {
                 for(iter it = sys.template begin<Part>(); it != sys.template end<Part>(); it++) {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
-                    (*it)->m_quaternion = cm.getQuaternion();
-                    (*it)->m_translation = cm.getTranslation();
+                    (*it)->m_transform =  cm.getQuaternion();
+                    (*it)->m_transform *= typename Kernel::Transform3D::Translation(cm.getTranslation());
                     (*it)->finishCalculation();		    
                 };
             };
