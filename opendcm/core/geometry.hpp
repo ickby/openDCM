@@ -128,6 +128,7 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
     typedef typename Kernel::Transform3D		Transform;
+    typedef typename Kernel::DiffTransform3D		DiffTransform;
 
 #ifdef USE_LOGGING
 protected:
@@ -137,9 +138,8 @@ protected:
 public:
     template<typename T>
     Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
-        m_geometry(geometry), m_rotation(NULL), m_parameter(NULL,0,DS(0,0)),
-        m_diffrot(NULL), m_translation(NULL), m_clusterFixed(false),
-        m_shift(NULL),m_scale(1.), m_init(false) {
+        m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
+        m_clusterFixed(false), m_init(false) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
@@ -173,12 +173,6 @@ public:
     typename Sys::Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)
     typename Sys::Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
     typename Sys::Kernel::VectorMap   m_parameter; //map to the parameters in the solver
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >  m_translation; //map to the cluster translation
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >  m_shift; //map to the cluster shift
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension> >  m_rotation; //map to the cluster rotation
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension* Dimension> >  m_diffrot; //map to the gradient rotations
-
-    Scalar m_scale;
 
     template<typename T>
     void init(T& t) {
@@ -190,6 +184,7 @@ public:
         m_toplocal.setZero(m_parameterCount);
         m_global.resize(m_parameterCount);
         m_rotated.resize(m_parameterCount);
+	m_rotated.setZero();
 
         m_diffparam.resize(m_parameterCount,6);
         m_diffparam.setZero();
@@ -211,18 +206,6 @@ public:
         m_parameterCount = m_BaseParameterCount;
         return m_parameter;
     }
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension> >&  getRotationMap() {
-        return m_rotation;
-    };
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, Dimension* Dimension> >& getDiffRotationMap() {
-        return m_diffrot;
-    };
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >&  getTranslationMap() {
-        return m_translation;
-    };
-    Eigen::Map< Eigen::Matrix<Scalar, Dimension, 1> >&  getShiftMap() {
-        return m_shift;
-    };
     void initMap() {
         //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
         m_parameter = m_global;
@@ -248,36 +231,27 @@ public:
         return m_clusterFixed;
     };
 
-    void recalculate(const Scalar scale = -1.) {
+    void recalculate(DiffTransform& trans) {
         if(!m_isInCluster) return;
-
-        Scalar s;
-        if(scale <= 0)
-            s = m_scale;
-        else s=scale;
 
         for(int i=0; i!=m_rotations; i++) {
             //first rotate the original to the transformed value
-            m_rotated.block(i*Dimension,0,Dimension,1) = m_rotation*m_toplocal.template segment<Dimension>(i*Dimension);
+            m_rotated.block(i*Dimension,0,Dimension,1) = trans.rotation()*m_toplocal.template segment<Dimension>(i*Dimension);
 
             //now calculate the gradient vectors and add them to diffparam
             for(int j=0; j<Dimension; j++)
-                m_diffparam.block(i*Dimension,j,Dimension,1) = m_diffrot.block(0,j*3,Dimension,Dimension) * m_toplocal.template segment<Dimension>(i*Dimension);
+                m_diffparam.block(i*Dimension,j,Dimension,1) = trans.differential().block(0,j*3,Dimension,Dimension) * m_toplocal.template segment<Dimension>(i*Dimension);
         }
         //after rotating the needed parameters we translate the stuff that needs to be moved
         for(int i=0; i!=m_translations; i++) {
-            //first translate and shift the original to the transformed value
-            m_rotated.block(i*Dimension,0,Dimension,1) *= s;
-            m_rotated.block(i*Dimension,0,Dimension,1) += m_translation - m_rotation*m_shift*s;
-
-            //now calculate the gradient vectors and add them to diffparam
+            m_rotated.block(i*Dimension,0,Dimension,1) += trans.translation().vector();
+            m_rotated.block(i*Dimension,0,Dimension,1) *= trans.scaling();
+            //calculate the gradient vectors and add them to diffparam
             m_diffparam.block(i*Dimension,Dimension,Dimension,Dimension).setIdentity();
-
-            for(int j=0; j<Dimension; j++)
-                m_diffparam.block(i*Dimension,j,Dimension,1) -= m_diffrot.block(0,j*3,Dimension,Dimension) * m_shift;
-
-            m_diffparam.block(i*Dimension,0,Dimension,Dimension) *= s;
         }
+        //basicly no needed as this case appears only from within finishCalculation
+        //and therefore the diffparam is not needed anymore
+        //if(trans.scaling() != 1.) m_diffparam *= trans.scaling();
     }
 
     typename Kernel::Vector3 getPoint() {
@@ -300,7 +274,7 @@ public:
     void finishCalculation() {
         //if fixed nothing needs to be changed
         if(m_isInCluster) {
-            recalculate(1.); //remove scaling to get right global value
+            //recalculate(1.); //remove scaling to get right global value
             m_global = m_rotated;
         }
         //TODO:non cluster paramter scaling
@@ -313,12 +287,12 @@ public:
     //normal transformation
     void transform(const Transform& t) {
 
-        if(m_isInCluster) 
-	  transform(t, m_toplocal);
-        else if(m_init) 
-	  transform(t, m_rotated);        
+        if(m_isInCluster)
+            transform(t, m_toplocal);
+        else if(m_init)
+            transform(t, m_rotated);
         else
-	  transform(t, m_global);  
+            transform(t, m_global);
     }
 
     template<typename VectorType>
@@ -334,32 +308,20 @@ public:
             typename Kernel::Vector3 v = vec.template segment<Dimension>(i*Dimension);
             vec.template segment<Dimension>(i*Dimension) = t.rotate(v);
         }
+
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Transformed with cluster: "<<m_isInCluster
+                       << ", init: "<<m_init<<" into: "<< vec.transpose();
+#endif
     }
 
-    void transformLocal(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                        const Eigen::Matrix<Scalar, Dimension, 1> trans) {
-
-        for(int i=0; i!=m_rotations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
-
-        //after rotating the needed parameters we translate the stuff that needs to be moved
-        for(int i=0; i!=m_translations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = m_toplocal.template segment<Dimension>(i*Dimension) + trans;
-    };
-    void transformLocalInverse(const Eigen::Matrix<Scalar, Dimension, Dimension> rot,
-                               const Eigen::Matrix<Scalar, Dimension, 1> trans) {
-
-        for(int i=0; i!=m_translations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = m_global.template segment<Dimension>(i*Dimension) + trans;
-        for(int i=0; i!=m_rotations; i++)
-            m_toplocal.template segment<Dimension>(i*Dimension) = rot*m_toplocal.template segment<Dimension>(i*Dimension);
-    };
     void scale(Scalar value) {
 
         for(int i=0; i!=m_translations; i++)
             m_parameter.template segment<Dimension>(i*Dimension) *= 1./value;
 
     };
+
 };
 
 }

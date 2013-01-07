@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <cmath>
+#include <opendcm/core/logging.hpp>
 
 #define maxfak 1.2
 #define minfak 0.8
@@ -51,9 +52,8 @@ public:
 
     typedef typename Kernel::number_type Scalar;
 
-    typename Kernel::Matrix3	 m_rotation;
-    typename Kernel::Matrix39 	 m_diffrot;
-    typename Kernel::Transform3D m_transform;
+    typename Kernel::Transform3D m_transform, m_ssTransform, m_resetTransform;
+    typename Kernel::DiffTransform3D m_diffTrans;
     typename Kernel::Vector3Map	 m_normQ;
     typename Kernel::Quaternion  m_resetQuaternion;
 
@@ -64,16 +64,22 @@ public:
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
     typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, fixtrans;
-    Scalar m_scale;
     Scalemode mode;
+    Scalar m_scale;
+
+#ifdef USE_LOGGING
+    src::logger log;
+#endif
 
 public:
-    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false),
-        m_resetQuaternion(1,1,1,1), reset(false) {
+    ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false), reset(false) {
 
-        m_resetQuaternion.normalize();
+        m_resetTransform = typename Kernel::Quaternion(1,1,1,1);
         m_shift.setZero();
-        m_scale = 1.;
+
+#ifdef USE_LOGGING
+        log.add_attribute("Tag", attrs::constant< std::string >("Clustermath3D"));
+#endif
     };
 
     void setParameterOffset(int offset) {
@@ -83,16 +89,6 @@ public:
         return m_offset;
     };
 
-    void setRotationMap(typename Kernel::Matrix3Map& map, typename Kernel::Matrix39Map& diffmap) {
-        new(&map) typename Kernel::Matrix3Map(&m_rotation(0,0),3,3);
-        new(&diffmap) typename Kernel::Matrix39Map(&m_diffrot(0,0));
-    };
-    void setTranslationMap(typename Kernel::Vector3Map& map) {
-        new(&map) typename Kernel::Vector3Map(&m_translation(0));
-    };
-    void setShiftMap(typename Kernel::Vector3Map& map) {
-        new(&map) typename Kernel::Vector3Map(&m_shift(0));
-    };
     typename Kernel::Vector3Map& getNormQuaternionMap() {
         return m_normQ;
     };
@@ -112,18 +108,14 @@ public:
 
         m_translation = m_transform.translation().vector();
         init = true;
-        m_scale = 1.;
         midpoint.setZero();
         m_shift.setZero();
     };
     void initFixMaps() {
         //when fixed no maps exist
-        m_diffrot.setZero();
-        m_rotation = m_transform.rotation().toRotationMatrix();
         new(&m_translation) typename Kernel::Vector3Map(&fixtrans(0));
-	m_translation = m_transform.translation().vector();
+        m_translation = m_transform.translation().vector();
         init = true;
-        m_scale = 1.;
         midpoint.setZero();
         m_shift.setZero();
     };
@@ -131,100 +123,96 @@ public:
     typename Kernel::Transform3D& getTransform() {
         return m_transform;
     };
-    void setShift(typename Kernel::Vector3 s) {
-        m_shift = s;
-        //we remove shift from the local geometries, therefore we have to add it here
-        //to not change the global position
-        if(init) 
-             m_translation += m_transform*m_shift;
-
-    };
-    void setScale(Scalar s) {
-        m_scale = s;
-        if(init)m_translation *= s;
-    };
 
     void finishCalculation() {
-        const Scalar norm = m_normQ.norm();
-        const Scalar fac = std::sin(norm)/norm;
-        typename Kernel::Quaternion m_quaternion = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-        m_quaternion.normalize();
 
         //if the rotation was resetet we have to calc the real quaternion now
         if(reset)
-            resetClusterRotation(m_quaternion);
+            resetClusterRotation(m_diffTrans);
 
-
-        typename Kernel::Vector3 m_original_translation = m_translation/m_scale - m_quaternion._transformVector(m_shift);
-
-        //needed to allow a correct global calculation in cluster geometries after this finish
-        m_shift.setZero();
-        m_rotation = m_quaternion.toRotationMatrix();
-        m_translation = m_original_translation;
+        //add scale only after possible reset
+	typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
+	m_transform = m_diffTrans;
+        m_transform *= scale;
 
         init=false;
-	
-	m_transform = m_quaternion;
-	m_transform *= typename Kernel::Transform3D::Translation(m_original_translation);
-	m_transform *= typename Kernel::Transform3D::Scaling(m_scale);
+
+        m_transform = m_ssTransform*m_transform;
+
+        //scale all geometries back to the original size
+        m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssTransform.scaling());
+        typedef typename std::vector<Geom>::iterator iter;
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            (*it)->recalculate(m_diffTrans);
+
     };
+
     void finishFixCalculation() {
-        //needed to allow a correct global calculation in cluster geometries after this finish
-        m_shift.setZero();
-        m_translation /= m_scale;
-    }
+        typedef typename std::vector<Geom>::iterator iter;
+        typename Kernel::DiffTransform3D diff(m_transform);
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            (*it)->recalculate(diff);
+    };
 
-    void resetClusterRotation(typename Kernel::Quaternion& Q) {
+    void resetClusterRotation(typename Kernel::Transform3D& trans) {
 
-        typename Kernel::Matrix3 rot;
-        const typename Kernel::Vector3 trans(0,0,0);
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Reset cluster rotation:"<<std::endl<<m_diffTrans;
+#endif
+
+        typename Kernel::Transform3D ntrans;
+
         if(!reset) {
-            Q = Q*m_resetQuaternion.conjugate();
-            rot = m_resetQuaternion.toRotationMatrix();
+            trans  = m_resetTransform.inverse()*trans;
+            ntrans = m_resetTransform;
             reset = true;
         } else {
-            Q = Q*m_resetQuaternion;
-            rot = m_resetQuaternion.conjugate().toRotationMatrix();
+            trans = m_resetTransform*trans;
+            ntrans = m_resetTransform.inverse();
             reset = false;
         }
 
         //apply the needed transformation to all geometries local values
         typedef typename std::vector<Geom>::iterator iter;
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-            (*it)->transformLocal(rot, trans);
+            (*it)->transform(ntrans);
         };
-        //also transform the shift (as it is calculated from the local values which are transformed now)
-        m_shift = rot*m_shift;
+    };
 
-        if(Q.w() < 1.) {
+    void calcDiffTransform(typename Kernel::DiffTransform3D& trans) {
+
+        Scalar norm = m_normQ.norm();
+        trans.setIdentity();
+
+        if(norm < 0.1) {
+            if(norm == 0) {
+                trans *= typename Kernel::Transform3D::Translation(m_translation);
+                resetClusterRotation(trans);
+            } else {
+                const Scalar fac = std::sin(norm)/norm;
+                trans =  typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+                trans *= typename Kernel::Transform3D::Translation(m_translation);
+                resetClusterRotation(trans);
+            }
+            //rebuild the maps after changing the transformation
+            m_translation = trans.translation().vector();
             //set the normQ map to the new quaternion value
-            const Scalar s = std::acos(Q.w())/std::sin(std::acos(Q.w()));
-            m_normQ = Q.vec()*s;
-        } else m_normQ.setZero();
+            const Scalar s = std::acos(trans.rotation().w())/std::sin(std::acos(trans.rotation().w()));
+            m_normQ = trans.rotation().vec()*s;
+	    return;
+        }
+
+        const Scalar fac = std::sin(norm)/norm;
+        trans = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+        trans *= typename Kernel::Transform3D::Translation(m_translation);
     };
 
     void recalculate() {
 
-        typename Kernel::Quaternion Q;
-        Scalar norm = m_normQ.norm();
 
-        //prevent the quaternion to be the idendity form
-        if(norm == 0) {
-            Q.setIdentity();
-            resetClusterRotation(Q);
-            norm = m_normQ.norm();
-        }
+        calcDiffTransform(m_diffTrans);
 
-        //get the Quaternion for the norm quaternion form and calculate the rotation matrix
-        const Scalar fac = std::sin(norm)/norm;
-        Q = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-        Q.normalize(); //not needed, just to avoid rounding errors
-
-        //also being too close to the identity sucks
-        if(norm < 0.1)
-            resetClusterRotation(Q);
-
-        m_rotation = Q.toRotationMatrix();
+        const typename Kernel::Quaternion Q = m_diffTrans.rotation();
 
         /* now calculate the gradient quaternions and calculate the diff rotation matrices
          * m_normQ = (a,b,c)
@@ -256,35 +244,41 @@ public:
         const Scalar dwc = -sn*m_normQ(2);
 
         //write in the diffrot matrix, starting with duQ/dx
-        m_diffrot(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
-        m_diffrot(0,1) = -2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
-        m_diffrot(0,2) = 2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
-        m_diffrot(1,0) = 2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
-        m_diffrot(1,1) = -4.0*(Q.x()*dxa+Q.z()*dza);
-        m_diffrot(1,2) = -2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
-        m_diffrot(2,0) = -2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
-        m_diffrot(2,1) = 2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
-        m_diffrot(2,2) = -4.0*(Q.x()*dxa+Q.y()*dya);
+        m_diffTrans.at(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
+        m_diffTrans.at(0,1) = -2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
+        m_diffTrans.at(0,2) = 2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
+        m_diffTrans.at(1,0) = 2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
+        m_diffTrans.at(1,1) = -4.0*(Q.x()*dxa+Q.z()*dza);
+        m_diffTrans.at(1,2) = -2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
+        m_diffTrans.at(2,0) = -2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
+        m_diffTrans.at(2,1) = 2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
+        m_diffTrans.at(2,2) = -4.0*(Q.x()*dxa+Q.y()*dya);
 
-        m_diffrot(0,3) = -4.0*(Q.y()*dyb+Q.z()*dzb);
-        m_diffrot(0,4) = -2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
-        m_diffrot(0,5) = 2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
-        m_diffrot(1,3) = 2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
-        m_diffrot(1,4) = -4.0*(Q.x()*dxb+Q.z()*dzb);
-        m_diffrot(1,5) = -2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
-        m_diffrot(2,3) = -2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
-        m_diffrot(2,4) = 2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
-        m_diffrot(2,5) = -4.0*(Q.x()*dxb+Q.y()*dyb);
+        m_diffTrans.at(0,3) = -4.0*(Q.y()*dyb+Q.z()*dzb);
+        m_diffTrans.at(0,4) = -2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
+        m_diffTrans.at(0,5) = 2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
+        m_diffTrans.at(1,3) = 2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
+        m_diffTrans.at(1,4) = -4.0*(Q.x()*dxb+Q.z()*dzb);
+        m_diffTrans.at(1,5) = -2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
+        m_diffTrans.at(2,3) = -2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
+        m_diffTrans.at(2,4) = 2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
+        m_diffTrans.at(2,5) = -4.0*(Q.x()*dxb+Q.y()*dyb);
 
-        m_diffrot(0,6) = -4.0*(Q.y()*dyc+Q.z()*dzc);
-        m_diffrot(0,7) = -2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
-        m_diffrot(0,8) = 2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
-        m_diffrot(1,6) = 2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
-        m_diffrot(1,7) = -4.0*(Q.x()*dxc+Q.z()*dzc);
-        m_diffrot(1,8) = -2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
-        m_diffrot(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
-        m_diffrot(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
-        m_diffrot(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
+        m_diffTrans.at(0,6) = -4.0*(Q.y()*dyc+Q.z()*dzc);
+        m_diffTrans.at(0,7) = -2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
+        m_diffTrans.at(0,8) = 2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
+        m_diffTrans.at(1,6) = 2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
+        m_diffTrans.at(1,7) = -4.0*(Q.x()*dxc+Q.z()*dzc);
+        m_diffTrans.at(1,8) = -2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
+        m_diffTrans.at(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
+        m_diffTrans.at(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
+        m_diffTrans.at(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
+
+
+        //recalculate all geometries
+        typedef typename std::vector<Geom>::iterator iter;
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            (*it)->recalculate(m_diffTrans);
     };
 
     void addGeometry(Geom g) {
@@ -305,8 +299,8 @@ public:
         //all geometry within that cluster needs to be mapped to the provided rotation matrix (in cm)
         //also the geometries toplocal value needs to be set so that it matches this cm
         typename Kernel::Transform3D nt = t*cluster.template getClusterProperty<math_prop>().getTransform();
-	typename Kernel::Transform3D trans = nt.inverse();
-		
+        typename Kernel::Transform3D trans = nt.inverse();
+
         //get all vertices and map the geometries if existend
         typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
         std::pair<iter, iter>  it = boost::vertices(cluster);
@@ -315,17 +309,11 @@ public:
             if(g) {
                 //allow iteration over all maped geometries
                 cm.addGeometry(g);
-                //map rotation and diffrotation from cluster to geometry
-                cm.setRotationMap(g->getRotationMap(), g->getDiffRotationMap());
-                //map translation from cluster to geometry
-                cm.setTranslationMap(g->getTranslationMap());
-                //map shift from cluster to geometry
-                cm.setShiftMap(g->getShiftMap());
                 //set the offsets so that geometry knows where it is in the parameter map
                 g->m_offset = cm.getParameterOffset();
                 //position and offset of the parameters must be set to the clusters values
                 g->setClusterMode(true, cluster.template getClusterProperty<fix_prop>());
-		//calculate the appropriate local values
+                //calculate the appropriate local values
                 g->transform(trans);
             }
         }
@@ -347,7 +335,8 @@ public:
 
         if(m_geometry.empty()) assert(false); //TODO: Throw
         else if(m_geometry.size() == 1) {
-            return calcOnePoint(m_geometry[0]->getPoint());
+            const typename Kernel::Vector3 p = m_geometry[0]->getPoint();
+            return calcOnePoint(p);
         } else if(m_geometry.size() == 2) {
             const typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
             const typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
@@ -468,37 +457,30 @@ public:
         //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
-            //scale needs to be set to have the correct translation value
-            setScale(1./scale);
+            typename Kernel::DiffTransform3D diff(m_transform);
+            diff*=typename Kernel::Transform3D::Scaling(1./scale);
             //now calculate the scaled geometrys
             typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-                (*it)->recalculate(1./scale);
+                (*it)->recalculate(diff);
             };
             return;
         }
 
         //if this is our scale then just applie the midpoint as shift
         if(Kernel::isSame(scale, m_scale)) {
-            setShift(midpoint);
-            setScale(1./scale);
-            return;
+
         }
-
         //if only one point exists we extend the origin-point-line to match the scale
-        if(mode==details::one) {
+        else if(mode==details::one) {
             if(Kernel::isSame(midpoint.norm(),0))
-                m_shift << scale, 0, 0;
-            else m_shift = midpoint + scale*scale_dir;
-
-            setShift(m_shift);
-            setScale(1./scale);
+                midpoint << scale, 0, 0;
+            else midpoint += scale*scale_dir;
         }
         //two and three points form a rectangular triangle, so same procedure
         else if(mode==details::two || mode==details::three) {
 
-            setShift(midpoint+scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2)));
-            setScale(1./scale);
+            midpoint+= scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2));
         }
         //multiple points
         else if(mode==details::multiple_outrange) {
@@ -516,8 +498,6 @@ public:
                 Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
                 midpoint(2) += maxm(2) + h;
             }
-            setShift(midpoint);
-            setScale(1./scale);
         } else {
 
             //TODO: it's possible that for this case we get too far away from the outer points.
@@ -545,13 +525,32 @@ public:
                     }
                 }
             }
-            setShift(midpoint);
-            setScale(1./scale);
         }
+
+        m_ssTransform = typename Kernel::Transform3D::Translation(-midpoint);
+        m_ssTransform *= typename Kernel::Transform3D::Scaling(1./scale);
+
+        //recalculate all geometries
+        typedef typename std::vector<Geom>::iterator iter;
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            (*it)->transform(m_ssTransform);
+
+        //set the new rotation and translation
+        m_transform = m_ssTransform.inverse()*m_transform;
+
+        //if we start with unit quaternion we need to reset the geometry to something else
+        const typename Kernel::Quaternion& m_quaternion = m_transform.rotation();
+        if(m_quaternion.w() < 1.) {
+            Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
+            m_normQ = m_quaternion.vec()*s;
+        } else {
+            m_normQ.setZero();
+        }
+        m_translation = m_transform.translation().vector();
     };
 
 private:
-    Scalar calcOnePoint(typename Kernel::Vector3 p) {
+    Scalar calcOnePoint(const typename Kernel::Vector3& p) {
 
         //one point can have every scale when moving the midpoint on the origin - point vector
         midpoint  = p;
@@ -562,7 +561,7 @@ private:
         return 0.;
     };
 
-    Scalar calcTwoPoints(typename Kernel::Vector3 p1, typename Kernel::Vector3 p2) {
+    Scalar calcTwoPoints(const typename Kernel::Vector3& p1, const typename Kernel::Vector3& p2) {
 
         //two points have their minimal scale at the mid position. Scaling perpendicular to this
         //line allows arbitrary scale values. Best is to have the scale dir move towards the origin
@@ -577,8 +576,8 @@ private:
         return m_scale;
     };
 
-    Scalar calcThreePoints(typename Kernel::Vector3 p1,
-                           typename Kernel::Vector3 p2, typename Kernel::Vector3 p3) {
+    Scalar calcThreePoints(const typename Kernel::Vector3& p1,
+                           const typename Kernel::Vector3& p2, const typename Kernel::Vector3& p3) {
 
         //Three points form a triangle with it's minimal scale at the center of it's outer circle.
         //Arbitrary scale values can be achieved by moving perpendicular to the triangle plane.

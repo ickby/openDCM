@@ -9,7 +9,7 @@ set(test_SRC  define.cpp
 	      #clustergraph.cpp
 	      #sys_and_obj.cpp
 	      #geometry.cpp
-	      #clustermath.cpp
+	      clustermath.cpp
 	      #module3d.cpp
 	      #dof.cpp
 	      modulepart.cpp

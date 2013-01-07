@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   p1 << 7, -0.5, 0.3;
   p3 << -2, -1.3, -2.8;
   p4 << 0.2, -0.5, 1.2;
-    
+  
   SystemNOID sys;
   Part_ptr part1 = sys.createPart(place());
   Geom g1 = part1->addGeometry3D( p1 );
@@ -156,7 +156,41 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
 
   BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
   BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+}
+
+BOOST_AUTO_TEST_CASE(modulepart_local) {
+
+  Eigen::Vector3d p1,p3,p4;
+  p1 << 7, -0.5, 0.3;
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
   
+  SystemNOID sys;
+  Part_ptr part1 = sys.createPart(place());
+  Geom g1 = part1->addGeometry3D( p1, dcm::Local );
+  
+  Part_ptr part2 = sys.createPart(place());
+  Geom g3 = part2->addGeometry3D( p3, dcm::Local );
+  Geom g4 = part2->addGeometry3D( p4, dcm::Local );
+  
+  sys.createConstraint3D(g1,g3,dcm::distance=5);
+  sys.createConstraint3D(g1,g4,dcm::distance=5);
+
+  sys.solve();
+  
+  Eigen::Vector3d v1,v2,v3,v4;
+  v1 = get<Eigen::Vector3d>(g1);
+  v3 = get<Eigen::Vector3d>(g3);
+  v4 = get<Eigen::Vector3d>(g4);
+
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+  
+  //in local it's easyer to chekc if the transformations are set correctly
+  place pl1 = get<place>(part1);
+  place pl2 = get<place>(part2);
+  BOOST_CHECK( v1.isApprox(pl1.quat*p1 + pl1.trans,1e-10 ));
+  BOOST_CHECK( v3.isApprox(pl2.quat*p3 + pl2.trans,1e-10 ));
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_transformations) {
@@ -276,12 +310,18 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
   v3 = get<plane_t>(g3);
   v4 = get<plane_t>(g4);
   
+  place pl1 = get<place>(part1);
+  
   BOOST_CHECK(Kernel::isSame((v1-p1).norm(),0));
   BOOST_CHECK(Kernel::isSame((v2-p2).norm(),0));
+  BOOST_CHECK(place().quat.isApprox(pl1.quat, 1e-10));
+  BOOST_CHECK(place().trans.isApprox(pl1.trans, 1e-10));
+  
   BOOST_CHECK(Kernel::isSame((v1.tail(3)-v3.tail(3)).norm(),0));
   BOOST_CHECK(Kernel::isSame((v2.tail(3)-v4.tail(3)).norm(),0));
   BOOST_CHECK(Kernel::isSame((v1.head(3)-v3.head(3)).dot(v3.tail(3)) / v3.tail(3).norm(), 0.));
   BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0.));
+  
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {

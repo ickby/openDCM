@@ -93,11 +93,11 @@ struct Module3D {
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
+	    typedef typename system_traits<Sys>::Kernel::MappedEquationSystem Base;
             typedef typename system_traits<Sys>::Cluster Cluster;
             Cluster& m_cluster;
 
-            MES(Cluster& cl, int par, int eqn)
-                : system_traits<Sys>::Kernel::MappedEquationSystem(par, eqn),
+            MES(Cluster& cl, int par, int eqn) : Base(par, eqn),
                   m_cluster(cl) {};
 
             virtual void recalculate() {
@@ -107,16 +107,8 @@ struct Module3D {
                 std::pair<citer, citer> cit = m_cluster.clusters();
                 for(; cit.first != cit.second; cit.first++) {
 
-                    if(!(*cit.first).second->template getClusterProperty<fix_prop>()) {
+                    if(!(*cit.first).second->template getClusterProperty<fix_prop>()) 
                         (*cit.first).second->template getClusterProperty<math_prop>().recalculate();
-
-                        //now with the new rotation matrix we calculate all geometries in that cluster
-                        std::vector<Geom>& vec = (*cit.first).second->template getClusterProperty<math_prop>().getGeometry();
-                        typedef typename std::vector<Geom>::iterator iter;
-
-                        for(iter it = vec.begin(); it != vec.end(); it++)
-                            (*it)->recalculate(system_traits<Sys>::Kernel::MappedEquationSystem::Scaling);
-                    }
 
                 };
 
@@ -130,7 +122,7 @@ struct Module3D {
                     std::pair< oiter, oiter > oit = m_cluster.template getObjects<Constraint3D>(*eit.first);
                     for(; oit.first != oit.second; oit.first++) {
                         if(*oit.first)
-                            (*oit.first)->calculate(system_traits<Sys>::Kernel::MappedEquationSystem::Scaling);
+                            (*oit.first)->calculate(Base::Scaling);
                     }
                 }
             }
@@ -274,7 +266,8 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         c.template getClusterProperty<math_prop>().applyClusterScale(sc,
                                 c.template getClusterProperty<fix_prop>());
-                    } else {
+                    }
+                    else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
                         g->scale(sc);
                     }
@@ -297,8 +290,8 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         if(!cluster.template getSubclusterProperty<fix_prop>(*it.first))
                             c.template getClusterProperty<math_prop>().finishCalculation();
-                        else
-                            c.template getClusterProperty<math_prop>().finishFixCalculation();
+			else
+			    c.template getClusterProperty<math_prop>().finishFixCalculation();
 
                         std::vector<Geom>& vec = c.template getClusterProperty<math_prop>().getGeometry();
                         for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
@@ -306,7 +299,7 @@ struct Module3D {
 
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        g->scale(1./sc);
+			g->scale(1./sc);
                         g->finishCalculation();
                     }
                 }

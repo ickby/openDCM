@@ -215,11 +215,39 @@ public:
     }
 };
 
+template<typename Scalar, int Dim>
+class DiffTransform : public Transform<Scalar, Dim> {
+
+    typedef typename Transform<Scalar, Dim>::Rotation Rotation;
+    typedef typename Transform<Scalar, Dim>::Translation Translation;
+    typedef Eigen::Matrix<Scalar, Dim, 3*Dim> DiffMatrix;
+    
+    DiffMatrix m_diffMatrix;
+
+public:
+    DiffTransform(Rotation q = Rotation::Identity(),
+                  Translation v = Translation::Identity(),
+                  Scalar s = Scalar(1.))
+        : Transform<Scalar, Dim>(q,v,s) {
+
+        m_diffMatrix.setZero();
+    };
+    DiffTransform(Transform<Scalar, Dim>& trans)
+        : Transform<Scalar, Dim>(trans.rotation(), trans.translation(), trans.scaling()) {
+
+        m_diffMatrix.setZero();
+    };
+    
+    const DiffMatrix& differential() {return m_diffMatrix;};
+    inline Scalar& operator()(int f, int s) {return m_diffMatrix(f,s);};
+    inline Scalar& at(int f, int s) {return m_diffMatrix(f,s);};
+};
+
 }//detail
 }//DCM
 
 /*When you overload a binary operator as a member function of a class the overload is used
- * when the first operand is of the class type.For stream operators, the first operand 
+ * when the first operand is of the class type.For stream operators, the first operand
  * is the stream and not (usually) the custom class.
 */
 template<typename Kernel, int Dim>
@@ -229,5 +257,15 @@ std::ostream& operator<<(std::ostream& os, const dcm::detail::Transform<Kernel, 
        << "Scale:       " << t.scaling();
     return os;
 }
+
+template<typename Kernel, int Dim>
+std::ostream& operator<<(std::ostream& os, dcm::detail::DiffTransform<Kernel, Dim>& t) {
+    os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
+       << "Translation: " << t.translation().vector().transpose() <<std::endl
+       << "Scale:       " << t.scaling() << std::endl
+       << "Differential:" << std::endl<<t.differential();
+    return os;
+}
+
 
 #endif //DCM_TRANSFORMATION

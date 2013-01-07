@@ -30,6 +30,7 @@
 #include <time.h>
 
 #include "transformation.hpp"
+#include "logging.hpp"
 
 namespace dcm {
 
@@ -38,10 +39,19 @@ namespace E = Eigen;
 template<typename Kernel>
 struct Dogleg {
 
+#ifdef USE_LOGGING
+    src::logger log;
+#endif
+
     typedef typename Kernel::number_type number_type;
     number_type tolg, tolx, tolf;
 
-    Dogleg() : tolg(1e-80), tolx(1e-10), tolf(1e-5) {};
+    Dogleg() : tolg(1e-80), tolx(1e-10), tolf(1e-5) {
+
+#ifdef USE_LOGGING
+        log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
+#endif
+    };
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
     int calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
@@ -97,10 +107,10 @@ struct Dogleg {
 
         sys.recalculate();
 
-        std::stringstream s;
-        s<<"initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-        s<<"residual: "<<sys.Residual.transpose()<<std::endl;
-        // Base::Console().Message("%s", s.str().c_str());
+#ifdef USE_LOGGING
+        BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
+                      << "residual: "<<sys.Residual.transpose();
+#endif
 
         number_type err = sys.Residual.norm();
 
@@ -217,9 +227,10 @@ struct Dogleg {
         clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
         double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
-        //Base::Console().Message("residual: %e, reason: %d, iterations: %d, time in ms: %f, recalc time %f\n",
-        //                       err, stop, iter, ms, ms_rec);
-        //std::cout<<"DONE solving"<<std::endl;
+
+#ifdef USE_LOGGING
+        BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter;
+#endif
 
         if(stop == 1) return true;
         return false; //TODO:throw
@@ -254,8 +265,9 @@ struct Kernel {
     typedef E::Matrix<Scalar, 3, 9> Matrix39;
     typedef E::Map< Matrix39 >      Matrix39Map;
     typedef E::Block<Matrix>	    MatrixBlock;
-    
-    typedef detail::Transform<Scalar, 3> Transform3D;
+
+    typedef detail::Transform<Scalar, 3> 	Transform3D;
+    typedef detail::DiffTransform<Scalar, 3> 	DiffTransform3D;
 
     struct MappedEquationSystem {
 
@@ -269,7 +281,7 @@ struct Kernel {
         MappedEquationSystem(int params, int equations)
             : Jacobi(equations, params),
               Parameter(params), Residual(equations),
-              m_params(params), m_eqns(equations) {
+              m_params(params), m_eqns(equations), Scaling(1.) {
 
             m_param_offset = 0;
             m_eqn_offset = 0;
