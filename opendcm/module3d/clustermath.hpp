@@ -131,8 +131,8 @@ public:
             resetClusterRotation(m_diffTrans);
 
         //add scale only after possible reset
-	typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
-	m_transform = m_diffTrans;
+        typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
+        m_transform = m_diffTrans;
         m_transform *= scale;
 
         init=false;
@@ -199,7 +199,7 @@ public:
             //set the normQ map to the new quaternion value
             const Scalar s = std::acos(trans.rotation().w())/std::sin(std::acos(trans.rotation().w()));
             m_normQ = trans.rotation().vec()*s;
-	    return;
+            return;
         }
 
         const Scalar fac = std::sin(norm)/norm;
@@ -291,41 +291,39 @@ public:
         return m_geometry;
     };
 
+    struct map_downstream {
 
-    void mapClusterDownstreamGeometry(Cluster& cluster,
-                                      typename Kernel::Transform3D& t,
-                                      details::ClusterMath<Sys>& cm
-                                     ) {
-        //all geometry within that cluster needs to be mapped to the provided rotation matrix (in cm)
-        //also the geometries toplocal value needs to be set so that it matches this cm
-        typename Kernel::Transform3D nt = t*cluster.template getClusterProperty<math_prop>().getTransform();
-        typename Kernel::Transform3D trans = nt.inverse();
+        details::ClusterMath<Sys>& 	m_clusterMath;
+        typename Kernel::Transform3D	m_transform;
+        bool m_isFixed;
 
-        //get all vertices and map the geometries if existend
-        typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
-        std::pair<iter, iter>  it = boost::vertices(cluster);
-        for(; it.first != it.second; it.first++) {
-            Geom g = cluster.template getObject<Geometry3D>(*it.first);
-            if(g) {
-                //allow iteration over all maped geometries
-                cm.addGeometry(g);
-                //set the offsets so that geometry knows where it is in the parameter map
-                g->m_offset = cm.getParameterOffset();
-                //position and offset of the parameters must be set to the clusters values
-                g->setClusterMode(true, cluster.template getClusterProperty<fix_prop>());
-                //calculate the appropriate local values
-                g->transform(trans);
-            }
-        }
+        map_downstream(details::ClusterMath<Sys>& cm, bool fix) : m_clusterMath(cm), m_isFixed(fix) {
+            m_transform = m_clusterMath.getTransform();
+        };
 
-        //go downstream and map
-        typedef typename Cluster::cluster_iterator citer;
-        std::pair<citer, citer> cit = cluster.clusters();
-        for(; cit.first != cit.second; cit.first++)
-            mapClusterDownstreamGeometry(*(*cit.first).second, nt, cm);
+        void operator()(Geom g) {
+            //allow iteration over all maped geometries
+            m_clusterMath.addGeometry(g);
+            //set the offsets so that geometry knows where it is in the parameter map
+            g->m_offset = m_clusterMath.getParameterOffset();
+            //position and offset of the parameters must be set to the clusters values
+            g->setClusterMode(true, m_isFixed);
+            //calculate the appropriate local values
+            typename Kernel::Transform3D trans = m_transform.inverse();
+            g->transform(trans);
+        };
+        void operator()(Cluster& c) {
+            m_transform *= c.template getClusterProperty<math_prop>().getTransform();
+        };
+    };
+
+    void mapClusterDownstreamGeometry(Cluster& cluster) {
+
+        map_downstream down(cluster.template getClusterProperty<math_prop>(),
+			    cluster.template getClusterProperty<fix_prop>());
+        cluster.template for_each<Geometry3D>(down, true);
         //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
         //	dof's remaining between parts and so nothing can be moved when one part is fixed.
-
     };
 
     /*Calculate the scale of the cluster. Therefore the midpoint is calculated and the scale is

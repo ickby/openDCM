@@ -211,12 +211,7 @@ struct Module3D {
                         //map all geometrie within that cluster to it's rotation matrix
                         //for collecting all geometries which need updates
                         cm.clearGeometry();
-
-                        //to allow a corect calculation of geometries toplocal value we need the quaternion
-                        //which transforms from toplevel to this "to be solved" cluster and the aquivalent translation
-                        typename Kernel::Transform3D trans;
-                        cm.mapClusterDownstreamGeometry(c, trans, cm);
-
+                        cm.mapClusterDownstreamGeometry(c);
 
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
