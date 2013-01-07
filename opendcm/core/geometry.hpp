@@ -159,8 +159,31 @@ public:
     typename Visitor::result_type apply(Visitor& vis) {
         return boost::apply_visitor(vis, m_geometry);
     };
+    
+    //basic transformation
+    void transform(const Transform& t) {
 
-public:
+        if(m_isInCluster)
+            transform(t, m_toplocal);
+        else if(m_init)
+            transform(t, m_rotated);
+        else
+            transform(t, m_global);
+    };
+
+    //allow accessing the internal values in unittests without making them public,
+    //so that access control of the internal classes is not changed and can be tested
+#ifdef TESTING
+    typename Kernel::Vector& toplocal() {return m_toplocal;};
+    typename Kernel::Vector& rotated()  {return m_rotated;};
+    int& offset()  {return m_offset;};
+    void clusterMode(bool iscluster, bool isFixed) {setClusterMode(iscluster, isFixed);};
+    void trans(const Transform& t) {transform(t);};
+    void recalc(DiffTransform& trans) {recalculate(trans);};
+    typename Kernel::Vector3 point() {return getPoint();};
+#endif
+    
+protected:
     Variant m_geometry; //Variant holding the real geometry type
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
     int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
@@ -168,11 +191,11 @@ public:
     int     m_rotations; //count of rotations to be done when original vector gets rotated
     int     m_translations; //count of translations to be done when original vector gets rotated
     bool    m_isInCluster, m_clusterFixed, m_init;
-    typename Sys::Kernel::Vector      m_toplocal; //the local value in the toplevel cluster used for cuttent solving
-    typename Sys::Kernel::Vector      m_global; //the global value outside of all clusters
-    typename Sys::Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)
-    typename Sys::Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
-    typename Sys::Kernel::VectorMap   m_parameter; //map to the parameters in the solver
+    typename Kernel::Vector      m_toplocal; //the local value in the toplevel cluster used for cuttent solving
+    typename Kernel::Vector      m_global; //the global value outside of all clusters
+    typename Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)
+    typename Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
+    typename Kernel::VectorMap   m_parameter; //map to the parameters in the solver
 
     template<typename T>
     void init(T& t) {
@@ -282,18 +305,6 @@ public:
         apply_visitor v(m_global);
         apply(v);
     };
-
-
-    //normal transformation
-    void transform(const Transform& t) {
-
-        if(m_isInCluster)
-            transform(t, m_toplocal);
-        else if(m_init)
-            transform(t, m_rotated);
-        else
-            transform(t, m_global);
-    }
 
     template<typename VectorType>
     void transform(const Transform& t, VectorType& vec) {

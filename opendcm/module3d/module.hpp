@@ -93,12 +93,12 @@ struct Module3D {
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
-	    typedef typename system_traits<Sys>::Kernel::MappedEquationSystem Base;
+            typedef typename system_traits<Sys>::Kernel::MappedEquationSystem Base;
             typedef typename system_traits<Sys>::Cluster Cluster;
             Cluster& m_cluster;
 
             MES(Cluster& cl, int par, int eqn) : Base(par, eqn),
-                  m_cluster(cl) {};
+                m_cluster(cl) {};
 
             virtual void recalculate() {
 
@@ -107,7 +107,7 @@ struct Module3D {
                 std::pair<citer, citer> cit = m_cluster.clusters();
                 for(; cit.first != cit.second; cit.first++) {
 
-                    if(!(*cit.first).second->template getClusterProperty<fix_prop>()) 
+                    if(!(*cit.first).second->template getClusterProperty<fix_prop>())
                         (*cit.first).second->template getClusterProperty<math_prop>().recalculate();
 
                 };
@@ -214,7 +214,7 @@ struct Module3D {
 
                         //to allow a corect calculation of geometries toplocal value we need the quaternion
                         //which transforms from toplevel to this "to be solved" cluster and the aquivalent translation
-                       	typename Kernel::Transform3D trans;
+                        typename Kernel::Transform3D trans;
                         cm.mapClusterDownstreamGeometry(c, trans, cm);
 
 
@@ -266,8 +266,7 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         c.template getClusterProperty<math_prop>().applyClusterScale(sc,
                                 c.template getClusterProperty<fix_prop>());
-                    }
-                    else {
+                    } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
                         g->scale(sc);
                     }
@@ -290,8 +289,8 @@ struct Module3D {
                         Cluster& c = cluster.getVertexCluster(*it.first);
                         if(!cluster.template getSubclusterProperty<fix_prop>(*it.first))
                             c.template getClusterProperty<math_prop>().finishCalculation();
-			else
-			    c.template getClusterProperty<math_prop>().finishFixCalculation();
+                        else
+                            c.template getClusterProperty<math_prop>().finishFixCalculation();
 
                         std::vector<Geom>& vec = c.template getClusterProperty<math_prop>().getGeometry();
                         for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
@@ -299,7 +298,7 @@ struct Module3D {
 
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-			g->scale(1./sc);
+                        g->scale(1./sc);
                         g->finishCalculation();
                     }
                 }
@@ -353,45 +352,6 @@ struct Module3D {
                 BOOST_LOG(Base::log)<<"Identifyer set: "<<id;
 #endif
             };
-        };
-
-        struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
-
-            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                    detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
-                    Geometry3D_id<Geometry3D> >::type base;
-
-            template<typename T>
-            Geometry3D(T geometry, Sys& system) : base(geometry, system) { };
-        };
-
-
-        template<typename Derived>
-        class Constraint3D_id : public detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> {
-
-            typedef detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> base;
-            Identifier m_id;
-        public:
-            Constraint3D_id(Sys& system, Geom f, Geom s) : base(system, f, s) {};
-
-            Identifier& getIdentifier() {
-                return m_id;
-            };
-            void setIdentifier(Identifier id) {
-                m_id = id;
-            };
-        };
-
-        struct Constraint3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
-                Constraint3D_id<Constraint3D> >::type {
-
-            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                    detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
-                    Constraint3D_id<Constraint3D> >::type base;
-
-            Constraint3D(Sys& system, Geom first, Geom second) : base(system, first, second) { };
         };
 
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
@@ -567,7 +527,53 @@ struct Module3D {
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
 
+        struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
 
+            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                    detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
+                    Geometry3D_id<Geometry3D> >::type base;
+
+            template<typename T>
+            Geometry3D(T geometry, Sys& system) : base(geometry, system) { };
+
+            //allow accessing the internals by module3d classes but not by users
+            friend class details::ClusterMath<Sys>;
+            friend class SystemSolver;
+            friend class detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>;
+        };
+
+
+        template<typename Derived>
+        class Constraint3D_id : public detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> {
+
+            typedef detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> base;
+            Identifier m_id;
+        public:
+            Constraint3D_id(Sys& system, Geom f, Geom s) : base(system, f, s) {};
+
+            Identifier& getIdentifier() {
+                return m_id;
+            };
+            void setIdentifier(Identifier id) {
+                m_id = id;
+            };
+        };
+
+        struct Constraint3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
+                Constraint3D_id<Constraint3D> >::type {
+
+            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
+                    detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>,
+                    Constraint3D_id<Constraint3D> >::type base;
+
+            Constraint3D(Sys& system, Geom first, Geom second) : base(system, first, second) { };
+
+            friend class SystemSolver;
+            friend class MES;
+            friend struct inheriter_base;
+        };
 
         struct math_prop {
             typedef cluster_property kind;

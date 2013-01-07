@@ -74,6 +74,8 @@ public:
         second->template disconnectSignal<reset>(cs);
     }
 
+protected:
+  
     template<typename ConstraintVector>
     void initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj) {
 
@@ -115,7 +117,6 @@ public:
             content = p;*/
     };
 
-protected:
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
     struct EquationSet {

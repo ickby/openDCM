@@ -25,6 +25,8 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
 
+#include <boost/mpl/if.hpp>
+
 namespace dcm {
 namespace detail {
 
@@ -33,7 +35,7 @@ class Transform {
 
 public:
     typedef Eigen::Matrix<Scalar, Dim, 1> Vector;
-    typedef typename mpl::if_c< Dim == 3,
+    typedef typename boost::mpl::if_c< Dim == 3,
             Eigen::Quaternion<Scalar>,
             Eigen::Rotation2D<Scalar> >::type     Rotation;
     typedef Eigen::Translation<Scalar, Dim>	  Translation;

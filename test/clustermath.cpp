@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
             Eigen::Vector3d v = Eigen::Vector3d::Random()*100;
             Geom g(new Geometry3D(v, sys));
             //to set the local value which is used by scaling
-            g->setClusterMode(true, false);
+            g->clusterMode(true, false);
             math.addGeometry(g);
         };
 
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         //see if the scale value is correct
         if(i!=1) {
             for(int j=0; j<i; j++) {
-                double val = (math.getGeometry()[j]->getPoint() - math.midpoint).norm();
+                double val = (math.getGeometry()[j]->point() - math.midpoint).norm();
                 BOOST_CHECK_GE(val / scale , 0.7999);
                 BOOST_CHECK_LE(val / scale , 1.2111);
             };
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         math.applyClusterScale(2.*scale, false);
         if(i!=1) {
             for(int j=0; j<i; j++) {
-                double val = math.getGeometry()[j]->getPoint().norm();
+                double val = math.getGeometry()[j]->point().norm();
                 BOOST_CHECK_GE(val, 0.7999);
                 BOOST_CHECK_LE(val, 1.2111);
             };
@@ -120,40 +120,40 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     Geom g1(new Geometry3D(p1, sys));
     Geom g2(new Geometry3D(p2, sys));
     //the stuff that is normaly done by map downstream geometry
-    g1->m_offset = math.getParameterOffset();
-    g1->setClusterMode(true, false);
-    g1->transform(transI);
-    g2->m_offset = math.getParameterOffset();
-    g2->setClusterMode(true, false);
-    g2->transform(transI);
+    g1->offset() = math.getParameterOffset();
+    g1->clusterMode(true, false);
+    g1->trans(transI);
+    g2->offset() = math.getParameterOffset();
+    g2->clusterMode(true, false);
+    g2->trans(transI);
     math.addGeometry(g1);
     math.addGeometry(g2);
  
     //check if we have the local values right
-    BOOST_CHECK(g1->m_toplocal.isApprox(trans.inverse()*p1, 1e-10));
-    BOOST_CHECK(g2->m_toplocal.isApprox(trans.inverse()*p2, 1e-10));
+    BOOST_CHECK(g1->toplocal().isApprox(trans.inverse()*p1, 1e-10));
+    BOOST_CHECK(g2->toplocal().isApprox(trans.inverse()*p2, 1e-10));
    
     math.resetClusterRotation(trans);    
 
     //check if the new toplocal is changed to the new transformation and that trans is adjusted
-    BOOST_CHECK(g1->m_toplocal.isApprox(trans.inverse()*p1, 1e-10));
-    BOOST_CHECK(g2->m_toplocal.isApprox(trans.inverse()*p2, 1e-10));
+    BOOST_CHECK(g1->toplocal().isApprox(trans.inverse()*p1, 1e-10));
+    BOOST_CHECK(g2->toplocal().isApprox(trans.inverse()*p2, 1e-10));
 
     
     //see if the downstream processing works
-    g1->recalculate(trans);
-    g2->recalculate(trans);
-    BOOST_CHECK(g1->m_rotated.isApprox(p1,1e-10));
-    BOOST_CHECK(g2->m_rotated.isApprox(p2,1e-10));
+    g1->recalc(trans);
+    g2->recalc(trans);
+    BOOST_CHECK(g1->rotated().isApprox(p1,1e-10));
+    BOOST_CHECK(g2->rotated().isApprox(p2,1e-10));
    
     //this should redo the rotation to original
     math.resetClusterRotation(trans);
-    g1->recalculate(trans);
-    g2->recalculate(trans);
+    g1->recalc(trans);
+    g2->recalc(trans);
     
     //let's check if rotations still hold
-    BOOST_CHECK(g1->m_toplocal.isApprox(trans.inverse()*p1, 1e-10));
-    BOOST_CHECK(g2->m_toplocal.isApprox(trans.inverse()*p2, 1e-10));
+    BOOST_CHECK(g1->toplocal().isApprox(trans.inverse()*p1, 1e-10));
+    BOOST_CHECK(g2->toplocal().isApprox(trans.inverse()*p2, 1e-10));
     
     //see if we have the same Quaternion as at the begining
     typename Kernel::Quaternion Qinit(1,2,3,4);
@@ -168,37 +168,13 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     math.applyClusterScale(s, false);
     
     math.recalculate();
-    BOOST_CHECK(Kernel::isSame((g1->m_rotated*s-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->m_rotated*s-p2).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g1->rotated()*s-p1).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g2->rotated()*s-p2).norm(),0.));
     
     math.finishCalculation();
-    BOOST_CHECK(Kernel::isSame((g1->m_rotated-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->m_rotated-p2).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g1->rotated()-p1).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g2->rotated()-p2).norm(),0.));
     BOOST_CHECK(trans.rotation().isApprox(Qinit, 1e-10));
-    
-   /* 
-    //see if it works with initial translation
-    Q.setIdentity();
-    math.m_quaternion.setIdentity();
-    math.m_normQ.setZero();
-    math.initFixMaps();
-    math.m_translation<<1,2,3;
-    g1->transformInverse(Eigen::Matrix3d::Identity(), -math.m_translation);
-    g2->transformInverse(Eigen::Matrix3d::Identity(), -math.m_translation);
-    
-    s = math.calculateClusterScale();
-    math.applyClusterScale(s, false);
-    math.recalculate();
-    g1->recalculate(1./s);
-    g2->recalculate(1./s);
-    BOOST_CHECK(Kernel::isSame((g1->m_rotated*s-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->m_rotated*s-p2).norm(),0.));
-    
-    math.finishCalculation();
-    g1->recalculate(1.);
-    g2->recalculate(1.);
-    BOOST_CHECK(Kernel::isSame((g1->m_rotated-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->m_rotated-p2).norm(),0.));*/
 }
 
 BOOST_AUTO_TEST_SUITE_END();
