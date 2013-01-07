@@ -127,9 +127,8 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename system_traits<Sys>::Cluster 	Cluster;
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
-    typedef typename Kernel::Transform3D		Transform;
-    typedef typename Kernel::DiffTransform3D		DiffTransform;
-
+    typedef typename Kernel::template transform_type<Dimension>::type		Transform;
+    typedef typename Kernel::template transform_type<Dimension>::diff_type	DiffTransform;
 #ifdef USE_LOGGING
 protected:
     src::logger log;
@@ -160,7 +159,7 @@ public:
         return boost::apply_visitor(vis, m_geometry);
     };
     
-    //basic transformation
+    //basic ation
     void transform(const Transform& t) {
 
         if(m_isInCluster)

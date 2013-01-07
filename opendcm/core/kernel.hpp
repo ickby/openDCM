@@ -268,6 +268,16 @@ struct Kernel {
 
     typedef detail::Transform<Scalar, 3> 	Transform3D;
     typedef detail::DiffTransform<Scalar, 3> 	DiffTransform3D;
+    
+    typedef detail::Transform<Scalar, 2> 	Transform2D;
+    typedef detail::DiffTransform<Scalar, 2> 	DiffTransform2D;
+    
+    template<int Dim>
+    struct transform_type {
+      typedef typename boost::mpl::if_c<Dim==2, Transform2D, Transform3D>::type type;
+      typedef typename boost::mpl::if_c<Dim==2, DiffTransform2D, DiffTransform3D>::type diff_type;
+    };
+    
 
     struct MappedEquationSystem {
 
