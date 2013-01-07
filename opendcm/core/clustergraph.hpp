@@ -609,6 +609,42 @@ public:
         return std::pair< object_iterator<Obj>, object_iterator<Obj> >(begin, end);
     };
 
+    /**
+     * @brief Applys the functor to each occurence of an object
+     *
+     * Each valid object of the given type is extractet and passed to the function object. Vertices 
+     * and edges are searched for valid object pointers, it happens in this order. When a recursive 
+     * search is specified, all subclusters are searched too, but the cluster is passt to the Functor
+     * first. So make sure a function overload for clusters exist in this case.
+     *
+     * @param f the functor to which all valid objects get passed to.
+     * @param recursive specifies if the subclusters should be searched for objects too
+     **/
+    template<typename Obj, typename Functor>
+    void for_each(Functor& f, bool recursive = false) {
+
+        std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
+        for(; it.first != it.second; it.first++) {
+            boost::shared_ptr<Obj> ptr =  getObject<Obj>(*(it.first)) ;
+            if(ptr)
+                f(ptr);
+        }
+
+        std::pair<local_edge_iterator, local_edge_iterator> eit = boost::edges(*this);
+        for(; eit.first != eit.second; eit.first++) {
+            boost::shared_ptr<Obj> ptr =  getObject<Obj>(*(eit.first));
+            if(ptr)
+                f(ptr);
+        }
+
+        if(recursive) {
+            cluster_iterator cit;
+            for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
+                f(*((*cit).second));
+                (*cit).second->for_each<Obj>(f, recursive);
+            }
+        }
+    };
 
     /* *******************************************************
      * Property Handling
