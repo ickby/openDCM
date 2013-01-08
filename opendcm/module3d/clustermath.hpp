@@ -319,8 +319,12 @@ public:
 
     void mapClusterDownstreamGeometry(Cluster& cluster) {
 
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Map downstream geometry";
+#endif
+
         map_downstream down(cluster.template getClusterProperty<math_prop>(),
-			    cluster.template getClusterProperty<fix_prop>());
+                            cluster.template getClusterProperty<fix_prop>());
         cluster.template for_each<Geometry3D>(down, true);
         //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
         //	dof's remaining between parts and so nothing can be moved when one part is fixed.
@@ -330,6 +334,10 @@ public:
      * defined as the max distance between the midpoint and the points.
     */
     Scalar calculateClusterScale() {
+
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Calculate cluster scale";
+#endif
 
         if(m_geometry.empty()) assert(false); //TODO: Throw
         else if(m_geometry.size() == 1) {
@@ -452,6 +460,9 @@ public:
 
     void applyClusterScale(Scalar scale, bool isFixed) {
 
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Apply cluster scale: "<<scale;
+#endif
         //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
@@ -461,6 +472,9 @@ public:
             typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
                 (*it)->recalculate(diff);
+#ifdef USE_LOGGING
+                BOOST_LOG(log) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
+#endif
             };
             return;
         }
