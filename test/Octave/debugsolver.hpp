@@ -207,13 +207,18 @@ struct DebugSolver {
         BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter;
 #endif
 
+        typename Kernel::Vector par = sys.Parameter;
+
         if(/*stop != */1) {
 
             int jcount = 1000;
 
             std::ofstream str("/home/stefan/Projects/openDCM/test/Octave/output.m");
+
+#ifdef USE_LOGGING
             if(!str.is_open())
-                std::cout<<"file not opend!"<<std::endl;
+                BOOST_LOG(log)<<"file not opend!"<<std::endl;
+#endif
 
             //Reset and start varying all parameter
             sys.Parameter = Original;
@@ -250,6 +255,9 @@ struct DebugSolver {
 
             str.close();
         };
+
+        sys.Parameter = par;
+	sys.recalculate();
 
         if(stop == 1) return true;
         return false; //TODO:throw
