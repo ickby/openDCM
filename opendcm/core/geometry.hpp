@@ -180,6 +180,7 @@ public:
     void trans(const Transform& t) {transform(t);};
     void recalc(DiffTransform& trans) {recalculate(trans);};
     typename Kernel::Vector3 point() {return getPoint();};
+    int parameterCount() {return  m_parameterCount;};
 #endif
     
 protected:

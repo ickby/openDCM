@@ -78,6 +78,8 @@ struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
 namespace dcm {
 
+struct remove {}; //signal name
+
 template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
 
@@ -88,8 +90,9 @@ struct Module3D {
         typedef boost::shared_ptr<Geometry3D> Geom;
         typedef boost::shared_ptr<Constraint3D> Cons;
 
-        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > > >  GeomSignal;
-        typedef mpl::map<  >  ConsSignal;
+        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > >,
+                mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
+        typedef mpl::map< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -370,6 +373,25 @@ struct Module3D {
                 return g;
             };
 
+            void removeGeometry3D(Geom g) {
+
+                GlobalVertex v = g->template getProperty<vertex_prop>();
+
+                //check if this vertex holds a constraint
+                Cons c = m_this->m_cluster.template getObject<Constraint3D>(v);
+                if(c)
+                    c->template emitSignal<remove>(c);
+
+                //emit remove geometry signal bevore actually deleting it, in case anyone want to access the
+                //graph before
+                g->template emitSignal<remove>(g);
+
+                //remove the vertex from graph and emit all edges that get removed with the functor
+                m_this->m_cluster.removeVertex(v, boost::bind(&inheriter_base::apply_edge_remove, this, _1));
+		m_this->erase(g);
+
+            };
+
             template<typename T1>
             Cons createConstraint3D(Geom first, Geom second, T1 constraint1) {
 
@@ -407,8 +429,22 @@ struct Module3D {
                 return c;
             };
 
+            void removeConstraint3D(Cons c) {
+
+                GlobalEdge e = c->template getProperty<edge_prop>();
+                c->template emitSignal<remove>(c);
+                m_this->m_cluster.removeEdge(e);
+		m_this->erase(c);
+            };
+
+
         protected:
             Sys* m_this;
+
+            void apply_edge_remove(GlobalEdge e) {
+                Cons c = m_this->m_cluster.template getObject<Constraint3D>(e);
+                c->template emitSignal<remove>(c);
+            };
         };
 
         struct inheriter_noid : public inheriter_base {

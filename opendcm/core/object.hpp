@@ -78,8 +78,8 @@ typedef boost::any Connection;
  * \tparam Obj the type of the derived object
  * \tparam Sig a mpl::map specifing the object's signals by (type -  boost::function) pairs
  **/
-template<typename Sys, typename Obj, typename Sig>
-struct Object : public boost::enable_shared_from_this<Obj> {
+template<typename Sys, typename Derived, typename Sig>
+struct Object : public boost::enable_shared_from_this<Derived> {
 
     Object(Sys& system) : m_system(system) {};
 
@@ -161,7 +161,7 @@ protected:
      * derived type. It's imortant to not store the properties but their types. These types are
      * stored and accessed as fusion vector.
      * */
-    typedef typename mpl::at<typename Sys::object_properties, Obj>::type Mapped;
+    typedef typename mpl::at<typename Sys::object_properties, Derived>::type Mapped;
     typedef typename mpl::if_< boost::is_same<Mapped, mpl::void_ >, mpl::vector<>, Mapped>::type Sequence;
     typedef typename mpl::transform<Sequence, details::property_type<mpl::_1> >::type Typesequence;
     typedef typename fusion::result_of::as_vector<Typesequence>::type Properties;
