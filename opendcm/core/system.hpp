@@ -192,11 +192,15 @@ public:
     };
     
     template<typename Object>
-    std::vector< boost::shared_ptr<Object> >& erase(boost::shared_ptr<Object> ptr) {
+    void push_back(boost::shared_ptr<Object> ptr) {
+        objectVector<Object>().push_back(ptr);
+    };
+    
+    template<typename Object>
+    void erase(boost::shared_ptr<Object> ptr) {
 
         std::vector< boost::shared_ptr<Object> >& vec = objectVector<Object>();
 	vec.erase( remove(vec.begin(), vec.end(), ptr), vec.end() );
-	return vec;
     };
 
     void solve() {

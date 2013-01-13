@@ -296,13 +296,13 @@ public:
         return (m_clusters.find(v) != m_clusters.end());
     };
 
-    ClusterGraph&	 getVertexCluster(LocalVertex v) {
+    ClusterGraph& getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return *m_clusters[v];
         //TODO:throw if not a cluster
     };
 
-    LocalVertex		getClusterVertex(ClusterGraph& g) {
+    LocalVertex	getClusterVertex(ClusterGraph& g) {
         std::pair<cluster_iterator, cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
             if((*it.first).second == &g)
@@ -310,6 +310,74 @@ public:
         }
         return LocalVertex();
     };
+
+    template<typename Functor>
+    void removeCluster(ClusterGraph& g, Functor& f) {
+        removeCluster(getClusterVertex(g), f);
+    };
+    void removeCluster(ClusterGraph& g) {
+	placehoder p;
+        removeCluster(getClusterVertex(g), p);
+    };
+
+    /**
+     * @brief Remove a subcluster and applys the functor to all removed edges and vertices
+     *
+     * All downstream clusters of the local vertex v will be removed after the functor is applied to there
+     * edges and vertices. Note that the LocalVertex which represents the cluster to delete is not passed
+     * to the functor. When ever the cluster is changed it will be passed to the functor, so that it need
+     * to have three overloads: operator()(LocalEdge), operator()(LocalVertex), operator()(ClusterGraph&)
+     *
+     * @param v Local vertex which is a cluster and which should be deleted
+     * @param f Functor to apply on all graph elements
+     */
+    template<typename Functor>
+    void removeCluster(LocalVertex v, Functor& f) {
+
+        typename ClusterMap::iterator it = m_clusters.find(v);
+        if(it == m_clusters.end())
+            return; //TODO:throw
+            
+        std::pair<LocalVertex, ClusterGraph*> res = *it;
+
+        //apply functor to all edges that are removed in this cluster
+        std::pair<local_out_edge_iterator, local_out_edge_iterator>  eit = boost::out_edges(res.first, *this);
+        std::for_each(eit.first, eit.second, boost::bind<void>(boost::ref(f),_1  ));
+
+        //apply functor to all vertices and edges in the subclusters
+        f(*res.second);
+        res.second->apply_vertex_edge(f, true);
+
+        //remove from map, delete subcluster and remove vertex
+        m_clusters.erase(v);
+        delete res.second;
+        boost::clear_vertex(v, *this);
+        boost::remove_vertex(v, *this);
+    };
+    void removeCluster(LocalVertex v) {
+	placehoder p;
+        removeCluster(v, p);
+    };
+
+protected:
+    template<typename Functor>
+    void apply_vertex_edge(Functor& f, bool recursive = false) {
+
+        std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(*this);
+        std::for_each(eit.first, eit.second, boost::bind<void>(boost::ref(f),_1  ));
+	
+        std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
+        std::for_each(vit.first, vit.second, boost::bind<void>(boost::ref(f),_1  ));
+
+        if(recursive) {
+            cluster_iterator cit;
+            for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
+                f(*((*cit).second));
+                (*cit).second->apply_vertex_edge(f, recursive);
+            }
+        }
+    };
+
 
 
     /* *******************************************************
@@ -677,7 +745,7 @@ public:
     void removeEdge(LocalEdge id, Functor& f) {
 
         std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[id]);
-        std::for_each(vec.begin(), vec.end(), apply_remove_prediacte<placehoder>(f,-1));
+        std::for_each(vec.begin(), vec.end(), boost::bind<void>(boost::ref(apply_remove_prediacte<placehoder>(f,-1)),_1));
         boost::remove_edge(id, *this);
     };
 

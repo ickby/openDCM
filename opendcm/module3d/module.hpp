@@ -78,8 +78,6 @@ struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
 namespace dcm {
 
-struct remove {}; //signal name
-
 template<typename Typelist, typename Identifier = No_Identifier>
 struct Module3D {
 
@@ -369,7 +367,7 @@ struct Module3D {
                 fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
                 m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
-                m_this->template objectVector<Geometry3D>().push_back(g);
+                m_this->push_back(g);
                 return g;
             };
 
@@ -424,7 +422,7 @@ struct Module3D {
                 //add the coresbondig edge to the constraint
                 c->template setProperty<edge_prop>(fusion::at_c<1>(res));
                 //store the constraint in general object vector of main system
-                m_this->template objectVector<Constraint3D>().push_back(c);
+                m_this->push_back(c);
 
                 return c;
             };

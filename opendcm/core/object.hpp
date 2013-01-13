@@ -64,6 +64,9 @@ struct map_val {
 
 }
 
+//few standart signal names
+struct remove {}; 
+
 typedef boost::any Connection;
 
 /**
