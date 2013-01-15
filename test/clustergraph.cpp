@@ -63,6 +63,20 @@ struct test_object2 {
 typedef ClusterGraph<mpl::vector<test_edge_property, test_edge_property2>,
         mpl::vector<test_vertex_property>, mpl::vector<test_cluster_property>, mpl::vector<test_object1, test_object2> > Graph;
 
+struct delete_functor {
+    std::stringstream stream;
+    
+    void operator()(LocalVertex v) {
+      stream<<"v";
+    }
+    void operator()(LocalEdge e) {
+      stream<<"e";
+    }
+    void operator()(Graph& v) {
+      stream<<"c";
+    }
+};
+	
 BOOST_AUTO_TEST_CASE(subclustering) {
 
     Graph g1;
@@ -87,6 +101,21 @@ BOOST_AUTO_TEST_CASE(subclustering) {
     BOOST_CHECK(it != end);
     BOOST_CHECK(it->second->parent() == (it++)->second->parent());
     BOOST_CHECK(g2.numClusters() == 2);
+    BOOST_CHECK(boost::num_vertices(g2)==2);
+    
+    delete_functor f;
+    g2.removeCluster(g3, f);
+    boost::tie(it,end) = g2.clusters();
+    BOOST_CHECK(it != end);
+    BOOST_CHECK(g2.numClusters() == 1);
+    BOOST_CHECK(boost::num_vertices(g2)==1);
+    BOOST_CHECK( !f.stream.str().compare("c") );
+    
+    delete_functor f2;
+    g1.removeCluster(sub.first, f2);
+    BOOST_CHECK( !f2.stream.str().compare("cvc") );
+    
+
 }
 
 BOOST_AUTO_TEST_CASE(creation_handling) {
@@ -120,6 +149,66 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
     BOOST_CHECK( fusion::at_c<2>(edge3) );
     BOOST_CHECK( boost::source(fusion::at_c<0>(edge3), g1) == fusion::at_c<0>(sub2) );
     BOOST_CHECK( boost::target(fusion::at_c<0>(edge3), g1) == nc.second );
+    
+};
+
+BOOST_AUTO_TEST_CASE(removing) {
+
+    Graph g1;
+    fusion::vector<LocalVertex, GlobalVertex> res1 = g1.addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> res2 = g1.addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> res3 = g1.addVertex();
+    
+    fusion::vector<LocalEdge, GlobalEdge, bool> res4 = g1.addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
+    fusion::vector<LocalEdge, GlobalEdge, bool> res5 = g1.addEdge(fusion::at_c<0>(res2), fusion::at_c<0>(res3));
+    
+    g1.removeVertex(fusion::at_c<0>(res1));    
+    BOOST_CHECK( boost::num_edges(g1) == 1 );
+    BOOST_CHECK( boost::num_vertices(g1) == 2 );
+    
+    g1.removeVertex(fusion::at_c<1>(res2));    
+    BOOST_CHECK( boost::num_edges(g1) == 0 );
+    BOOST_CHECK( boost::num_vertices(g1) == 1 );
+    
+    //create subcluster with two vertices
+    Graph& g2 = g1.createCluster().first;
+    res1 = g2.addVertex();
+    res2 = g2.addVertex();
+    
+    //connect toplevel vertex with both subcluster vertices, so that there should be one local edge in top 
+    //cluster with to global ones inside
+    res4 = g1.addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res1));
+    res5 = g1.addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
+    BOOST_CHECK( boost::num_edges(g1) == 1 );
+    
+    g1.removeVertex(fusion::at_c<1>(res1));
+    BOOST_CHECK( boost::num_vertices(g1) == 2 ); //one normal one cluster
+    BOOST_CHECK( boost::num_vertices(g2) == 1 ); //one normal one cluster
+    BOOST_CHECK( boost::num_edges(g1) == 1 );
+    
+    g1.removeVertex(fusion::at_c<1>(res2));
+    BOOST_CHECK( boost::num_vertices(g1) == 2 ); //one normal one cluster
+    BOOST_CHECK( boost::num_vertices(g2) == 0 ); //one normal one cluster
+    BOOST_CHECK( boost::num_edges(g1) == 0 );
+    
+    res1 = g2.addVertex();
+    res2 = g2.addVertex();
+    res4 = g1.addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res1));
+    res5 = g1.addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
+    fusion::vector<LocalEdge, GlobalEdge, bool> res6 = g2.addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
+    
+    BOOST_CHECK( boost::num_edges(g2) == 1 );
+    BOOST_CHECK( boost::num_edges(g1) == 1 );
+    BOOST_CHECK( g1.getGlobalEdgeCount(fusion::at_c<0>(res4)) == 2);
+    
+    g1.removeEdge(fusion::at_c<1>(res4));
+    BOOST_CHECK( boost::num_edges(g2) == 1 );
+    BOOST_CHECK( boost::num_edges(g1) == 1 );
+    BOOST_CHECK( g1.getGlobalEdgeCount(fusion::at_c<0>(res4)) == 1);
+    
+    g1.removeEdge(fusion::at_c<1>(res5));
+    BOOST_CHECK( boost::num_edges(g2) == 1 );
+    BOOST_CHECK( boost::num_edges(g1) == 0 );
     
 };
 

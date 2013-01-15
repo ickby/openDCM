@@ -88,8 +88,9 @@ struct Module3D {
         typedef boost::shared_ptr<Geometry3D> Geom;
         typedef boost::shared_ptr<Constraint3D> Cons;
 
-        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > > >  GeomSignal;
-        typedef mpl::map<  >  ConsSignal;
+        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > >,
+                mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
+        typedef mpl::map< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -366,8 +367,27 @@ struct Module3D {
                 fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
                 m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
                 g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
-                m_this->template objectVector<Geometry3D>().push_back(g);
+                m_this->push_back(g);
                 return g;
+            };
+
+            void removeGeometry3D(Geom g) {
+
+                GlobalVertex v = g->template getProperty<vertex_prop>();
+
+                //check if this vertex holds a constraint
+                Cons c = m_this->m_cluster.template getObject<Constraint3D>(v);
+                if(c)
+                    c->template emitSignal<remove>(c);
+
+                //emit remove geometry signal bevore actually deleting it, in case anyone want to access the
+                //graph before
+                g->template emitSignal<remove>(g);
+
+                //remove the vertex from graph and emit all edges that get removed with the functor
+                boost::function<void(GlobalEdge)> functor = boost::bind(&inheriter_base::apply_edge_remove, this, _1);
+                m_this->m_cluster.removeVertex(v, functor);
+                m_this->erase(g);
             };
 
             template<typename T1>
@@ -402,13 +422,28 @@ struct Module3D {
                 //add the coresbondig edge to the constraint
                 c->template setProperty<edge_prop>(fusion::at_c<1>(res));
                 //store the constraint in general object vector of main system
-                m_this->template objectVector<Constraint3D>().push_back(c);
+                m_this->push_back(c);
 
                 return c;
             };
 
+            void removeConstraint3D(Cons c) {
+
+                GlobalEdge e = c->template getProperty<edge_prop>();
+                c->template emitSignal<remove>(c);
+                m_this->m_cluster.removeEdge(e);
+                m_this->erase(c);
+            };
+
+
         protected:
             Sys* m_this;
+
+            void apply_edge_remove(GlobalEdge e) {
+                Cons c = m_this->m_cluster.template getObject<Constraint3D>(e);
+                c->template emitSignal<remove>(c);
+                m_this->erase(c);
+            };
         };
 
         struct inheriter_noid : public inheriter_base {

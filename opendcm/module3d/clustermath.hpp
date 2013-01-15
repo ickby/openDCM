@@ -125,6 +125,10 @@ public:
     };
 
     void finishCalculation() {
+      
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Finish calculation";
+#endif
 
         //if the rotation was resetet we have to calc the real quaternion now
         if(reset)

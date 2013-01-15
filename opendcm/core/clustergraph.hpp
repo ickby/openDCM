@@ -23,6 +23,7 @@
 #include <map>
 #include <functional>
 #include <iostream>
+#include <algorithm>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -45,6 +46,7 @@
 
 #include "property.hpp"
 #include <boost/variant/recursive_variant.hpp>
+#include <boost/bind.hpp>
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -110,6 +112,9 @@ struct 	GlobalEdge {
     };
     bool operator!=(const GlobalEdge& second) const {
         return ID!=second.ID;
+    };
+    bool valid() {
+        return ID>9;
     };
 };
 
@@ -291,13 +296,13 @@ public:
         return (m_clusters.find(v) != m_clusters.end());
     };
 
-    ClusterGraph&	 getVertexCluster(LocalVertex v) {
+    ClusterGraph& getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return *m_clusters[v];
         //TODO:throw if not a cluster
     };
 
-    LocalVertex		getClusterVertex(ClusterGraph& g) {
+    LocalVertex	getClusterVertex(ClusterGraph& g) {
         std::pair<cluster_iterator, cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
             if((*it.first).second == &g)
@@ -305,6 +310,78 @@ public:
         }
         return LocalVertex();
     };
+
+    template<typename Functor>
+    void removeCluster(ClusterGraph& g, Functor& f) {
+        removeCluster(getClusterVertex(g), f);
+    };
+    void removeCluster(ClusterGraph& g) {
+        placehoder p;
+        removeCluster(getClusterVertex(g), p);
+    };
+
+    /**
+     * @brief Remove a subcluster and applys the functor to all removed edges and vertices
+     *
+     * All downstream elements of the local vertex v will be removed after the functor is applied to there
+     * edges and vertices. Note that the LocalVertex which represents the cluster to delete is not passed
+     * to the functor. When ever the cluster is changed it will be passed to the functor, so that it need
+     * to have three overloads: operator()(GlobalEdge), operator()(GlobalVertex), operator()(ClusterGraph&)
+     *
+     * @param v Local vertex which is a cluster and which should be deleted
+     * @param f Functor to apply on all graph elements
+     */
+    template<typename Functor>
+    void removeCluster(LocalVertex v, Functor& f) {
+
+        typename ClusterMap::iterator it = m_clusters.find(v);
+        if(it == m_clusters.end())
+            return; //TODO:throw
+
+        std::pair<LocalVertex, ClusterGraph*> res = *it;
+
+        //apply functor to all vertices and edges in the subclusters
+        f(*res.second);
+        res.second->remove_vertices(f, true);
+
+        //remove from map, delete subcluster and remove vertex
+        m_clusters.erase(v);
+        delete res.second;
+        boost::clear_vertex(v, *this); //should not be needed, just to ensure it
+        boost::remove_vertex(v, *this);
+    };
+    void removeCluster(LocalVertex v) {
+        placehoder p;
+        removeCluster(v, p);
+    };
+
+protected:
+    template<typename Functor>
+    void remove_vertices(Functor& f, bool recursive = false) {
+
+        std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
+        //we iterate forward before deleting to not invalidate our iterator
+        while(vit.first != vit.second) {
+            LocalVertex v = *(vit.first);
+            vit.first++;
+
+            if(!isCluster(v)) {
+                //let the functor know we remove this vertex
+                f(getGlobalVertex(v));
+                //need to do this to allow the removal of all relevant edges to this vertex, even upstream
+                removeVertex(v, f);
+            }
+        };
+
+        if(recursive) {
+            cluster_iterator cit;
+            for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
+                f(*((*cit).second));
+                (*cit).second->remove_vertices(f, recursive);
+            }
+        }
+    };
+
 
 
     /* *******************************************************
@@ -469,24 +546,37 @@ public:
      * @brief Get the local edge which holds the specified global edge.
      *
      * Note that GlobalEdge must be in a local edge of this cluster, means the connected vertices must be in this
-     * or one of it's subclusters. Also if the containing LocalEdge is not in this cluster, but in one of it's
+     * or one of it's subclusters (but not the same). Also if the containing LocalEdge is not in this cluster, but in one of it's
      * subclusters, the function fails and the returned edge is invalid.
      *
      * @param e GlobalEdge for which the containing local one is wanted
-     * @return std:pair< LocalEdge, bool > whith the containing LocalEdge and a bool indicator if function was successful.
+     * @return std:pair< LocalEdge, bool > with the containing LocalEdge and a bool indicator if function was successful.
      **/
     std::pair<LocalEdge, bool> getLocalEdge(GlobalEdge e) {
-        return getContainingEdge(e, true);
+        return getContainingEdge(e);
+    };
+
+    /**
+     * @brief Get the local edge which holds the specified global one and the subcluster in which it is valid.
+     *
+     * The function only fails when the global edge is hold by a local one upstream in the cluster
+     * herarchy.
+     *
+     * @param e GlobalEdge for which the containing local one is wanted
+     * @return fusion::vector<LocalEdge, ClusterGraph*, bool> with the containing LocalEdge, the cluster which holds it and a bool indicator if function was successful.
+     **/
+    fusion::vector<LocalEdge, ClusterGraph*, bool> getLocalEdgeGraph(GlobalEdge e) {
+        return getContainingEdgeGraph(e);
     };
 
     /**
      * @brief Get the GlobalVertex assiociated with this local one.
      *
-     * @param e LocalVertex
+     * @param v LocalVertex
      * @return GlobalVertex
      **/
-    GlobalVertex getGlobalVertex(LocalVertex e) {
-        return fusion::at_c<2>((*this)[e]);
+    GlobalVertex getGlobalVertex(LocalVertex v) {
+        return fusion::at_c<2>((*this)[v]);
     };
 
     /**
@@ -500,6 +590,167 @@ public:
      **/
     std::pair<LocalVertex,bool> getLocalVertex(GlobalVertex e) {
         return getContainingVertex(e);
+    };
+
+    /**
+     * @brief Get the local vertex which holds the specified global one and the subcluster in which it is valid.
+     *
+     * The function only fails when the global vertex is hold by a local one upstream in the cluster
+     * herarchy.
+     *
+     * @param v GlobalVertex for which the containing local one is wanted
+     * @return fusion::vector<LocalVertex, ClusterGraph*, bool> with the containing LocalVertex, the cluster which holds it and a bool indicator if function was successful.
+     **/
+    fusion::vector<LocalVertex, ClusterGraph*, bool> getLocalVertexGraph(GlobalVertex v) {
+        return getContainingVertexGraph(v);
+    };
+
+
+    /* *******************************************************
+     * Remove Handling
+     * *******************************************************/
+private:
+
+    template<typename Functor>
+    struct apply_remove_prediacte {
+        Functor& func;
+        GlobalVertex vert;
+        GlobalEdge edge;
+        bool isEdge;
+
+        apply_remove_prediacte(Functor& f, GlobalVertex v) : func(f), vert(v), isEdge(false) {};
+        apply_remove_prediacte(Functor& f, GlobalEdge e) : func(f), edge(e), vert(0), isEdge(true) {};
+        bool operator()(edge_bundle_single& e) {
+            bool res;
+            if(isEdge)
+                res = (edge==fusion::at_c<1>(e));
+            else
+                res = (vert==fusion::at_c<1>(e).source) || (vert==fusion::at_c<1>(e).target);
+
+            if(res || vert<0)
+                func(fusion::at_c<1>(e));
+
+            return res || vert<0;
+        }
+    };
+
+    struct placehoder {
+        template<typename T>
+        void operator()(T t) {};
+    };
+
+    template<typename Functor>
+    void downstreamRemoveVertex(GlobalVertex v, Functor& f) {
+
+        std::pair<LocalVertex, bool> res = getContainingVertex(v);
+        if(!res.second)
+            return; //TODO:throw
+
+        //iterate over every edge that connects to the global vertex or the cluster in which it is in
+        std::vector<LocalEdge> re; //remove edges
+        std::pair<local_out_edge_iterator,  local_out_edge_iterator> it = boost::out_edges(res.first, *this);
+        for(; it.first != it.second; it.first++) {
+            std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[*(it.first)]);
+            vec.erase(std::remove_if(vec.begin(), vec.end(), apply_remove_prediacte<Functor>(f,v)), vec.end());
+            if(vec.empty())
+                re.push_back(*(it.first));
+        };
+
+        std::for_each(re.begin(), re.end(), boost::bind(&ClusterGraph::simpleRemoveEdge, this, _1));
+
+        //if we have the real vertex here and not only a containing cluster we can delete it
+        if(!isCluster(res.first)) {
+            boost::clear_vertex(res.first, *this); //just to make sure, should be done already
+            boost::remove_vertex(res.first, *this);
+        };
+
+        //lets go downstream
+        for(cluster_iterator it = m_clusters.begin(); it != m_clusters.end(); it++)
+            ((*it).second)->downstreamRemoveVertex(v, f);
+    };
+
+    void simpleRemoveEdge(LocalEdge e) {
+        boost::remove_edge(e, *this);
+    };
+
+public:
+    /**
+    * @brief Removes a vertex from the local cluster and applys functor to removed edges
+    *
+    * Removes the vertex from the local graph and invalidates the global vertex id. Also all edges connecting
+    * to this vertex will be removed after the functor was applied to them. The functor needs to implement
+    * operato()(GlobalEdge e). Remark that there is no checking done if the vertex is a cluster, so you
+    * need to make sure it's not, as removing a clustervertex will not delete the coresponding cluster.
+    *
+    * @param id Local Vertex which should be removed from the graph
+    **/
+    template<typename Functor>
+    void removeVertex(LocalVertex id, Functor& f) {
+        removeVertex(getGlobalVertex(id), f);
+    };
+    //no default template arguments for template functions allowed before c++0x, so a little workaround
+    void removeVertex(LocalVertex id) {
+        placehoder p;
+        removeVertex(getGlobalVertex(id), p);
+    };
+
+    /**
+    * @brief Removes a vertex from the cluster or it's subclusters and applys functor to removed edges
+    *
+    * Removes the vertex from the graph or subclusters and invalidates the global vertex id. Also all edges connecting
+    * to this vertex will be removed (upstream and downstream) after the functor was applied to them. The functor
+    * needs to implement operato()(LocalEdge edge).
+    *
+    * @param id Global Vertex which should be removed from the graph
+    * @return bool indicates if the global id could be removed
+    **/
+    template<typename Functor>
+    bool removeVertex(GlobalVertex id, Functor& f) {
+        root().downstreamRemoveVertex(id, f);
+    };
+    //no default template arguments for template functions allowed before c++0x, so a little workaround
+    void removeVertex(GlobalVertex id) {
+        placehoder p;
+        removeVertex(id, p);
+    };
+
+    /**
+    * @brief Removes a global Edge from the cluster or it's subclusters
+    *
+    * Removes the edge from the graph or subclusters and invalidates the global edge id. If the local edge holds
+    * only this global one it will be removed also.
+    *
+    * @param id Global Edge which should be removed from the graph
+    * @return bool indicates if the global id could be removed
+    **/
+    void removeEdge(GlobalEdge id) {
+        fusion::vector<LocalEdge, ClusterGraph*, bool> res = getContainingEdgeGraph(id);
+        if(!fusion::at_c<2>(res))
+            return; //TODO:throw
+
+        placehoder p;
+        std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*fusion::at_c<1>(res))[fusion::at_c<0>(res)]);
+        vec.erase(std::remove_if(vec.begin(), vec.end(), apply_remove_prediacte<placehoder>(p,id)), vec.end());
+
+        if(vec.empty())
+            boost::remove_edge(fusion::at_c<0>(res), *fusion::at_c<1>(res));
+    };
+
+    /**
+    * @brief Removes a local edge from the cluster and calls the functor for all removed global edges
+    *
+    * Removes the edge from the graph and invalidates the global edges. The Functor needs to provide
+    * operator()(GlobalEdge). If no functor is needed just use boost::remove_edge.
+    *
+    * @param id Global Edge which should be removed from the graph
+    * @return bool indicates if the global id could be removed
+    **/
+    template<typename Functor>
+    void removeEdge(LocalEdge id, Functor& f) {
+
+        std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[id]);
+        std::for_each(vec.begin(), vec.end(), boost::bind<void>(boost::ref(apply_remove_prediacte<placehoder>(f,-1)),_1));
+        boost::remove_edge(id, *this);
     };
 
 
@@ -612,8 +863,8 @@ public:
     /**
      * @brief Applys the functor to each occurence of an object
      *
-     * Each valid object of the given type is extractet and passed to the function object. Vertices 
-     * and edges are searched for valid object pointers, it happens in this order. When a recursive 
+     * Each valid object of the given type is extractet and passed to the function object. Vertices
+     * and edges are searched for valid object pointers, it happens in this order. When a recursive
      * search is specified, all subclusters are searched too, but the cluster is passt to the Functor
      * first. So make sure a function overload for clusters exist in this case.
      *
@@ -942,6 +1193,12 @@ protected:
     ClusterMap	  m_clusters;
     details::IDpointer 	  m_id;
 
+    /* Searches the global vertex in all local vertices of this graph, and returns the local
+     * one which holds the global vertex. If not successfull the local vertex returned will be
+     * invalid and the bool parameter will be false. If recursive = true, all subclusters will
+     * be seached too, however, if found there the retourned local vertex will be the vertex
+     * representing the toplevel cluster holding the global vertex in the initial graph.
+     * */
     std::pair<LocalVertex, bool> getContainingVertex(GlobalVertex id, bool recursive = true) {
 
         //check all vertices if they are the id
@@ -962,6 +1219,9 @@ protected:
         return std::make_pair((LocalVertex)NULL, false);
     };
 
+    /* Searches the local vertex holding the specified global one in this and all it's subclusters.
+     * If found, the holding local vertex and the graph in which it is valid will be returned.
+     * */
     fusion::vector<LocalVertex, ClusterGraph*, bool> getContainingVertexGraph(GlobalVertex id) {
 
         LocalVertex v;
@@ -973,16 +1233,36 @@ protected:
         else return fusion::make_vector(v,this,true);
     };
 
-    std::pair<LocalEdge, bool> getContainingEdge(GlobalEdge id, bool recusive = true) {
+    /* Searches the global edge in all local edges of this graph, and returns the local
+     * one which holds the global edge. If not successfull the local edge returned will be
+     * invalid and the bool parameter will be false.
+     * */
+    std::pair<LocalEdge, bool> getContainingEdge(GlobalEdge id) {
 
         LocalVertex v1,v2;
         bool d1,d2;
-        boost::tie(v1,d1) = getContainingVertex(id.source, recusive);
-        boost::tie(v2,d2) = getContainingVertex(id.target, recusive);
+        boost::tie(v1,d1) = getContainingVertex(id.source, true);
+        boost::tie(v2,d2) = getContainingVertex(id.target, true);
 
         if(!((d1&&d2) && (v1!=v2)))   return std::make_pair(LocalEdge(), false);
 
         return boost::edge(v1,v2,*this);
+    };
+
+    /* Searches the local edge holding the specified global one in this and all it's subclusters.
+     * If found, the holding local edge and the graph in which it is valid will be returned.
+     * */
+    fusion::vector<LocalEdge, ClusterGraph*, bool> getContainingEdgeGraph(GlobalEdge id) {
+
+        LocalVertex v1,v2;
+        bool d1,d2;
+        boost::tie(v1,d1) = getContainingVertex(id.source, true);
+        boost::tie(v2,d2) = getContainingVertex(id.target, true);
+
+        if(!(d1&&d2))  return fusion::make_vector(LocalEdge(), (ClusterGraph*)NULL, false);
+        if(v1==v2)   return m_clusters[v1]->getContainingEdgeGraph(id);
+
+        return fusion::make_vector(boost::edge(v1,v2,*this).first, this, true);
     };
 
     template<typename functor>

@@ -48,14 +48,13 @@ struct ModulePart {
         struct PrepareCluster;
         struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
-        typedef mpl::map< >  PartSignal;
+        typedef mpl::map< mpl::pair<remove, boost::function<void (Partptr) > > >  PartSignal;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
             using Object<Sys, Part, PartSignal >::m_system;
 
             //check if we have module3d in this system
-            typedef typename system_traits<Sys>::template getModule<m3d> getM;
             typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
             BOOST_MPL_ASSERT((mpl::not_<boost::is_same<module3d, mpl::void_> >));
 
@@ -68,12 +67,12 @@ struct ModulePart {
             typedef typename system_traits<Sys>::Kernel Kernel;
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename Kernel::number_type Scalar;
-	    typedef typename Kernel::Transform3D Transform;
+            typedef typename Kernel::Transform3D Transform;
 
-	    template<typename T>
+            template<typename T>
             Geom addGeometry(T geom, CoordinateFrame frame = Global) {
                 Geom g(new Geometry3D(geom, m_system));
-                if(frame == Local) 
+                if(frame == Local)
                     g->transform(m_transform);
 
                 fusion::vector<LocalVertex, GlobalVertex> res = m_cluster.addVertex();
@@ -83,7 +82,7 @@ struct ModulePart {
 
                 return g;
             };
-	    
+
         public:
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
@@ -92,9 +91,9 @@ struct ModulePart {
                 (typename geometry_traits<T>::modell()).template extract<Kernel,
                 typename geometry_traits<T>::accessor >(geometry, m_transform);
 
-		//the cluster needs initial values but they are set by preprocess job
-		
-		cluster.template setClusterProperty<typename module3d::fix_prop>(false);
+                //the cluster needs initial values but they are set by preprocess job
+
+                cluster.template setClusterProperty<typename module3d::fix_prop>(false);
             };
 
             template<typename Visitor>
@@ -106,13 +105,13 @@ struct ModulePart {
             Variant 	m_geometry;
             Transform 	m_transform;
             Cluster& 	m_cluster;
-      
+
 
             //visitor to write the calculated value into the variant
             struct apply_visitor : public boost::static_visitor<void> {
 
                 apply_visitor(Transform& t) : m_transform(t) {};
-		    
+
                 template <typename T>
                 void operator()(T& t) const  {
                     (typename geometry_traits<T>::modell()).template inject<Kernel,
@@ -126,10 +125,10 @@ struct ModulePart {
                 apply_visitor vis(m_transform);
                 apply(vis);
             };
-	    
-	    void fix(bool fix_value) {
-	      m_cluster.template setClusterProperty<typename module3d::fix_prop>(fix_value);
-	    };
+
+            void fix(bool fix_value) {
+                m_cluster.template setClusterProperty<typename module3d::fix_prop>(fix_value);
+            };
         };
 
         class Part_noid : public Part_base {
@@ -203,42 +202,77 @@ struct ModulePart {
 
 
         struct inheriter_base {
-	  
+
             inheriter_base() {
                 m_this = ((Sys*) this);
             };
 
-        protected:
             Sys* m_this;
 
             template<typename T>
-            Partptr partCreation(T geometry) {
+            Partptr createPart(T geometry) {
                 typedef typename system_traits<Sys>::Cluster Cluster;
                 std::pair<Cluster&, LocalVertex>  res = m_this->m_cluster.createCluster();
                 Partptr p(new Part(geometry, * ((Sys*) this), res.first));
 
                 m_this->m_cluster.template setObject<Part> (res.second, p);
-                m_this->template objectVector<Part>().push_back(p);
+                m_this->push_back(p);
 
                 res.first.template setClusterProperty<type_prop>(clusterPart);
                 return p;
             }
-        };
 
-        struct inheriter_noid : public inheriter_base {
-            template<typename T>
-            Partptr createPart(T geometry) {
-                return inheriter_base::partCreation(geometry);
+            void removePart(Partptr p) {
+                remover r(*m_this);
+                m_this->m_cluster.removeCluster(p->m_cluster, r);
+                p->template emitSignal<remove>(p);
+                m_this->erase(p);
+            }
+
+        protected:
+            //function object to emit remove signal too al geometry which is deleted by part deletion
+            struct remover {
+                typedef typename system_traits<Sys>::Cluster Cluster;
+                typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+                typedef typename module3d::Geometry3D Geometry3D;
+                typedef boost::shared_ptr<Geometry3D> Geom;
+                typedef typename module3d::Constraint3D Constraint3D;
+                typedef boost::shared_ptr<Constraint3D> Cons;
+
+                Sys& system;
+                remover(Sys& s) : system(s) {};
+                //see if we have a geometry or a constraint and emit the remove signal
+                void operator()(GlobalVertex v) {
+                    Geom g = system.m_cluster.template getObject<Geometry3D>(v);
+                    if(g) {
+                        g->template emitSignal<remove>(g);
+                        system.erase(g);
+                    }
+                    Cons c = system.m_cluster.template getObject<Constraint3D>(v);
+                    if(c) {
+                        c->template emitSignal<remove>(c);
+                        system.erase(c);
+                    }
+                };
+                //we delete all global edges connecting to this part
+                void operator()(GlobalEdge e) {
+                    Cons c = system.m_cluster.template getObject<Constraint3D>(e);
+                    if(c) {
+                        c->template emitSignal<remove>(c);
+                        system.erase(c);
+                    }
+                };
+                void operator()(Cluster& g) {};
             };
         };
 
         struct inheriter_id : public inheriter_base {
 
-	    Identifier drag_id;
-	  	    
+            Identifier drag_id;
+
             template<typename T>
             Partptr createPart(T geometry, Identifier id) {
-                Partptr p = inheriter_base::partCreation(geometry);
+                Partptr p = inheriter_base::createPart(geometry);
                 p->setIdentifier(id);
                 return p;
             };
@@ -258,7 +292,7 @@ struct ModulePart {
             };
         };
 
-        struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
+        struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_base, inheriter_id>::type {};
 
         typedef mpl::vector<>  properties;
         typedef mpl::vector<Part>  objects;
@@ -301,7 +335,7 @@ struct ModulePart {
 
                     details::ClusterMath<Sys>& cm = (*it)->m_cluster.template getClusterProperty<typename module3d::math_prop>();
                     (*it)->m_transform =  cm.getTransform();
-                    (*it)->finishCalculation();		    
+                    (*it)->finishCalculation();
                 };
             };
         };

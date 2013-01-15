@@ -190,6 +190,18 @@ public:
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
         return fusion::at<distance>(m_storage);
     };
+    
+    template<typename Object>
+    void push_back(boost::shared_ptr<Object> ptr) {
+        objectVector<Object>().push_back(ptr);
+    };
+    
+    template<typename Object>
+    void erase(boost::shared_ptr<Object> ptr) {
+
+        std::vector< boost::shared_ptr<Object> >& vec = objectVector<Object>();
+	vec.erase( std::remove(vec.begin(), vec.end(), ptr), vec.end() );
+    };
 
     void solve() {
         clock_t start = clock();
