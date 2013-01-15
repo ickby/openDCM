@@ -256,7 +256,7 @@ protected:
                     if(!second->isClusterFixed()) {
                         mes.setJacobiMap(equation, second->m_offset, 6, val.m_diff_second);
                     }
-                } else mes.setJacobiMap(equation, second->m_offset, first->m_parameterCount, val.m_diff_second);
+                } else mes.setJacobiMap(equation, second->m_offset, second->m_parameterCount, val.m_diff_second);
             };
         };
 
