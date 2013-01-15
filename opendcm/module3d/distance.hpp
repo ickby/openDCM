@@ -34,8 +34,8 @@ struct Distance::type< Kernel, tag::point3D, tag::point3D > {
     Scalar value, sc_value;
 
     //template definition
-    void setScale(Scalar scale){
-         sc_value = value*scale;
+    void setScale(Scalar scale) {
+        sc_value = value*scale;
     };
     Scalar calculate(Vector& param1,  Vector& param2) {
         return (param1-param2).norm() - sc_value;
@@ -55,55 +55,64 @@ struct Distance::type< Kernel, tag::point3D, tag::point3D > {
 };
 
 template<typename Kernel>
-struct Distance::type< Kernel, tag::plane3D, tag::plane3D > {
+struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
-    Scalar value, sc_value;
+    Scalar value, sc_value, d_asin;
+    Scalar dist, l;
+    typename Kernel::Vector3 p2;
 
     //template definition
-    void setScale(Scalar scale){
-         sc_value = value*scale;
+    void setScale(Scalar scale) {
+        sc_value = value*scale;
     };
     Scalar calculate(Vector& param1,  Vector& param2) {
         //(p1-p2)°n / |n| - distance
-        const Scalar dist = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - sc_value;
-        return  dist;
+        p2 = param2.head(3) + sc_value*param2.segment(3,3);
+        dist = (param1.head(3)-p2).dot(param2.segment(3,3)) / param2.segment(3,3).norm();
+        l = (param1.head(3) - p2).norm();
+        d_asin = std::sqrt(1./(1-std::pow(dist/l,2)));
+        return  std::asin(dist/l);
     };
 
     Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        //dp1°n / |n|
-        //if(dparam1.norm()!=1) return 0;
-        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - sc_value;
 
-        const Scalar g = (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
-        return g;
+        const Scalar d_dist = (dparam1.head(3)).dot(param2.segment(3,3)) / param2.segment(3,3).norm();
+        Scalar d_alpha = d_dist*l;
+        d_alpha -= dist*((param1.head(3) - p2).dot(dparam1.head(3)))/l;
+        d_alpha /= std::pow(l,2);
+        return d_asin*d_alpha;
     };
 
     Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
 
         const typename Kernel::Vector3 p1 = param1.head(3);
-        const typename Kernel::Vector3 p2 = param2.head(3);
-        const typename Kernel::Vector3 dp2 = dparam2.head(3);
-        const typename Kernel::Vector3 n = param2.tail(3);
-        const typename Kernel::Vector3 dn = dparam2.tail(3);
-        //if(dparam2.norm()!=1) return 0;
-        const Scalar res = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm() - sc_value;
+        const typename Kernel::Vector3 dp2 = dparam2.head(3) + sc_value*dparam2.segment(3,3);
+        const typename Kernel::Vector3 n = param2.segment(3,3);
+        const typename Kernel::Vector3 dn = dparam2.segment(3,3);
 
-        const Scalar g = (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
-        return g;
+        const Scalar d_dist = (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
+        Scalar d_alpha = d_dist*l;
+        d_alpha -= dist*((p1 - p2).dot(-dp2))/l;
+        d_alpha /= std::pow(l,2);
+        return d_asin*d_alpha;
     };
 
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        gradient = param2.tail(3) / param2.tail(3).norm();
+        const typename Kernel::Vector3 n = param2.segment(3,3);
+        gradient = d_asin*((n/n.norm())*l-dist*(param1.head(3)-p2)/l)/std::pow(l,2);
     };
 
     void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        const typename Kernel::Vector3 p1m2 = param1.head(3) - param2.head(3);
-        const typename Kernel::Vector3 n = param2.tail(3);
 
-        gradient.head(3) = -n / n.norm();
-        gradient.tail(3) = (p1m2)/n.norm() - (p1m2).dot(n)*n/std::pow(n.norm(),3);
+        const typename Kernel::Vector3 n = param2.segment(3,3);
+        const typename Kernel::Vector3 p12 = (param1.head(3)-p2);
+        const typename Kernel::Vector3 d_dist = ((-sc_value*n + p12)*n.norm()-(p12.dot(n)/n.norm())*n)/std::pow(n.norm(),2);
+        const typename Kernel::Vector3 d_l = (-p12*sc_value)/p12.norm();
+
+        gradient.head(3) = d_asin*((-n/n.norm())*l+dist*p12/l)/std::pow(l,2);
+        gradient.segment(3,3) = d_asin * (d_dist*l - dist*d_l)/std::pow(l,2);
     };
 };
 
@@ -117,8 +126,8 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     Scalar value, sc_value;
 
     //template definition
-    void setScale(Scalar scale){
-         sc_value = value*scale;
+    void setScale(Scalar scale) {
+        sc_value = value*scale;
     };
     Scalar calculate(Vector& param1,  Vector& param2) {
         //diff = point1 - point2

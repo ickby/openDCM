@@ -91,7 +91,7 @@ struct orderd_roundbracket_accessor {
     };
 };
 
-//tag ordering
+//tag ordering (smaller weight is first tag)
 template<typename T1, typename T2>
 struct tag_order {
 
@@ -158,7 +158,7 @@ public:
     typename Visitor::result_type apply(Visitor& vis) {
         return boost::apply_visitor(vis, m_geometry);
     };
-    
+
     //basic ation
     void transform(const Transform& t) {
 
@@ -173,15 +173,32 @@ public:
     //allow accessing the internal values in unittests without making them public,
     //so that access control of the internal classes is not changed and can be tested
 #ifdef TESTING
-    typename Kernel::Vector& toplocal() {return m_toplocal;};
-    typename Kernel::Vector& rotated()  {return m_rotated;};
-    int& offset()  {return m_offset;};
-    void clusterMode(bool iscluster, bool isFixed) {setClusterMode(iscluster, isFixed);};
-    void trans(const Transform& t) {transform(t);};
-    void recalc(DiffTransform& trans) {recalculate(trans);};
-    typename Kernel::Vector3 point() {return getPoint();};
+    typename Kernel::Vector& toplocal() {
+        return m_toplocal;
+    };
+    typename Kernel::Vector& rotated()  {
+        return m_rotated;
+    };
+    int& offset()  {
+        return m_offset;
+    };
+    void clusterMode(bool iscluster, bool isFixed) {
+        setClusterMode(iscluster, isFixed);
+    };
+    void trans(const Transform& t) {
+        transform(t);
+    };
+    void recalc(DiffTransform& trans) {
+        recalculate(trans);
+    };
+    typename Kernel::Vector3 point() {
+        return getPoint();
+    };
+    int parameterCount() {
+        return  m_parameterCount;
+    };
 #endif
-    
+
 protected:
     Variant m_geometry; //Variant holding the real geometry type
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
@@ -206,13 +223,14 @@ protected:
         m_toplocal.setZero(m_parameterCount);
         m_global.resize(m_parameterCount);
         m_rotated.resize(m_parameterCount);
-	m_rotated.setZero();
+        m_rotated.setZero();
 
         m_diffparam.resize(m_parameterCount,6);
         m_diffparam.setZero();
 
         (typename geometry_traits<T>::modell()).template extract<Scalar,
         typename geometry_traits<T>::accessor >(t, m_global);
+	normalize();
 
         //new value which is not set into parameter, so init is false
         m_init = false;
@@ -222,6 +240,12 @@ protected:
 #endif
 
     }
+
+    void normalize() {
+        //directions are not nessessarily normalized, but we need to ensure this in cluster mode
+        for(int i=m_translations; i!=m_rotations; i++)
+            m_global.template segment<Dimension>(i*Dimension).normalize();
+    };
 
     typename Sys::Kernel::VectorMap& getParameterMap() {
         m_isInCluster = false;
@@ -300,7 +324,10 @@ protected:
             m_global = m_rotated;
         }
         //TODO:non cluster paramter scaling
-        else m_global = m_parameter;
+        else {
+	  m_global = m_parameter;
+	  normalize();
+	};
         apply_visitor v(m_global);
         apply(v);
     };
