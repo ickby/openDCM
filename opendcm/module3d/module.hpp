@@ -442,7 +442,7 @@ struct Module3D {
             void apply_edge_remove(GlobalEdge e) {
                 Cons c = m_this->m_cluster.template getObject<Constraint3D>(e);
                 c->template emitSignal<remove>(c);
-		m_this->erase(c);
+                m_this->erase(c);
             };
         };
 

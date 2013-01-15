@@ -91,7 +91,7 @@ struct orderd_roundbracket_accessor {
     };
 };
 
-//tag ordering
+//tag ordering (smaller weight is first tag)
 template<typename T1, typename T2>
 struct tag_order {
 
