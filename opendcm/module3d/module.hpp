@@ -385,9 +385,9 @@ struct Module3D {
                 g->template emitSignal<remove>(g);
 
                 //remove the vertex from graph and emit all edges that get removed with the functor
-                m_this->m_cluster.removeVertex(v, boost::bind(&inheriter_base::apply_edge_remove, this, _1));
-		m_this->erase(g);
-
+                boost::function<void(GlobalEdge)> functor = boost::bind(&inheriter_base::apply_edge_remove, this, _1);
+                m_this->m_cluster.removeVertex(v, functor);
+                m_this->erase(g);
             };
 
             template<typename T1>
@@ -432,7 +432,7 @@ struct Module3D {
                 GlobalEdge e = c->template getProperty<edge_prop>();
                 c->template emitSignal<remove>(c);
                 m_this->m_cluster.removeEdge(e);
-		m_this->erase(c);
+                m_this->erase(c);
             };
 
 
@@ -442,6 +442,7 @@ struct Module3D {
             void apply_edge_remove(GlobalEdge e) {
                 Cons c = m_this->m_cluster.template getObject<Constraint3D>(e);
                 c->template emitSignal<remove>(c);
+		m_this->erase(c);
             };
         };
 

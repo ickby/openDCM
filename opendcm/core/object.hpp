@@ -186,6 +186,7 @@ protected:
     Properties m_properties;
     Signals m_signals;
 
+public:
     //with no vararg templates before c++11 we need preprocessor to create the overloads of emit signal we need
 #define EMIT_ARGUMENTS(z, n, data) \
     BOOST_PP_CAT(data, n)

@@ -316,17 +316,17 @@ public:
         removeCluster(getClusterVertex(g), f);
     };
     void removeCluster(ClusterGraph& g) {
-	placehoder p;
+        placehoder p;
         removeCluster(getClusterVertex(g), p);
     };
 
     /**
      * @brief Remove a subcluster and applys the functor to all removed edges and vertices
      *
-     * All downstream clusters of the local vertex v will be removed after the functor is applied to there
+     * All downstream elements of the local vertex v will be removed after the functor is applied to there
      * edges and vertices. Note that the LocalVertex which represents the cluster to delete is not passed
      * to the functor. When ever the cluster is changed it will be passed to the functor, so that it need
-     * to have three overloads: operator()(LocalEdge), operator()(LocalVertex), operator()(ClusterGraph&)
+     * to have three overloads: operator()(GlobalEdge), operator()(GlobalVertex), operator()(ClusterGraph&)
      *
      * @param v Local vertex which is a cluster and which should be deleted
      * @param f Functor to apply on all graph elements
@@ -337,43 +337,47 @@ public:
         typename ClusterMap::iterator it = m_clusters.find(v);
         if(it == m_clusters.end())
             return; //TODO:throw
-            
-        std::pair<LocalVertex, ClusterGraph*> res = *it;
 
-        //apply functor to all edges that are removed in this cluster
-        std::pair<local_out_edge_iterator, local_out_edge_iterator>  eit = boost::out_edges(res.first, *this);
-        std::for_each(eit.first, eit.second, boost::bind<void>(boost::ref(f),_1  ));
+        std::pair<LocalVertex, ClusterGraph*> res = *it;
 
         //apply functor to all vertices and edges in the subclusters
         f(*res.second);
-        res.second->apply_vertex_edge(f, true);
+        res.second->remove_vertices(f, true);
 
         //remove from map, delete subcluster and remove vertex
         m_clusters.erase(v);
         delete res.second;
-        boost::clear_vertex(v, *this);
+        boost::clear_vertex(v, *this); //should not be needed, just to ensure it
         boost::remove_vertex(v, *this);
     };
     void removeCluster(LocalVertex v) {
-	placehoder p;
+        placehoder p;
         removeCluster(v, p);
     };
 
 protected:
     template<typename Functor>
-    void apply_vertex_edge(Functor& f, bool recursive = false) {
+    void remove_vertices(Functor& f, bool recursive = false) {
 
-        std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(*this);
-        std::for_each(eit.first, eit.second, boost::bind<void>(boost::ref(f),_1  ));
-	
         std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
-        std::for_each(vit.first, vit.second, boost::bind<void>(boost::ref(f),_1  ));
+        //we iterate forward before deleting to not invalidate our iterator
+        while(vit.first != vit.second) {
+            LocalVertex v = *(vit.first);
+            vit.first++;
+
+            if(!isCluster(v)) {
+                //let the functor know we remove this vertex
+                f(getGlobalVertex(v));
+                //need to do this to allow the removal of all relevant edges to this vertex, even upstream
+                removeVertex(v, f);
+            }
+        };
 
         if(recursive) {
             cluster_iterator cit;
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
                 f(*((*cit).second));
-                (*cit).second->apply_vertex_edge(f, recursive);
+                (*cit).second->remove_vertices(f, recursive);
             }
         }
     };

@@ -200,7 +200,7 @@ public:
     void erase(boost::shared_ptr<Object> ptr) {
 
         std::vector< boost::shared_ptr<Object> >& vec = objectVector<Object>();
-	vec.erase( remove(vec.begin(), vec.end(), ptr), vec.end() );
+	vec.erase( std::remove(vec.begin(), vec.end(), ptr), vec.end() );
     };
 
     void solve() {

@@ -223,8 +223,8 @@ struct ModulePart {
             }
 
             void removePart(Partptr p) {
-                remover r;
-                m_this->removeCluster(p->m_cluster, r);
+                remover r(*m_this);
+                m_this->m_cluster.removeCluster(p->m_cluster, r);
                 p->template emitSignal<remove>(p);
                 m_this->erase(p);
             }
@@ -236,22 +236,33 @@ struct ModulePart {
                 typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
                 typedef typename module3d::Geometry3D Geometry3D;
                 typedef boost::shared_ptr<Geometry3D> Geom;
+                typedef typename module3d::Constraint3D Constraint3D;
+                typedef boost::shared_ptr<Constraint3D> Cons;
 
-                Cluster* graph;
-                remover(Cluster* g) : graph(g) {};
+                Sys& system;
+                remover(Sys& s) : system(s) {};
                 //see if we have a geometry or a constraint and emit the remove signal
-                void operator()(LocalVertex v) {
-                    Geom g = graph->template getObject<Geometry3D>(v);
-                    if(g)
+                void operator()(GlobalVertex v) {
+                    Geom g = system.m_cluster.template getObject<Geometry3D>(v);
+                    if(g) {
                         g->template emitSignal<remove>(g);
+                        system.erase(g);
+                    }
+                    Cons c = system.m_cluster.template getObject<Constraint3D>(v);
+                    if(c) {
+                        c->template emitSignal<remove>(c);
+                        system.erase(c);
+                    }
                 };
-                //there shout not be a edge inside a part, so make that error visible
-                void operator()(LocalEdge v) {
-                    //TODO:throw
+                //we delete all global edges connecting to this part
+                void operator()(GlobalEdge e) {
+                    Cons c = system.m_cluster.template getObject<Constraint3D>(e);
+                    if(c) {
+                        c->template emitSignal<remove>(c);
+                        system.erase(c);
+                    }
                 };
-                void operator()(Cluster& g) {
-                    graph = &g;
-                };
+                void operator()(Cluster& g) {};
             };
         };
 
