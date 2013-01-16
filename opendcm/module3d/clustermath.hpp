@@ -22,6 +22,8 @@
 
 #include <vector>
 #include <cmath>
+
+#include <Eigen/StdVector>
 #include <opendcm/core/logging.hpp>
 
 #define maxfak 1.2
@@ -66,6 +68,9 @@ public:
     typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, fixtrans;
     Scalemode mode;
     Scalar m_scale;
+
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
+    Vec m_points, m_pseudo;
 
 #ifdef USE_LOGGING
     src::logger log;
@@ -125,7 +130,7 @@ public:
     };
 
     void finishCalculation() {
-      
+
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Finish calculation";
 #endif
@@ -343,23 +348,35 @@ public:
         BOOST_LOG(log) << "Calculate cluster scale";
 #endif
 
-        if(m_geometry.empty()) assert(false); //TODO: Throw
-        else if(m_geometry.size() == 1) {
-            const typename Kernel::Vector3 p = m_geometry[0]->getPoint();
+        //collect all points together
+        m_points.clear();
+        typename Kernel::Transform3D trans = m_transform.inverse();
+        typedef typename Vec::iterator iter;
+        for(iter it = m_pseudo.begin(); it != m_pseudo.end(); it++) {
+            m_points.push_back(trans*(*it));
+        }
+        typedef typename std::vector<Geom>::iterator g_iter;
+        for(g_iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            m_points.push_back((*it)->getPoint());
+
+        //start scale calculation
+        if(m_points.empty()) assert(false); //TODO: Throw
+        else if(m_points.size() == 1) {
+            const typename Kernel::Vector3 p = m_points[0];
             return calcOnePoint(p);
-        } else if(m_geometry.size() == 2) {
-            const typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
-            const typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
+        } else if(m_points.size() == 2) {
+            const typename Kernel::Vector3 p1 = m_points[0];
+            const typename Kernel::Vector3 p2 = m_points[1];
 
             if(Kernel::isSame((p1-p2).norm(), 0.))
                 return calcOnePoint(p1);
 
             return calcTwoPoints(p1, p2);
-        } else if(m_geometry.size() == 3) {
+        } else if(m_points.size() == 3) {
 
-            const typename Kernel::Vector3 p1 = m_geometry[0]->getPoint();
-            const typename Kernel::Vector3 p2 = m_geometry[1]->getPoint();
-            const typename Kernel::Vector3 p3 = m_geometry[2]->getPoint();
+            const typename Kernel::Vector3 p1 = m_points[0];
+            const typename Kernel::Vector3 p2 = m_points[1];
+            const typename Kernel::Vector3 p3 = m_points[2];
 
             const typename Kernel::Vector3 d = p2-p1;
             const typename Kernel::Vector3 e = p3-p1;
@@ -384,9 +401,8 @@ public:
 
         //get the bonding box to get the center of points
         Scalar xmin=1e10, xmax=1e-10, ymin=1e10, ymax=1e-10, zmin=1e10, zmax=1e-10;
-        typedef typename std::vector<Geom>::iterator iter;
-        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-            typename Kernel::Vector3 v = (*it)->getPoint();
+        for(iter it = m_points.begin(); it != m_points.end(); it++) {
+            typename Kernel::Vector3 v = (*it);
             xmin = (v(0)<xmin) ? v(0) : xmin;
             xmax = (v(0)<xmax) ? xmax : v(0);
             ymin = (v(1)<ymin) ? v(1) : ymin;
@@ -427,9 +443,9 @@ public:
         Scalar minscale = 1e10;
 
         //get the closest point
-        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+        for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
-            const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
+            const Eigen::Vector3d point = (*it)-midpoint;
             if(point.norm()<minfak*m_scale) {
 
                 const double h = std::abs(point(i3)-maxm(i3));
@@ -447,9 +463,9 @@ public:
                 m_scale = maxm.norm()/maxfak;
 
                 mode = multiple_outrange;
-                minm = (*it)->getPoint()-midpoint;
+                minm = (*it)-midpoint;
 
-                it = m_geometry.begin();
+                it = m_points.begin();
             } else if(point.norm()<minscale) {
                 minscale = point.norm();
             }
@@ -520,10 +536,10 @@ public:
             //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
             //      scale to applie, so it results in an error.
             //get the closest point
-            typedef typename std::vector<Geom>::iterator iter;
-            for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+            typedef typename Vec::iterator iter;
+            for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
-                const Eigen::Vector3d point = (*it)->getPoint()-midpoint;
+                const Eigen::Vector3d point = (*it)-midpoint;
                 if(point.norm()<minfak*scale) {
 
                     if(scale_dir(0)) {

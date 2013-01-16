@@ -248,7 +248,12 @@ struct Module3D {
                     if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
 
                     //get the biggest scale factor
-                    const Scalar s = (*cit.first).second->template getClusterProperty<math_prop>().calculateClusterScale();
+                    details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
+
+                    math.m_pseudo.clear();
+                    collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
+
+                    const Scalar s = math.calculateClusterScale();
                     sc = (s>sc) ? s : sc;
                 }
                 //if no scaling-value returned we can use 1
@@ -302,6 +307,38 @@ struct Module3D {
                 //we have solved this cluster
                 cluster.template setClusterProperty<changed_prop>(false);
 
+            };
+
+            void collectPseudoPoints(Cluster& parent,
+                                     LocalVertex cluster,
+                                     std::vector<typename Kernel::Vector3,
+                                     Eigen::aligned_allocator<typename Kernel::Vector3> >& vec) {
+
+                std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > vec2;
+                typedef typename Cluster::template object_iterator<Constraint3D> c_iter;
+                typedef typename boost::graph_traits<Cluster>::out_edge_iterator e_iter;
+                std::pair<e_iter, e_iter> it = boost::out_edges(cluster, parent);
+                for(; it.first != it.second; it.first++) {
+
+                    std::pair< c_iter, c_iter > cit = parent.template getObjects<Constraint3D>(*it.first);
+                    for(; cit.first != cit.second; cit.first++) {
+                        Cons c = *(cit.first);
+
+                        if(!c)
+                            continue;
+
+                        //get the first global vertex and see if we have it in the wanted cluster or not
+                        GlobalVertex v  = c->first->template getProperty<vertex_prop>();
+                        std::pair<LocalVertex,bool> res = parent.getLocalVertex(v);
+                        if(!res.second)
+                            return; //means the geometry is in non of the clusters which is not allowed
+
+                        if(res.first == cluster)
+                            c->collectPseudoPoints(vec, vec2);
+                        else
+                            c->collectPseudoPoints(vec2, vec);
+                    }
+                }
             };
 
         };

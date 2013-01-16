@@ -63,14 +63,11 @@ struct test_constraint {
     int value;
     
     template< typename Kernel, typename Tag1, typename Tag2 >
-    struct type {
+    struct type : public dcm::PseudoScale<Kernel> {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 	int value;
 
-	void setScale(Scalar scale){
-            assert(false);
-        };
         Scalar calculate(Vector& param1,  Vector& param2)  {
             assert(false);
         };
@@ -94,13 +91,12 @@ struct test_constraint {
 
 
     template< typename Kernel >
-    struct type<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {
+    struct type<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> : public dcm::PseudoScale<Kernel> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 	int value;
 
-	void setScale(Scalar scale){ };
         Scalar calculate(Vector& param1,  Vector& param2) {
             return param1.dot(param2);
         };

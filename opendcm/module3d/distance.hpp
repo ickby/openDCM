@@ -30,10 +30,12 @@ struct Distance::type< Kernel, tag::point3D, tag::point3D > {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
     Scalar value, sc_value;
 
     //template definition
+    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {};
     void setScale(Scalar scale) {
         sc_value = value*scale;
     };
@@ -58,10 +60,15 @@ template<typename Kernel>
 struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
     Scalar value, sc_value;
 
     //template definition
+    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {
+        typename Kernel::Vector3 pp = param1.head(3)- ((param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm()*(param2.tail(3)));
+        v2.push_back(pp);
+    };
     void setScale(Scalar scale) {
         sc_value = value*scale;
     };
@@ -100,6 +107,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
     };
 };
 
+
 template<typename Kernel>
 struct Distance::type< Kernel, tag::plane3D, tag::plane3D > : public Distance::type< Kernel, tag::point3D, tag::plane3D > {
 
@@ -116,10 +124,15 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
     typedef typename Kernel::Vector3     Vector3;
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
     Scalar value, sc_value;
 
     //template definition
+    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {
+       //Vector3 pp = param1.head(3) + (param1.head(3)-param2.head(3)).dot(param1.segment(3,3))*param1.segment(3,3);
+       //v1.push_back(pp);
+    };
     void setScale(Scalar scale) {
         sc_value = value*scale;
     };

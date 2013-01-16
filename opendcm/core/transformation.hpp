@@ -22,8 +22,8 @@
 #define DCM_TRANSFORMATION_H
 
 #include <cmath>
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Geometry>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include <boost/mpl/if.hpp>
 

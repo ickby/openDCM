@@ -26,6 +26,24 @@ namespace dcm {
 
 struct no_option {};
 
+template<typename Kernel>
+struct Pseudo {
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
+    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {};
+};
+
+template<typename Kernel>
+struct Scale {
+    void setScale(typename Kernel::number_type scale) {};
+};
+
+template<typename Kernel>
+struct PseudoScale {
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
+    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {};
+    void setScale(typename Kernel::number_type scale) {};
+};
+
 struct Distance {
 
     typedef double option_type;
@@ -35,7 +53,7 @@ struct Distance {
 
     Distance& operator=(const option_type val) {
         value = val;
-	return *this;
+        return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
@@ -43,10 +61,14 @@ struct Distance {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
+        typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
         Scalar value;
         //template definition
-	void setScale(Scalar scale){
+        void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {
+            assert(false);
+        };
+        void setScale(Scalar scale) {
             assert(false);
         };
         Scalar calculate(Vector& param1,  Vector& param2) {
@@ -79,21 +101,18 @@ struct Parallel {
 
     Parallel& operator=(const option_type val) {
         value = val;
-	return *this;
+        return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
-    struct type {
+    struct type : public PseudoScale<Kernel> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
-	
-	option_type value;
+
+        option_type value;
 
         //template definition
-	void setScale(Scalar scale){
-            assert(false);
-        };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
         };
@@ -121,21 +140,18 @@ struct Angle {
 
     Angle& operator=(const option_type val) {
         value = val;
-	return *this;
+        return *this;
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
-    struct type {
+    struct type : public PseudoScale<Kernel> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
-	option_type value;
-	
+        option_type value;
+
         //template definition
-	void setScale(Scalar scale){
-            assert(false);
-        };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
         };

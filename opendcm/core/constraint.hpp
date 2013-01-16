@@ -20,6 +20,9 @@
 #ifndef GCM_CONSTRAINT_H
 #define GCM_CONSTRAINT_H
 
+
+#include<Eigen/StdVector>
+
 #include <assert.h>
 #include <boost/variant.hpp>
 #include <boost/function.hpp>
@@ -59,6 +62,7 @@ class Constraint : public Object<Sys, Derived, Signals > {
     typedef typename Kernel::DynStride DS;
 
     typedef boost::shared_ptr<Geometry> Geom;
+    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
 public:
     Constraint(Sys& system, Geom f, Geom s) : Object<Sys, Derived, Signals > (system),
@@ -75,7 +79,7 @@ public:
     }
 
 protected:
-  
+
     template<typename ConstraintVector>
     void initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj) {
 
@@ -117,6 +121,10 @@ protected:
             content = p;*/
     };
 
+    void collectPseudoPoints(Vec& vec1, Vec& vec2) {
+         content->collectPseudoPoints(first, second, vec1, vec2);
+    };
+
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
     struct EquationSet {
@@ -127,6 +135,8 @@ protected:
         typename Kernel::VectorMap m_diff_first; //first geometry diff
         typename Kernel::VectorMap m_diff_second; //second geometry diff
         typename Kernel::VectorMap m_residual;
+
+        typedef Equation eq_type;
     };
 
     struct placeholder  {
@@ -135,6 +145,7 @@ protected:
         virtual void calculate(Geom first, Geom second, Scalar scale) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, Geom first, Geom second) = 0;
+        virtual void collectPseudoPoints(Geom first, Geom second, Vec& vec1, Vec& vec2) = 0;
     };
 
     template< typename ConstraintVector, typename EquationVector>
@@ -205,7 +216,7 @@ protected:
                             for(int i=0; i<6; i++) {
                                 typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
                                 val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                          second->m_parameter, block);
+                                                      second->m_parameter, block);
                             }
                         }
                     } else {
@@ -221,7 +232,7 @@ protected:
                             for(int i=0; i<6; i++) {
                                 typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
                                 val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                           second->m_parameter, block);
+                                                       second->m_parameter, block);
                             }
                         }
                     } else {
@@ -260,6 +271,20 @@ protected:
             };
         };
 
+        struct PseudoCollector {
+            Vec& points1;
+            Vec& points2;
+	    Geom first,second;
+
+            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2) 
+	    : first(f), second(s), points1(vec1), points2(vec2) {};
+
+            template< typename T >
+            void operator()(T& val) const {
+                val.m_eq.calculatePseudo(first->m_global, points1, second->m_global, points2);
+            };
+        };
+
         holder(Objects& obj)  {
             //set the initial values in the equations
             fusion::for_each(m_sets, OptionSetter(obj));
@@ -281,6 +306,10 @@ protected:
 
         virtual void setMaps(MES& mes, Geom first, Geom second) {
             fusion::for_each(m_sets, MapSetter(mes, first, second));
+        };
+
+        virtual void collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2) {
+            fusion::for_each(m_sets, PseudoCollector(f, s, vec1, vec2));
         };
 
         EquationSets m_sets;

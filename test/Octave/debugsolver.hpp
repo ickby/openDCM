@@ -20,9 +20,9 @@
 #ifndef GCM_DEBUG_SOLVER_H
 #define GCM_DEBUG_SOLVER_H
 
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Geometry>
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include <iostream>
 #include <fstream>

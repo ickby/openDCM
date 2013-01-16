@@ -20,9 +20,9 @@
 #ifndef GCM_KERNEL_H
 #define GCM_KERNEL_H
 
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Geometry>
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include <iostream>
 
@@ -243,7 +243,10 @@ struct Kernel {
     //basics
     typedef Scalar number_type;
 
-    //Linear algebra types
+    //linear algebra types 2D
+    typedef E::Matrix<Scalar, 2, 1> Vector2;
+
+    //Linear algebra types 3D
     typedef E::Matrix<Scalar, 3, 1> Vector3;
     typedef E::Matrix<Scalar, 1, 3> CVector3;
     typedef E::Matrix<Scalar, 3, 3> Matrix3;
@@ -268,16 +271,21 @@ struct Kernel {
 
     typedef detail::Transform<Scalar, 3> 	Transform3D;
     typedef detail::DiffTransform<Scalar, 3> 	DiffTransform3D;
-    
+
     typedef detail::Transform<Scalar, 2> 	Transform2D;
     typedef detail::DiffTransform<Scalar, 2> 	DiffTransform2D;
-    
+
     template<int Dim>
     struct transform_type {
-      typedef typename boost::mpl::if_c<Dim==2, Transform2D, Transform3D>::type type;
-      typedef typename boost::mpl::if_c<Dim==2, DiffTransform2D, DiffTransform3D>::type diff_type;
+        typedef typename boost::mpl::if_c<Dim==2, Transform2D, Transform3D>::type type;
+        typedef typename boost::mpl::if_c<Dim==2, DiffTransform2D, DiffTransform3D>::type diff_type;
     };
-    
+
+    template<int Dim>
+    struct vector_type {
+        typedef E::Matrix<Scalar, Dim, 1> type;
+    };
+
 
     struct MappedEquationSystem {
 

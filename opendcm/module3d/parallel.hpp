@@ -144,7 +144,7 @@ inline void calcGradSecondComp(T d1,
 }
 
 template< typename Kernel >
-struct Parallel::type< Kernel, tag::line3D, tag::line3D > {
+struct Parallel::type< Kernel, tag::line3D, tag::line3D > : public dcm::PseudoScale<Kernel> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
@@ -152,7 +152,6 @@ struct Parallel::type< Kernel, tag::line3D, tag::line3D > {
         Direction value;
 
         //template definition
-	void setScale(Scalar scale){};
         Scalar calculate(Vector& param1,  Vector& param2) {
             return parallel_detail::calc<Kernel>(param1.template tail<3>(), param2.template tail<3>(), value);
         };
@@ -173,14 +172,13 @@ struct Parallel::type< Kernel, tag::line3D, tag::line3D > {
     };
 
 template< typename Kernel >
-struct Parallel::type< Kernel, tag::cylinder3D, tag::cylinder3D > {
+struct Parallel::type< Kernel, tag::cylinder3D, tag::cylinder3D >  : public dcm::PseudoScale<Kernel>{
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
         Direction value;
 	
-	void setScale(Scalar scale){};
         Scalar calculate(Vector& param1,  Vector& param2) {
             return parallel_detail::calc<Kernel>(param1.template segment<3>(3), param2.template segment<3>(3), value);
         };

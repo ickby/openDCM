@@ -23,7 +23,7 @@
 
 #include <iostream>
 
-#include <eigen3/Eigen/Core>
+#include <Eigen/Core>
 
 #include <boost/type_traits.hpp>
 #include <boost/mpl/assert.hpp>
@@ -118,7 +118,7 @@ struct reset {}; 	//signal namespace
 
 namespace detail {
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dimension>
+template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
 class Geometry : public Object<Sys, Derived, Signals > {
 
     typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
@@ -127,14 +127,17 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename system_traits<Sys>::Cluster 	Cluster;
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
-    typedef typename Kernel::template transform_type<Dimension>::type		Transform;
-    typedef typename Kernel::template transform_type<Dimension>::diff_type	DiffTransform;
+    typedef typename Kernel::template transform_type<Dim>::type		Transform;
+    typedef typename Kernel::template transform_type<Dim>::diff_type	DiffTransform;
+
 #ifdef USE_LOGGING
 protected:
     src::logger log;
 #endif
 
 public:
+    typedef mpl::int_<Dim> Dimension;
+
     template<typename T>
     Geometry(T geometry, Sys& system) : Base(system), m_isInCluster(false),
         m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
@@ -230,7 +233,7 @@ protected:
 
         (typename geometry_traits<T>::modell()).template extract<Scalar,
         typename geometry_traits<T>::accessor >(t, m_global);
-	normalize();
+        normalize();
 
         //new value which is not set into parameter, so init is false
         m_init = false;
@@ -244,7 +247,7 @@ protected:
     void normalize() {
         //directions are not nessessarily normalized, but we need to ensure this in cluster mode
         for(int i=m_translations; i!=m_rotations; i++)
-            m_global.template segment<Dimension>(i*Dimension).normalize();
+            m_global.template segment<Dim>(i*Dim).normalize();
     };
 
     typename Sys::Kernel::VectorMap& getParameterMap() {
@@ -282,18 +285,18 @@ protected:
 
         for(int i=0; i!=m_rotations; i++) {
             //first rotate the original to the transformed value
-            m_rotated.block(i*Dimension,0,Dimension,1) = trans.rotation()*m_toplocal.template segment<Dimension>(i*Dimension);
+            m_rotated.block(i*Dim,0,Dim,1) = trans.rotation()*m_toplocal.template segment<Dim>(i*Dim);
 
             //now calculate the gradient vectors and add them to diffparam
-            for(int j=0; j<Dimension; j++)
-                m_diffparam.block(i*Dimension,j,Dimension,1) = trans.differential().block(0,j*3,Dimension,Dimension) * m_toplocal.template segment<Dimension>(i*Dimension);
+            for(int j=0; j<Dim; j++)
+                m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * m_toplocal.template segment<Dim>(i*Dim);
         }
         //after rotating the needed parameters we translate the stuff that needs to be moved
         for(int i=0; i!=m_translations; i++) {
-            m_rotated.block(i*Dimension,0,Dimension,1) += trans.translation().vector();
-            m_rotated.block(i*Dimension,0,Dimension,1) *= trans.scaling();
+            m_rotated.block(i*Dim,0,Dim,1) += trans.translation().vector();
+            m_rotated.block(i*Dim,0,Dim,1) *= trans.scaling();
             //calculate the gradient vectors and add them to diffparam
-            m_diffparam.block(i*Dimension,Dimension,Dimension,Dimension).setIdentity();
+            m_diffparam.block(i*Dim,Dim,Dim,Dim).setIdentity();
         }
         //basicly no needed as this case appears only from within finishCalculation
         //and therefore the diffparam is not needed anymore
@@ -301,7 +304,7 @@ protected:
     }
 
     typename Kernel::Vector3 getPoint() {
-        return m_toplocal.template segment<Dimension>(0);
+        return m_toplocal.template segment<Dim>(0);
     }
 
     //visitor to write the calculated value into the variant
@@ -325,9 +328,9 @@ protected:
         }
         //TODO:non cluster paramter scaling
         else {
-	  m_global = m_parameter;
-	  normalize();
-	};
+            m_global = m_parameter;
+            normalize();
+        };
         apply_visitor v(m_global);
         apply(v);
     };
@@ -337,13 +340,13 @@ protected:
 
         //everything that needs to be translated needs to be fully transformed
         for(int i=0; i!=m_translations; i++) {
-            typename Kernel::Vector3 v = vec.template segment<Dimension>(i*Dimension);
-            vec.template segment<Dimension>(i*Dimension) = t*v;
+            typename Kernel::Vector3 v = vec.template segment<Dim>(i*Dim);
+            vec.template segment<Dim>(i*Dim) = t*v;
         }
 
         for(int i=m_translations; i!=m_rotations; i++) {
-            typename Kernel::Vector3 v = vec.template segment<Dimension>(i*Dimension);
-            vec.template segment<Dimension>(i*Dimension) = t.rotate(v);
+            typename Kernel::Vector3 v = vec.template segment<Dim>(i*Dim);
+            vec.template segment<Dim>(i*Dim) = t.rotate(v);
         }
 
 #ifdef USE_LOGGING
@@ -355,7 +358,7 @@ protected:
     void scale(Scalar value) {
 
         for(int i=0; i!=m_translations; i++)
-            m_parameter.template segment<Dimension>(i*Dimension) *= 1./value;
+            m_parameter.template segment<Dim>(i*Dim) *= 1./value;
 
     };
 
