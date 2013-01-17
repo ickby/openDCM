@@ -66,7 +66,11 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
 
     //template definition
     void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {
-        typename Kernel::Vector3 pp = param1.head(3)- ((param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm()*(param2.tail(3)));
+        //typename Kernel::Vector3 pp = param1.head(3)- ((param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm()*(param2.tail(3)));
+        //v2.push_back(pp);
+        typename Kernel::Vector3 dir = (param1.template head<3>()-param2.template head<3>()).cross(param2.template segment<3>(3));
+        dir = dir.cross(param2.template segment<3>(3)).normalized();
+        typename Kernel::Vector3 pp = param2.head(3) + (param1.head(3)-param2.head(3)).norm()*dir;
         v2.push_back(pp);
     };
     void setScale(Scalar scale) {
@@ -119,7 +123,7 @@ struct Distance::type< Kernel, tag::plane3D, tag::plane3D > : public Distance::t
 };
 
 template<typename Kernel>
-struct Distance::type< Kernel, tag::line3D, tag::line3D > {
+struct Distance::type< Kernel, tag::point3D, tag::line3D > {
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
@@ -127,60 +131,58 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
     Scalar value, sc_value;
+    Vector3 diff, n, dist;
 
     //template definition
-    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {
-       //Vector3 pp = param1.head(3) + (param1.head(3)-param2.head(3)).dot(param1.segment(3,3))*param1.segment(3,3);
-       //v1.push_back(pp);
+    void calculatePseudo(typename Kernel::Vector& point, Vec& v1, typename Kernel::Vector& line, Vec& v2) {
+        Vector3 pp = line.head(3) + (line.head(3)-point.head(3)).norm()*line.segment(3,3);
+        v2.push_back(pp);
     };
     void setScale(Scalar scale) {
         sc_value = value*scale;
     };
-    Scalar calculate(Vector& param1,  Vector& param2) {
+    Scalar calculate(Vector& point, Vector& line) {
         //diff = point1 - point2
-        const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        return (diff - diff.dot(param1.template segment<3>(3))*param1.template segment<3>(3)).norm() - sc_value;
+        n = line.template segment<3>(3);
+        diff = line.template head<3>() - point.template head<3>();
+        dist = diff - diff.dot(n)*n;
+        return dist.norm() - sc_value;
     };
 
-    Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
-        const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        const Vector3 dp1 = dparam1.template head<3>();
-        const Vector3 p1  = param1.template head<3>();
-        const Vector3 n1  = param1.template segment<3>(3);
-        const Vector3 dn1 = dparam1.template segment<3>(3);
-        const Vector3 p2  = param2.template head<3>();
-
-        const Vector3 r = diff - diff.dot(n1)*n1;
-        const Vector3 dr =  dp1 - (dp1.dot(n1) + diff.dot(dn1))*n1 - diff.dot(n1)*dn1;
-        return r.dot(dr)/r.norm();
-
+    Scalar calculateGradientFirst(Vector& point, Vector& line, Vector& dpoint) {
+        const Vector3 d_diff = -dpoint.template head<3>();
+        const Vector3 d_dist = d_diff - d_diff.dot(n)*n;
+        return dist.dot(d_dist)/dist.norm();
     };
 
-    Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
-        const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        const Vector3 dp2 = dparam2.template head<3>();
-        const Vector3 n1  = param1.template segment<3>(3);
-        const Vector3 r = diff - diff.dot(n1)*n1;
-        const Vector3 dr = -dp2 + (dp2.dot(n1))*n1;
-        return r.dot(dr)/r.norm();
+    Scalar calculateGradientSecond(Vector& point, Vector& line, Vector& dline) {
+        const Vector3 d_diff = dline.template head<3>();
+        const Vector3 d_n  = dline.template segment<3>(3);
+        const Vector3 d_dist = d_diff - ((d_diff.dot(n)+diff.dot(d_n))*n + diff.dot(n)*d_n);
+        return dist.dot(d_dist)/dist.norm();
     };
 
-    void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        const Vector3 n1  = param1.template segment<3>(3);
-        const Vector3 r = diff - diff.dot(param1.template segment<3>(3))*param1.template segment<3>(3);
-        gradient.template head<3>() = 2*(r - param1.template segment<3>(3)*(param1.template segment<3>(3).dot(r)));
-        gradient.template segment<3>(3) = 2*((-diff)* n1.dot(r) - (diff.dot(n1))*r);
-        gradient(6) = 0; //radius has nothin to do with coincidents
-
+    void calculateGradientFirstComplete(Vector& point, Vector& line, Vector& gradient) {
+        const Vector3 res = (n*n.transpose())*dist - dist;
+        gradient.head(3) = res/dist.norm();
     };
 
-    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
-        const Vector3 diff = param1.template head<3>() - param2.template head<3>();
-        const Vector3 n1  = param1.template segment<3>(3);
-        const Vector3 r = diff - diff.dot(param1.template segment<3>(3))*param1.template segment<3>(3);
-        gradient.template head<3>() = 2*(-r + param1.template segment<3>(3)*(param1.template segment<3>(3).dot(r)));
-        gradient.template tail<4>().setZero();
+    void calculateGradientSecondComplete(Vector& point, Vector& line, Vector& gradient) {
+        const Vector3 res = (-n*n.transpose())*dist + dist;
+        gradient.head(3) = res/dist.norm();
+
+        const Scalar mult = n.transpose()*dist;
+        gradient.template segment<3>(3) = -(mult*diff + diff.dot(n)*dist)/dist.norm();
+    };
+};
+
+template<typename Kernel>
+struct Distance::type< Kernel, tag::line3D, tag::line3D > : public Distance::type< Kernel, tag::point3D, tag::line3D > {
+
+    typedef typename Kernel::VectorMap Vector;
+    void calculateGradientFirstComplete(Vector& p1, Vector& p2, Vector& g) {
+        Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirstComplete(p1,p2,g);
+        g.segment(3,3).setZero();
     };
 };
 

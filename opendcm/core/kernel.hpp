@@ -93,7 +93,7 @@ struct Dogleg {
     };
 
     bool solve(typename Kernel::MappedEquationSystem& sys) {
-        //std::cout<<"start solving"<<std::endl;
+
         clock_t start = clock();
         clock_t inc_rec = clock();
 
@@ -101,7 +101,6 @@ struct Dogleg {
 
         bool translate = true;
 
-        //Base::Console().Message("\nparams: %d, rot_params: %d, trans_params: %d\n", sys.m_params, sys.m_rot_params, sys.m_trans_params);
         typename Kernel::Vector h_dl, F_old(sys.m_eqns), g(sys.m_eqns);
         typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
 
@@ -168,6 +167,13 @@ struct Dogleg {
             clock_t end_rec = clock();
             inc_rec += end_rec-start_rec;
 
+#ifdef USE_LOGGING
+            //see if we got too high differentials
+            if(sys.Jacobi.maxCoeff() > 3) {
+                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.maxCoeff()<<" in iteration: "<<iter;
+            };
+#endif
+
             //calculate the translation update ratio
             err_new = sys.Residual.norm();
             dF = err - err_new;
@@ -183,34 +189,19 @@ struct Dogleg {
                 nu = 2*nu;
             }
 
-            //Base::Console().Message("delta: %e, error: %e\n", delta, err);
-
-
             if(dF > 0 && dL > 0) {
 
                 F_old = sys.Residual;
                 J_old = sys.Jacobi;
 
                 err = err_new;
-
                 g = sys.Jacobi.transpose()*(sys.Residual);
 
                 // get infinity norms
                 g_inf = g.template lpNorm<E::Infinity>();
                 fx_inf = sys.Residual.template lpNorm<E::Infinity>();
 
-                //stream<<"accepted, dr and dt:"<<delta_r<<", "<<delta_t<<std::endl<<std::endl;
-
-//                 std::stringstream s;
-//                 s<<"accepted jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-// 		s<<"step: "<<h_dl.transpose()<<std::endl;
-//                 s<<"residual: "<<sys.Residual.transpose()<<std::endl;
-// 		s<<"delta: "<<delta;
-// 		Base::Console().Message("%s", s.str().c_str());
-                // count this iteration and start again
-
             } else {
-                // std::cout<<"Step Rejected"<<std::endl;
                 sys.Residual = F_old;
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
@@ -219,10 +210,6 @@ struct Dogleg {
 
             iter++;
         }
-
-        std::stringstream ss;
-        ss<<"end jacobi: "<<std::endl<<sys.Jacobi<<std::endl;
-        //Base::Console().Message("%s", ss.str().c_str());
 
         clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
