@@ -69,7 +69,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         //typename Kernel::Vector3 pp = param1.head(3)- ((param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm()*(param2.tail(3)));
         //v2.push_back(pp);
         typename Kernel::Vector3 dir = (param1.template head<3>()-param2.template head<3>()).cross(param2.template segment<3>(3));
-        dir = dir.cross(param2.template segment<3>(3)).normalized();
+        dir = param2.template segment<3>(3).cross(dir).normalized();
         typename Kernel::Vector3 pp = param2.head(3) + (param1.head(3)-param2.head(3)).norm()*dir;
         v2.push_back(pp);
     };
