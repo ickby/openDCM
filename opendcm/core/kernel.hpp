@@ -108,7 +108,8 @@ struct Dogleg {
 
 #ifdef USE_LOGGING
         BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
-                      << "residual: "<<sys.Residual.transpose();
+                      << "residual: "<<sys.Residual.transpose()<<std::endl
+                      << "max. differential: "<<sys.Jacobi.maxCoeff();
 #endif
 
         number_type err = sys.Residual.norm();
