@@ -171,7 +171,7 @@ struct Dogleg {
 
 
             //see if we got too high differentials
-            if(sys.Jacobi.template lpNorm<Eigen::Infinity>() > 3) {
+            if(sys.Jacobi.template lpNorm<Eigen::Infinity>() > 2) {
 #ifdef USE_LOGGING
                 BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
 #endif

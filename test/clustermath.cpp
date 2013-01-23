@@ -76,8 +76,8 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         if(i!=1) {
             for(int j=0; j<i; j++) {
                 double val = (math.getGeometry()[j]->point() - math.midpoint).norm();
-                BOOST_CHECK_GE(val / scale , 0.7999);
-                BOOST_CHECK_LE(val / scale , 1.2111);
+                BOOST_CHECK_GE(val / scale , (MINFAKTOR)-0.01);
+                BOOST_CHECK_LE(val / scale , (MAXFAKTOR)+0.01);
             };
         } else BOOST_REQUIRE(scale==0);
 
@@ -87,8 +87,8 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         if(i!=1) {
             for(int j=0; j<i; j++) {
                 double val = math.getGeometry()[j]->point().norm();
-                BOOST_CHECK_GE(val, 0.7999);
-                BOOST_CHECK_LE(val, 1.2111);
+                BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
+                BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
             };
         } else BOOST_REQUIRE(scale==0);
 
@@ -121,8 +121,8 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling) {
 
     for(int j=0; j<5; j++) {
         double val = math.getGeometry()[j]->point().norm();
-        BOOST_CHECK_GE(val, 0.7999);
-        BOOST_CHECK_LE(val, 1.2111);
+        BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
+        BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
     };
 }
 
@@ -194,8 +194,8 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     math.applyClusterScale(s, false);
 
     math.recalculate();
-    BOOST_CHECK(Kernel::isSame((g1->rotated()*s-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->rotated()*s-p2).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g1->rotated()*s*SKALEFAKTOR-p1).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g2->rotated()*s*SKALEFAKTOR-p2).norm(),0.));
 
     math.finishCalculation();
     BOOST_CHECK(Kernel::isSame((g1->rotated()-p1).norm(),0.));
@@ -236,23 +236,23 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     math.applyClusterScale(2.*scale1, false);
     math.recalculate();
     
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2*scale1) ) );
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2*scale1) ) );
-    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2*scale1) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR) ) );
     
     double scale2 = math.calculateClusterScale();
     math.applyClusterScale(3*scale2, false);
     math.recalculate();    
 
     
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2*scale1*3*scale2) ) );
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2*scale1*3*scale2) ) );
-    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2*scale1*3*scale2) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
 
     for(int j=0; j<3; j++) {
         double val = math.getGeometry()[j]->point().norm();
-        BOOST_CHECK_GE(val, 0.7999);
-        BOOST_CHECK_LE(val, 1.2111);
+        BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
+        BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
     };
 
     math.finishCalculation();

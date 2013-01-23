@@ -315,10 +315,10 @@ struct Module3D {
                                 c.template getClusterProperty<fix_prop>());
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        g->scale(sc);
+                        g->scale(sc*SKALEFAKTOR);
                     }
                 }
-                return 1./sc;
+                return 1./(sc*SKALEFAKTOR);
             };
 
             void collectPseudoPoints(Cluster& parent,

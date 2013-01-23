@@ -26,8 +26,9 @@
 #include <Eigen/StdVector>
 #include <opendcm/core/logging.hpp>
 
-#define maxfak 1.2
-#define minfak 0.8
+#define MAXFAKTOR 1.2   //the maximal distance allowd by a point normed to the cluster size
+#define MINFAKTOR 0.8   //the minimal distance allowd by a point normed to the cluster size
+#define SKALEFAKTOR 2.  //the faktor by which the biggest size is multiplied to get the scale value
 
 namespace dcm {
 namespace details {
@@ -414,7 +415,7 @@ public:
         }
 
         //more than 3 points dont have a exakt solution. we search for a midpoint from which all points
-        //are at least maxfak*scale away, but not closer than minfak*scale
+        //are at least MAXFAKTOR*scale away, but not closer than MINFAKTOR*scale
 
         //get the bonding box to get the center of points
         Scalar xmin=1e10, xmax=1e-10, ymin=1e10, ymax=1e-10, zmin=1e10, zmax=1e-10;
@@ -453,7 +454,7 @@ public:
         scale_dir.setZero();
         scale_dir(i3) = 1;
         max = Eigen::Vector3d(xmin,ymin,zmin);
-        m_scale = (midpoint-max).norm()/maxfak;
+        m_scale = (midpoint-max).norm()/MAXFAKTOR;
         mode = multiple_inrange;
 
         maxm = max-midpoint;
@@ -463,10 +464,10 @@ public:
         for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
             const Eigen::Vector3d point = (*it)-midpoint;
-            if(point.norm()<minfak*m_scale) {
+            if(point.norm()<MINFAKTOR*m_scale) {
 
                 const double h = std::abs(point(i3)-maxm(i3));
-                const double k = std::pow(minfak/maxfak,2);
+                const double k = std::pow(MINFAKTOR/MAXFAKTOR,2);
                 double q = std::pow(point(i1),2) + std::pow(point(i2),2);
                 q -= (std::pow(maxm(i1),2) + std::pow(maxm(i2),2) + std::pow(h,2))*k;
                 q /= 1.-k;
@@ -477,7 +478,7 @@ public:
 
                 midpoint(i3) += p + std::sqrt(std::pow(p,2)-q);
                 maxm = max-midpoint;
-                m_scale = maxm.norm()/maxfak;
+                m_scale = maxm.norm()/MAXFAKTOR;
 
                 mode = multiple_outrange;
                 minm = (*it)-midpoint;
@@ -504,12 +505,14 @@ public:
         //ensure the usage of the right transform
         if(!fix)
             mapsToTransform(m_transform);
+	
+
 
         //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
-            m_transform*=typename Kernel::Transform3D::Scaling(1./scale);
-	    m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./scale);
+            m_transform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
+	    m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
             typename Kernel::DiffTransform3D diff(m_transform);
             //now calculate the scaled geometrys
             typedef typename std::vector<Geom>::iterator iter;
@@ -542,15 +545,15 @@ public:
 
             if(scale_dir(0)) {
                 Scalar d = std::pow(maxm(1),2) + std::pow(maxm(2),2);
-                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
                 midpoint(0) += maxm(0) + h;
             } else if(scale_dir(1)) {
                 Scalar d = std::pow(maxm(0),2) + std::pow(maxm(2),2);
-                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
                 midpoint(1) += maxm(1) + h;
             } else {
                 Scalar d = std::pow(maxm(0),2) + std::pow(maxm(1),2);
-                Scalar h = std::sqrt(std::pow(maxfak*scale,2)-d);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
                 midpoint(2) += maxm(2) + h;
             }
         } else {
@@ -563,19 +566,19 @@ public:
             for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
                 const Eigen::Vector3d point = (*it)-midpoint;
-                if(point.norm()<minfak*scale) {
+                if(point.norm()<MINFAKTOR*scale) {
 
                     if(scale_dir(0)) {
                         Scalar d = std::pow(point(1),2) + std::pow(point(2),2);
-                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                         midpoint(0) += point(0) + h;
                     } else if(scale_dir(1)) {
                         Scalar d = std::pow(point(0),2) + std::pow(point(2),2);
-                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                         midpoint(1) += point(1) + h;
                     } else {
                         Scalar d = std::pow(point(0),2) + std::pow(point(1),2);
-                        Scalar h = std::sqrt(std::pow(minfak*scale,2)-d);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                         midpoint(2) += point(2) + h;
                     }
                 }
@@ -584,7 +587,7 @@ public:
 
         typename Kernel::Transform3D ssTrans;
         ssTrans = typename Kernel::Transform3D::Translation(-midpoint);
-        ssTrans *= typename Kernel::Transform3D::Scaling(1./scale);
+        ssTrans *= typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
 
         //recalculate all geometries
         typedef typename std::vector<Geom>::iterator iter;
