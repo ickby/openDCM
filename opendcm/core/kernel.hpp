@@ -32,6 +32,7 @@
 #include "transformation.hpp"
 #include "logging.hpp"
 
+
 namespace dcm {
 
 namespace E = Eigen;
@@ -109,7 +110,7 @@ struct Dogleg {
 #ifdef USE_LOGGING
         BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
                       << "residual: "<<sys.Residual.transpose()<<std::endl
-                      << "maximal differential: "<<sys.Jacobi.maxCoeff();
+                      << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
 
         number_type err = sys.Residual.norm();
@@ -170,10 +171,9 @@ struct Dogleg {
 
 
             //see if we got too high differentials
-	    number_type maxdiff = std::max(sys.Jacobi.maxCoeff(), std::abs(sys.Jacobi.minCoeff()));
-            if(maxdiff > 3) {
+            if(sys.Jacobi.template lpNorm<Eigen::Infinity>() > 3) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "High differential detected: "<<maxdiff<<" in iteration: "<<iter;
+                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
 #endif
                 return 0;
             };
