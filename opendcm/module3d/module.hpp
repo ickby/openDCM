@@ -134,9 +134,15 @@ struct Module3D {
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename system_traits<Sys>::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
+#ifdef USE_LOGGING
+            src::logger log;
+#endif
 
             SystemSolver() {
                 Job<Sys>::priority = 1000;
+#ifdef USE_LOGGING
+                log.add_attribute("Tag", attrs::constant< std::string >("SystemSolver3D"));
+#endif
             };
 
             virtual void execute(Sys& sys) {
@@ -228,7 +234,6 @@ struct Module3D {
                 e_it = boost::edges(cluster);
                 for(; e_it.first != e_it.second; e_it.first++) {
 
-
                     //as always: every local edge can hold multiple global ones, so iterate over all constraints
                     //hold by the individual edge
                     std::pair< oiter, oiter > oit = cluster.template getObjects<Constraint3D>(*e_it.first);
@@ -241,46 +246,15 @@ struct Module3D {
                     }
                 }
 
-                //get the maximal scale
-                Scalar sc = 0;
-                for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
-                    //fixed cluster are irrelevant for scaling
-                    if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
-
-                    //get the biggest scale factor
-                    details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
-
-                    math.m_pseudo.clear();
-                    collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
-
-                    const Scalar s = math.calculateClusterScale();
-                    sc = (s>sc) ? s : sc;
-                }
-                //if no scaling-value returned we can use 1
-                sc = (Kernel::isSame(sc,0)) ? 1. : sc;
-                //std::cout<<"scaling: "<<sc<<std::endl;
-                //Base::Console().Message("Scale is %f\n", sc);
-                it = boost::vertices(cluster);
-                for(; it.first != it.second; it.first++) {
-
-                    if(cluster.isCluster(*it.first)) {
-                        Cluster& c = cluster.getVertexCluster(*it.first);
-                        c.template getClusterProperty<math_prop>().applyClusterScale(sc,
-                                c.template getClusterProperty<fix_prop>());
-                    } else {
-                        Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        g->scale(sc);
-                    }
-                }
-                mes.Scaling = 1./sc;
-                //std::cout<<"if"<<std::endl;
-
-
-                //now it's time to solve
-                Kernel::solve(mes);
-
-                //std::cout<<"Residual after solving: "<<mes.Residual.norm()<<std::endl;
-                //std::cout<<"mes scaling: "<<mes.Scaling<<std::endl;
+                int stop = 0, count = 0;
+                while( (!stop) && (count<10) )  {
+                    mes.Scaling = scaleClusters(cluster);
+                    stop = Kernel::solve(mes);
+                    count ++;
+                };
+#ifdef USE_LOGGING
+                BOOST_LOG(log)<< "Numbers of rescale: "<<count;
+#endif
 
                 //now go to all relevant geometries and clusters and write the values back
                 it = boost::vertices(cluster);
@@ -299,7 +273,7 @@ struct Module3D {
 
                     } else {
                         Geom g = cluster.template getObject<Geometry3D>(*it.first);
-                        g->scale(1./sc);
+                        g->scale(mes.Scaling);
                         g->finishCalculation();
                     }
                 }
@@ -307,6 +281,44 @@ struct Module3D {
                 //we have solved this cluster
                 cluster.template setClusterProperty<changed_prop>(false);
 
+            };
+
+            Scalar scaleClusters(Cluster& cluster) {
+
+                typedef typename Cluster::cluster_iterator citer;
+                std::pair<citer, citer> cit = cluster.clusters();
+                //get the maximal scale
+                Scalar sc = 0;
+                for(cit = cluster.clusters(); cit.first != cit.second; cit.first++) {
+                    //fixed cluster are irrelevant for scaling
+                    if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
+
+                    //get the biggest scale factor
+                    details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
+
+                    math.m_pseudo.clear();
+                    collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
+
+                    const Scalar s = math.calculateClusterScale();
+                    sc = (s>sc) ? s : sc;
+                }
+                //if no scaling-value returned we can use 1
+                sc = (Kernel::isSame(sc,0)) ? 1. : sc;
+
+                typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
+                std::pair<iter, iter>  it = boost::vertices(cluster);
+                for(; it.first != it.second; it.first++) {
+
+                    if(cluster.isCluster(*it.first)) {
+                        Cluster& c = cluster.getVertexCluster(*it.first);
+                        c.template getClusterProperty<math_prop>().applyClusterScale(sc,
+                                c.template getClusterProperty<fix_prop>());
+                    } else {
+                        Geom g = cluster.template getObject<Geometry3D>(*it.first);
+                        g->scale(sc);
+                    }
+                }
+                return 1./sc;
             };
 
             void collectPseudoPoints(Cluster& parent,

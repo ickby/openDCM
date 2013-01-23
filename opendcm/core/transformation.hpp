@@ -199,7 +199,7 @@ public:
     //*****
     bool isApprox(const Transform& other, Scalar prec) const {
         return m_rotation.isApprox(other.rotation(), prec)
-               && m_translation.isApprox(other.translation(), prec)
+               && ((m_translation.vector()- other.translation().vector()).norm() < prec)
                && (std::abs(m_scale-other.scaling()) < prec);
     };
     void setIdentity() {
@@ -208,7 +208,7 @@ public:
         m_scale = 1.;
     }
     static const Transform Identity() {
-        return Transform(Rotation::Identity(), Translation::Identity, 1.);
+        return Transform(Rotation::Identity(), Translation::Identity(), 1.);
     }
 
     Transform& normalize() {

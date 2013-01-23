@@ -130,14 +130,14 @@ struct CheckSolver {
     typedef typename Kernel::number_type Scalar;
     CheckSolver() {};
 
-    bool solve(typename Kernel::MappedEquationSystem& sys) {
+    int solve(typename Kernel::MappedEquationSystem& sys) {
 
         int jcount = 1000;
         sys.recalculate();
         double val = sys.Residual(0);
 
-	double diffmax = 0;
-	int fails = 0;
+        double diffmax = 0;
+        int fails = 0;
         for(int i=0; i<sys.Parameter.rows(); i++) {
 
             //varying parameter i
@@ -150,23 +150,22 @@ struct CheckSolver {
                 //get the residual diff between the last two calculations
                 double rdiff = (sys.Residual(0) - val)/1e-3;
 
-               // if(sys.Jacobi(0,i) > 2.)
-               //     std::cout<<"huge differential: "<<sys.Residual(0)<<std::endl;
-		
-		diffmax = std::max(sys.Jacobi(0,i), diffmax);
+                // if(sys.Jacobi(0,i) > 2.)
+                //     std::cout<<"huge differential: "<<sys.Residual(0)<<std::endl;
+
+                diffmax = std::max(sys.Jacobi(0,i), diffmax);
 
                 //compare with the algeraic caclculated diff
                 if(std::abs(sys.Jacobi(0,i) - rdiff) > 1e-2) {
                     std::cout<<"iter: "<<j<<", parameter: "<<i<<", calc: "<<sys.Jacobi(0,i)<<" vs real: "<<rdiff<<std::endl;
                     fails++;
-		    if(fails>3)
-		      throw(std::exception()); //and throw if the difference is too much
+                    if(fails>3)
+                        throw(std::exception()); //and throw if the difference is too much
                 }
                 val = sys.Residual(0);
             };
         };
-	std::cout<<"diffmax: "<<diffmax<<std::endl;
-
+        return 1;
     }
 };
 
@@ -233,8 +232,8 @@ struct constraint_checker {
     template<typename T>
     bool check_cluster(T val) {
 
-	place pl1;
-	pl1.trans *= 100;
+        place pl1;
+        pl1.trans *= 100;
         part_ptr p1 = system.createPart(pl1);
         part_ptr p2 = system.createPart(place());
 
@@ -279,7 +278,7 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
     constraint_checker<point_t, plane_t, dcm::Distance> checker2(sys);
     BOOST_REQUIRE(checker2.check_normal(2));
     BOOST_REQUIRE(checker2.check_cluster(2));
-    
+
     constraint_checker<point_t, line_t, dcm::Distance> checker3(sys);
     BOOST_REQUIRE(checker3.check_normal(2));
     BOOST_REQUIRE(checker3.check_cluster(2));

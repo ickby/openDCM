@@ -122,7 +122,7 @@ protected:
     };
 
     void collectPseudoPoints(Vec& vec1, Vec& vec2) {
-         content->collectPseudoPoints(first, second, vec1, vec2);
+        content->collectPseudoPoints(first, second, vec1, vec2);
     };
 
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
@@ -274,14 +274,22 @@ protected:
         struct PseudoCollector {
             Vec& points1;
             Vec& points2;
-	    Geom first,second;
+            Geom first,second;
 
-            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2) 
-	    : first(f), second(s), points1(vec1), points2(vec2) {};
+            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2)
+                : first(f), second(s), points1(vec1), points2(vec2) {};
 
             template< typename T >
             void operator()(T& val) const {
-                val.m_eq.calculatePseudo(first->m_global, points1, second->m_global, points2);
+                if(first->m_isInCluster && second->m_isInCluster) {
+                    val.m_eq.calculatePseudo(first->m_rotated, points1, second->m_rotated, points2);
+                } else if(first->m_isInCluster) {
+                    typename Kernel::Vector sec = second->m_parameter;
+                    val.m_eq.calculatePseudo(first->m_rotated, points1, sec, points2);
+                } else if(second->m_isInCluster) {
+                    typename Kernel::Vector fir = first->m_parameter;
+                    val.m_eq.calculatePseudo(fir, points1, second->m_rotated, points2);
+                }
             };
         };
 

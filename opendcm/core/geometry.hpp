@@ -270,6 +270,7 @@ protected:
             new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
             //the local value is the global one as no transformation was applied  yet
             m_toplocal = m_global;
+            m_rotated = m_global;
         } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 
     }
@@ -325,11 +326,17 @@ protected:
         if(m_isInCluster) {
             //recalculate(1.); //remove scaling to get right global value
             m_global = m_rotated;
+#ifdef USE_LOGGING
+            BOOST_LOG(log) << "Finish cluster calculation";
+#endif
         }
         //TODO:non cluster paramter scaling
         else {
             m_global = m_parameter;
             normalize();
+#ifdef USE_LOGGING
+            BOOST_LOG(log) << "Finish calculation";
+#endif
         };
         apply_visitor v(m_global);
         apply(v);

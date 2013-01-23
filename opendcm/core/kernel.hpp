@@ -92,12 +92,12 @@ struct Dogleg {
         return 0;
     };
 
-    bool solve(typename Kernel::MappedEquationSystem& sys) {
+    int solve(typename Kernel::MappedEquationSystem& sys) {
 
         clock_t start = clock();
         clock_t inc_rec = clock();
 
-        if(!sys.isValid()) return false;
+        if(!sys.isValid()) return 5;
 
         bool translate = true;
 
@@ -168,12 +168,15 @@ struct Dogleg {
             clock_t end_rec = clock();
             inc_rec += end_rec-start_rec;
 
-#ifdef USE_LOGGING
+
             //see if we got too high differentials
-            if(sys.Jacobi.maxCoeff() > 3) {
-                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.maxCoeff()<<" in iteration: "<<iter;
-            };
+            if(sys.Jacobi.template lpNorm<E::Infinity>() > 3) {
+#ifdef USE_LOGGING
+                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<E::Infinity>()<<" in iteration: "<<iter;
 #endif
+                return 0;
+            };
+
 
             //calculate the translation update ratio
             err_new = sys.Residual.norm();
@@ -211,17 +214,16 @@ struct Dogleg {
 
             iter++;
         }
-
+/*
         clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
         double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
-
+*/
 #ifdef USE_LOGGING
         BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter;
 #endif
 
-        if(stop == 1) return true;
-        return false; //TODO:throw
+        return stop;
     }
 };
 
@@ -341,7 +343,7 @@ struct Kernel {
         return ((p1+p2).squaredNorm() < 0.001);
     }
 
-    static bool solve(MappedEquationSystem& mes) {
+    static int solve(MappedEquationSystem& mes) {
         return Solver< Kernel<Scalar, Solver> >().solve(mes);
     };
 
