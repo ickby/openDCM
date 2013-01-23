@@ -248,7 +248,7 @@ struct Module3D {
 
                 int stop = 0, count = 0;
                 while( (!stop) && (count<10) )  {
-                    mes.Scaling = scaleClusters(cluster);
+                    mes.Scaling *= scaleClusters(cluster);
                     stop = Kernel::solve(mes);
                     count ++;
                 };

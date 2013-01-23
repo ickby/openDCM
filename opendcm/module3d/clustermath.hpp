@@ -60,7 +60,7 @@ public:
     typename Kernel::Quaternion  m_resetQuaternion;
 
     int m_offset;
-    bool init;
+    bool init, fix;
     std::vector<Geom> m_geometry;
 
     typename Kernel::Vector3Map m_translation;
@@ -102,20 +102,16 @@ public:
     };
     void initMaps() {
 
-        //if we start with unit quaternion we need to reset the geometry to something else
-        const typename Kernel::Quaternion& m_quaternion = m_transform.rotation();
-        if(m_quaternion.w() < 1.) {
-            Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
-            m_normQ = m_quaternion.vec()*s;
-        } else {
-            m_normQ.setZero();
-        }
-
-        m_translation = m_transform.translation().vector();
+        transformToMaps(m_transform);
         init = true;
         midpoint.setZero();
         m_shift.setZero();
         m_ssrTransform.setIdentity();
+	m_diffTrans = m_transform;
+        fix=false;
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Init transform: "<<m_transform;
+#endif
     };
     void initFixMaps() {
         //when fixed no maps exist
@@ -125,24 +121,43 @@ public:
         midpoint.setZero();
         m_shift.setZero();
         m_ssrTransform.setIdentity();
+	m_diffTrans = m_transform;
+        fix=true;
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Init fix transform: "<<m_transform;
+#endif
     };
 
     typename Kernel::Transform3D& getTransform() {
         return m_transform;
     };
 
+    void mapsToTransform(typename Kernel::Transform3D& trans) {
+        //add scale only after possible reset
+        typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
+        trans = m_diffTrans;
+        trans *= scale;
+    };
+    void transformToMaps(const typename Kernel::Transform3D& trans) {
+
+        const typename Kernel::Quaternion& m_quaternion = trans.rotation();
+        if(m_quaternion.w() < 1.) {
+            Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
+            m_normQ = m_quaternion.vec()*s;
+        } else {
+            m_normQ.setZero();
+        }
+        m_translation = trans.translation().vector();
+    };
+
     void finishCalculation() {
 
+        mapsToTransform(m_transform);
+        init=false;
+	
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Finish calculation";
 #endif
-
-        //add scale only after possible reset
-        typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
-        m_transform = m_diffTrans;
-        m_transform *= scale;
-
-        init=false;
 
         m_transform = m_ssrTransform*m_transform;
 
@@ -151,7 +166,9 @@ public:
         typedef typename std::vector<Geom>::iterator iter;
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
             (*it)->recalculate(m_diffTrans);
-
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Finish transform:"<<std::endl<<m_transform;
+#endif
     };
 
     void finishFixCalculation() {
@@ -159,9 +176,13 @@ public:
         BOOST_LOG(log) << "Finish fix calculation";
 #endif
         typedef typename std::vector<Geom>::iterator iter;
-        typename Kernel::DiffTransform3D diff(m_transform.rotation(), m_transform.translation());
+	m_transform *= m_ssrTransform.inverse();
+        typename Kernel::DiffTransform3D diff(m_transform);
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
             (*it)->recalculate(diff);
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Finish fix transform:"<<std::endl<<m_transform;
+#endif
     };
 
     void resetClusterRotation(typename Kernel::Transform3D& trans) {
@@ -196,11 +217,7 @@ public:
                 trans *= typename Kernel::Transform3D::Translation(m_translation);
                 resetClusterRotation(trans);
             }
-            //rebuild the maps after changing the transformation
-            m_translation = trans.translation().vector();
-            //set the normQ map to the new quaternion value
-            const Scalar s = std::acos(trans.rotation().w())/std::sin(std::acos(trans.rotation().w()));
-            m_normQ = trans.rotation().vec()*s;
+            transformToMaps(trans);
             return;
         }
 
@@ -338,7 +355,13 @@ public:
     Scalar calculateClusterScale() {
 
 #ifdef USE_LOGGING
-        BOOST_LOG(log) << "Calculate cluster scale";
+        BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling();
+#endif
+        //ensure the usage of the right transformation
+        if(!fix)
+            mapsToTransform(m_transform);
+#ifdef USE_LOGGING
+        BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling();
 #endif
 
         //collect all points together
@@ -476,12 +499,18 @@ public:
 
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Apply cluster scale: "<<scale;
+	BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling();
 #endif
+        //ensure the usage of the right transform
+        if(!fix)
+            mapsToTransform(m_transform);
+
         //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
             m_transform*=typename Kernel::Transform3D::Scaling(1./scale);
-	    typename Kernel::DiffTransform3D diff(m_transform);
+	    m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./scale);
+            typename Kernel::DiffTransform3D diff(m_transform);
             //now calculate the scaled geometrys
             typedef typename std::vector<Geom>::iterator iter;
             for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
@@ -566,15 +595,12 @@ public:
         m_transform = ssTrans.inverse()*m_transform;
         m_ssrTransform *= ssTrans;
 
-        //if we start with unit quaternion we need to reset the geometry to something else
-        const typename Kernel::Quaternion& m_quaternion = m_transform.rotation();
-        if(m_quaternion.w() < 1.) {
-            Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
-            m_normQ = m_quaternion.vec()*s;
-        } else {
-            m_normQ.setZero();
-        }
-        m_translation = m_transform.translation().vector();
+        transformToMaps(m_transform);
+	
+	#ifdef USE_LOGGING
+        BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling();
+	BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling();
+#endif
     };
 
 private:
@@ -639,6 +665,8 @@ private:
 
 
 #endif //GCM_CLUSTERMATH_H
+
+
 
 
 

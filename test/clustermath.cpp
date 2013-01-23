@@ -33,7 +33,9 @@ struct geometry_traits<Eigen::Vector3d> {
 
 }
 
-typedef dcm::Kernel<double> Kernel;
+
+typedef double Scalar;
+typedef dcm::Kernel<Scalar> Kernel;
 typedef dcm::Module3D< mpl::vector< Eigen::Vector3d> > Module3D;
 typedef dcm::System<Kernel, Module3D::type> System;
 
@@ -187,7 +189,7 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     math.initMaps();
     math.m_ssrTransform = ssrTrans;
     math.recalculate();
-    
+
     typename Kernel::number_type s = math.calculateClusterScale();
     math.applyClusterScale(s, false);
 
@@ -198,7 +200,7 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     math.finishCalculation();
     BOOST_CHECK(Kernel::isSame((g1->rotated()-p1).norm(),0.));
     BOOST_CHECK(Kernel::isSame((g2->rotated()-p2).norm(),0.));
-    BOOST_CHECK(init.isApprox(math.m_transform, 1e-10));  
+    BOOST_CHECK(init.isApprox(math.m_transform, 1e-10));
 }
 
 BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
@@ -210,30 +212,55 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     new(&math.m_translation) typename Kernel::Vector3Map(&trans(0));
     math.initMaps();
 
-    for(int j=0; j<5; j++) {
 
-        Eigen::Vector3d v = Eigen::Vector3d::Random()*100;
-        Geom g(new Geometry3D(v, sys));
-        //to set the local value which is used by scaling
-        g->clusterMode(true, false);
-        math.addGeometry(g);
-    };
+    Eigen::Vector3d v1 = Eigen::Vector3d::Random()*100;
+    Geom g1(new Geometry3D(v1, sys));
+    g1->clusterMode(true, false);
+    math.addGeometry(g1);
 
-    double scale = math.calculateClusterScale();
-    math.applyClusterScale(2.*scale, false);
+    Eigen::Vector3d v2 = Eigen::Vector3d::Random()*100;
+    Geom g2(new Geometry3D(v2, sys));
+    g2->clusterMode(true, false);
+    math.addGeometry(g2);
+    
+    Eigen::Vector3d v3 = Eigen::Vector3d::Random()*100;
+    Geom g3(new Geometry3D(v3, sys));
+    g3->clusterMode(true, false);
+    math.addGeometry(g3);
+    
+    Scalar d1 = (v1-v2).norm();
+    Scalar d2 = (v1-v3).norm();
+    Scalar d3 = (v2-v3).norm();
+
+    double scale1 = math.calculateClusterScale();
+    math.applyClusterScale(2.*scale1, false);
     math.recalculate();
-    scale = math.calculateClusterScale();
-    math.applyClusterScale(3*scale, false);
-    math.recalculate();
+    
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2*scale1) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2*scale1) ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2*scale1) ) );
+    
+    double scale2 = math.calculateClusterScale();
+    math.applyClusterScale(3*scale2, false);
+    math.recalculate();    
 
-    for(int j=0; j<5; j++) {
+    
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2*scale1*3*scale2) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2*scale1*3*scale2) ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2*scale1*3*scale2) ) );
+
+    for(int j=0; j<3; j++) {
         double val = math.getGeometry()[j]->point().norm();
         BOOST_CHECK_GE(val, 0.7999);
         BOOST_CHECK_LE(val, 1.2111);
     };
-  
+
     math.finishCalculation();
-    BOOST_CHECK( math.m_transform.isApprox( Kernel::Transform3D::Identity(), 1e-10 ) );
+    
+    BOOST_CHECK(math.m_transform.isApprox(Kernel::Transform3D::Identity(), 1e-10));
+    BOOST_CHECK( g1->rotated().isApprox(v1, 1e-10) );
+    BOOST_CHECK( g2->rotated().isApprox(v2, 1e-10) );
+    BOOST_CHECK( g3->rotated().isApprox(v3, 1e-10) );
 }
 
 BOOST_AUTO_TEST_SUITE_END();

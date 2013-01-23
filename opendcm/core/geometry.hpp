@@ -340,6 +340,8 @@ protected:
         };
         apply_visitor v(m_global);
         apply(v);
+	m_init = false;
+	m_isInCluster = false;
     };
 
     template<typename VectorType>

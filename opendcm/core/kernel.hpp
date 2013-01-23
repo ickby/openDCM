@@ -109,7 +109,7 @@ struct Dogleg {
 #ifdef USE_LOGGING
         BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
                       << "residual: "<<sys.Residual.transpose()<<std::endl
-                      << "max. differential: "<<sys.Jacobi.maxCoeff();
+                      << "maximal differential: "<<sys.Jacobi.maxCoeff();
 #endif
 
         number_type err = sys.Residual.norm();
@@ -170,9 +170,10 @@ struct Dogleg {
 
 
             //see if we got too high differentials
-            if(sys.Jacobi.template lpNorm<E::Infinity>() > 3) {
+	    number_type maxdiff = std::max(sys.Jacobi.maxCoeff(), std::abs(sys.Jacobi.minCoeff()));
+            if(maxdiff > 3) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<E::Infinity>()<<" in iteration: "<<iter;
+                BOOST_LOG(log)<< "High differential detected: "<<maxdiff<<" in iteration: "<<iter;
 #endif
                 return 0;
             };
@@ -333,14 +334,14 @@ struct Kernel {
 
     template <typename DerivedA,typename DerivedB>
     static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
-        return ((p1-p2).squaredNorm() < 0.001);
+        return ((p1-p2).squaredNorm() < 0.00001);
     }
     static bool isSame(number_type t1, number_type t2) {
-        return (std::abs(t1-t2) < 0.001);
+        return (std::abs(t1-t2) < 0.00001);
     }
     template <typename DerivedA,typename DerivedB>
     static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
-        return ((p1+p2).squaredNorm() < 0.001);
+        return ((p1+p2).squaredNorm() < 0.00001);
     }
 
     static int solve(MappedEquationSystem& mes) {
