@@ -47,7 +47,7 @@ struct Dogleg {
     typedef typename Kernel::number_type number_type;
     number_type tolg, tolx, tolf;
 
-    Dogleg() : tolg(1e-80), tolx(1e-10), tolf(1e-5) {
+    Dogleg() : tolg(1e-40), tolx(1e-20), tolf(1e-5) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
@@ -221,7 +221,8 @@ struct Dogleg {
         double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
 */
 #ifdef USE_LOGGING
-        BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter;
+        BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter<<", reason:"<< stop;
+        BOOST_LOG(log)<< "final jacobi: "<<std::endl<<sys.Jacobi;
 #endif
 
         return stop;

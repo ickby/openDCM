@@ -28,7 +28,9 @@
 
 #define MAXFAKTOR 1.2   //the maximal distance allowd by a point normed to the cluster size
 #define MINFAKTOR 0.8   //the minimal distance allowd by a point normed to the cluster size
-#define SKALEFAKTOR 2.  //the faktor by which the biggest size is multiplied to get the scale value
+#define SKALEFAKTOR 1.  //the faktor by which the biggest size is multiplied to get the scale value
+#define NQFAKTOR 0.5    //the faktor by which the norm quaternion is multiplied with to get the RealScalar
+//norm quaternion to generate the unit quaternion
 
 namespace dcm {
 namespace details {
@@ -108,7 +110,7 @@ public:
         midpoint.setZero();
         m_shift.setZero();
         m_ssrTransform.setIdentity();
-	m_diffTrans = m_transform;
+        m_diffTrans = m_transform;
         fix=false;
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Init transform: "<<m_transform;
@@ -122,7 +124,7 @@ public:
         midpoint.setZero();
         m_shift.setZero();
         m_ssrTransform.setIdentity();
-	m_diffTrans = m_transform;
+        m_diffTrans = m_transform;
         fix=true;
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Init fix transform: "<<m_transform;
@@ -145,6 +147,7 @@ public:
         if(m_quaternion.w() < 1.) {
             Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
             m_normQ = m_quaternion.vec()*s;
+            m_normQ /= NQFAKTOR;
         } else {
             m_normQ.setZero();
         }
@@ -155,7 +158,7 @@ public:
 
         mapsToTransform(m_transform);
         init=false;
-	
+
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Finish calculation";
 #endif
@@ -177,7 +180,7 @@ public:
         BOOST_LOG(log) << "Finish fix calculation";
 #endif
         typedef typename std::vector<Geom>::iterator iter;
-	m_transform *= m_ssrTransform.inverse();
+        m_transform *= m_ssrTransform.inverse();
         typename Kernel::DiffTransform3D diff(m_transform);
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
             (*it)->recalculate(diff);
@@ -213,8 +216,8 @@ public:
                 trans *= typename Kernel::Transform3D::Translation(m_translation);
                 resetClusterRotation(trans);
             } else {
-                const Scalar fac = std::sin(norm)/norm;
-                trans =  typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+                const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
+                trans =  typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac,m_normQ(2)*fac);
                 trans *= typename Kernel::Transform3D::Translation(m_translation);
                 resetClusterRotation(trans);
             }
@@ -222,8 +225,8 @@ public:
             return;
         }
 
-        const Scalar fac = std::sin(norm)/norm;
-        trans = typename Kernel::Quaternion(std::cos(norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+        const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
+        trans = typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
         trans *= typename Kernel::Transform3D::Translation(m_translation);
     };
 
@@ -243,10 +246,10 @@ public:
 
         //n=||m_normQ||, sn = sin(n)/n, sn3 = sin(n)/n^3, cn = cos(n)/n, divn = 1/n;
         const Scalar n    = m_normQ.norm();
-        const Scalar sn   = std::sin(n)/n;
-        const Scalar mul  = (std::cos(n)-sn)/std::pow(n,2);
+        const Scalar sn   = std::sin(NQFAKTOR*n)/n;
+        const Scalar mul  = (NQFAKTOR*std::cos(NQFAKTOR*n)-sn)/std::pow(n,2);
 
-        //dxa = dx/da
+        //dxa = dQx/da
         const Scalar dxa = sn + std::pow(m_normQ(0),2)*mul;
         const Scalar dxb = m_normQ(0)*m_normQ(1)*mul;
         const Scalar dxc = m_normQ(0)*m_normQ(2)*mul;
@@ -259,11 +262,11 @@ public:
         const Scalar dzb = m_normQ(2)*m_normQ(1)*mul;
         const Scalar dzc = sn + std::pow(m_normQ(2),2)*mul;
 
-        const Scalar dwa = -sn*m_normQ(0);
-        const Scalar dwb = -sn*m_normQ(1);
-        const Scalar dwc = -sn*m_normQ(2);
+        const Scalar dwa = -sn*NQFAKTOR*m_normQ(0);
+        const Scalar dwb = -sn*NQFAKTOR*m_normQ(1);
+        const Scalar dwc = -sn*NQFAKTOR*m_normQ(2);
 
-        //write in the diffrot matrix, starting with duQ/dx
+        //write in the diffrot matrix, starting with dQ/dx
         m_diffTrans.at(0,0) = -4.0*(Q.y()*dya+Q.z()*dza);
         m_diffTrans.at(0,1) = -2.0*(Q.w()*dza+dwa*Q.z())+2.0*(Q.x()*dya+dxa*Q.y());
         m_diffTrans.at(0,2) = 2.0*(dwa*Q.y()+Q.w()*dya)+2.0*(dxa*Q.z()+Q.x()*dza);
@@ -274,6 +277,7 @@ public:
         m_diffTrans.at(2,1) = 2.0*(dwa*Q.x()+Q.w()*dxa)+2.0*(dya*Q.z()+Q.y()*dza);
         m_diffTrans.at(2,2) = -4.0*(Q.x()*dxa+Q.y()*dya);
 
+        //dQ/dy
         m_diffTrans.at(0,3) = -4.0*(Q.y()*dyb+Q.z()*dzb);
         m_diffTrans.at(0,4) = -2.0*(Q.w()*dzb+dwb*Q.z())+2.0*(Q.x()*dyb+dxb*Q.y());
         m_diffTrans.at(0,5) = 2.0*(dwb*Q.y()+Q.w()*dyb)+2.0*(dxb*Q.z()+Q.x()*dzb);
@@ -284,6 +288,7 @@ public:
         m_diffTrans.at(2,4) = 2.0*(dwb*Q.x()+Q.w()*dxb)+2.0*(dyb*Q.z()+Q.y()*dzb);
         m_diffTrans.at(2,5) = -4.0*(Q.x()*dxb+Q.y()*dyb);
 
+        //dQ/dz
         m_diffTrans.at(0,6) = -4.0*(Q.y()*dyc+Q.z()*dzc);
         m_diffTrans.at(0,7) = -2.0*(Q.w()*dzc+dwc*Q.z())+2.0*(Q.x()*dyc+dxc*Q.y());
         m_diffTrans.at(0,8) = 2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
@@ -293,7 +298,6 @@ public:
         m_diffTrans.at(2,6) = -2.0*(dwc*Q.y()+Q.w()*dyc)+2.0*(dxc*Q.z()+Q.x()*dzc);
         m_diffTrans.at(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
         m_diffTrans.at(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
-
 
         //recalculate all geometries
         typedef typename std::vector<Geom>::iterator iter;
@@ -500,19 +504,19 @@ public:
 
 #ifdef USE_LOGGING
         BOOST_LOG(log) << "Apply cluster scale: "<<scale;
-	BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling();
+        BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling();
 #endif
         //ensure the usage of the right transform
         if(!fix)
             mapsToTransform(m_transform);
-	
+
 
 
         //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
         //to alow the adoption of the scale. and no shift should been set.
         if(isFixed) {
             m_transform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
-	    m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
+            m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
             typename Kernel::DiffTransform3D diff(m_transform);
             //now calculate the scaled geometrys
             typedef typename std::vector<Geom>::iterator iter;
@@ -599,10 +603,10 @@ public:
         m_ssrTransform *= ssTrans;
 
         transformToMaps(m_transform);
-	
-	#ifdef USE_LOGGING
+
+#ifdef USE_LOGGING
         BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling();
-	BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling();
+        BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling();
 #endif
     };
 
