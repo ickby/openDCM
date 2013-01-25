@@ -130,7 +130,8 @@ struct CheckSolver {
     typedef typename Kernel::number_type Scalar;
     CheckSolver() {};
 
-    int solve(typename Kernel::MappedEquationSystem& sys) {
+    template<typename Functor>
+    int solve(typename Kernel::MappedEquationSystem& sys, Functor& f) {
 
         int jcount = 1000;
         sys.recalculate();

@@ -44,7 +44,7 @@
 #include "object.hpp"
 #include "traits.hpp"
 #include "logging.hpp"
-
+#include "transformation.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -299,9 +299,14 @@ protected:
             //calculate the gradient vectors and add them to diffparam
             m_diffparam.block(i*Dim,Dim,Dim,Dim).setIdentity();
         }
-        //basicly no needed as this case appears only from within finishCalculation
-        //and therefore the diffparam is not needed anymore
-        //if(trans.scaling() != 1.) m_diffparam *= trans.scaling();
+
+#ifdef USE_LOGGING
+        if(!boost::math::isnormal(m_rotated.norm()) || !boost::math::isnormal(m_diffparam.norm())) {
+            BOOST_LOG(log) << "Unnormal recalculated value detected: "<<m_rotated.transpose()<<std::endl
+                           << "or unnormal recalculated diff detected: "<<std::endl<<m_diffparam<<std::endl
+                           <<" with Transform: "<<std::endl<<trans;
+        }
+#endif
     }
 
     typename Kernel::Vector3 getPoint() {
@@ -340,8 +345,8 @@ protected:
         };
         apply_visitor v(m_global);
         apply(v);
-	m_init = false;
-	m_isInCluster = false;
+        m_init = false;
+        m_isInCluster = false;
     };
 
     template<typename VectorType>

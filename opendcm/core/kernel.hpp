@@ -37,6 +37,10 @@ namespace dcm {
 
 namespace E = Eigen;
 
+struct nothing {
+    void operator()() {};
+};
+
 template<typename Kernel>
 struct Dogleg {
 
@@ -65,6 +69,17 @@ struct Dogleg {
 
         // get the gauss-newton step
         const typename Kernel::Vector h_gn = (jacobi).fullPivLu().solve(-residual);
+#ifdef USE_LOGGING
+        if(!boost::math::isfinite(h_gn.norm())) {
+            BOOST_LOG(log)<< "Unnormal gauss-newton detected: "<<h_gn.norm();
+        }
+        if(!boost::math::isfinite(h_sd.norm())) {
+            BOOST_LOG(log)<< "Unnormal steepest descent detected: "<<h_sd.norm();
+        }
+        if(!boost::math::isfinite(alpha)) {
+            BOOST_LOG(log)<< "Unnormal alpha detected: "<<alpha;
+        }
+#endif
 
         // compute the dogleg step
         if(h_gn.norm() <= delta) {
@@ -72,6 +87,11 @@ struct Dogleg {
         } else if((alpha*h_sd).norm() >= delta) {
             //h_dl = alpha*h_sd;
             h_dl = (delta/(h_sd.norm()))*h_sd;
+#ifdef USE_LOGGING
+            if(!boost::math::isfinite(h_dl.norm())) {
+                BOOST_LOG(log)<< "Unnormal dogleg descent detected: "<<h_dl.norm();
+            }
+#endif
         } else {
             //compute beta
             number_type beta = 0;
@@ -89,11 +109,30 @@ struct Dogleg {
 
             // and update h_dl and dL with beta
             h_dl = alpha*h_sd + beta*(b-a);
+
+#ifdef USE_LOGGING
+            if(!boost::math::isfinite(c)) {
+                BOOST_LOG(log)<< "Unnormal dogleg c detected: "<<c;
+            }
+            if(!boost::math::isfinite(bas)) {
+                BOOST_LOG(log)<< "Unnormal dogleg bas detected: "<<bas;
+            }
+            if(!boost::math::isfinite(beta)) {
+                BOOST_LOG(log)<< "Unnormal dogleg beta detected: "<<beta;
+            }
+#endif
         }
+
         return 0;
     };
 
-    int solve(typename Kernel::MappedEquationSystem& sys) {
+    int solve(typename Kernel::MappedEquationSystem& sys)  {
+        nothing n;
+        return solve(sys, n);
+    };
+
+    template<typename Functor>
+    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale) {
 
         clock_t start = clock();
         clock_t inc_rec = clock();
@@ -129,7 +168,7 @@ struct Dogleg {
 
         number_type delta=5;
         number_type nu=2.;
-        int iter=0, stop=0, reduce=0, unused=0;
+        int iter=0, stop=0, reduce=0, unused=0, counter=0;
 
 
         while(!stop) {
@@ -143,9 +182,11 @@ struct Dogleg {
                 stop = 3;
             else if(iter >= maxIterNumber)
                 stop = 4;
-            else if(err > diverging_lim || err != err) {  // check for diverging and NaN
+            else if(!boost::math::isfinite(err))
+                stop = 5;
+            else if(err > diverging_lim)
                 stop = 6;
-            }
+
 
             // see if we are already finished
             if(stop)
@@ -169,15 +210,14 @@ struct Dogleg {
             clock_t end_rec = clock();
             inc_rec += end_rec-start_rec;
 
-
-            //see if we got too high differentials
-            if(sys.Jacobi.template lpNorm<Eigen::Infinity>() > 2) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
+            if(!boost::math::isfinite(sys.Residual.norm())) {
+                BOOST_LOG(log)<< "Unnormal residual detected: "<<sys.Residual.norm();
+            }
+            if(!boost::math::isfinite(sys.Jacobi.sum())) {
+                BOOST_LOG(log)<< "Unnormal jacobi detected: "<<sys.Jacobi.sum();
+            }
 #endif
-                return 0;
-            };
-
 
             //calculate the translation update ratio
             err_new = sys.Residual.norm();
@@ -186,8 +226,8 @@ struct Dogleg {
 
             if(dF<=0 || dL<=0)  rho = -1;
             // update delta
-            if(rho>0.75) {
-                delta = std::max(delta,3*h_dl.norm());
+            if(rho>0.85) {
+                delta = std::max(delta,2*h_dl.norm());
                 nu = 2;
             } else if(rho < 0.25) {
                 delta = delta/nu;
@@ -196,10 +236,25 @@ struct Dogleg {
 
             if(dF > 0 && dL > 0) {
 
+                //see if we got too high differentials
+                if(sys.Jacobi.template lpNorm<Eigen::Infinity>() > 2) {
+#ifdef USE_LOGGING
+                    BOOST_LOG(log)<< "High differential detected: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
+#endif
+                    rescale();
+                    sys.recalculate();
+                } 
+                //it can also happen that the differentials get too small, however, we cant check for that
+                else if(iter>1 && (counter>50)) {
+                    rescale();
+                    sys.recalculate();
+                    counter = 0;
+                }
+
                 F_old = sys.Residual;
                 J_old = sys.Jacobi;
 
-                err = err_new;
+                err = sys.Residual.norm();
                 g = sys.Jacobi.transpose()*(sys.Residual);
 
                 // get infinity norms
@@ -211,17 +266,21 @@ struct Dogleg {
                 sys.Jacobi = J_old;
                 sys.Parameter -= h_dl;
                 unused++;
+#ifdef USE_LOGGING
+                BOOST_LOG(log)<< "Reject step in iter "<<iter;
+#endif
             }
 
             iter++;
+            counter++;
         }
-/*
-        clock_t end = clock();
-        double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
-        double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
-*/
+        /*
+                clock_t end = clock();
+                double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
+                double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
+        */
 #ifdef USE_LOGGING
-        BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter<<", reason:"<< stop;
+        BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter<<", unused: "<<unused<<", reason:"<< stop;
         BOOST_LOG(log)<< "final jacobi: "<<std::endl<<sys.Jacobi;
 #endif
 
@@ -229,7 +288,7 @@ struct Dogleg {
     }
 };
 
-template<typename Scalar, template<class> class Solver = Dogleg>
+template<typename Scalar, template<class> class Nonlinear = Dogleg>
 struct Kernel {
 
     //basics
@@ -266,6 +325,8 @@ struct Kernel {
 
     typedef detail::Transform<Scalar, 2> 	Transform2D;
     typedef detail::DiffTransform<Scalar, 2> 	DiffTransform2D;
+
+    typedef Nonlinear< Kernel<Scalar, Nonlinear> > NonlinearSolver;
 
     template<int Dim>
     struct transform_type {
@@ -346,7 +407,13 @@ struct Kernel {
     }
 
     static int solve(MappedEquationSystem& mes) {
-        return Solver< Kernel<Scalar, Solver> >().solve(mes);
+        nothing n;
+        return Nonlinear< Kernel<Scalar, Nonlinear> >().template solve(mes, n);
+    };
+
+    template<typename Functor>
+    static int solve(MappedEquationSystem& mes, Functor& f) {
+        return Nonlinear< Kernel<Scalar, Nonlinear> >().template solve(mes, f);
     };
 
 };
