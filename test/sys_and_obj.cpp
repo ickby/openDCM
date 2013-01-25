@@ -79,8 +79,8 @@ struct TestModule1 {
             typedef test_object1 kind;
         };
 
-        typedef mpl::vector<test_object1> objects;
-        typedef mpl::vector<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
+        typedef mpl::vector1<test_object1> objects;
+        typedef mpl::vector3<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -112,8 +112,8 @@ struct TestModule2 {
             typedef test_object2 kind;
         };
 
-        typedef mpl::vector<test_object2>  	objects;
-        typedef mpl::vector<test_edge_property2, test_vertex_property2,
+        typedef mpl::vector1<test_object2>  	objects;
+        typedef mpl::vector4<test_edge_property2, test_vertex_property2,
                 test_object2_prop, test_object1_external_prop> properties;
 
         template<typename System>

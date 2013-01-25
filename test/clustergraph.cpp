@@ -60,16 +60,16 @@ struct test_object2 {
     int value;
 };
 
-typedef ClusterGraph<mpl::vector<test_edge_property, test_edge_property2>,
-        mpl::vector<test_vertex_property>, mpl::vector<test_cluster_property>, mpl::vector<test_object1, test_object2> > Graph;
+typedef ClusterGraph<mpl::vector2<test_edge_property, test_edge_property2>,
+        mpl::vector1<test_vertex_property>, mpl::vector1<test_cluster_property>, mpl::vector2<test_object1, test_object2> > Graph;
 
 struct delete_functor {
     std::stringstream stream;
     
-    void operator()(LocalVertex v) {
+    void operator()(GlobalVertex v) {
       stream<<"v";
     }
-    void operator()(LocalEdge e) {
+    void operator()(GlobalEdge e) {
       stream<<"e";
     }
     void operator()(Graph& v) {

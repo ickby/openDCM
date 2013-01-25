@@ -88,9 +88,9 @@ struct Module3D {
         typedef boost::shared_ptr<Geometry3D> Geom;
         typedef boost::shared_ptr<Constraint3D> Cons;
 
-        typedef mpl::map< mpl::pair<reset, boost::function<void (Geom) > >,
+        typedef mpl::map2< mpl::pair<reset, boost::function<void (Geom) > >,
                 mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
-        typedef mpl::map< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
+        typedef mpl::map1< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -409,7 +409,7 @@ struct Module3D {
             };
         };
 
-        typedef mpl::vector<Geometry3D, Constraint3D> objects;
+        typedef mpl::vector2<Geometry3D, Constraint3D> objects;
 
         struct inheriter_base {
             inheriter_base() {
@@ -456,7 +456,7 @@ struct Module3D {
                 typedef mpl::vector<> cvec;
                 typedef typename mpl::if_< mpl::is_sequence<T1>,
                         typename mpl::fold< T1, cvec, mpl::push_back<mpl::_1,mpl::_2> >::type,
-                        mpl::vector<T1> >::type cvec1;
+                        mpl::vector1<T1> >::type cvec1;
 
                 //make a fusion sequence to hold the objects (as they hold the options)
                 typedef typename fusion::result_of::as_vector<cvec1>::type covec;
@@ -681,7 +681,7 @@ struct Module3D {
             typedef GlobalEdge type;
         };
 
-        typedef mpl::vector<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
+        typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());

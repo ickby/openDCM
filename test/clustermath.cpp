@@ -36,7 +36,7 @@ struct geometry_traits<Eigen::Vector3d> {
 
 typedef double Scalar;
 typedef dcm::Kernel<Scalar> Kernel;
-typedef dcm::Module3D< mpl::vector< Eigen::Vector3d> > Module3D;
+typedef dcm::Module3D< mpl::vector1< Eigen::Vector3d> > Module3D;
 typedef dcm::System<Kernel, Module3D::type> System;
 
 typedef typename Module3D::type<System>::Geometry3D Geometry3D;

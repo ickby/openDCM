@@ -177,8 +177,8 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(constraint3d_test_suit);
 
 typedef dcm::Kernel<double, CheckSolver> Kernel;
-typedef Module3D< mpl::vector<point_t, line_t, plane_t > > Module;
-typedef dcm::ModulePart< mpl::vector< place > > ModulePart;
+typedef Module3D< mpl::vector3<point_t, line_t, plane_t > > Module;
+typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
 typedef System<Kernel, Module::type, ModulePart::type> System;
 
 typedef typename Module::type<System>::Geometry3D geom;

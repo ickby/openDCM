@@ -48,7 +48,7 @@ struct ModulePart {
         struct PrepareCluster;
         struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
-        typedef mpl::map< mpl::pair<remove, boost::function<void (Partptr) > > >  PartSignal;
+        typedef mpl::map1< mpl::pair<remove, boost::function<void (Partptr) > > >  PartSignal;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
@@ -294,8 +294,8 @@ struct ModulePart {
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_base, inheriter_id>::type {};
 
-        typedef mpl::vector<>  properties;
-        typedef mpl::vector<Part>  objects;
+        typedef mpl::vector0<>  properties;
+        typedef mpl::vector1<Part>  objects;
 
         struct PrepareCluster : public Job<Sys> {
 

@@ -35,6 +35,7 @@
 #include "clustergraph.hpp"
 #include "sheduler.hpp"
 #include "logging.hpp"
+#include "traits.hpp"
 
 namespace mpl = boost::mpl;
 
@@ -114,6 +115,8 @@ protected:
             typename details::vector_fold<typename Type2::objects,
             typename details::vector_fold<typename Type1::objects,
             mpl::vector<> >::type >::type>::type objects;
+    typedef typename vector_shrink<objects,
+            mpl::size<objects>::value >::type min_objects;
 
     typedef typename details::vector_fold<typename Type3::properties,
             typename details::vector_fold<typename Type2::properties,
@@ -125,8 +128,14 @@ protected:
 
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< cproperties, mpl::vector<> >::type 	edge_properties;
+    typedef typename vector_shrink<edge_properties,
+            mpl::size<edge_properties>::value >::type min_edge_properties;
     typedef typename details::vertex_fold< cproperties, mpl::vector<> >::type 	vertex_properties;
+    typedef typename vector_shrink<vertex_properties,
+            mpl::size<vertex_properties>::value >::type min_vertex_properties;
     typedef typename details::cluster_fold< cproperties, mpl::vector<> >::type 	cluster_properties;
+    typedef typename vector_shrink<cluster_properties,
+            mpl::size<cluster_properties>::value >::type min_cluster_properties;
     typedef typename details::property_map<objects, cproperties>::type 		object_properties;
 
     //object storage
@@ -143,7 +152,7 @@ protected:
 #endif
 
 public:
-    typedef ClusterGraph<edge_properties, vertex_properties, cluster_properties, objects> Cluster;
+    typedef ClusterGraph<min_edge_properties, min_vertex_properties, min_cluster_properties, min_objects> Cluster;
     typedef Sheduler< BaseType > Shedule;
     typedef KernelType Kernel;
 
@@ -157,11 +166,11 @@ public:
         Type2::system_init(*this);
         Type3::system_init(*this);
     };
-    
+
     ~System() {
 #ifdef USE_LOGGING
         stop_log(sink);
-#endif      
+#endif
     };
 
     template<typename Object>
@@ -190,17 +199,17 @@ public:
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
         return fusion::at<distance>(m_storage);
     };
-    
+
     template<typename Object>
     void push_back(boost::shared_ptr<Object> ptr) {
         objectVector<Object>().push_back(ptr);
     };
-    
+
     template<typename Object>
     void erase(boost::shared_ptr<Object> ptr) {
 
         std::vector< boost::shared_ptr<Object> >& vec = objectVector<Object>();
-	vec.erase( std::remove(vec.begin(), vec.end(), ptr), vec.end() );
+        vec.erase(std::remove(vec.begin(), vec.end(), ptr), vec.end());
     };
 
     void solve() {

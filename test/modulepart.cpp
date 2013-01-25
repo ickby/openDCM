@@ -109,10 +109,10 @@ struct geometry_traits<plane_t> {
 BOOST_AUTO_TEST_SUITE(modulepart_suit);
 
 typedef dcm::Kernel<double> Kernel;
-typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, plane_t> > Module3D;
-typedef dcm::Module3D< mpl::vector< Eigen::Vector3d, plane_t>, std::string > Module3DID;
-typedef dcm::ModulePart< mpl::vector< place > > ModulePart;
-typedef dcm::ModulePart< mpl::vector< place >, std::string > ModulePartID;
+typedef dcm::Module3D< mpl::vector2< Eigen::Vector3d, plane_t> > Module3D;
+typedef dcm::Module3D< mpl::vector2< Eigen::Vector3d, plane_t>, std::string > Module3DID;
+typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
+typedef dcm::ModulePart< mpl::vector1< place >, std::string > ModulePartID;
 
 typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
 typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;

@@ -131,8 +131,8 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 typedef dcm::Kernel<double> Kernel;
-typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t > > Module;
-typedef Module3D< mpl::vector<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
+typedef Module3D< mpl::vector3<point, Eigen::Vector3d, line_t > > Module;
+typedef Module3D< mpl::vector3<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
 typedef System<Kernel, Module::type> SystemNOID;
 typedef System<Kernel, ModuleID::type> SystemID;
 typedef typename Module::type<SystemNOID>::Geometry3D geom;
