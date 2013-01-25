@@ -117,13 +117,13 @@ typedef dcm::ModulePart< mpl::vector1< place >, std::string > ModulePartID;
 typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
 typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
 
-typedef typename ModulePart::type<SystemNOID>::Part Part;
-typedef typename ModulePartID::type<SystemID>::Part PartID;
+typedef ModulePart::type<SystemNOID>::Part Part;
+typedef ModulePartID::type<SystemID>::Part PartID;
 typedef boost::shared_ptr<Part> Part_ptr;
 typedef boost::shared_ptr<PartID> Partid_ptr;
-typedef typename Module3D::type<SystemNOID>::Geometry3D Geometry3D;
-typedef typename Module3DID::type<SystemID>::Geometry3D Geometry3DID;
-typedef typename Module3DID::type<SystemID>::Constraint3D Constraint3DID;
+typedef Module3D::type<SystemNOID>::Geometry3D Geometry3D;
+typedef Module3DID::type<SystemID>::Geometry3D Geometry3DID;
+typedef Module3DID::type<SystemID>::Constraint3D Constraint3DID;
 typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;

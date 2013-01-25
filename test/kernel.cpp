@@ -30,10 +30,10 @@ typedef dcm::Kernel<double> kernel;
 //3 vectors constraint by 3 perpendicular constraints
 struct EqnSystem : public kernel::MappedEquationSystem {
 
-    typedef typename kernel::MappedEquationSystem Base;
-    typedef typename kernel::DynStride DS;
+    typedef kernel::MappedEquationSystem Base;
+    typedef kernel::DynStride DS;
 
-    typename kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
+    kernel::VectorMap v1, v2, v3, eqn1, eqn2, eqn3, e1_dv1, e1_dv2, e2_dv2, e2_dv3, e3_dv1, e3_dv3;
 
     EqnSystem() : Base(9,3), v1(NULL,0,DS(0,0)), v2(NULL,0,DS(0,0)), v3(NULL,0,DS(0,0)),
     eqn1(NULL,0,DS(0,0)), eqn2(NULL,0,DS(0,0)), eqn3(NULL,0,DS(0,0)), e1_dv1(NULL,0,DS(0,0)),
@@ -80,36 +80,36 @@ struct test {
 
 BOOST_AUTO_TEST_CASE(kernel_mapping) {
 
-    typedef typename kernel::Matrix 	test_type;
-    typedef typename kernel::VectorMap	test_map_type;
+    typedef kernel::Matrix 	test_type;
+    typedef kernel::VectorMap	test_map_type;
 
     test_type 	M(3,4);
     M << 1,2,3,4,5,6,7,8,9,10,11,12;
 
-    test_map_type MM(&M(1,1), 2, typename kernel::DynStride(1,3));
+    test_map_type MM(&M(1,1), 2, kernel::DynStride(1,3));
 
     BOOST_CHECK(MM(0) == 6);
     BOOST_CHECK(MM(1) == 7);
     BOOST_CHECK(MM.size() == 2);
 
-    test_map_type MM2(NULL,0,typename kernel::DynStride(0,0));
+    test_map_type MM2(NULL,0, kernel::DynStride(0,0));
     BOOST_CHECK(MM2.size() == 0);
 
-    new(&MM2) test_map_type(&M(1,1), 2, typename kernel::DynStride(1,3));
+    new(&MM2) test_map_type(&M(1,1), 2, kernel::DynStride(1,3));
 
     BOOST_CHECK(MM2(0) == 6);
     BOOST_CHECK(MM2(1) == 7);
     BOOST_CHECK(MM2.size() == 2);
 
-    typename kernel::Vector v(2);
+    kernel::Vector v(2);
     v << 1,2;
     MM = v;
     BOOST_CHECK(M(1,1) == 1);
     BOOST_CHECK(M(1,2) == 2);
    
     //test if fixed size works without using strides
-    typename kernel::Vector3 v3;
-    typename kernel::Vector3Map v3m(&v3(0)); 
+    kernel::Vector3 v3;
+    kernel::Vector3Map v3m(&v3(0)); 
 
     BOOST_CHECK( v3(0) == v3m(0) );
     BOOST_CHECK( v3(1) == v3m(1) );

@@ -99,8 +99,8 @@ struct pts {
 
 }
 
-typedef typename details::list_traits::vertex_descriptor 	LocalVertex;
-typedef typename details::list_traits::edge_descriptor 		LocalEdge;
+typedef details::list_traits::vertex_descriptor 	LocalVertex;
+typedef details::list_traits::edge_descriptor 		LocalEdge;
 typedef details::universalID 					GlobalVertex;
 struct 	GlobalEdge {
     GlobalVertex source;
@@ -300,6 +300,7 @@ public:
         if(isCluster(v))
             return *m_clusters[v];
         //TODO:throw if not a cluster
+        return *this;
     };
 
     LocalVertex	getClusterVertex(ClusterGraph& g) {
@@ -702,10 +703,9 @@ public:
     * needs to implement operato()(LocalEdge edge).
     *
     * @param id Global Vertex which should be removed from the graph
-    * @return bool indicates if the global id could be removed
     **/
     template<typename Functor>
-    bool removeVertex(GlobalVertex id, Functor& f) {
+    void removeVertex(GlobalVertex id, Functor& f) {
         root().downstreamRemoveVertex(id, f);
     };
     //no default template arguments for template functions allowed before c++0x, so a little workaround
@@ -784,14 +784,17 @@ protected:
         typename boost::enable_if<mpl::and_<boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
         boost::is_same<key, GlobalEdge> >, result_type>::type operator()(bundle& p) {
 
+            edge_single_iterator e;
             //need to search the edge_bundle for the global descriptor
             std::vector<edge_bundle_single>& ebsv = fusion::at_c<1>(p);
             for(edge_single_iterator it= ebsv.begin(); it != ebsv.end(); it++) {
                 if(global_extractor()(*it) == m_key) {
                     if(Type::value) fusion::for_each(fusion::at_c<0>(*it), details::clear_ptr());
-                    return object_extractor<Obj>()(*it);
+                    e = it;
+                    break;
                 }
             }
+            return object_extractor<Obj>()(*e);
         }
 
         //used with edge bundle type and local edge descriptor
@@ -1288,10 +1291,11 @@ protected:
 
         //check all clusters if they have the object
         fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
-        if(fusion::at_c<2>(res)) return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
+        if(!fusion::at_c<2>(res)) {
+            //TODO: Throw (propeties return reference, but cant init a reference temporarily)
+        }
 
-        // return typename functor::base_type();
-        //TODO: Throw (propeties return reference, but cant init a reference temporarily)
+        return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
     };
 
     template<typename functor>
@@ -1302,17 +1306,20 @@ protected:
         boost::tie(v1,d1) = getContainingVertex(k.source);
         boost::tie(v2,d2) = getContainingVertex(k.target);
 
-        if(d1&&d2) {
-            if((v1==v2) && isCluster(v1)) return m_clusters[v1]->apply_to_bundle(k, f);
-            else {
-                LocalEdge e;
-                bool done;
-                boost::tie(e, done) = boost::edge(v1,v2,*this);
-                //if(!done) TODO: throw, as there has to be a edge!
-                return f((*this)[e]);
-            };
+        if(!(d1&&d2)) {
+            //TODO:Throw
         }
-        //return std::make_pair(NULL, NULL); TODO:Throw
+
+        if((v1==v2) && isCluster(v1)) return m_clusters[v1]->apply_to_bundle(k, f);
+        else {
+            LocalEdge e;
+            bool done;
+            boost::tie(e, done) = boost::edge(v1,v2,*this);
+            //if(!done) TODO: throw, as there has to be a edge!
+            return f((*this)[e]);
+        };
+
+
     };
 };
 

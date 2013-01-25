@@ -181,17 +181,17 @@ typedef Module3D< mpl::vector3<point_t, line_t, plane_t > > Module;
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
 typedef System<Kernel, Module::type, ModulePart::type> System;
 
-typedef typename Module::type<System>::Geometry3D geom;
+typedef Module::type<System>::Geometry3D geom;
 typedef boost::shared_ptr<geom> geom_ptr;
 
-typedef typename Module::type<System>::Constraint3D cons;
+typedef Module::type<System>::Constraint3D cons;
 typedef boost::shared_ptr<cons> cons_ptr;
 
-typedef typename ModulePart::type<System>::Part part;
+typedef ModulePart::type<System>::Part part;
 typedef boost::shared_ptr<part> part_ptr;
 
-typedef typename Module::type<System>::vertex_prop vertex_prop;
-typedef typename System::Cluster ClusterGraph;
+typedef Module::type<System>::vertex_prop vertex_prop;
+typedef System::Cluster ClusterGraph;
 
 //automated checking of differentials
 template<typename T1, typename T2, typename CT>

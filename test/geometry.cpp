@@ -90,43 +90,43 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
 
     typedef dcm::Kernel<double> Kernel;
 
-    typedef typename Kernel::Transform3D Transform;
+    typedef Kernel::Transform3D Transform;
     Transform trans3d;
 
     //check if initial initialisation is correct
-    BOOST_CHECK(trans3d.rotation().isApprox(typename Kernel::Quaternion(1,0,0,0), 1e-10));
-    BOOST_CHECK(trans3d.translation().vector().isApprox(typename Kernel::Vector3(0,0,0), 1e-10));
+    BOOST_CHECK(trans3d.rotation().isApprox(Kernel::Quaternion(1,0,0,0), 1e-10));
+    BOOST_CHECK(trans3d.translation().vector().isApprox(Kernel::Vector3(0,0,0), 1e-10));
     BOOST_CHECK(Kernel::isSame(trans3d.scaling(), 1.));
 
     //check the transformations
-    typename Kernel::Vector3 vec(1,2,3);
+    Kernel::Vector3 vec(1,2,3);
     trans3d.scale(0.5);
     vec = trans3d*vec;
-    BOOST_CHECK((typename Kernel::Vector3(1,2,3)*0.5).isApprox(vec, 1e-10));
+    BOOST_CHECK((Kernel::Vector3(1,2,3)*0.5).isApprox(vec, 1e-10));
 
     vec << 1,2,3;
-    trans3d.translate(typename Transform::Translation(1,2,3));
+    trans3d.translate(Transform::Translation(1,2,3));
     trans3d.transform(vec);
-    BOOST_CHECK((typename Kernel::Vector3(2,4,6)*0.5).isApprox(vec, 1e-10));
+    BOOST_CHECK((Kernel::Vector3(2,4,6)*0.5).isApprox(vec, 1e-10));
 
     vec << 1,2,3;
-    trans3d.rotate((typename Kernel::Quaternion(1,2,3,4)).normalized());
+    trans3d.rotate((Kernel::Quaternion(1,2,3,4)).normalized());
     trans3d.transform(vec);
-    typename Kernel::Vector3 res = (typename Kernel::Quaternion(1,2,3,4)).normalized()._transformVector(typename Kernel::Vector3(1,2,3));
-    res += typename Kernel::Vector3(1,2,3);
+    Kernel::Vector3 res = (Kernel::Quaternion(1,2,3,4)).normalized()._transformVector(Kernel::Vector3(1,2,3));
+    res += Kernel::Vector3(1,2,3);
     res *= 0.5;
     BOOST_CHECK(res.isApprox(vec, 1e-10));
 
     //check the invertion
     trans3d.invert();
     trans3d.transform(vec);
-    BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
+    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
 
     //check successive transformations
     trans3d.setIdentity();
-    trans3d *= typename Transform::Rotation(1,2,3,4);
-    trans3d *= typename Transform::Translation(1,2,3);
-    trans3d *= typename Transform::Scaling(2);
+    trans3d *= Transform::Rotation(1,2,3,4);
+    trans3d *= Transform::Translation(1,2,3);
+    trans3d *= Transform::Scaling(2);
     Transform trans3d_2(trans3d);
     BOOST_CHECK(trans3d_2.isApprox(trans3d, 1e-10));
     BOOST_CHECK(Kernel::isSame(trans3d_2.rotation().coeffs().norm(),1));
@@ -134,25 +134,25 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
     trans3d.invert();
     trans3d_2.transform(vec);
     trans3d.transform(vec);
-    BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
+    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
     
     Transform trans3d_I = trans3d_2 * trans3d;
     trans3d_I.transform(vec);
     std::cout<<vec<<std::endl;
-    BOOST_CHECK(vec.isApprox(typename Kernel::Vector3(1,2,3), 1e-10));
+    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
 
-    Transform trans3d_3(typename Transform::Rotation(4,9,1,2),
-            typename Transform::Translation(4,2,-6), 2);
-    Transform trans3d_4(typename Transform::Rotation(1,2,4,3),
-            typename Transform::Translation(-4,1,0), 3);
-    Transform trans3d_5(typename Transform::Rotation(4,2,1,3),
-            typename Transform::Translation(-4,-1,2), 4);
+    Transform trans3d_3(Transform::Rotation(4,9,1,2),
+            Transform::Translation(4,2,-6), 2);
+    Transform trans3d_4(Transform::Rotation(1,2,4,3),
+            Transform::Translation(-4,1,0), 3);
+    Transform trans3d_5(Transform::Rotation(4,2,1,3),
+            Transform::Translation(-4,-1,2), 4);
     
     vec << 1,2,3;
     trans3d_3.transform(vec);
     trans3d_4.transform(vec);
     trans3d_5.transform(vec);
-    typename Kernel::Vector3 v1 = vec;
+    Kernel::Vector3 v1 = vec;
 
     vec << 1,2,3;
     Transform trans3d_34 = trans3d_3 * trans3d_4;

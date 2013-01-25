@@ -135,18 +135,18 @@ typedef Module3D< mpl::vector3<point, Eigen::Vector3d, line_t > > Module;
 typedef Module3D< mpl::vector3<point, Eigen::Vector3d, line_t >, std::string > ModuleID;
 typedef System<Kernel, Module::type> SystemNOID;
 typedef System<Kernel, ModuleID::type> SystemID;
-typedef typename Module::type<SystemNOID>::Geometry3D geom;
-typedef typename ModuleID::type<SystemID>::Geometry3D geomid;
+typedef Module::type<SystemNOID>::Geometry3D geom;
+typedef ModuleID::type<SystemID>::Geometry3D geomid;
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<geomid> geomid_ptr;
 
-typedef typename Module::type<SystemNOID>::Constraint3D cons;
-typedef typename ModuleID::type<SystemID>::Constraint3D consid;
+typedef Module::type<SystemNOID>::Constraint3D cons;
+typedef ModuleID::type<SystemID>::Constraint3D consid;
 typedef boost::shared_ptr<cons> cons_ptr;
 typedef boost::shared_ptr<consid> consid_ptr;
 
-typedef typename SystemNOID::Cluster::vertex_iterator viter;
-typedef typename Module::type<SystemNOID>::vertex_prop vertex_prop;
+typedef SystemNOID::Cluster::vertex_iterator viter;
+typedef Module::type<SystemNOID>::vertex_prop vertex_prop;
 
 
 BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     cons_ptr c3 = sys.createConstraint3D(g3, g1, test);
     sys.solve();
 
-    typename Kernel::Vector3 v1,v2,v3;
+    Kernel::Vector3 v1,v2,v3;
     point& rp1 = get<point>(g1);
     point& rp2 = get<point>(g2);
     point& rp3 = get<point>(g3);
@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     geom_ptr g3 = sys.createGeometry3D(p3);
 
     //now trick a bit and move two geometries manual in a subcluster
-    std::pair<typename SystemNOID::Cluster&, LocalVertex> sc = sys.m_cluster.createCluster();
+    std::pair<SystemNOID::Cluster&, LocalVertex> sc = sys.m_cluster.createCluster();
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g1->getProperty<vertex_prop>()).first, sc.second);
     sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g2->getProperty<vertex_prop>()).first, sc.second);
     sc.first.setClusterProperty<changed_prop>(true);
@@ -226,7 +226,7 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
     sys.solve();
 
-    typename Kernel::Vector3 v1,v2,v3;
+    Kernel::Vector3 v1,v2,v3;
     point& rp1 = get<point>(g1);
     point& rp2 = get<point>(g2);
     point& rp3 = get<point>(g3);

@@ -39,7 +39,7 @@ typedef dcm::Kernel<Scalar> Kernel;
 typedef dcm::Module3D< mpl::vector1< Eigen::Vector3d> > Module3D;
 typedef dcm::System<Kernel, Module3D::type> System;
 
-typedef typename Module3D::type<System>::Geometry3D Geometry3D;
+typedef Module3D::type<System>::Geometry3D Geometry3D;
 typedef boost::shared_ptr<Geometry3D> Geom;
 
 //namespace dcm {
@@ -53,9 +53,9 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
     System sys;
     cmath math;
 
-    typename Kernel::Vector3 vec(0,0,0);
+    Kernel::Vector3 vec(0,0,0);
     math.initFixMaps();
-    new(&math.m_normQ) typename Kernel::Vector3Map(&vec(0));
+    new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
 
     for(int i=1; i<100; i++) {
 
@@ -101,9 +101,9 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling) {
 
     System sys;
     cmath math;
-    typename Kernel::Vector3 vec(0,0,0);
+    Kernel::Vector3 vec(0,0,0);
     math.initFixMaps();
-    new(&math.m_normQ) typename Kernel::Vector3Map(&vec(0));
+    new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
 
     for(int j=0; j<5; j++) {
 
@@ -131,18 +131,18 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     System sys;
     cmath math;
 
-    typename Kernel::Quaternion Q(1,2,3,4);
-    typename Kernel::DiffTransform3D trans = Q;
-    trans *= typename Kernel::Transform3D::Translation(1,2,3);
-    typename Kernel::DiffTransform3D init = trans;
+    Kernel::Quaternion Q(1,2,3,4);
+    Kernel::DiffTransform3D trans = Q;
+    trans *= Kernel::Transform3D::Translation(1,2,3);
+    Kernel::DiffTransform3D init = trans;
 
     //need to init a few things
-    typename Kernel::Vector3 vec(0,0,0);
+    Kernel::Vector3 vec(0,0,0);
     math.initFixMaps();
-    new(&math.m_normQ) typename Kernel::Vector3Map(&vec(0));
+    new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
     math.m_transform =  trans;
 
-    typename Kernel::DiffTransform3D transI(trans);
+    Kernel::DiffTransform3D transI(trans);
     transI.invert();
 
     //add two points to the clustermath
@@ -178,19 +178,19 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     BOOST_CHECK(g2->rotated().isApprox(p2,1e-10));
 
     //see if the change trqansformation is calculated right
-    typename Kernel::Quaternion Qinit(1,2,3,4);
+    Kernel::Quaternion Qinit(1,2,3,4);
     Qinit.normalize();
     BOOST_CHECK(Qinit.isApprox((math.m_ssrTransform*trans).rotation(), 1e-10));
 
     //see if it works with shifting and scaling
     //math.resetClusterRotation(trans);
     math.m_transform = trans;
-    typename Kernel::Transform3D ssrTrans = math.m_ssrTransform;
+    Kernel::Transform3D ssrTrans = math.m_ssrTransform;
     math.initMaps();
     math.m_ssrTransform = ssrTrans;
     math.recalculate();
 
-    typename Kernel::number_type s = math.calculateClusterScale();
+    Kernel::number_type s = math.calculateClusterScale();
     math.applyClusterScale(s, false);
 
     math.recalculate();
@@ -207,9 +207,9 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
 
     System sys;
     cmath math;
-    typename Kernel::Vector3 vec(0,0,0), trans(0,0,0);
-    new(&math.m_normQ) typename Kernel::Vector3Map(&vec(0));
-    new(&math.m_translation) typename Kernel::Vector3Map(&trans(0));
+    Kernel::Vector3 vec(0,0,0), trans(0,0,0);
+    new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
+    new(&math.m_translation) Kernel::Vector3Map(&trans(0));
     math.initMaps();
 
 

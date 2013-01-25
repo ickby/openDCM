@@ -153,10 +153,10 @@ BOOST_AUTO_TEST_CASE(graph_properties) {
 BOOST_AUTO_TEST_CASE(object_properties) {
 
     System sys;
-    typedef typename TestModule1::type<System> Module1;
-    typedef typename TestModule2::type<System> Module2;
-    typedef typename Module1::test_object1 to1;
-    typedef typename Module2::test_object2 to2;
+    typedef TestModule1::type<System> Module1;
+    typedef TestModule2::type<System> Module2;
+    typedef Module1::test_object1 to1;
+    typedef Module2::test_object2 to2;
 
     to1 o1(sys);
     to2 o2(sys);
@@ -193,8 +193,8 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 
     System sys;
 
-    typedef typename TestModule1::type<System> Module1;
-    typedef typename Module1::test_object1 to1;
+    typedef TestModule1::type<System> Module1;
+    typedef Module1::test_object1 to1;
 
     to1 o1(sys);
 

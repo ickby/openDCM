@@ -303,10 +303,9 @@ protected:
         };
 
         virtual placeholder* resetConstraint(Geom first, Geom second) const {
-            /*creator<ConstraintVector> creator;
-            boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
-            if(creator.need_swap) first.swap(second);
-            return creator.p;*/
+            //boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
+            //if(creator.need_swap) first.swap(second);
+            return NULL;
         };
         virtual int equationCount() {
             return mpl::size<EquationVector>::value;
