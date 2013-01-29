@@ -157,18 +157,17 @@ struct Object : public boost::enable_shared_from_this<Derived> {
         list.erase(boost::any_cast<typename list_type::iterator>(c));
     };
 
-protected:
-
     /*properties
      * search the property map of the system class and get the mpl::vector of properties for the
      * derived type. It's imortant to not store the properties but their types. These types are
      * stored and accessed as fusion vector.
      * */
     typedef typename mpl::at<typename Sys::object_properties, Derived>::type Mapped;
-    typedef typename mpl::if_< boost::is_same<Mapped, mpl::void_ >, mpl::vector<>, Mapped>::type Sequence;
+    typedef typename mpl::if_< boost::is_same<Mapped, mpl::void_ >, mpl::vector0<>, Mapped>::type Sequence;
     typedef typename mpl::transform<Sequence, details::property_type<mpl::_1> >::type Typesequence;
     typedef typename fusion::result_of::as_vector<Typesequence>::type Properties;
 
+protected:
     /*signal handling
      * extract all signal types to allow index search (inex search on signal functions would fail as same
      * signatures are supported for multiple signals). Create std::vectors to allow multiple slots per signal

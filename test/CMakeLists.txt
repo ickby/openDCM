@@ -17,6 +17,7 @@ set(test_SRC  define.cpp
 	      module3d.cpp
 	      #dof.cpp
 	      modulepart.cpp
+	      parser.cpp
 )
 
 if(LOGGING)
