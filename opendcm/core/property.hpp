@@ -63,6 +63,13 @@ template<typename T>
 struct property_kind {
     typedef typename T::kind type;
 };
+
+//property vector to a fusion sequence of the propety types
+template<typename T>
+struct pts { //property type sequence
+    typedef typename mpl::transform<T, details::property_type<mpl::_1> >::type ptv;
+    typedef typename fusion::result_of::as_vector< ptv >::type type;
+};
 }
 
 template<typename T>

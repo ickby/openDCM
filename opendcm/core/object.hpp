@@ -65,7 +65,7 @@ struct map_val {
 }
 
 //few standart signal names
-struct remove {}; 
+struct remove {};
 
 typedef boost::any Connection;
 
@@ -98,6 +98,7 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     typename Prop::type& getProperty() {
         typedef typename mpl::find<Sequence, Prop>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<Sequence>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<Sequence>::type > >));
         return fusion::at<distance>(m_properties);
     };
 
@@ -114,6 +115,7 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     void setProperty(typename Prop::type value) {
         typedef typename mpl::find<Sequence, Prop>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<Sequence>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<Sequence>::type > >));
         fusion::at<distance>(m_properties) = value;
     };
 
@@ -167,6 +169,8 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     typedef typename mpl::transform<Sequence, details::property_type<mpl::_1> >::type Typesequence;
     typedef typename fusion::result_of::as_vector<Typesequence>::type Properties;
 
+    Properties m_properties;
+
 protected:
     /*signal handling
      * extract all signal types to allow index search (inex search on signal functions would fail as same
@@ -182,7 +186,6 @@ protected:
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
 
     Sys& m_system;
-    Properties m_properties;
     Signals m_signals;
 
 public:

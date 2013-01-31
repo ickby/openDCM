@@ -21,5 +21,6 @@
 #define DCM_MODULEPARSER_H
 
 #include "moduleParser/module.hpp"
+#include "moduleParser/traits.hpp"
 
 #endif //DCM_MODULEPARSER_H

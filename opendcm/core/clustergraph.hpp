@@ -90,18 +90,11 @@ struct sps { //shared_ptr sequence
     typedef typename fusion::result_of::as_vector<spv>::type type;
 };
 
-
-template<typename T>
-struct pts {
-    typedef typename mpl::transform<T, details::property_type<mpl::_1> >::type ptv;
-    typedef typename fusion::result_of::as_vector< ptv >::type type;
-};
-
 }
 
 typedef details::list_traits::vertex_descriptor 	LocalVertex;
 typedef details::list_traits::edge_descriptor 		LocalEdge;
-typedef details::universalID 					GlobalVertex;
+typedef details::universalID 				GlobalVertex;
 struct 	GlobalEdge {
     GlobalVertex source;
     GlobalVertex target;
@@ -160,6 +153,14 @@ private:
             return fusion::at_c<1>(bundle);
         };
     };
+    struct global_vertex_extractor  {
+        typedef GlobalVertex result_type;
+        ClusterGraph& graph;
+        global_vertex_extractor(ClusterGraph& g) : graph(g) {};
+        result_type operator()(LocalVertex& v) const {
+            return graph.getGlobalVertex(v);
+        };
+    };
 
     template<typename Obj>
     struct object_extractor  {
@@ -197,6 +198,7 @@ private:
 public:
     //iterators
     typedef boost::transform_iterator<global_extractor, edge_single_iterator> global_edge_iterator;
+    typedef boost::transform_iterator<global_vertex_extractor, local_vertex_iterator> global_vertex_iterator;
 
     template<typename Obj>
     struct object_iterator : public boost::transform_iterator<object_extractor<Obj>, edge_single_iterator> {
@@ -403,6 +405,14 @@ public:
 
         setChanged();
         return fusion::make_vector(v, m_id->count());
+    };
+
+    std::pair<global_vertex_iterator, global_vertex_iterator> globalVertices() {
+        std::pair<local_vertex_iterator, local_vertex_iterator> res = boost::vertices(*this);
+        global_vertex_iterator begin = boost::make_transform_iterator(res.first, global_vertex_extractor(*this));
+        global_vertex_iterator end   = boost::make_transform_iterator(res.second, global_vertex_extractor(*this));
+
+        return std::pair<global_vertex_iterator, global_vertex_iterator>(begin, end);
     };
 
     /**
