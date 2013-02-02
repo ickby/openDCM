@@ -41,6 +41,9 @@ struct TestModule1 {
         struct test_object1 : public dcm::Object<Sys, test_object1, signal_map > {
             test_object1(Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
         };
+        struct test_object2 : public dcm::Object<Sys, test_object2, signal_map > {
+            test_object2(Sys& system) : dcm::Object<Sys, test_object2, signal_map >(system) { };
+        };
 
         struct inheriter {};
 
@@ -51,17 +54,17 @@ struct TestModule1 {
         struct test_object2_prop {
             typedef std::string type;
             typedef test_object1 kind;
-        };	
-	struct test_vertex1_prop {
+        };
+        struct test_vertex1_prop {
             typedef std::string type;
             typedef dcm::vertex_property kind;
         };
-	struct test_vertex2_prop {
+        struct test_vertex2_prop {
             typedef int type;
             typedef dcm::edge_property kind;
         };
 
-        typedef mpl::vector1<test_object1> objects;
+        typedef mpl::vector2<test_object1, test_object2> objects;
         typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_vertex2_prop>   properties;
 
         static void system_init(Sys& sys) {};
@@ -74,15 +77,16 @@ struct test_prop {
 };
 
 namespace dcm {
-
+/*
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_object1_prop, System, iterator > {
 
-  typedef rule<iterator, int()> generator;
-  static void init(generator& r) {
-      r = lit("<type>test o1 property</type>\n<value>")<<int_<<"</value>";
-  };
+    typedef rule<iterator, int()> generator;
+    static void init(generator& r) {
+        r = lit("<type>test o1 property</type>\n<value>")<<int_<<"</value>";
+    };
 };
+*/
 template<typename System, typename iterator>
 struct parser_generator< test_prop, System, iterator > {
 
@@ -94,20 +98,32 @@ struct parser_generator< test_prop, System, iterator > {
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
-  typedef rule<iterator, std::string()> generator;
-  static void init(generator& r) {
-      r = lit("<type>vertex 1 prop</type>\n<value>")<<string<<"</value>";
-  };
+    typedef rule<iterator, std::string()> generator;
+    static void init(generator& r) {
+        r = lit("<type>vertex 1 prop</type>\n<value>")<<string<<"</value>";
+    };
 };
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_vertex2_prop, System, iterator > {
 
-  typedef rule<iterator, int()> generator;
-  static void init(generator& r) {
-      r = lit("<type>vertex 2 prop</type>\n<value>")<<int_<<"</value>";
-  };
+    typedef rule<iterator, int()> generator;
+    static void init(generator& r) {
+        r = lit("<type>vertex 2 prop</type>\n<value>")<<int_<<"</value>";
+    };
 };
 
+template<typename System>
+struct parser_generate< typename TestModule1::type<System>::test_object1, System>
+  : public mpl::true_{};
+
+template<typename System, typename iterator>
+struct parser_generator< typename TestModule1::type<System>::test_object1, System, iterator > {
+
+    typedef rule<iterator, boost::shared_ptr<typename TestModule1::type<System>::test_object1>() > generator;
+    static void init(generator& r) {
+        r = string[karma::_1="<type>object 1 prop</type>\n<value>HaHAHAHAHA</value>"];
+    };
+};
 }
 
 typedef dcm::Kernel<double> Kernel;
@@ -131,10 +147,10 @@ BOOST_AUTO_TEST_CASE(parser_properties) {
     TestModule1::type<System>::test_object1 obj(sys);
     obj.setProperty<TestModule1::type<System>::test_object1_prop>(27);
     obj.setProperty<TestModule1::type<System>::test_object2_prop>("new value");
-    
+
     dcm::ModuleParser::type<System>::propperty_vector_generator<TestModule1::type<System>::test_object1::Sequence> functor(s2, obj.m_properties);
     mpl::for_each<TestModule1::type<System>::test_object1::Sequence>(functor);
-    
+
     std::cout<<s2.str()<<std::endl;
 
 }*/
@@ -150,16 +166,12 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     sys.m_cluster.addEdge(fusion::at_c<0>(res2),fusion::at_c<0>(res3));
     sys.m_cluster.addEdge(fusion::at_c<0>(res1),fusion::at_c<0>(res3));
 
-    std::cout<<"real globals: "<<fusion::at_c<1>(res1)<<", "<<fusion::at_c<1>(res2)<<", "<<fusion::at_c<1>(res3)<<std::endl;
-    
-    typedef System::Cluster::global_vertex_iterator iter;
-    std::pair<iter, iter> it = sys.m_cluster.globalVertices();
-    for(;it.first != it.second; it.first++)
-      std::cout<<"global: "<<*(it.first)<<std::endl;
-    
+    boost::shared_ptr<TestModule1::type<System>::test_object1> ptr(new TestModule1::type<System>::test_object1(sys));
+    sys.m_cluster.setObject(fusion::at_c<1>(res1), ptr);
+
     std::ostringstream s;
     sys.saveState(s);
-    
+
     std::cout<<s.str()<<std::endl;
 }
 

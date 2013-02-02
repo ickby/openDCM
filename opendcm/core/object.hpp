@@ -166,8 +166,7 @@ struct Object : public boost::enable_shared_from_this<Derived> {
      * */
     typedef typename mpl::at<typename Sys::object_properties, Derived>::type Mapped;
     typedef typename mpl::if_< boost::is_same<Mapped, mpl::void_ >, mpl::vector0<>, Mapped>::type Sequence;
-    typedef typename mpl::transform<Sequence, details::property_type<mpl::_1> >::type Typesequence;
-    typedef typename fusion::result_of::as_vector<Typesequence>::type Properties;
+    typedef typename details::pts<Sequence>::type Properties;
 
     Properties m_properties;
 
