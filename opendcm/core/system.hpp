@@ -109,7 +109,8 @@ public:
     typedef T1< BaseType > Type1;
     typedef T2< BaseType > Type2;
     typedef T3< BaseType > Type3;
-protected:
+
+public:
     //get all module objects and properties
     typedef typename details::vector_fold<typename Type3::objects,
             typename details::vector_fold<typename Type2::objects,
@@ -126,7 +127,7 @@ protected:
     //add the standart objects and properties
     typedef typename mpl::push_back<properties, type_prop>::type cproperties;
 
-public:
+
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< cproperties, mpl::vector<> >::type 	edge_properties;
     typedef typename vector_shrink<edge_properties,
