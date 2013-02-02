@@ -93,18 +93,18 @@ struct ModuleParser {
 
             prop_gen() : prop_gen::base_type(start) {
 
-            prop = -(fusion::at<index<0> >(rules).rule)[karma::_1 = phx::at_c<index<0>::value >(karma::_val)]
-                   << -(karma::eps(valid<1>::value) << (fusion::at<index<1> >(rules).rule)[karma::_1 = phx::at_c<index<1>::value>(karma::_val)])
-                   << -(karma::eps(valid<2>::value) << (fusion::at<index<2> >(rules).rule)[karma::_1 = phx::at_c<index<2>::value>(karma::_val)])
-                   << -(karma::eps(valid<3>::value) << (fusion::at<index<3> >(rules).rule)[karma::_1 = phx::at_c<index<3>::value>(karma::_val)])
-                   << -(karma::eps(valid<4>::value) << (fusion::at<index<4> >(rules).rule)[karma::_1 = phx::at_c<index<4>::value>(karma::_val)])
-                   << -(karma::eps(valid<5>::value) << (fusion::at<index<5> >(rules).rule)[karma::_1 = phx::at_c<index<5>::value>(karma::_val)])
-                   << -(karma::eps(valid<6>::value) << (fusion::at<index<6> >(rules).rule)[karma::_1 = phx::at_c<index<6>::value>(karma::_val)])
-                   << -(karma::eps(valid<7>::value) << (fusion::at<index<7> >(rules).rule)[karma::_1 = phx::at_c<index<7>::value>(karma::_val)])
-                   << -(karma::eps(valid<8>::value) << (fusion::at<index<8> >(rules).rule)[karma::_1 = phx::at_c<index<8>::value>(karma::_val)])
-                   << -(karma::eps(valid<9>::value) << (fusion::at<index<9> >(rules).rule)[karma::_1 = phx::at_c<index<9>::value>(karma::_val)]);
+            prop =   ((karma::eps(valid<0>::value) << fusion::at<index<0> >(rules).rule)[karma::_1 = phx::at_c<index<0>::value >(karma::_val)])
+                   | ((karma::eps(valid<1>::value) << (fusion::at<index<1> >(rules).rule)[karma::_1 = phx::at_c<index<1>::value>(karma::_val)])
+                   | ((karma::eps(valid<2>::value) << (fusion::at<index<2> >(rules).rule)[karma::_1 = phx::at_c<index<2>::value>(karma::_val)])
+                   | ((karma::eps(valid<3>::value) << (fusion::at<index<3> >(rules).rule)[karma::_1 = phx::at_c<index<3>::value>(karma::_val)])
+                   | ((karma::eps(valid<4>::value) << (fusion::at<index<4> >(rules).rule)[karma::_1 = phx::at_c<index<4>::value>(karma::_val)])
+                   | ((karma::eps(valid<5>::value) << (fusion::at<index<5> >(rules).rule)[karma::_1 = phx::at_c<index<5>::value>(karma::_val)])
+                   | ((karma::eps(valid<6>::value) << (fusion::at<index<6> >(rules).rule)[karma::_1 = phx::at_c<index<6>::value>(karma::_val)])
+                   | ((karma::eps(valid<7>::value) << (fusion::at<index<7> >(rules).rule)[karma::_1 = phx::at_c<index<7>::value>(karma::_val)])
+                   | ((karma::eps(valid<8>::value) << (fusion::at<index<8> >(rules).rule)[karma::_1 = phx::at_c<index<8>::value>(karma::_val)])
+                   | (karma::eps(valid<9>::value) << (fusion::at<index<9> >(rules).rule)[karma::_1 = phx::at_c<index<9>::value>(karma::_val)])))))))));
 
-            start = karma::lit("<Property>")<<karma::eol<<prop[karma::_1=karma::_val]<<karma::eol<<karma::lit("</Property>");
+            start = &prop[karma::_1=karma::_val] << karma::lit("<Property>") << karma::eol << prop[karma::_1=karma::_val] << karma::eol << karma::lit("</Property>");
         };
         };
 
@@ -169,18 +169,18 @@ struct ModuleParser {
 
             obj_gen() : obj_gen::base_type(start) {
 
-            obj = -(karma::eps(valid<0>::value) << karma::eps(phx::at_c<index<0>::value>(karma::_val)) << fusion::at<index<0> >(rules).rule[karma::_1 = phx::at_c<index<0>::value>(karma::_val)])
-                  << -(karma::eps(valid<1>::value) << karma::eps(phx::at_c<index<1>::value>(karma::_val)) << (fusion::at<index<1> >(rules).rule)[karma::_1 = phx::at_c<index<1>::value>(karma::_val)])
-                  << -(karma::eps(valid<2>::value) << karma::eps(phx::at_c<index<2>::value>(karma::_val)) << (fusion::at<index<2> >(rules).rule)[karma::_1 = phx::at_c<index<2>::value>(karma::_val)])
-                  << -(karma::eps(valid<3>::value) << karma::eps(phx::at_c<index<3>::value>(karma::_val)) << (fusion::at<index<3> >(rules).rule)[karma::_1 = phx::at_c<index<3>::value>(karma::_val)])
-                  << -(karma::eps(valid<4>::value) << karma::eps(phx::at_c<index<4>::value>(karma::_val)) << (fusion::at<index<4> >(rules).rule)[karma::_1 = phx::at_c<index<4>::value>(karma::_val)])
-                  << -(karma::eps(valid<5>::value) << karma::eps(phx::at_c<index<5>::value>(karma::_val)) << (fusion::at<index<5> >(rules).rule)[karma::_1 = phx::at_c<index<5>::value>(karma::_val)])
-                  << -(karma::eps(valid<6>::value) << karma::eps(phx::at_c<index<6>::value>(karma::_val)) << (fusion::at<index<6> >(rules).rule)[karma::_1 = phx::at_c<index<6>::value>(karma::_val)])
-                  << -(karma::eps(valid<7>::value) << karma::eps(phx::at_c<index<7>::value>(karma::_val)) << (fusion::at<index<7> >(rules).rule)[karma::_1 = phx::at_c<index<7>::value>(karma::_val)])
-                  << -(karma::eps(valid<8>::value) << karma::eps(phx::at_c<index<8>::value>(karma::_val)) << (fusion::at<index<8> >(rules).rule)[karma::_1 = phx::at_c<index<8>::value>(karma::_val)])
-                  << -(karma::eps(valid<9>::value) << karma::eps(phx::at_c<index<9>::value>(karma::_val)) << (fusion::at<index<9> >(rules).rule)[karma::_1 = phx::at_c<index<9>::value>(karma::_val)]);
+            obj =    (karma::eps(valid<0>::value) << karma::eps(phx::at_c<index<0>::value>(karma::_val)) << fusion::at<index<0> >(rules).rule[karma::_1 = phx::at_c<index<0>::value>(karma::_val)])
+                  | ((karma::eps(valid<1>::value) << karma::eps(phx::at_c<index<1>::value>(karma::_val)) << (fusion::at<index<1> >(rules).rule)[karma::_1 = phx::at_c<index<1>::value>(karma::_val)])
+                  | ((karma::eps(valid<2>::value) << karma::eps(phx::at_c<index<2>::value>(karma::_val)) << (fusion::at<index<2> >(rules).rule)[karma::_1 = phx::at_c<index<2>::value>(karma::_val)])
+                  | ((karma::eps(valid<3>::value) << karma::eps(phx::at_c<index<3>::value>(karma::_val)) << (fusion::at<index<3> >(rules).rule)[karma::_1 = phx::at_c<index<3>::value>(karma::_val)])
+                  | ((karma::eps(valid<4>::value) << karma::eps(phx::at_c<index<4>::value>(karma::_val)) << (fusion::at<index<4> >(rules).rule)[karma::_1 = phx::at_c<index<4>::value>(karma::_val)])
+                  | ((karma::eps(valid<5>::value) << karma::eps(phx::at_c<index<5>::value>(karma::_val)) << (fusion::at<index<5> >(rules).rule)[karma::_1 = phx::at_c<index<5>::value>(karma::_val)])
+                  | ((karma::eps(valid<6>::value) << karma::eps(phx::at_c<index<6>::value>(karma::_val)) << (fusion::at<index<6> >(rules).rule)[karma::_1 = phx::at_c<index<6>::value>(karma::_val)])
+                  | ((karma::eps(valid<7>::value) << karma::eps(phx::at_c<index<7>::value>(karma::_val)) << (fusion::at<index<7> >(rules).rule)[karma::_1 = phx::at_c<index<7>::value>(karma::_val)])
+                  | ((karma::eps(valid<8>::value) << karma::eps(phx::at_c<index<8>::value>(karma::_val)) << (fusion::at<index<8> >(rules).rule)[karma::_1 = phx::at_c<index<8>::value>(karma::_val)])
+                  | (karma::eps(valid<9>::value) << karma::eps(phx::at_c<index<9>::value>(karma::_val)) << (fusion::at<index<9> >(rules).rule)[karma::_1 = phx::at_c<index<9>::value>(karma::_val)])))))))));
 
-            start = karma::lit("<Object>")<<karma::eol<<obj[karma::_1=karma::_val]<<karma::eol<<karma::lit("</Object>");
+            start = &obj[karma::_1=karma::_val] << (karma::lit("<Object>") << karma::eol << obj[karma::_1=karma::_val] << karma::eol << karma::lit("</Object>"));
         };
         };
 
