@@ -126,6 +126,7 @@ protected:
     //add the standart objects and properties
     typedef typename mpl::push_back<properties, type_prop>::type cproperties;
 
+public:
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< cproperties, mpl::vector<> >::type 	edge_properties;
     typedef typename vector_shrink<edge_properties,
@@ -137,7 +138,7 @@ protected:
     typedef typename vector_shrink<cluster_properties,
             mpl::size<cluster_properties>::value >::type min_cluster_properties;
     typedef typename details::property_map<objects, cproperties>::type 		object_properties;
-
+protected:
     //object storage
     typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;
     typedef typename mpl::fold< sp_objects, mpl::vector<>,

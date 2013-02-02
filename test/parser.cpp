@@ -19,6 +19,7 @@
 
 #include "opendcm/Core"
 #include "opendcm/ModuleParser"
+#include "opendcm/core/property.hpp"
 
 #include <iosfwd>
 #include <sstream>
@@ -49,10 +50,18 @@ struct TestModule1 {
         struct test_object2_prop {
             typedef std::string type;
             typedef test_object1 kind;
+        };	
+	struct test_vertex1_prop {
+            typedef std::string type;
+            typedef dcm::vertex_property kind;
+        };
+	struct test_vertex2_prop {
+            typedef int type;
+            typedef dcm::edge_property kind;
         };
 
         typedef mpl::vector1<test_object1> objects;
-        typedef mpl::vector2<test_object1_prop, test_object2_prop>   properties;
+        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_vertex2_prop>   properties;
 
         static void system_init(Sys& sys) {};
     };
@@ -70,7 +79,7 @@ struct parser_generator< typename TestModule1::type<System>::test_object1_prop, 
 
   typedef rule<iterator, int()> generator;
   static void init(generator& r) {
-      r = lit("test o1 property: ")<<int_;
+      r = lit("<type>test o1 property</type>\n<value>")<<int_<<"</value>";
   };
 };
 template<typename System, typename iterator>
@@ -78,9 +87,26 @@ struct parser_generator< test_prop, System, iterator > {
 
     typedef rule<iterator, std::string()> generator;
     static void init(generator& r) {
-        r = lit("test property: ")<<string;
+        r = lit("<type>test property</type>\n<value>")<<string<<"</value>";
     };
 };
+template<typename System, typename iterator>
+struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
+
+  typedef rule<iterator, std::string()> generator;
+  static void init(generator& r) {
+      r = lit("<type>vertex 1 prop</type>\n<value>")<<string<<"</value>";
+  };
+};
+template<typename System, typename iterator>
+struct parser_generator< typename TestModule1::type<System>::test_vertex2_prop, System, iterator > {
+
+  typedef rule<iterator, int()> generator;
+  static void init(generator& r) {
+      r = lit("<type>vertex 2 prop</type>\n<value>")<<int_<<"</value>";
+  };
+};
+
 }
 
 typedef dcm::Kernel<double> Kernel;

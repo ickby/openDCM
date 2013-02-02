@@ -27,16 +27,26 @@
 
 #include <opendcm/core/object.hpp>
 #include <opendcm/core/property.hpp>
+#include <opendcm/modulePart/module.hpp>
 #include "traits.hpp"
 #include "container.hpp"
-#include <opendcm/modulePart/module.hpp>
+
+#include <boost/mpl/int.hpp>
+#include <boost/mpl/for_each.hpp>
+#include <boost/fusion/container/vector/convert.hpp>
+#include <boost/fusion/include/as_vector.hpp>
+#include <boost/fusion/include/at.hpp>
+#include <boost/fusion/include/at_c.hpp>
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/karma_rule.hpp>
 #include <boost/spirit/include/karma_grammar.hpp>
 #include <boost/spirit/include/karma_generate.hpp>
+#include <boost/spirit/include/phoenix.hpp>
 
 namespace karma = boost::spirit::karma;
+namespace phx = boost::phoenix;
+namespace fusion = boost::fusion;
 
 namespace dcm {
 
@@ -45,57 +55,53 @@ struct ModuleParser {
     template<typename Sys>
     struct type {
 
-        //generates the output for a specific property and pushes it into the supplied ostream.
-        template< typename Property >
-        struct propperty_generator {
-
-            typedef std::back_insert_iterator<std::string> iterator_type;
-            typedef typename dcm::parser_generator<Property, Sys, iterator_type>::generator generator;
-
-            generator gen;
-            std::ostream& stream;
-
-            propperty_generator(std::ostream& s) : stream(s) {};
-
-            void operator()(typename Property::type& t) {
-                std::string s;
-                std::back_insert_iterator<std::string> out(s);
-                dcm::parser_generator<Property, Sys, iterator_type>::init(gen);
-                boost::spirit::karma::generate(out, gen, t);
-                stream << s;
+        //structure to store a rule and initialize it on construction. Temlate parameter needs to be of type parser_generator.
+        template<typename T>
+        struct rule_init {
+            typename T::generator rule;
+            rule_init() {
+                T::init(rule);
             };
         };
 
-        //generates the output for a specific property out of a property vector, the values of all
-        //propertys must be supplied as fusion sequence of the property types. This allows the use
-        //of mpl::for_each with this strcut as functor.
-        template< typename PropertyVector >
-        struct propperty_vector_generator {
+        //currently max. 10 properties are supported
+        template<typename Iterator, typename PropertyList>
+        struct prop_gen : karma::grammar<Iterator, typename details::pts<PropertyList>::type()> {
 
-            typedef std::back_insert_iterator<std::string> iterator_type;
-            typedef typename details::pts<PropertyVector>::type fusion_sequence;
+            //create a vector with the appropriate rules for all properties. Do this with the rule init struct, as it gives
+            //automatic initialisation of the rules when the objects are created
+            typedef typename mpl::transform<PropertyList,
+            rule_init< dcm::parser_generator<mpl::_1, Sys, Iterator> > >::type init_rules_vector;
+            //add a empty rule to the end so that we can call it everytime our propertvector is smaller 10
+            typedef typename mpl::push_back<init_rules_vector, rule_init< dcm::parser_generator<int, Sys, Iterator> > >::type rules_vector;
+            //create the fusion sequence of our rules
+            typedef typename fusion::result_of::as_vector<rules_vector>::type rules_sequnce;
 
-            fusion_sequence& sequence;
-            std::ostream& stream;
+            //this struct returns the right accessvalue for the sequences. If we access a value bigger than the property vector size
+            //we use the last rule, as we made sure this is an empty one
+            template<int I>
+        struct index : public mpl::if_< mpl::less<mpl::int_<I>, mpl::size<PropertyList> >,
+            mpl::int_<I>, mpl::size<PropertyList> >::type {};
+            //this struct tells us if we should execute the generator
+            template<int I>
+        struct valid : public mpl::less< mpl::int_<I>, mpl::size<PropertyList> > {};
 
-            propperty_vector_generator(std::ostream& s, fusion_sequence& seq) : stream(s), sequence(seq) {};
+            rules_sequnce rules;
+            rule<Iterator, typename details::pts<PropertyList>::type()> start;
 
-            template<typename Property>
-            void operator()(Property p) {
+            prop_gen() : prop_gen::base_type(start) {
 
-                typedef typename mpl::find<PropertyVector, Property>::type iterator;
-                typedef typename mpl::distance<typename mpl::begin<PropertyVector>::type, iterator>::type distance;
-                BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyVector>::type > >));
-
-                typedef typename dcm::parser_generator<Property, Sys, iterator_type>::generator generator;
-
-                std::string s;
-                std::back_insert_iterator<std::string> out(s);
-                generator gen;
-                dcm::parser_generator<Property, Sys, iterator_type>::init(gen);
-                boost::spirit::karma::generate(out, gen, fusion::at<distance>(sequence));
-                stream << s;
-            };
+            start = -(fusion::at<index<0> >(rules).rule)[karma::_1 = phx::at_c<index<0>::value >(karma::_val)]
+                    << -(karma::eps(valid<1>::value) << (fusion::at<index<1> >(rules).rule)[karma::_1 = phx::at_c<index<1>::value >(karma::_val)])
+                    << -(karma::eps(valid<2>::value) << (fusion::at<index<2> >(rules).rule)[karma::_1 = phx::at_c<index<2>::value >(karma::_val)])
+                    << -(karma::eps(valid<3>::value) << (fusion::at<index<3> >(rules).rule)[karma::_1 = phx::at_c<index<3>::value >(karma::_val)])
+                    << -(karma::eps(valid<4>::value) << (fusion::at<index<4> >(rules).rule)[karma::_1 = phx::at_c<index<4>::value >(karma::_val)])
+                    << -(karma::eps(valid<5>::value) << (fusion::at<index<5> >(rules).rule)[karma::_1 = phx::at_c<index<5>::value >(karma::_val)])
+                    << -(karma::eps(valid<6>::value) << (fusion::at<index<6> >(rules).rule)[karma::_1 = phx::at_c<index<6>::value >(karma::_val)])
+                    << -(karma::eps(valid<7>::value) << (fusion::at<index<7> >(rules).rule)[karma::_1 = phx::at_c<index<7>::value >(karma::_val)])
+                    << -(karma::eps(valid<8>::value) << (fusion::at<index<8> >(rules).rule)[karma::_1 = phx::at_c<index<8>::value >(karma::_val)])
+                    << -(karma::eps(valid<9>::value) << (fusion::at<index<9> >(rules).rule)[karma::_1 = phx::at_c<index<9>::value >(karma::_val)]);
+        };
         };
 
         template<typename Derived, typename Sig>
@@ -106,35 +112,55 @@ struct ModuleParser {
 
         struct inheriter {
 
+
             inheriter() :  m_this((Sys*) this) {}
             Sys* m_this;
 
             void saveState(std::ostream& stream) {
                 typedef std::back_insert_iterator<std::string> iterator_type;
                 typedef vertex_container<typename Sys::Cluster> v_container;
-                typedef typename Sys::Cluster::global_vertex_iterator viter;
+                typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
 
                 std::string s;
                 std::back_insert_iterator<std::string> out(s);
 
-                karma::rule<iterator_type, boost::iterator_range<viter>(), karma::locals<int> > r1;
-                karma::rule<iterator_type, dcm::GlobalVertex()> r2;
-                r2 = karma::int_<<'>'<<karma::lit(karma::_val);
-                r1 = (karma::lit("<Vertex id=")<<r2<<"</Vertex>") % karma::eol;
-                boost::iterator_range<viter> range(m_this->m_cluster.globalVertices().first,m_this->m_cluster.globalVertices().second);
+                karma::rule<iterator_type, boost::iterator_range<viter>(), karma::locals<LocalVertex> > r1;
+                karma::rule<iterator_type, LocalVertex()> id;
+                karma::rule<iterator_type, LocalVertex()> vertex;
+                prop_gen<iterator_type, typename Sys::vertex_properties> vertex_prop;
+                prop_gen<iterator_type, typename Sys::edge_properties> edge_prop;
+                SequenceExtractor ex(m_this);
+
+                id = karma::int_[phx::bind(&Sys::getVertexID, this, karma::_val, karma::_1)];
+                vertex = id << ">\n" << vertex_prop[phx::bind(&SequenceExtractor::getVertexProperties, ex, karma::_val, karma::_1)] ;
+
+                r1 = ((karma::lit("<Vertex id=")<<vertex<<"</Vertex>")) % karma::eol;
+
+                std::pair<viter,viter> res = boost::vertices(m_this->m_cluster);
+                boost::iterator_range<viter> range(res.first,res.second);
 
                 karma::generate(out, r1, range);
                 stream << s;
 
-                std::pair<viter, viter> it = m_this->m_cluster.globalVertices();
-                for(; it.first != it.second; it.first++)
-                    std::cout<<"this: "<<(int) *(it.first)<<std::endl;
             };
-
 
             void loadState(std::istream& stream) {
 
             };
+
+        private:
+            //we need this layer of indirection as we cant access system typedefs in the function declaration of th einheriter
+            struct SequenceExtractor {
+                Sys* sys;
+                SequenceExtractor(Sys* s) : sys(s) {};
+                void getVertexProperties(LocalVertex v, typename details::pts< typename Sys::vertex_properties >::type& seq) {
+                    seq = fusion::at_c<0>(sys->m_cluster[v]);
+                };
+            };
+            void getVertexID(LocalVertex v, int& id) {
+                id = m_this->m_cluster.getGlobalVertex(v);
+            };
+
         };
 
 
