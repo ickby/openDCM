@@ -31,6 +31,7 @@
 #include <opendcm/modulePart/module.hpp>
 #include "traits.hpp"
 #include "container.hpp"
+#include "indent.hpp"
 
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/for_each.hpp>
@@ -70,7 +71,8 @@ struct ModuleParser {
             karma::rule<Iterator, typename Prop::type()> start;
             prop_grammar() : prop_grammar::base_type(start) {
             Gen::init(rule);
-            start = karma::lit("<Property>") << karma::eol << rule << karma::eol << karma::lit("</Property>");
+            start =  karma::lit("<Property>") << '+' << karma::eol << rule
+                     << '-' << karma::eol << karma::lit("</Property>");
         };
         };
 
@@ -130,9 +132,10 @@ struct ModuleParser {
 
             obj_grammar() : obj_grammar::base_type(start) {
             Gen::init(subrule);
-            start = karma::lit("<Object>") << karma::eol << subrule << karma::eol
-                    << prop[phx::bind(&obj_grammar::getProperties, karma::_val, karma::_1)]
-                    << karma::eol << karma::lit("</Object>");
+            start = karma::lit("<Object>") << '+' << karma::eol << subrule 
+                    << -( &prop[phx::bind(&obj_grammar::getProperties, karma::_val, karma::_1)] <<
+			  karma::eol << prop[phx::bind(&obj_grammar::getProperties, karma::_val, karma::_1)])
+                    << '-' << karma::eol << karma::lit("</Object>");
         };
         static void getProperties(boost::shared_ptr<Object> ptr, typename details::pts<typename Object::Sequence>::type& seq) {
             if(ptr) seq = ptr->m_properties;
@@ -220,12 +223,19 @@ struct ModuleParser {
             Sys* m_this;
 
             void saveState(std::ostream& stream) {
-                typedef std::back_insert_iterator<std::string> iterator_type;
+                //typedef std::back_insert_iterator<std::string> iterator_type;
+                typedef std::ostream_iterator<char> iterator_type;
                 typedef vertex_container<typename Sys::Cluster> v_container;
                 typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
 
-                std::string s;
-                std::back_insert_iterator<std::string> out(s);
+                //std::string s;
+                //std::back_insert_iterator<std::string> out(s);
+		
+		boost::iostreams::filtering_ostream indent_stream;
+                indent_stream.push(indent_filter());
+                indent_stream.push(stream);
+		
+		std::ostream_iterator<char> out(indent_stream);
 
                 karma::rule<iterator_type, boost::iterator_range<viter>(), karma::locals<LocalVertex> > r1;
                 karma::rule<iterator_type, LocalVertex()> id;
@@ -236,18 +246,19 @@ struct ModuleParser {
                 SequenceExtractor ex(m_this);
 
                 id = karma::int_[phx::bind(&Sys::getVertexID, this, karma::_val, karma::_1)];
-                vertex = id << ">\n"
-                         << vertex_prop[phx::bind(&SequenceExtractor::getVertexProperties, ex, karma::_val, karma::_1)]
-                         << karma::eol
-                         << obj_gen[phx::bind(&SequenceExtractor::getVertexObjects, ex, karma::_val, karma::_1)];
+                vertex = id << ">+\n"
+                         << -(vertex_prop[phx::bind(&SequenceExtractor::getVertexProperties, ex, karma::_val, karma::_1)]<<karma::eol)
+                         << -obj_gen[phx::bind(&SequenceExtractor::getVertexObjects, ex, karma::_val, karma::_1)];
 
-                r1 = *(karma::lit("<Vertex id=") << vertex << karma::eol << karma::lit("</Vertex>") << karma::eol);
+                r1 = *(karma::lit("<Vertex id=") << vertex << '-' << karma::eol << karma::lit("</Vertex>") << karma::eol);
 
                 std::pair<viter,viter> res = boost::vertices(m_this->m_cluster);
                 boost::iterator_range<viter> range(res.first,res.second);
 
                 karma::generate(out, r1, range);
-                stream << s;
+
+                
+                //indent_stream << s;
 
             };
 
