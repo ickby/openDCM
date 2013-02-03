@@ -20,7 +20,7 @@
 #ifndef DCM_MODULEPARSER_H
 #define DCM_MODULEPARSER_H
 
-#include "moduleParser/module.hpp"
-#include "moduleParser/traits.hpp"
+#include "moduleState/module.hpp"
+#include "moduleState/traits.hpp"
 
 #endif //DCM_MODULEPARSER_H

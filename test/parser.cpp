@@ -18,7 +18,7 @@
 */
 
 #include "opendcm/Core"
-#include "opendcm/ModuleParser"
+#include "opendcm/ModuleState"
 #include "opendcm/core/property.hpp"
 
 #include <iosfwd>
@@ -59,13 +59,13 @@ struct TestModule1 {
             typedef std::string type;
             typedef dcm::vertex_property kind;
         };
-        struct test_vertex2_prop {
+        struct test_edge1_prop {
             typedef int type;
             typedef dcm::edge_property kind;
         };
 
         typedef mpl::vector2<test_object1, test_object2> objects;
-        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_vertex2_prop>   properties;
+        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_edge1_prop>   properties;
 
         static void system_init(Sys& sys) {};
     };
@@ -104,11 +104,11 @@ struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, 
     };
 };
 template<typename System, typename iterator>
-struct parser_generator< typename TestModule1::type<System>::test_vertex2_prop, System, iterator > {
+struct parser_generator< typename TestModule1::type<System>::test_edge1_prop, System, iterator > {
 
     typedef rule<iterator, int()> generator;
     static void init(generator& r) {
-        r = lit("<type>vertex 2 prop</type>\n<value>")<<int_<<"</value>";
+        r = lit("<type>vedge1 prop</type>\n<value>")<<int_<<"</value>";
     };
 };
 
@@ -127,7 +127,7 @@ struct parser_generator< typename TestModule1::type<System>::test_object1, Syste
 }
 
 typedef dcm::Kernel<double> Kernel;
-typedef dcm::System<Kernel, dcm::ModuleParser::type, TestModule1::type> System;
+typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type> System;
 
 BOOST_AUTO_TEST_SUITE(parser_suit);
 /*
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(parser_properties) {
     System sys;
 
     std::ostringstream s;
-    dcm::ModuleParser::type<System>::propperty_generator<test_prop> g(s);
+    dcm::ModuleState::type<System>::propperty_generator<test_prop> g(s);
 
     std::string test("value");
     g(test);
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(parser_properties) {
     obj.setProperty<TestModule1::type<System>::test_object1_prop>(27);
     obj.setProperty<TestModule1::type<System>::test_object2_prop>("new value");
 
-    dcm::ModuleParser::type<System>::propperty_vector_generator<TestModule1::type<System>::test_object1::Sequence> functor(s2, obj.m_properties);
+    dcm::ModuleState::type<System>::propperty_vector_generator<TestModule1::type<System>::test_object1::Sequence> functor(s2, obj.m_properties);
     mpl::for_each<TestModule1::type<System>::test_object1::Sequence>(functor);
 
     std::cout<<s2.str()<<std::endl;
@@ -162,12 +162,16 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res1 = sys.m_cluster.addVertex();
     fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res2 = sys.m_cluster.addVertex();
     fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res3 = sys.m_cluster.addVertex();
-    sys.m_cluster.addEdge(fusion::at_c<0>(res1),fusion::at_c<0>(res2));
-    sys.m_cluster.addEdge(fusion::at_c<0>(res2),fusion::at_c<0>(res3));
-    sys.m_cluster.addEdge(fusion::at_c<0>(res1),fusion::at_c<0>(res3));
+    dcm::LocalEdge e1 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res2)));
+    dcm::LocalEdge e2 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res2),fusion::at_c<1>(res3)));
+    dcm::LocalEdge e3 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res3)));
 
     boost::shared_ptr<TestModule1::type<System>::test_object1> ptr(new TestModule1::type<System>::test_object1(sys));
     sys.m_cluster.setObject(fusion::at_c<1>(res1), ptr);
+    
+    sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e1, 1);
+    sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e2, 2);
+    sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);
 
     std::ostringstream s;
     sys.saveState(s);

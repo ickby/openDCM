@@ -71,29 +71,18 @@ struct ModuleState {
             Sys* m_this;
 
             void saveState(std::ostream& stream) {
-                //typedef std::back_insert_iterator<std::string> iterator_type;
-                typedef std::ostream_iterator<char> iterator_type;
-		typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
-                
 
-                //std::string s;
-                //std::back_insert_iterator<std::string> out(s);
-		
-		boost::iostreams::filtering_ostream indent_stream;
+                typedef std::ostream_iterator<char> iterator_type;
+                typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
+
+                boost::iostreams::filtering_ostream indent_stream;
                 indent_stream.push(indent_filter());
                 indent_stream.push(stream);
-		
-		std::ostream_iterator<char> out(indent_stream);
 
-                std::pair<viter,viter> res = boost::vertices(m_this->m_cluster);
-                boost::iterator_range<viter> range(res.first,res.second);
-		generator<iterator_type, Sys> gen(*m_this);
+                std::ostream_iterator<char> out(indent_stream);
+                generator<iterator_type, Sys> gen(*m_this);
 
-                karma::generate(out, gen, range);
-
-                
-                //indent_stream << s;
-
+                karma::generate(out, gen, m_this->m_cluster);
             };
 
             void loadState(std::istream& stream) {

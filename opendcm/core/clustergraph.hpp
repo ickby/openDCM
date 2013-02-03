@@ -120,17 +120,17 @@ class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
     fusion::vector< typename details::pts<edge_prop>::type,
         std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >	{
 
+public:
     typedef fusion::vector< typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
     typedef fusion::vector< typename details::pts<edge_prop>::type, std::vector< edge_bundle_single > > edge_bundle;
     typedef typename std::vector< edge_bundle_single >::iterator edge_single_iterator;
     typedef fusion::vector< typename details::pts<vertex_prop>::type,
             typename details::sps<objects>::type, GlobalVertex > vertex_bundle;
 
-public:
+
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
-private:
     typedef typename details::pts< typename mpl::push_back<cluster_prop, changed_prop>::type >::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
@@ -139,9 +139,8 @@ private:
 
     typedef std::map<LocalVertex,ClusterGraph*> ClusterMap;
 
-private:
     cluster_bundle m_cluster_bundle;
-public:
+
     typedef edge_prop 	edge_properties;
     typedef vertex_prop vertex_properties;
 
