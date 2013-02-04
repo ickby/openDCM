@@ -55,67 +55,45 @@ namespace fusion = boost::fusion;
 namespace dcm {
 
 template<typename Iterator, typename Sys>
-struct generator : grammar<Iterator, typename Sys::Cluster&()> {
+struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
 
     typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
     typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
 
     //we need this layer of indirection as we cant access system typedefs in the function declaration of th einheriter
     struct Extractor {
-        Sys& sys;
-        Extractor(Sys& s) : sys(s) {};
-        void getVertexProperties(LocalVertex v, typename details::pts< typename Sys::vertex_properties >::type& seq) {
-            seq = fusion::at_c<0>(sys.m_cluster[v]);
-        };
-        void getEdgeProperties(LocalEdge e, typename details::pts< typename Sys::edge_properties >::type& seq) {
-            seq = fusion::at_c<0>(sys.m_cluster[e]);
-        };
-        void getVertexObjects(LocalVertex v, typename details::sps< typename Sys::objects >::type& seq) {
-            seq = fusion::at_c<1>(sys.m_cluster[v]);
-        };
-	void getEdgeObjects(GlobalEdge v, typename details::sps< typename Sys::objects >::type& seq) {
-            seq = fusion::at_c<1>(sys.m_cluster[v]);
-        };
-        void getVertexID(LocalVertex v, int& id) {
-            id = sys.m_cluster.getGlobalVertex(v);
-        };
-        void getVertexRange(typename Sys::Cluster& cluster, std::vector<LocalVertex>& range) {
+        void getVertexRange(typename Sys::Cluster& cluster, std::vector<typename Sys::Cluster::vertex_bundle>& range) {
             std::pair<viter, viter> res = boost::vertices(cluster);
-	    for(;res.first != res.second; res.first++)
-	      range.push_back(*res.first);
+            for(; res.first != res.second; res.first++)
+                range.push_back(cluster[*res.first]);
         };
-        void getEdgeRange(typename Sys::Cluster& cluster, std::vector<LocalEdge>& range) {
-  	    std::pair<eiter, eiter> res = boost::edges(sys.m_cluster);
-	    for(;res.first != res.second; res.first++)
-	      range.push_back(*res.first);
+        void getEdgeRange(typename Sys::Cluster& cluster,
+                          std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >& range) {
+
+            std::pair<eiter, eiter> res = boost::edges(cluster);
+            for(; res.first != res.second; res.first++)
+                range.push_back(fusion::make_vector(cluster[*res.first],
+                                                    cluster.getGlobalVertex(boost::source(*res.first, cluster)),
+                                                    cluster.getGlobalVertex(boost::target(*res.first, cluster))));
+
         };
-	void getGlobalEdgeRange(LocalEdge e, std::vector<typename Sys::Cluster::edge_bundle_single>& range) {
- 	    range = fusion::at_c<1>(sys.m_cluster[e]);
+        void getGlobalEdgeSource(typename Sys::Cluster::edge_bundle_single b, int& source) {
+            source = fusion::at_c<1>(b).source;
         };
-        void getEdgeSource(LocalEdge e, int& source) {
-	    LocalVertex v = boost::source(e,sys.m_cluster);
-            getVertexID(e.m_source, source);
+        void getGlobalEdgeTarget(typename Sys::Cluster::edge_bundle_single b, int& target) {
+            target = fusion::at_c<1>(b).target;
         };
-        void getEdgeTarget(LocalEdge e, int& target) {
-            getVertexID(boost::target(e,sys.m_cluster), target);
+        void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
+            id = fusion::at_c<1>(b).ID;
         };
-	void getGlobalEdgeSource(typename Sys::Cluster::edge_bundle_single b, int& source) {
-	  source = fusion::at_c<1>(b).source;
-	};
-	void getGlobalEdgeTarget(typename Sys::Cluster::edge_bundle_single b, int& target) {
-	  target = fusion::at_c<1>(b).target;
-	};
-	void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
-	  id = fusion::at_c<1>(b).ID;
-	};
     };
 
 //a grammar that does nothing exept failing
     struct empty_grammar : public grammar<Iterator> {
         rule<Iterator> start;
         empty_grammar() : empty_grammar::base_type(start) {
-	  start = eps(false);
-	};
+            start = eps(false);
+        };
     };
 
 //grammar for a single property
@@ -251,26 +229,25 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         };
     };
 
-    generator(Sys& s) : generator::base_type(start), system(s), ex(s) {
+    generator(Sys& s) : generator::base_type(start), system(s) {
 
-        vertex = int_[phx::bind(&Extractor::getVertexID, ex, _val, karma::_1)] << ">+\n"
-                 << -(vertex_prop[phx::bind(&Extractor::getVertexProperties, ex, _val, karma::_1)])
-                 << -buffer[ eol << objects[phx::bind(&Extractor::getVertexObjects, ex, _val, karma::_1)] ];
+        vertex = int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
+                 << -(vertex_prop[karma::_1 = phx::at_c<0>(_val)])
+                 << -buffer[ eol << objects[karma::_1 = phx::at_c<1>(_val)] ];
 
         vertex_range = *(lit("<Vertex id=") << vertex << '-' << eol << lit("</Vertex>") << eol);
 
-	globaledge = int_[phx::bind(&Extractor::getGlobalEdgeID, ex, _val, karma::_1)] 
-		     << " source=" << int_[phx::bind(&Extractor::getGlobalEdgeSource, ex, _val, karma::_1)] 
-		     << " target=" << int_[phx::bind(&Extractor::getGlobalEdgeTarget, ex, _val, karma::_1)] << '>'
-		     << -buffer[ "+\n" << objects[karma::_1 = phx::at_c<0>(_val)] << "-\n"];
-		     
-		      
-	globaledge_range = *(lit("<GlobalEdge id=")<<globaledge<<lit("</GlobalEdge>"));
-	
-        edge =  lit("source=")<<int_[phx::bind(&Extractor::getEdgeSource, ex, _val, karma::_1)]
-                <<" target="<<int_[phx::bind(&Extractor::getEdgeTarget, ex, _val, karma::_1)] << ">+\n"
-                << -(edge_prop[phx::bind(&Extractor::getEdgeProperties, ex, _val, karma::_1)])
-		<< -buffer[ eol << globaledge_range[phx::bind(&Extractor::getGlobalEdgeRange, ex, _val, karma::_1)] ];
+        globaledge = int_[phx::bind(&Extractor::getGlobalEdgeID, ex, _val, karma::_1)]
+                     << " source=" << int_[phx::bind(&Extractor::getGlobalEdgeSource, ex, _val, karma::_1)]
+                     << " target=" << int_[phx::bind(&Extractor::getGlobalEdgeTarget, ex, _val, karma::_1)] << '>'
+                     << -buffer[ "+\n" << objects[karma::_1 = phx::at_c<0>(_val)] << "-\n"];
+
+
+        globaledge_range = *(lit("<GlobalEdge id=")<<globaledge<<lit("</GlobalEdge>"));
+
+        edge =  lit("source=")<<int_[karma::_1 = phx::at_c<1>(_val)] << " target="<<int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
+                << -(edge_prop[karma::_1 = phx::at_c<0>(phx::at_c<0>(_val))])
+                << -buffer[ eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(_val))] ];
 
         edge_range = *(lit("<Edge ") << edge << '-' << eol << lit("</Edge>") << eol);
 
@@ -280,12 +257,12 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
     rule<Iterator, typename Sys::Cluster& ()> start;
 
-    rule<Iterator, std::vector<LocalVertex>()> vertex_range;
-    rule<Iterator, LocalVertex()> vertex;
+    rule<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> vertex_range;
+    rule<Iterator, typename Sys::Cluster::vertex_bundle()> vertex;
     prop_gen<typename Sys::vertex_properties> vertex_prop;
 
-    rule<Iterator, std::vector<LocalEdge>()> edge_range;
-    rule<Iterator, LocalEdge()> edge;
+    rule<Iterator, std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >()> edge_range;
+    rule<Iterator, fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex>()> edge;
     rule<Iterator, std::vector<typename Sys::Cluster::edge_bundle_single>&()> globaledge_range;
     rule<Iterator, typename Sys::Cluster::edge_bundle_single()> globaledge;
     prop_gen<typename Sys::edge_properties> edge_prop;
