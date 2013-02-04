@@ -37,6 +37,7 @@
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/at.hpp>
 #include <boost/fusion/include/at_c.hpp>
+#include <boost/fusion/adapted/struct.hpp>
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/karma_rule.hpp>
@@ -84,10 +85,12 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 	      range.push_back(*res.first);
         };
         void getEdgeRange(typename Sys::Cluster& cluster, std::vector<LocalEdge>& range) {
-            //std::pair<eiter, eiter> res = boost::edges(cluster);
-	    std::pair<eiter, eiter> res = boost::edges(sys.m_cluster);
+  	    std::pair<eiter, eiter> res = boost::edges(sys.m_cluster);
 	    for(;res.first != res.second; res.first++)
 	      range.push_back(*res.first);
+        };
+	void getGlobalEdgeRange(LocalEdge e, std::vector<typename Sys::Cluster::edge_bundle_single>& range) {
+ 	    range = fusion::at_c<1>(sys.m_cluster[e]);
         };
         void getEdgeSource(LocalEdge e, int& source) {
 	    LocalVertex v = boost::source(e,sys.m_cluster);
@@ -96,12 +99,23 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         void getEdgeTarget(LocalEdge e, int& target) {
             getVertexID(boost::target(e,sys.m_cluster), target);
         };
+	void getGlobalEdgeSource(typename Sys::Cluster::edge_bundle_single b, int& source) {
+	  source = fusion::at_c<1>(b).source;
+	};
+	void getGlobalEdgeTarget(typename Sys::Cluster::edge_bundle_single b, int& target) {
+	  target = fusion::at_c<1>(b).target;
+	};
+	void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
+	  id = fusion::at_c<1>(b).ID;
+	};
     };
 
-//a grammar that does nothing
+//a grammar that does nothing exept failing
     struct empty_grammar : public grammar<Iterator> {
         rule<Iterator> start;
-        empty_grammar() : empty_grammar::base_type(start) {};
+        empty_grammar() : empty_grammar::base_type(start) {
+	  start = eps(false);
+	};
     };
 
 //grammar for a single property
@@ -155,7 +169,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
                                         | ((eps(valid<8>::value) << (fusion::at<index<8> >(rules))[karma::_1 = phx::at_c<index<8>::value>(_val)])
                                            | (eps(valid<9>::value) << (fusion::at<index<9> >(rules))[karma::_1 = phx::at_c<index<9>::value>(_val)])))))))));
 
-            start = &prop[karma::_1=_val] << prop[karma::_1=_val];
+            start = buffer[prop[karma::_1=_val]];
         };
     };
 
@@ -173,8 +187,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         obj_grammar() : obj_grammar::base_type(start) {
             Gen::init(subrule);
             start = lit("<Object>") << '+' << eol << subrule
-                    << -(&prop[phx::bind(&obj_grammar::getProperties, _val, karma::_1)] <<
-                         eol << prop[phx::bind(&obj_grammar::getProperties, _val, karma::_1)])
+                    << -buffer[eol << prop[phx::bind(&obj_grammar::getProperties, _val, karma::_1)]]
                     << '-' << eol << lit("</Object>");
         };
         static void getProperties(boost::shared_ptr<Object> ptr, typename details::pts<typename Object::Sequence>::type& seq) {
@@ -234,7 +247,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
                                        | ((eps(valid<8>::value) << eps(phx::at_c<index<8>::value>(_val)) << (fusion::at<index<8> >(rules))[karma::_1 = phx::at_c<index<8>::value>(_val)])
                                           | (eps(valid<9>::value) << eps(phx::at_c<index<9>::value>(_val)) << (fusion::at<index<9> >(rules))[karma::_1 = phx::at_c<index<9>::value>(_val)])))))))));
 
-            start = &obj[karma::_1=_val] << obj[karma::_1=_val];
+            start = buffer[obj[karma::_1=_val]];
         };
     };
 
@@ -246,21 +259,24 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
         vertex_range = *(lit("<Vertex id=") << vertex << '-' << eol << lit("</Vertex>") << eol);
 
+	globaledge = int_[phx::bind(&Extractor::getGlobalEdgeID, ex, _val, karma::_1)] 
+		     << " source=" << int_[phx::bind(&Extractor::getGlobalEdgeSource, ex, _val, karma::_1)] 
+		     << " target=" << int_[phx::bind(&Extractor::getGlobalEdgeTarget, ex, _val, karma::_1)] << '>'
+		     << -buffer[ "+\n" << objects[karma::_1 = phx::at_c<0>(_val)] << "-\n"];
+		     
+		      
+	globaledge_range = *(lit("<GlobalEdge id=")<<globaledge<<lit("</GlobalEdge>"));
+	
         edge =  lit("source=")<<int_[phx::bind(&Extractor::getEdgeSource, ex, _val, karma::_1)]
                 <<" target="<<int_[phx::bind(&Extractor::getEdgeTarget, ex, _val, karma::_1)] << ">+\n"
-                << -(edge_prop[phx::bind(&Extractor::getEdgeProperties, ex, _val, karma::_1)]);
-		//<< -buffer[ eol << objects[phx::bind(&Extractor::getEdgeObjects, ex, _val, karma::_1)] ];
+                << -(edge_prop[phx::bind(&Extractor::getEdgeProperties, ex, _val, karma::_1)])
+		<< -buffer[ eol << globaledge_range[phx::bind(&Extractor::getGlobalEdgeRange, ex, _val, karma::_1)] ];
 
         edge_range = *(lit("<Edge ") << edge << '-' << eol << lit("</Edge>") << eol);
 
         start = vertex_range[phx::bind(&Extractor::getVertexRange, ex, _val, karma::_1)]
                 << edge_range[phx::bind(&Extractor::getEdgeRange, ex, _val, karma::_1)];
     };
-
-    static void test(LocalEdge e1, LocalEdge& e2) {
-      std::cout<<"test: "<<e1.m_source<<std::endl;
-    };
-    rule<Iterator, LocalEdge()> testrule;
 
     rule<Iterator, typename Sys::Cluster& ()> start;
 
@@ -270,6 +286,8 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
     rule<Iterator, std::vector<LocalEdge>()> edge_range;
     rule<Iterator, LocalEdge()> edge;
+    rule<Iterator, std::vector<typename Sys::Cluster::edge_bundle_single>&()> globaledge_range;
+    rule<Iterator, typename Sys::Cluster::edge_bundle_single()> globaledge;
     prop_gen<typename Sys::edge_properties> edge_prop;
 
     obj_gen<typename Sys::objects> objects;
@@ -281,4 +299,5 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 }//namespace dcm
 
 #endif //DCM_GENERATOR_H
+
 
