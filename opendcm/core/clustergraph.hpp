@@ -131,7 +131,8 @@ public:
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
-    typedef typename details::pts< typename mpl::push_back<cluster_prop, changed_prop>::type >::type cluster_bundle;
+    typedef typename mpl::push_back<typename mpl::push_back<cluster_prop, changed_prop>::type, type_prop>::type cluster_properties;
+    typedef typename details::pts<cluster_properties>::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;
@@ -262,7 +263,9 @@ public:
      * Subclustering
      * *******************************************************/
     std::pair<ClusterGraph&, LocalVertex> createCluster() {
-        LocalVertex v = boost::add_vertex(*this);
+        vertex_bundle vp;
+        fusion::at_c<2>(vp) = m_id->generate();
+        LocalVertex v= boost::add_vertex(vp, *this);
         return std::pair<ClusterGraph&, LocalVertex>(* (m_clusters[v] = new ClusterGraph(this)), v);
     };
 
@@ -1202,7 +1205,7 @@ public:
 
     ClusterMap	  m_clusters;
 protected:
-    ClusterGraph* m_parent;    
+    ClusterGraph* m_parent;
     details::IDpointer 	  m_id;
 
     /* Searches the global vertex in all local vertices of this graph, and returns the local

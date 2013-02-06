@@ -87,28 +87,29 @@ struct parser_generator< typename TestModule1::type<System>::test_object1_prop, 
     };
 };
 */
-template<typename System, typename iterator>
-struct parser_generator< test_prop, System, iterator > {
-
-    typedef rule<iterator, std::string()> generator;
-    static void init(generator& r) {
-        r = lit("<type>test property</type>\n<value>")<<string<<"</value>";
-    };
-};
+template<typename System>
+struct parser_generate< typename TestModule1::type<System>::test_vertex1_prop, System>
+  : public mpl::true_{};
+  
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
     typedef rule<iterator, std::string()> generator;
     static void init(generator& r) {
-        r = lit("<type>vertex 1 prop</type>\n<value>")<<string<<"</value>";
+        r = lit("<type>vertex 1 prop</type>\n<value>")<<ascii::string<<"</value>";
     };
 };
+
+template<typename System>
+struct parser_generate< typename TestModule1::type<System>::test_edge1_prop, System>
+  : public mpl::true_{};
+  
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_edge1_prop, System, iterator > {
 
     typedef rule<iterator, int()> generator;
     static void init(generator& r) {
-        r = lit("<type>vedge1 prop</type>\n<value>")<<int_<<"</value>";
+        r = lit("<type>edge 1 prop</type>\n<value>")<<int_<<"</value>";
     };
 };
 
@@ -121,7 +122,7 @@ struct parser_generator< typename TestModule1::type<System>::test_object1, Syste
 
     typedef rule<iterator, boost::shared_ptr<typename TestModule1::type<System>::test_object1>() > generator;
     static void init(generator& r) {
-        r = string[karma::_1="<type>object 1 prop</type>\n<value>HaHAHAHAHA</value>"];
+        r = ascii::string[karma::_1="<type>object 1 prop</type>\n<value>HaHAHAHAHA</value>"];
     };
 };
 }

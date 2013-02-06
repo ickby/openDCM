@@ -55,7 +55,7 @@ namespace fusion = boost::fusion;
 namespace dcm {
 
 template<typename Iterator, typename Sys>
-struct generator : grammar<Iterator, typename Sys::Cluster&()> {
+struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
 
     typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
     typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
@@ -86,17 +86,20 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
             id = fusion::at_c<1>(b).ID;
         };
-	void getVertexID(typename Sys::Cluster* cluster, LocalVertex v, int& id) {
-	  if(v)
-	    id = cluster->getGlobalVertex(v);
-	  else id=0;
-	};
-	void makeInitPair(typename Sys::Cluster& cluster, std::pair<LocalVertex, typename Sys::Cluster*>& pair) {
-	  pair = std::make_pair((LocalVertex)NULL, &cluster);
-	};
-	void getClusterRange(typename Sys::Cluster* cluster, std::map<LocalVertex, typename Sys::Cluster*>& range) {
-	  range = cluster->m_clusters;
-	};
+        void getVertexID(typename Sys::Cluster* cluster, LocalVertex v, int& id) {
+            if(v)
+                id = cluster->getGlobalVertex(v);
+            else id=0;
+        };
+        void makeInitPair(typename Sys::Cluster& cluster, std::pair<LocalVertex, typename Sys::Cluster*>& pair) {
+            pair = std::make_pair((LocalVertex)NULL, &cluster);
+        };
+        void getClusterRange(typename Sys::Cluster* cluster, std::map<LocalVertex, typename Sys::Cluster*>& range) {
+            range = cluster->m_clusters;
+        };
+        void getClusterProperties(typename Sys::Cluster* cluster, typename Sys::Cluster::cluster_bundle& seq) {
+            seq = cluster->m_cluster_bundle;
+        };
     };
 
     //a grammar that does nothing exept failing
@@ -114,10 +117,17 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         rule<Iterator, typename Prop::type()> start;
         prop_grammar() : prop_grammar::base_type(start) {
             Gen::init(subrule);
-            start =  lit("<Property>") << '+' << eol << subrule
+            start =  lit("\n<Property>") << '+' << eol << subrule
                      << '-' << eol << lit("</Property>");
         };
     };
+
+    template<typename seq, typename state>
+    struct prop_generator_fold : mpl::fold< seq, state,
+            mpl::if_< parser_generate<mpl::_2, Sys>,
+            mpl::push_back<mpl::_1,
+            prop_grammar<mpl::_2, dcm::parser_generator<mpl::_2, Sys, Iterator> > >,
+            mpl::push_back<mpl::_1, empty_grammar > > > {};
 
     //grammar for a fusion sequence of properties. currently max. 10 properties are supported
     template<typename PropertyList>
@@ -125,8 +135,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
         //create a vector with the appropriate rules for all properties. Do this with the rule init struct, as it gives
         //automatic initialisation of the rules when the objects are created
-        typedef typename mpl::transform<PropertyList,
-                prop_grammar<mpl::_1, dcm::parser_generator<mpl::_1, Sys, Iterator> > >::type init_rules_vector;
+        typedef typename prop_generator_fold<PropertyList,mpl::vector<> >::type init_rules_vector;
         //add a empty rule to the end so that we can call it everytime our propertvector is smaller 10
         typedef typename mpl::push_back<init_rules_vector, empty_grammar >::type rules_vector;
         //create the fusion sequence of our rules
@@ -142,23 +151,20 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         struct valid : public mpl::less< mpl::int_<I>, mpl::size<PropertyList> > {};
 
         rules_sequnce rules;
-        rule<Iterator, typename details::pts<PropertyList>::type()> start;
         rule<Iterator, typename details::pts<PropertyList>::type()> prop;
 
-        prop_gen() : prop_gen::base_type(start) {
+        prop_gen() : prop_gen::base_type(prop) {
 
-            prop = (eps(valid<0>::value) << fusion::at<index<0> >(rules)[karma::_1 = phx::at_c<index<0>::value >(_val)])
-                   | ((eps(valid<1>::value) << (fusion::at<index<1> >(rules))[karma::_1 = phx::at_c<index<1>::value>(_val)])
-                      | ((eps(valid<2>::value) << (fusion::at<index<2> >(rules))[karma::_1 = phx::at_c<index<2>::value>(_val)])
-                         | ((eps(valid<3>::value) << (fusion::at<index<3> >(rules))[karma::_1 = phx::at_c<index<3>::value>(_val)])
-                            | ((eps(valid<4>::value) << (fusion::at<index<4> >(rules))[karma::_1 = phx::at_c<index<4>::value>(_val)])
-                               | ((eps(valid<5>::value) << (fusion::at<index<5> >(rules))[karma::_1 = phx::at_c<index<5>::value>(_val)])
-                                  | ((eps(valid<6>::value) << (fusion::at<index<6> >(rules))[karma::_1 = phx::at_c<index<6>::value>(_val)])
-                                     | ((eps(valid<7>::value) << (fusion::at<index<7> >(rules))[karma::_1 = phx::at_c<index<7>::value>(_val)])
-                                        | ((eps(valid<8>::value) << (fusion::at<index<8> >(rules))[karma::_1 = phx::at_c<index<8>::value>(_val)])
-                                           | (eps(valid<9>::value) << (fusion::at<index<9> >(rules))[karma::_1 = phx::at_c<index<9>::value>(_val)])))))))));
-
-            start = buffer[prop[karma::_1=_val]];
+            prop =    -(eps(valid<0>::value) << fusion::at<index<0> >(rules)[karma::_1 = phx::at_c<index<0>::value >(_val)])
+                      << -(eps(valid<1>::value) << fusion::at<index<1> >(rules)[karma::_1 = phx::at_c<index<1>::value>(_val)])
+                      << -(eps(valid<2>::value) << fusion::at<index<2> >(rules)[karma::_1 = phx::at_c<index<2>::value>(_val)])
+                      << -(eps(valid<3>::value) << fusion::at<index<3> >(rules)[karma::_1 = phx::at_c<index<3>::value>(_val)])
+                      << -(eps(valid<4>::value) << fusion::at<index<4> >(rules)[karma::_1 = phx::at_c<index<4>::value>(_val)])
+                      << -(eps(valid<5>::value) << fusion::at<index<5> >(rules)[karma::_1 = phx::at_c<index<5>::value>(_val)])
+                      << -(eps(valid<6>::value) << fusion::at<index<6> >(rules)[karma::_1 = phx::at_c<index<6>::value>(_val)])
+                      << -(eps(valid<7>::value) << fusion::at<index<7> >(rules)[karma::_1 = phx::at_c<index<7>::value>(_val)])
+                      << -(eps(valid<8>::value) << fusion::at<index<8> >(rules)[karma::_1 = phx::at_c<index<8>::value>(_val)])
+                      << -(eps(valid<9>::value) << fusion::at<index<9> >(rules)[karma::_1 = phx::at_c<index<9>::value>(_val)]);
         };
     };
 
@@ -175,8 +181,8 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
         obj_grammar() : obj_grammar::base_type(start) {
             Gen::init(subrule);
-            start = lit("<Object>") << '+' << eol << subrule
-                    << -buffer[eol << prop[phx::bind(&obj_grammar::getProperties, _val, karma::_1)]]
+            start = lit("\n<Object>") << '+' << eol << subrule
+                    << prop[phx::bind(&obj_grammar::getProperties, _val, karma::_1)]
                     << '-' << eol << lit("</Object>");
         };
         static void getProperties(boost::shared_ptr<Object> ptr, typename details::pts<typename Object::Sequence>::type& seq) {
@@ -220,64 +226,64 @@ struct generator : grammar<Iterator, typename Sys::Cluster&()> {
         struct valid : public mpl::less< mpl::int_<I>, mpl::size<ObjectList> > {};
 
         rules_sequnce rules;
-        rule<Iterator, typename details::sps<ObjectList>::type()> start;
         rule<Iterator, typename details::sps<ObjectList>::type()> obj;
 
-        obj_gen() : obj_gen::base_type(start) {
+        obj_gen() : obj_gen::base_type(obj) {
 
-            obj = (eps(valid<0>::value) << eps(phx::at_c<index<0>::value>(_val)) << fusion::at<index<0> >(rules)[karma::_1 = phx::at_c<index<0>::value>(_val)])
-                  | ((eps(valid<1>::value) << eps(phx::at_c<index<1>::value>(_val)) << (fusion::at<index<1> >(rules))[karma::_1 = phx::at_c<index<1>::value>(_val)])
-                     | ((eps(valid<2>::value) << eps(phx::at_c<index<2>::value>(_val)) << (fusion::at<index<2> >(rules))[karma::_1 = phx::at_c<index<2>::value>(_val)])
-                        | ((eps(valid<3>::value) << eps(phx::at_c<index<3>::value>(_val)) << (fusion::at<index<3> >(rules))[karma::_1 = phx::at_c<index<3>::value>(_val)])
-                           | ((eps(valid<4>::value) << eps(phx::at_c<index<4>::value>(_val)) << (fusion::at<index<4> >(rules))[karma::_1 = phx::at_c<index<4>::value>(_val)])
-                              | ((eps(valid<5>::value) << eps(phx::at_c<index<5>::value>(_val)) << (fusion::at<index<5> >(rules))[karma::_1 = phx::at_c<index<5>::value>(_val)])
-                                 | ((eps(valid<6>::value) << eps(phx::at_c<index<6>::value>(_val)) << (fusion::at<index<6> >(rules))[karma::_1 = phx::at_c<index<6>::value>(_val)])
-                                    | ((eps(valid<7>::value) << eps(phx::at_c<index<7>::value>(_val)) << (fusion::at<index<7> >(rules))[karma::_1 = phx::at_c<index<7>::value>(_val)])
-                                       | ((eps(valid<8>::value) << eps(phx::at_c<index<8>::value>(_val)) << (fusion::at<index<8> >(rules))[karma::_1 = phx::at_c<index<8>::value>(_val)])
-                                          | (eps(valid<9>::value) << eps(phx::at_c<index<9>::value>(_val)) << (fusion::at<index<9> >(rules))[karma::_1 = phx::at_c<index<9>::value>(_val)])))))))));
+            obj =    -(eps(valid<0>::value) << eps(phx::at_c<index<0>::value>(_val)) << fusion::at<index<0> >(rules)[karma::_1 = phx::at_c<index<0>::value>(_val)])
+                     << -(eps(valid<1>::value) << eps(phx::at_c<index<1>::value>(_val)) << fusion::at<index<1> >(rules)[karma::_1 = phx::at_c<index<1>::value>(_val)])
+                     << -(eps(valid<2>::value) << eps(phx::at_c<index<2>::value>(_val)) << fusion::at<index<2> >(rules)[karma::_1 = phx::at_c<index<2>::value>(_val)])
+                     << -(eps(valid<3>::value) << eps(phx::at_c<index<3>::value>(_val)) << fusion::at<index<3> >(rules)[karma::_1 = phx::at_c<index<3>::value>(_val)])
+                     << -(eps(valid<4>::value) << eps(phx::at_c<index<4>::value>(_val)) << fusion::at<index<4> >(rules)[karma::_1 = phx::at_c<index<4>::value>(_val)])
+                     << -(eps(valid<5>::value) << eps(phx::at_c<index<5>::value>(_val)) << fusion::at<index<5> >(rules)[karma::_1 = phx::at_c<index<5>::value>(_val)])
+                     << -(eps(valid<6>::value) << eps(phx::at_c<index<6>::value>(_val)) << fusion::at<index<6> >(rules)[karma::_1 = phx::at_c<index<6>::value>(_val)])
+                     << -(eps(valid<7>::value) << eps(phx::at_c<index<7>::value>(_val)) << fusion::at<index<7> >(rules)[karma::_1 = phx::at_c<index<7>::value>(_val)])
+                     << -(eps(valid<8>::value) << eps(phx::at_c<index<8>::value>(_val)) << fusion::at<index<8> >(rules)[karma::_1 = phx::at_c<index<8>::value>(_val)])
+                     << -(eps(valid<9>::value) << eps(phx::at_c<index<9>::value>(_val)) << fusion::at<index<9> >(rules)[karma::_1 = phx::at_c<index<9>::value>(_val)]);
 
-            start = buffer[obj[karma::_1=_val]];
         };
     };
 
     generator(Sys& s) : generator::base_type(start), system(s) {
 
-        vertex = int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
-                 << -buffer[ vertex_prop[karma::_1 = phx::at_c<0>(_val)]]
-                 << -buffer[ eol << objects[karma::_1 = phx::at_c<1>(_val)] ]
+        vertex = int_[karma::_1 = phx::at_c<2>(_val)] << ">+"
+                 << vertex_prop[karma::_1 = phx::at_c<0>(_val)]
+                 << objects[karma::_1 = phx::at_c<1>(_val)]
                  << "-\n";
 
-        vertex_range = (lit("<Vertex id=") << vertex  << lit("</Vertex>")) % eol;
+        vertex_range = '\n' << (lit("<Vertex id=") << vertex  << lit("</Vertex>")) % eol;
 
         globaledge = int_[phx::bind(&Extractor::getGlobalEdgeID, ex, _val, karma::_1)]
                      << " source=" << int_[phx::bind(&Extractor::getGlobalEdgeSource, ex, _val, karma::_1)]
                      << " target=" << int_[phx::bind(&Extractor::getGlobalEdgeTarget, ex, _val, karma::_1)] << '>'
-                     << -buffer[ "+\n" << objects[karma::_1 = phx::at_c<0>(_val)] << "-\n"];
+                     << "+" << objects[karma::_1 = phx::at_c<0>(_val)] << "-\n" ;
 
 
         globaledge_range = *(lit("<GlobalEdge id=")<<globaledge<<lit("</GlobalEdge>"));
 
-        edge =  lit("source=")<<int_[karma::_1 = phx::at_c<1>(_val)] << " target="<<int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
-                << -(edge_prop[karma::_1 = phx::at_c<0>(phx::at_c<0>(_val))])
-                << -buffer[ eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(_val))] ] << '-' << eol;
+        edge =  lit("source=")<<int_[karma::_1 = phx::at_c<1>(_val)] << " target="<<int_[karma::_1 = phx::at_c<2>(_val)] << ">+"
+                << edge_prop[karma::_1 = phx::at_c<0>(phx::at_c<0>(_val))]
+                << eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(_val))] << '-' << eol;
 
         edge_range = (lit("<Edge ") << edge << lit("</Edge>")) % eol;
-	
+
         cluster = lit("<Cluster id=") <<int_[phx::bind(&Extractor::getVertexID, ex, phx::at_c<1>(_val), phx::at_c<0>(_val), karma::_1)]
-		  << ">+\n" << vertex_range[phx::bind(&Extractor::getVertexRange, ex, phx::at_c<1>(_val), karma::_1)] 
-		  << -buffer["\n" << edge_range[phx::bind(&Extractor::getEdgeRange, ex, phx::at_c<1>(_val), karma::_1)]]
-		  << -buffer["\n" << cluster_range[phx::bind(&Extractor::getClusterRange, ex, phx::at_c<1>(_val), karma::_1)]] << "-\n"
-		  << "</Cluster>";
-		  
-	cluster_range = cluster % eol;
-		
-	start = cluster[phx::bind(&Extractor::makeInitPair, ex, _val, karma::_1)];
+                  << ">+" << cluster_prop[phx::bind(&Extractor::getClusterProperties, ex, phx::at_c<1>(_val), karma::_1)]
+                  << vertex_range[phx::bind(&Extractor::getVertexRange, ex, phx::at_c<1>(_val), karma::_1)]
+                  << -buffer["\n" << edge_range[phx::bind(&Extractor::getEdgeRange, ex, phx::at_c<1>(_val), karma::_1)]]
+                  << -buffer["\n" << cluster_range[phx::bind(&Extractor::getClusterRange, ex, phx::at_c<1>(_val), karma::_1)]] << "-\n"
+                  << "</Cluster>";
+
+        cluster_range = cluster % eol;
+
+        start = cluster[phx::bind(&Extractor::makeInitPair, ex, _val, karma::_1)];
     };
 
-    rule<Iterator, typename Sys::Cluster&()> start;
-    
+    rule<Iterator, typename Sys::Cluster& ()> start;
+
     rule<Iterator, std::map<LocalVertex, typename Sys::Cluster*>()> cluster_range;
     rule<Iterator, std::pair<LocalVertex, typename Sys::Cluster*>()> cluster;
+    prop_gen<typename Sys::Cluster::cluster_properties> cluster_prop;
 
     rule<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> vertex_range;
     rule<Iterator, typename Sys::Cluster::vertex_bundle()> vertex;

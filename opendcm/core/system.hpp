@@ -124,21 +124,17 @@ public:
             typename details::vector_fold<typename Type1::properties,
             mpl::vector<> >::type >::type>::type properties;
 
-    //add the standart objects and properties
-    typedef typename mpl::push_back<properties, type_prop>::type cproperties;
-
-
     //make the subcomponent lists of objects and properties
-    typedef typename details::edge_fold< cproperties, mpl::vector<> >::type 	edge_properties;
+    typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
     typedef typename vector_shrink<edge_properties,
             mpl::size<edge_properties>::value >::type min_edge_properties;
-    typedef typename details::vertex_fold< cproperties, mpl::vector<> >::type 	vertex_properties;
+    typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
     typedef typename vector_shrink<vertex_properties,
             mpl::size<vertex_properties>::value >::type min_vertex_properties;
-    typedef typename details::cluster_fold< cproperties, mpl::vector<> >::type 	cluster_properties;
+    typedef typename details::cluster_fold< properties, mpl::vector<> >::type 	cluster_properties;
     typedef typename vector_shrink<cluster_properties,
             mpl::size<cluster_properties>::value >::type min_cluster_properties;
-    typedef typename details::property_map<objects, cproperties>::type 		object_properties;
+    typedef typename details::property_map<objects, properties>::type 		object_properties;
 protected:
     //object storage
     typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;

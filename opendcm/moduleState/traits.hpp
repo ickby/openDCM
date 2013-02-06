@@ -24,23 +24,50 @@
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/karma_string.hpp>
+#include <boost/spirit/include/karma_int.hpp>
+#include <boost/spirit/include/karma_bool.hpp>
 #include <boost/spirit/include/karma_rule.hpp>
 
 namespace dcm {
-  
+
 using boost::spirit::karma::rule;
-using boost::spirit::ascii::string;
+namespace karma = boost::spirit::karma;
 
 template<typename type, typename System>
 struct parser_generate : public mpl::false_ {};
 
 template<typename type, typename System, typename iterator>
 struct parser_generator {
-  typedef rule<iterator> generator;
-  
-  static void init(generator& r) {
-    r = boost::spirit::karma::eps(false);
-  };
+    typedef rule<iterator> generator;
+
+    static void init(generator& r) {
+        r = karma::eps(false);
+    };
 };
+
+template<typename System>
+struct parser_generate<type_prop, System> : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_generator<type_prop, System, iterator> {
+    typedef rule<iterator, int()> generator;
+
+    static void init(generator& r) {
+        r = karma::lit("<type>clustertype</type>\n<value>") << karma::int_ <<"</value>";
+    };
+};
+
+template<typename System>
+struct parser_generate<changed_prop, System> : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_generator<changed_prop, System, iterator> {
+    typedef rule<iterator, bool()> generator;
+
+    static void init(generator& r) {
+        r = karma::lit("<type>clusterchanged</type>\n<value>") << karma::bool_ <<"</value>";
+    };
+};
+
 }
 #endif //DCM_PARSER_TRAITS_H
