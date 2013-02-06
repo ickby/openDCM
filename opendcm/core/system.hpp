@@ -26,6 +26,11 @@
 #include <boost/mpl/fold.hpp>
 #include <boost/mpl/insert.hpp>
 #include <boost/mpl/placeholders.hpp>
+#include <boost/mpl/and.hpp>
+#include <boost/mpl/count.hpp>
+#include <boost/mpl/or.hpp>
+#include <boost/mpl/less_equal.hpp>
+#include <boost/mpl/print.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
 
@@ -40,6 +45,10 @@
 namespace mpl = boost::mpl;
 
 namespace dcm {
+
+struct No_Identifier {};
+struct Unspecified_Identifier {};
+
 
 namespace details {
 
@@ -64,7 +73,8 @@ struct cluster_fold : mpl::fold< seq, state,
 
 template<typename seq, typename state, typename obj>
 struct obj_fold : mpl::fold< seq, state,
-        mpl::if_< boost::is_same< details::property_kind<mpl::_2>, obj>,
+        mpl::if_< mpl::or_< 
+        boost::is_same< details::property_kind<mpl::_2>, obj>, is_object_property<mpl::_2> >,
         mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
 
 template<typename objects, typename properties>
@@ -72,6 +82,10 @@ struct property_map {
     typedef typename mpl::fold<
     objects, mpl::map<>, mpl::insert< mpl::_1, mpl::pair<
     mpl::_2, details::obj_fold<properties, mpl::vector<>, mpl::_2 > > > >::type type;
+};
+template<typename T>
+struct get_identifier {
+  typedef typename T::Identifier type;
 };
 
 template<typename seq, typename state>
@@ -87,14 +101,13 @@ struct EmptyModule {
         struct inheriter {};
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>   objects;
+        typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
     };
 };
 
 }
-struct No_Identifier {};
-
 
 template< typename KernelType,
           template<class> class T1 = details::EmptyModule<1>::type,
@@ -109,6 +122,20 @@ public:
     typedef T1< BaseType > Type1;
     typedef T2< BaseType > Type2;
     typedef T3< BaseType > Type3;
+    typedef mpl::vector3<Type1, Type2, Type3> TypeVector;
+
+    //Check if all Identifiers are the same and find out which type it is
+    typedef typename mpl::fold<TypeVector, mpl::vector<>,
+            mpl::if_<boost::is_same<details::get_identifier<mpl::_2>, Unspecified_Identifier>,
+            mpl::_1, mpl::push_back<mpl::_1, details::get_identifier<mpl::_2> > > >::type Identifiers;
+    BOOST_MPL_ASSERT((mpl::or_<
+                      mpl::less_equal<typename mpl::size<Identifiers>::type, mpl::int_<1> >,
+                      boost::is_same< typename mpl::count<Identifiers,
+                      mpl::at_c<Identifiers,0> >::type, mpl::int_<1> > >));
+
+    typedef typename mpl::if_< mpl::empty<Identifiers>,
+            No_Identifier, typename mpl::at_c<Identifiers, 0>::type >::type Identifier;
+
 
 public:
     //get all module objects and properties
@@ -122,7 +149,7 @@ public:
     typedef typename details::vector_fold<typename Type3::properties,
             typename details::vector_fold<typename Type2::properties,
             typename details::vector_fold<typename Type1::properties,
-            mpl::vector<> >::type >::type>::type properties;
+            mpl::vector<id_prop<Identifier> > >::type >::type>::type properties;
 
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
@@ -135,6 +162,7 @@ public:
     typedef typename vector_shrink<cluster_properties,
             mpl::size<cluster_properties>::value >::type min_cluster_properties;
     typedef typename details::property_map<objects, properties>::type 		object_properties;
+
 protected:
     //object storage
     typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;
@@ -163,7 +191,9 @@ public:
         Type1::system_init(*this);
         Type2::system_init(*this);
         Type3::system_init(*this);
+
     };
+    
 
     ~System() {
 #ifdef USE_LOGGING
@@ -227,4 +257,5 @@ public:
 
 }
 #endif //GCM_SYSTEM_H
+
 

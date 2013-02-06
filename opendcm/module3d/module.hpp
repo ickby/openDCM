@@ -78,7 +78,7 @@ struct m3d {}; 	//base of module3d::type to allow other modules check for it
 
 namespace dcm {
 
-template<typename Typelist, typename Identifier = No_Identifier>
+template<typename Typelist, typename ID = No_Identifier>
 struct Module3D {
 
     template<typename Sys>
@@ -91,6 +91,8 @@ struct Module3D {
         typedef mpl::map2< mpl::pair<reset, boost::function<void (Geom) > >,
                 mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
         typedef mpl::map1< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
+	
+	typedef ID Identifier;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -370,7 +372,6 @@ struct Module3D {
 
             typedef detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3> Base;
 
-            Identifier m_id;
 #ifdef USE_LOGGING
             attrs::mutable_constant< std::string > log_id;
 #endif
@@ -391,18 +392,18 @@ struct Module3D {
             void set(T geometry, Identifier id) {
                 Base::m_geometry = geometry;
                 Base::template init<T>(geometry);
-                m_id = id;
+                this->template setProperty<id_prop<Identifier> >(id);
                 Base::template emitSignal<reset> (Base::shared_from_this());
             };
 
             Identifier& getIdentifier() {
-                return m_id;
+                return  this->template getProperty<id_prop<Identifier> >();
             };
             void setIdentifier(Identifier id) {
-                m_id = id;
+                this->template setProperty<id_prop<Identifier> >(id);
 #ifdef USE_LOGGING
                 std::stringstream str;
-                str<<id;
+                str<<this->template getProperty<id_prop<Identifier> >();
                 log_id.set(str.str());
                 BOOST_LOG(Base::log)<<"Identifyer set: "<<id;
 #endif
@@ -637,15 +638,14 @@ struct Module3D {
         class Constraint3D_id : public detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> {
 
             typedef detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> base;
-            Identifier m_id;
         public:
             Constraint3D_id(Sys& system, Geom f, Geom s) : base(system, f, s) {};
 
             Identifier& getIdentifier() {
-                return m_id;
+                return  this->template getProperty<id_prop<Identifier> >();
             };
             void setIdentifier(Identifier id) {
-                m_id = id;
+                this->template setProperty<id_prop<Identifier> >(id);
             };
         };
 

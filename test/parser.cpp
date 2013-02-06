@@ -66,7 +66,8 @@ struct TestModule1 {
 
         typedef mpl::vector2<test_object1, test_object2> objects;
         typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_edge1_prop>   properties;
-
+	typedef dcm::Unspecified_Identifier Identifier;
+	
         static void system_init(Sys& sys) {};
     };
 };
@@ -131,30 +132,6 @@ typedef dcm::Kernel<double> Kernel;
 typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type> System;
 
 BOOST_AUTO_TEST_SUITE(parser_suit);
-/*
-BOOST_AUTO_TEST_CASE(parser_properties) {
-
-    System sys;
-
-    std::ostringstream s;
-    dcm::ModuleState::type<System>::propperty_generator<test_prop> g(s);
-
-    std::string test("value");
-    g(test);
-
-    std::cout<<s.str()<<std::endl;
-
-    std::ostringstream s2;
-    TestModule1::type<System>::test_object1 obj(sys);
-    obj.setProperty<TestModule1::type<System>::test_object1_prop>(27);
-    obj.setProperty<TestModule1::type<System>::test_object2_prop>("new value");
-
-    dcm::ModuleState::type<System>::propperty_vector_generator<TestModule1::type<System>::test_object1::Sequence> functor(s2, obj.m_properties);
-    mpl::for_each<TestModule1::type<System>::test_object1::Sequence>(functor);
-
-    std::cout<<s2.str()<<std::endl;
-
-}*/
 
 BOOST_AUTO_TEST_CASE(parser_graph) {
 

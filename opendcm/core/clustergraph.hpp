@@ -130,8 +130,9 @@ public:
 
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
-
-    typedef typename mpl::push_back<typename mpl::push_back<cluster_prop, changed_prop>::type, type_prop>::type cluster_properties;
+  
+    typedef mpl::vector<changed_prop, type_prop> extras;
+    typedef typename mpl::fold<cluster_prop, extras, mpl::push_back<mpl::_1, mpl::_2> >::type cluster_properties;
     typedef typename details::pts<cluster_properties>::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
@@ -244,9 +245,9 @@ public:
      * *******************************************************/
     template<typename P>
     typename P::type& getClusterProperty() {
-        typedef typename mpl::find<cluster_prop, P>::type iterator;
-        typedef typename mpl::distance<typename mpl::begin<cluster_prop>::type, iterator>::type distance;
-        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
+        typedef typename mpl::find<cluster_properties, P>::type iterator;
+        typedef typename mpl::distance<typename mpl::begin<cluster_properties>::type, iterator>::type distance;
+        BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<cluster_properties>::type > >));
         return fusion::at<distance>(m_cluster_bundle);
     };
     template<typename P>

@@ -57,6 +57,7 @@ struct ModuleState {
     template<typename Sys>
     struct type {
 
+	typedef Unspecified_Identifier Identifier;
 
         template<typename Derived, typename Sig>
         void generate_properties(std::ostream stream, boost::shared_ptr< dcm::Object<Sys, Derived, Sig> > obj)  {

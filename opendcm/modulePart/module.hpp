@@ -37,7 +37,7 @@ enum { clusterPart = 110};
 
 enum CoordinateFrame {Local, Global};
 
-template<typename Typelist, typename Identifier = No_Identifier>
+template<typename Typelist, typename ID = No_Identifier>
 struct ModulePart {
 
     template<typename Sys>
@@ -49,6 +49,8 @@ struct ModulePart {
         struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
         typedef mpl::map1< mpl::pair<remove, boost::function<void (Partptr) > > >  PartSignal;
+	
+	typedef ID Identifier;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:

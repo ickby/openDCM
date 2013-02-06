@@ -21,6 +21,7 @@
 #define GCM_PROPERTY_H
 
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/buffer_concepts.hpp>
 #include <boost/fusion/sequence.hpp>
 #include <boost/fusion/container/vector.hpp>
 
@@ -36,6 +37,7 @@ namespace dcm {
 struct vertex_property {};
 struct edge_property {};
 struct cluster_property {};
+struct object_property {};
 
 namespace details {
 
@@ -80,6 +82,9 @@ struct is_vertex_property : boost::is_same<typename T::kind,vertex_property> {};
 
 template<typename T>
 struct is_cluster_property : boost::is_same<typename T::kind,cluster_property> {};
+
+template<typename T>
+struct is_object_property : boost::is_same<typename T::kind,object_property> {};
 
 template <typename Property, typename Graph>
 class property_map  {
@@ -135,14 +140,20 @@ typename property_map<P,G>::reference at(const property_map<P,G>& map,
 //***********************************
 
 struct type_prop {
-      //states the type of a cluster
-      typedef cluster_property kind;
-      typedef int type;
+    //states the type of a cluster
+    typedef cluster_property kind;
+    typedef int type;
 };
 
 struct changed_prop {
     typedef cluster_property kind;
     typedef bool type;
+};
+
+template<typename T>
+struct id_prop {
+    typedef object_property kind;
+    typedef T type;
 };
 
 }
