@@ -172,6 +172,18 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e1, 1);
     sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e2, 2);
     sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);
+    
+    //subcluster
+    System::Cluster& scl1 = sys.m_cluster.createCluster().first;
+    System::Cluster& scl2 = sys.m_cluster.createCluster().first;
+    
+    fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res4 = scl1.addVertex();
+    fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res5 = scl1.addVertex();
+    fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res6 = scl2.addVertex();
+    dcm::LocalEdge e4 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res4),fusion::at_c<1>(res5)));
+    dcm::LocalEdge e5 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res5),fusion::at_c<1>(res6)));
+    dcm::LocalEdge e6 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res4)));
+    
 
     std::ostringstream s;
     sys.saveState(s);

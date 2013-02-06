@@ -1200,9 +1200,9 @@ public:
     * Stuff
     * *******************************************************/
 
-protected:
-    ClusterGraph* m_parent;
     ClusterMap	  m_clusters;
+protected:
+    ClusterGraph* m_parent;    
     details::IDpointer 	  m_id;
 
     /* Searches the global vertex in all local vertices of this graph, and returns the local

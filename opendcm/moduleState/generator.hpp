@@ -37,7 +37,7 @@
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/at.hpp>
 #include <boost/fusion/include/at_c.hpp>
-#include <boost/fusion/adapted/struct.hpp>
+#include <boost/fusion/include/std_pair.hpp>
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/karma_rule.hpp>
@@ -55,26 +55,26 @@ namespace fusion = boost::fusion;
 namespace dcm {
 
 template<typename Iterator, typename Sys>
-struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
+struct generator : grammar<Iterator, typename Sys::Cluster&()> {
 
     typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
     typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
 
     //we need this layer of indirection as we cant access system typedefs in the function declaration of th einheriter
     struct Extractor {
-        void getVertexRange(typename Sys::Cluster& cluster, std::vector<typename Sys::Cluster::vertex_bundle>& range) {
-            std::pair<viter, viter> res = boost::vertices(cluster);
+        void getVertexRange(typename Sys::Cluster* cluster, std::vector<typename Sys::Cluster::vertex_bundle>& range) {
+            std::pair<viter, viter> res = boost::vertices(*cluster);
             for(; res.first != res.second; res.first++)
-                range.push_back(cluster[*res.first]);
+                range.push_back((*cluster)[*res.first]);
         };
-        void getEdgeRange(typename Sys::Cluster& cluster,
+        void getEdgeRange(typename Sys::Cluster* cluster,
                           std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >& range) {
 
-            std::pair<eiter, eiter> res = boost::edges(cluster);
+            std::pair<eiter, eiter> res = boost::edges(*cluster);
             for(; res.first != res.second; res.first++)
-                range.push_back(fusion::make_vector(cluster[*res.first],
-                                                    cluster.getGlobalVertex(boost::source(*res.first, cluster)),
-                                                    cluster.getGlobalVertex(boost::target(*res.first, cluster))));
+                range.push_back(fusion::make_vector((*cluster)[*res.first],
+                                                    (*cluster).getGlobalVertex(boost::source(*res.first, *cluster)),
+                                                    (*cluster).getGlobalVertex(boost::target(*res.first, *cluster))));
 
         };
         void getGlobalEdgeSource(typename Sys::Cluster::edge_bundle_single b, int& source) {
@@ -86,9 +86,20 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
         void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
             id = fusion::at_c<1>(b).ID;
         };
+	void getVertexID(typename Sys::Cluster* cluster, LocalVertex v, int& id) {
+	  if(v)
+	    id = cluster->getGlobalVertex(v);
+	  else id=0;
+	};
+	void makeInitPair(typename Sys::Cluster& cluster, std::pair<LocalVertex, typename Sys::Cluster*>& pair) {
+	  pair = std::make_pair((LocalVertex)NULL, &cluster);
+	};
+	void getClusterRange(typename Sys::Cluster* cluster, std::map<LocalVertex, typename Sys::Cluster*>& range) {
+	  range = cluster->m_clusters;
+	};
     };
 
-//a grammar that does nothing exept failing
+    //a grammar that does nothing exept failing
     struct empty_grammar : public grammar<Iterator> {
         rule<Iterator> start;
         empty_grammar() : empty_grammar::base_type(start) {
@@ -96,7 +107,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
         };
     };
 
-//grammar for a single property
+    //grammar for a single property
     template<typename Prop, typename Gen>
     struct prop_grammar : public grammar<Iterator, typename Prop::type()> {
         typename Gen::generator subrule;
@@ -108,7 +119,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
         };
     };
 
-//grammar for a fusion sequence of properties. currently max. 10 properties are supported
+    //grammar for a fusion sequence of properties. currently max. 10 properties are supported
     template<typename PropertyList>
     struct prop_gen : grammar<Iterator, typename details::pts<PropertyList>::type()> {
 
@@ -176,9 +187,9 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
         };
     };
 
-//when objects should not be generated we need to get a empy rule, as obj_rule_init
-//trys always to access the rules attribute and when the parser_generator trait is not
-//specialitzed it's impossible to have the attribute type right in the unspecialized trait
+    //when objects should not be generated we need to get a empy rule, as obj_rule_init
+    //trys always to access the rules attribute and when the parser_generator trait is not
+    //specialitzed it's impossible to have the attribute type right in the unspecialized trait
     template<typename seq, typename state>
     struct obj_generator_fold : mpl::fold< seq, state,
             mpl::if_< parser_generate<mpl::_2, Sys>,
@@ -186,7 +197,7 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
             obj_grammar<mpl::_2, dcm::parser_generator<mpl::_2, Sys, Iterator> > >,
             mpl::push_back<mpl::_1, empty_grammar > > > {};
 
-//currently max. 10 properties are supported
+    //currently max. 10 properties are supported
     template<typename ObjectList>
     struct obj_gen : public grammar<Iterator, typename details::sps<ObjectList>::type()> {
 
@@ -232,10 +243,11 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
     generator(Sys& s) : generator::base_type(start), system(s) {
 
         vertex = int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
-                 << -(vertex_prop[karma::_1 = phx::at_c<0>(_val)])
-                 << -buffer[ eol << objects[karma::_1 = phx::at_c<1>(_val)] ];
+                 << -buffer[ vertex_prop[karma::_1 = phx::at_c<0>(_val)]]
+                 << -buffer[ eol << objects[karma::_1 = phx::at_c<1>(_val)] ]
+                 << "-\n";
 
-        vertex_range = *(lit("<Vertex id=") << vertex << '-' << eol << lit("</Vertex>") << eol);
+        vertex_range = (lit("<Vertex id=") << vertex  << lit("</Vertex>")) % eol;
 
         globaledge = int_[phx::bind(&Extractor::getGlobalEdgeID, ex, _val, karma::_1)]
                      << " source=" << int_[phx::bind(&Extractor::getGlobalEdgeSource, ex, _val, karma::_1)]
@@ -247,15 +259,25 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
 
         edge =  lit("source=")<<int_[karma::_1 = phx::at_c<1>(_val)] << " target="<<int_[karma::_1 = phx::at_c<2>(_val)] << ">+\n"
                 << -(edge_prop[karma::_1 = phx::at_c<0>(phx::at_c<0>(_val))])
-                << -buffer[ eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(_val))] ];
+                << -buffer[ eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(_val))] ] << '-' << eol;
 
-        edge_range = *(lit("<Edge ") << edge << '-' << eol << lit("</Edge>") << eol);
-
-        start = vertex_range[phx::bind(&Extractor::getVertexRange, ex, _val, karma::_1)]
-                << edge_range[phx::bind(&Extractor::getEdgeRange, ex, _val, karma::_1)];
+        edge_range = (lit("<Edge ") << edge << lit("</Edge>")) % eol;
+	
+        cluster = lit("<Cluster id=") <<int_[phx::bind(&Extractor::getVertexID, ex, phx::at_c<1>(_val), phx::at_c<0>(_val), karma::_1)]
+		  << ">+\n" << vertex_range[phx::bind(&Extractor::getVertexRange, ex, phx::at_c<1>(_val), karma::_1)] 
+		  << -buffer["\n" << edge_range[phx::bind(&Extractor::getEdgeRange, ex, phx::at_c<1>(_val), karma::_1)]]
+		  << -buffer["\n" << cluster_range[phx::bind(&Extractor::getClusterRange, ex, phx::at_c<1>(_val), karma::_1)]] << "-\n"
+		  << "</Cluster>";
+		  
+	cluster_range = cluster % eol;
+		
+	start = cluster[phx::bind(&Extractor::makeInitPair, ex, _val, karma::_1)];
     };
 
-    rule<Iterator, typename Sys::Cluster& ()> start;
+    rule<Iterator, typename Sys::Cluster&()> start;
+    
+    rule<Iterator, std::map<LocalVertex, typename Sys::Cluster*>()> cluster_range;
+    rule<Iterator, std::pair<LocalVertex, typename Sys::Cluster*>()> cluster;
 
     rule<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> vertex_range;
     rule<Iterator, typename Sys::Cluster::vertex_bundle()> vertex;
@@ -276,5 +298,6 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
 }//namespace dcm
 
 #endif //DCM_GENERATOR_H
+
 
 
