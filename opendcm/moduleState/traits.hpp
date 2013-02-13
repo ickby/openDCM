@@ -29,17 +29,20 @@
 #include <boost/spirit/include/karma_rule.hpp>
 #include <boost/spirit/include/karma_auto.hpp>
 
-namespace boost { namespace spirit { namespace traits
-{
-    template <>
-    struct create_generator<dcm::No_Identifier> {
-      
-        typedef BOOST_TYPEOF(karma::eps(false)) type;
-        static type call()  {
-            return karma::eps(false);
-        }
-    };
-}}}
+namespace boost {
+namespace spirit {
+namespace traits {
+template <>
+struct create_generator<dcm::No_Identifier> {
+
+    typedef BOOST_TYPEOF(karma::eps(false)) type;
+    static type call()  {
+        return karma::eps(false);
+    }
+};
+}
+}
+}
 
 namespace dcm {
 
@@ -83,8 +86,8 @@ struct parser_generator<changed_prop, System, iterator> {
 };
 
 template<typename System>
-struct parser_generate<id_prop<typename System::Identifier>, System> 
-: public mpl::not_<boost::is_same<typename System::Identifier, No_Identifier> >{};
+struct parser_generate<id_prop<typename System::Identifier>, System>
+        : public mpl::not_<boost::is_same<typename System::Identifier, No_Identifier> > {};
 
 template<typename System, typename iterator>
 struct parser_generator<id_prop<typename System::Identifier>, System, iterator> {
