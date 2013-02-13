@@ -78,6 +78,24 @@ public:
         second->template disconnectSignal<reset>(cs);
     }
 
+    virtual boost::shared_ptr<Derived> clone(Sys& newSys) {
+
+        //copy the standart stuff
+        boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
+        //copy the internals
+        np->content = content->clone();
+        //and get the geometry pointers right
+        if(first) {
+            GlobalVertex v = first->template getProperty<typename Geometry::vertex_propertie>();
+            np->first = newSys.m_cluster.template getObject<Geometry>(v);
+        }
+        if(second) {
+            GlobalVertex v = second->template getProperty<typename Geometry::vertex_propertie>();
+            np->second = newSys.m_cluster.template getObject<Geometry>(v);
+        }
+	return np;
+    }
+
 protected:
 
     template<typename ConstraintVector>
@@ -146,6 +164,7 @@ protected:
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, Geom first, Geom second) = 0;
         virtual void collectPseudoPoints(Geom first, Geom second, Vec& vec1, Vec& vec2) = 0;
+        virtual placeholder* clone() = 0;
     };
 
     template< typename ConstraintVector, typename EquationVector>
@@ -317,6 +336,10 @@ protected:
 
         virtual void collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2) {
             fusion::for_each(m_sets, PseudoCollector(f, s, vec1, vec2));
+        };
+
+        virtual placeholder* clone() {
+            return new holder(*this);
         };
 
         EquationSets m_sets;

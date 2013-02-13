@@ -114,6 +114,13 @@ struct geometry_traits {
     BOOST_MPL_ASSERT_MSG(false, NO_GEOMETRY_TRAITS_SPECIFIED_FOR_TYPE, (T));
 };
 
+template< typename T>
+struct geometry_clone_traits {
+    T operator()(T& val) {
+        return T(val);
+    };
+};
+
 struct reset {}; 	//signal namespace
 
 namespace detail {
@@ -129,6 +136,18 @@ class Geometry : public Object<Sys, Derived, Signals > {
     typedef typename Kernel::DynStride 			DS;
     typedef typename Kernel::template transform_type<Dim>::type		Transform;
     typedef typename Kernel::template transform_type<Dim>::diff_type	DiffTransform;
+    
+    struct cloner : boost::static_visitor<void> {
+        typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
+
+        Variant variant;
+        cloner(Variant& v) : variant(v) {};
+
+        template<typename T>
+        void operator()(T& t) {
+            variant = geometry_clone_traits<T>()(t);
+        };
+    };
 
 #ifdef USE_LOGGING
 protected:
@@ -171,6 +190,16 @@ public:
             transform(t, m_rotated);
         else
             transform(t, m_global);
+    };
+
+    virtual boost::shared_ptr<Derived> clone(Sys& newSys) {
+
+        //copy the standart stuff
+        boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
+        //it's possible that the variant contains pointers, so we need to clone them
+        cloner clone_fnc(np->m_geometry);
+        boost::apply_visitor(clone_fnc, m_geometry);
+        return np;
     };
 
     //allow accessing the internal values in unittests without making them public,
@@ -375,7 +404,6 @@ protected:
             m_parameter.template segment<Dim>(i*Dim) *= 1./value;
 
     };
-
 };
 
 }

@@ -130,8 +130,8 @@ public:
             mpl::_1, mpl::push_back<mpl::_1, details::get_identifier<mpl::_2> > > >::type Identifiers;
     BOOST_MPL_ASSERT((mpl::or_<
                       mpl::less_equal<typename mpl::size<Identifiers>::type, mpl::int_<1> >,
-                      boost::is_same< typename mpl::count<Identifiers,
-                      mpl::at_c<Identifiers,0> >::type, mpl::int_<1> > >));
+                      mpl::equal< typename mpl::count<Identifiers,
+                      typename mpl::at_c<Identifiers,0> >::type, typename mpl::size<Identifiers>::type > >));
 
     typedef typename mpl::if_< mpl::empty<Identifiers>,
             No_Identifier, typename mpl::at_c<Identifiers, 0>::type >::type Identifier;
@@ -247,6 +247,14 @@ public:
         double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
         //Base::Console().Message("overall solving time in ms: %f\n", ms);
 
+    };
+    
+    System* clone() {
+      
+      System* newsys = new System();
+      
+      //clone the graph
+      
     };
 
     Cluster m_cluster;

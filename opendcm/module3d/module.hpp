@@ -91,8 +91,8 @@ struct Module3D {
         typedef mpl::map2< mpl::pair<reset, boost::function<void (Geom) > >,
                 mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
         typedef mpl::map1< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
-	
-	typedef ID Identifier;
+
+        typedef ID Identifier;
 
         struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 
@@ -617,15 +617,20 @@ struct Module3D {
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
 
+	struct vertex_prop;
+	
         struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
                 detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
 
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
                     detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
                     Geometry3D_id<Geometry3D> >::type base;
+	    typedef vertex_prop vertex_propertie;
 
             template<typename T>
             Geometry3D(T geometry, Sys& system) : base(geometry, system) { };
+
+            
 
             //allow accessing the internals by module3d classes but not by users
             friend class details::ClusterMath<Sys>;

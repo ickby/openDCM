@@ -84,7 +84,24 @@ typedef boost::any Connection;
 template<typename Sys, typename Derived, typename Sig>
 struct Object : public boost::enable_shared_from_this<Derived> {
 
-    Object(Sys& system) : m_system(system) {};
+    Object(Sys& system) : m_system(&system) {};
+
+    /**
+      * @brief Create a new object of the same type with the same values
+      *
+      * Returns a new shared_ptr for the Drived type with the same properties as the initial one. If
+      * the new pointer should be used in a new system the parameter \param newSys needs to be that
+      * new system. Overload this function if you have datamembers in any derived class wich are not
+      * copyconstructable.
+      * @tparam Prop property type which should be accessed
+      * @return Prop::type& a reference to the properties actual value.
+      **/
+    virtual boost::shared_ptr<Derived> clone(Sys& newSys) {
+
+        boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
+        np->m_system = &newSys;
+        return np;
+    };
 
     /**
       * @brief Access properties
@@ -184,7 +201,7 @@ protected:
             mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
 
-    Sys& m_system;
+    Sys* m_system;
     Signals m_signals;
 
 public:
