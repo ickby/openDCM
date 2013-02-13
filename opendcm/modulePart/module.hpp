@@ -82,20 +82,6 @@ struct ModulePart {
                 };
             };
 
-            template<typename T>
-            Geom addGeometry(T geom, CoordinateFrame frame = Global) {
-                Geom g(new Geometry3D(geom, *m_system));
-                if(frame == Local)
-                    g->transform(m_transform);
-
-                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster->addVertex();
-                m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
-                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
-                m_system->template objectVector<Geometry3D>().push_back(g);
-
-                return g;
-            };
-
         public:
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
@@ -112,6 +98,27 @@ struct ModulePart {
             template<typename Visitor>
             typename Visitor::result_type apply(Visitor& vis) {
                 return boost::apply_visitor(vis, m_geometry);
+            };
+
+            template<typename T>
+            Geom addGeometry3D(T geom, CoordinateFrame frame = Global) {
+                Geom g(new Geometry3D(geom, *m_system));
+                if(frame == Local)
+                    g->transform(m_transform);
+
+                fusion::vector<LocalVertex, GlobalVertex> res = m_cluster->addVertex();
+                m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+                g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
+                m_system->template objectVector<Geometry3D>().push_back(g);
+
+                return g;
+            };
+
+            template<typename T>
+            void set(T geometry) {
+                Part_base::m_geometry = geometry;
+                (typename geometry_traits<T>::modell()).template extract<Kernel,
+                typename geometry_traits<T>::accessor >(geometry, Part_base::m_transform);
             };
 
             virtual boost::shared_ptr<Part> clone(Sys& newSys) {
@@ -159,24 +166,6 @@ struct ModulePart {
             };
         };
 
-        class Part_noid : public Part_base {
-
-        public:
-            template<typename T>
-            Part_noid(T geometry, Sys& system, typename Part_base::Cluster& cluster) : Part_base(geometry, system, cluster) {};
-
-            template<typename T>
-            typename Part_base::Geom addGeometry3D(T geom, CoordinateFrame frame = Global) {
-                return  Part_base::addGeometry(geom, frame);
-            };
-
-            template<typename T>
-            void set(T geometry) {
-                Part_base::m_geometry = geometry;
-                (typename geometry_traits<T>::modell()).template extract<Kernel,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_transform);
-            };
-        };
         class Part_id : public Part_base {
 
         public:
@@ -186,17 +175,15 @@ struct ModulePart {
             template<typename T>
             typename Part_base::Geom addGeometry3D(T geom, Identifier id, CoordinateFrame frame = Global) {
 
-                typename Part_base::Geom g = Part_base::addGeometry(geom, frame);
+                typename Part_base::Geom g = Part_base::addGeometry3D(geom, frame);
                 g->setIdentifier(id);
                 return g;
             };
 
             template<typename T>
             void set(T geometry, Identifier id) {
-                Part_base::m_geometry = geometry;
+                Part_base::set(geometry);
                 setIdentifier(id);
-                (typename geometry_traits<T>::modell()).template extract< Kernel,
-                typename geometry_traits<T>::accessor >(geometry, Part_base::m_transform);
             };
 
             bool hasGeometry3D(Identifier id) {
@@ -216,9 +203,9 @@ struct ModulePart {
             };
         };
 
-        struct Part : public mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_noid, Part_id>::type {
+        struct Part : public mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_base, Part_id>::type {
 
-            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_noid, Part_id>::type base;
+            typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_base, Part_id>::type base;
             template<typename T>
             Part(T geometry, Sys& system, typename base::Cluster& cluster) : base(geometry, system, cluster) {};
 
