@@ -371,4 +371,42 @@ BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
 
 }
 
+BOOST_AUTO_TEST_CASE(modulepart_clone) {
+
+  Eigen::Vector3d p1,p3,p4;
+  p1 << 7, -0.5, 0.3;
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+  
+  SystemID sys;
+  Partid_ptr part1 = sys.createPart(place(), "p1");
+  GeomID g1 = part1->addGeometry3D( p1, "g1" );
+  
+  Partid_ptr part2 = sys.createPart(place(), "p2");
+  GeomID g3 = part2->addGeometry3D( p3 , "g3");
+  GeomID g4 = part2->addGeometry3D( p4 , "g4");
+  
+  sys.createConstraint3D("c1", g1,g3,dcm::distance=5);
+  sys.createConstraint3D("c2", g1,g4,dcm::distance=5);
+  
+  //clone
+  SystemID* clone = sys.clone();
+  
+  clone->solve();
+  
+  //check successfull solving
+  Eigen::Vector3d v1,v2,v3,v4;
+  v1 = get<Eigen::Vector3d>(clone->getGeometry3D("g1"));
+  v3 = get<Eigen::Vector3d>(clone->getGeometry3D("g3"));
+  v4 = get<Eigen::Vector3d>(clone->getGeometry3D("g4"));
+
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+  
+  //check if the original is unchanged
+  BOOST_CHECK( p1.isApprox(get<Eigen::Vector3d>(g1), 1e-10) );
+  BOOST_CHECK( p3.isApprox(get<Eigen::Vector3d>(g3), 1e-10) );
+  BOOST_CHECK( p4.isApprox(get<Eigen::Vector3d>(g4), 1e-10) );
+}
+
 BOOST_AUTO_TEST_SUITE_END();

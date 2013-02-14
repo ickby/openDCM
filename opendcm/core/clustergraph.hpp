@@ -1385,7 +1385,8 @@ protected:
         boost::tie(v, done) = getContainingVertex(id);
         if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
 
-        if(isCluster(v)) return m_clusters[v]->getContainingVertexGraph(id);
+        if(isCluster(v) && (getGlobalVertex(v) != id))
+            return m_clusters[v]->getContainingVertexGraph(id);
         else return fusion::make_vector(v,this,true);
     };
 

@@ -54,7 +54,6 @@ struct ModulePart {
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
-            using Object<Sys, Part, PartSignal >::m_system;
 
             //check if we have module3d in this system
             typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
@@ -83,6 +82,8 @@ struct ModulePart {
             };
 
         public:
+            using Object<Sys, Part, PartSignal >::m_system;
+
             template<typename T>
             Part_base(T geometry, Sys& system, Cluster& cluster) : base(system),
                 m_geometry(geometry), m_cluster(&cluster)  {
@@ -123,14 +124,20 @@ struct ModulePart {
 
             virtual boost::shared_ptr<Part> clone(Sys& newSys) {
 
+                //we need to reset the cluster pointer to the new system cluster
+                LocalVertex  lv = base::m_system->m_cluster.getClusterVertex(*m_cluster);
+                GlobalVertex gv = base::m_system->m_cluster.getGlobalVertex(lv);
+
                 boost::shared_ptr<Part> np = base::clone(newSys);
                 //there may be  pointer inside the variant
                 cloner clone_fnc(np->m_geometry);
                 boost::apply_visitor(clone_fnc, m_geometry);
-                //we need to reset the cluster pointer to the new system cluster
-                LocalVertex  lv = base::m_system->m_cluster.getClusterVertex(*m_cluster);
-                GlobalVertex gv = base::m_system->m_cluster.getGlobalVertex(lv);
+
                 fusion::vector<LocalVertex, typename Sys::Cluster*, bool> res = newSys.m_cluster.getLocalVertexGraph(gv);
+                if(!fusion::at_c<2>(res)) {
+                    //todo: throw
+                    return np;
+                }
                 np->m_cluster = &(fusion::at_c<1>(res)->getVertexCluster(fusion::at_c<0>(res)));
 
                 return np;
@@ -357,12 +364,12 @@ struct ModulePart {
             sys.m_sheduler.addPreprocessJob(new PrepareCluster());
             sys.m_sheduler.addPostprocessJob(new EvaljuateCluster());
         };
-	static void system_copy(Sys& from, Sys& into) {
+        static void system_copy(Sys& from, Sys& into) {
             //our part objects are not in the clustergraph, and therefore are not copied until now
-            typedef typename std::vector< boost::shared_ptr<Part> > iter;
+            typedef typename std::vector< boost::shared_ptr<Part> >::iterator iter;
             std::vector< boost::shared_ptr<Part> > vec = from.template objectVector<Part>();
-	    for(iter it=vec.begin(); it != vec.end(); it++) 
-	      into.push_back( (*it)->clone(into) );	    
+            for(iter it=vec.begin(); it != vec.end(); it++)
+                into.push_back((*it)->clone(into));
         };
     };
 };

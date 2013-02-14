@@ -186,6 +186,7 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     typedef typename details::pts<Sequence>::type Properties;
 
     Properties m_properties;
+    Sys* m_system;
 
 protected:
     /*signal handling
@@ -200,8 +201,7 @@ protected:
     typedef typename mpl::fold< sig_functions, mpl::vector<>,
             mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
-
-    Sys* m_system;
+    
     Signals m_signals;
 
 public:
