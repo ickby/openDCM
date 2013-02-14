@@ -27,6 +27,7 @@
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/copy.hpp>
 
 #include <boost/mpl/transform.hpp>
 #include <boost/mpl/find.hpp>
@@ -64,6 +65,9 @@ struct IDgen {
     IDgen() {
         counter = new universalID(10);
     };
+    IDgen(universalID id) {
+        counter = new universalID(id);
+    };
     ~IDgen() {
         delete counter;
     };
@@ -72,6 +76,9 @@ struct IDgen {
     };
     universalID count() {
         return (*counter);
+    };
+    void setCount(universalID id) {
+        *counter = id;
     };
 };
 
@@ -130,7 +137,7 @@ public:
 
     typedef boost::adjacency_list< boost::slistS, boost::slistS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
-  
+
     typedef mpl::vector<changed_prop, type_prop> extras;
     typedef typename mpl::fold<cluster_prop, extras, mpl::push_back<mpl::_1, mpl::_2> >::type cluster_properties;
     typedef typename details::pts<cluster_properties>::type cluster_bundle;
@@ -207,10 +214,8 @@ public:
             : boost::transform_iterator<object_extractor<Obj>,edge_single_iterator>(it, f) {};
     };
 
-public:
     typedef typename ClusterMap::iterator 	cluster_iterator;
 
-public:
     ClusterGraph(ClusterGraph* g = 0) : m_parent(g), m_id(new details::IDgen) {
 
         if(g) m_id = g->m_id;
@@ -223,6 +228,49 @@ public:
         for(typename ClusterMap::iterator i = m_clusters.begin(); i != m_clusters.end(); ++i)  {
             delete(*i).second;
         }
+    };
+
+    /**
+     * @brief Copys the Clustergraph into a new one
+     *
+     * Copys this cluster and all subclusters into the give one, which is cleared bevore copying. Be
+     * aware that all objects and properties are only copied, and as some are shared pointers (namely
+     * all objects) you may have to clone them. If needed this can be done with the supplied functor,
+     * which receives all copied objects to his function operator which returns the new object.
+     * @param into The Graph that should be a copy of this
+     * @param functor The function objects which gets the graph objects and returns the ones for the
+     * copied graph
+     */
+    template<typename Functor>
+    void copyTo(ClusterGraph& into, Functor& functor) {
+
+        //first copy all vertices and edges, but be aware that the objects in the new graph
+        //are also copys only and point to the old graph
+        into.clear();
+        boost::copy_graph(*this, into);
+
+        //set the IDgen to the same value to avoid duplicate id's in the copied cluster
+        into.m_id->setCount(m_id->count());
+
+        //now that we have all vertices we can recreate the subclusters
+        std::pair<cluster_iterator, cluster_iterator> it = clusters();
+        for(; it.first!=it.second; it.first++) {
+            //create the new Graph
+            ClusterGraph* ng = new ClusterGraph(&into);
+
+            //we already have the new vertex, however, we need to find it
+            GlobalVertex gv = getGlobalVertex((*it.first).first);
+            LocalVertex  lv = into.getLocalVertex(gv);
+
+            //add the new graph to the subclustermap
+            into.m_clusters[lv] = ng;
+
+            //copy the subcluster
+            (*it.first).second->copyTo(ng);
+        }
+
+        //lets see if the objects need special treatment
+        into.for_each_object(functor, false);
     };
 
 
@@ -821,6 +869,19 @@ protected:
         key m_key;
     };
 
+    template<typename Functor>
+    struct valid_ptr_apply {
+
+        Functor& func;
+        valid_ptr_apply(Functor& f) : func(f) {};
+
+        template<typename Ptr>
+        void operator()(Ptr p) {
+            if(p)
+                func(p);
+        }
+    };
+
 public:
 
     /**
@@ -899,9 +960,11 @@ public:
 
         std::pair<local_edge_iterator, local_edge_iterator> eit = boost::edges(*this);
         for(; eit.first != eit.second; eit.first++) {
-            boost::shared_ptr<Obj> ptr =  getObject<Obj>(*(eit.first));
-            if(ptr)
-                f(ptr);
+            std::pair< object_iterator< Obj >, object_iterator< Obj > > goit =  getObjects<Obj>(*(eit.first));
+            for(; goit.first != goit.second; goit.first++) {
+                if(*goit.first)
+                    f(*goit.first);
+            }
         }
 
         if(recursive) {
@@ -909,6 +972,47 @@ public:
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
                 f(*((*cit).second));
                 (*cit).second->for_each<Obj>(f, recursive);
+            }
+        }
+    };
+
+    /**
+     * @brief Applys the functor to each object
+     *
+     * Each valid object of any type is extractet and passed to the function object. Vertices
+     * and edges are searched for valid object pointers, it happens in this order. When a recursive
+     * search is specified, all subclusters are searched too, but the cluster is passt to the Functor
+     * first. So make sure a function overload for clusters exist in this case.
+     *
+     * @param f the functor to which all valid objects get passed to.
+     * @param recursive specifies if the subclusters should be searched for objects too
+     **/
+    template<typename Functor>
+    void for_each_object(Functor& f, bool recursive = false) {
+
+        valid_ptr_apply<Functor> func(f);
+
+        std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
+        for(; it.first != it.second; it.first++) {
+            typename details::sps<objects>::type& seq = fusion::at_c<0>((*this)[*it.first]);
+            fusion::for_each(seq, func);
+        }
+
+        typedef typename std::vector<edge_bundle_single>::iterator iter;
+        std::pair<local_edge_iterator, local_edge_iterator> eit = boost::edges(*this);
+        for(; eit.first != eit.second; eit.first++) {
+            std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*this)[*eit.first]);
+            for(iter git = vec.begin(); git != vec.end(); git++) {
+                typename details::sps<objects>::type& seq = fusion::at_c<0>(*git);
+                fusion::for_each(seq, func);
+            }
+        }
+
+        if(recursive) {
+            cluster_iterator cit;
+            for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
+                f(*((*cit).second));
+                (*cit).second->for_each_object(f, recursive);
             }
         }
     };
