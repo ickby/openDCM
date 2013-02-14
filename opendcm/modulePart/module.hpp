@@ -360,7 +360,7 @@ struct ModulePart {
 	static void system_copy(Sys& from, Sys& into) {
             //our part objects are not in the clustergraph, and therefore are not copied until now
             typedef typename std::vector< boost::shared_ptr<Part> > iter;
-            std::vector< boost::shared_ptr<Part> > vec = from.objectVector<Part>();
+            std::vector< boost::shared_ptr<Part> > vec = from.template objectVector<Part>();
 	    for(iter it=vec.begin(); it != vec.end(); it++) 
 	      into.push_back( (*it)->clone(into) );	    
         };

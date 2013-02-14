@@ -390,10 +390,14 @@ struct Module3D {
 
             template<typename T>
             void set(T geometry, Identifier id) {
-                Base::m_geometry = geometry;
-                Base::template init<T>(geometry);
                 this->template setProperty<id_prop<Identifier> >(id);
-                Base::template emitSignal<reset> (Base::shared_from_this());
+                Base::set(geometry);
+            };
+
+            //somehow the base class set funtion is not found
+            template<typename T>
+            void set(T geometry) {
+                Base::set(geometry);
             };
 
             Identifier& getIdentifier() {
@@ -617,20 +621,20 @@ struct Module3D {
 
         struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_noid, inheriter_id>::type {};
 
-	struct vertex_prop;
-	
+        struct vertex_prop;
+
         struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
                 detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
 
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>,
                     detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
                     Geometry3D_id<Geometry3D> >::type base;
-	    typedef vertex_prop vertex_propertie;
+            typedef vertex_prop vertex_propertie;
 
             template<typename T>
             Geometry3D(T geometry, Sys& system) : base(geometry, system) { };
 
-            
+
 
             //allow accessing the internals by module3d classes but not by users
             friend class details::ClusterMath<Sys>;
@@ -691,7 +695,7 @@ struct Module3D {
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
         };
-	static void system_copy(Sys& from, Sys& into) {
+        static void system_copy(Sys& from, Sys& into) {
             //nothing to to as all objects and properties are copyed with the clustergraph
         };
     };

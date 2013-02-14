@@ -267,4 +267,75 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
 
 }
 
+BOOST_AUTO_TEST_CASE(module3d_cloning) {
+
+    SystemID sys;
+
+    point p1,p2,p3;
+    p1.push_back(7);
+    p1.push_back(-0.5);
+    p1.push_back(0.3);
+    p2.push_back(0.2);
+    p2.push_back(0.5);
+    p2.push_back(-0.1);
+    p3.push_back(1.2);
+    p3.push_back(5.9);
+    p3.push_back(0.43);
+
+
+    geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
+    geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
+    geomid_ptr g3 = sys.createGeometry3D(p3, "g3");
+
+    //simple constraint
+    consid_ptr c1 = sys.createConstraint3D("c1", g1, g2, test);
+    consid_ptr c2 = sys.createConstraint3D("c2", g2, g3, test);
+    consid_ptr c3 = sys.createConstraint3D("c3", g3, g1, test);
+    
+    //clone and change initial system
+    SystemID* clone = sys.clone();
+    p1.clear();
+    p1.push_back(1);
+    p1.push_back(2);
+    p1.push_back(3);
+    g1->set(p1);
+    
+    //check if the cloned system was affekted
+    geomid_ptr cg1 = clone->getGeometry3D("g1");
+    point& cp1 = get<point>(cg1);
+    BOOST_CHECK( cp1[0] == 7 );
+    BOOST_CHECK( cp1[1] == -0.5 );
+    BOOST_CHECK( cp1[2] == 0.3 );
+    
+    //solve and see what happens
+    clone->solve();
+    
+
+    Kernel::Vector3 v1,v2,v3;
+    point& rp1 = get<point>(clone->getGeometry3D("g1"));
+    point& rp2 = get<point>(clone->getGeometry3D("g2"));
+    point& rp3 = get<point>(clone->getGeometry3D("g3"));
+
+    v1<<rp1[0],rp1[1],rp1[2];
+    v2<<rp2[0],rp2[1],rp2[2];
+    v3<<rp3[0],rp3[1],rp3[2];
+
+    //check if the system was solved correctly
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
+    
+    //check if the original system is unchanged
+    BOOST_CHECK( p1[0] == get<point>(sys.getGeometry3D("g1"))[0] );
+    BOOST_CHECK( p1[1] == get<point>(sys.getGeometry3D("g1"))[1] );
+    BOOST_CHECK( p1[2] == get<point>(sys.getGeometry3D("g1"))[2] );
+    BOOST_CHECK( p2[0] == get<point>(sys.getGeometry3D("g2"))[0] );
+    BOOST_CHECK( p2[1] == get<point>(sys.getGeometry3D("g2"))[1] );
+    BOOST_CHECK( p2[2] == get<point>(sys.getGeometry3D("g2"))[2] );
+    BOOST_CHECK( p3[0] == get<point>(sys.getGeometry3D("g3"))[0] );
+    BOOST_CHECK( p3[1] == get<point>(sys.getGeometry3D("g3"))[1] );
+    BOOST_CHECK( p3[2] == get<point>(sys.getGeometry3D("g3"))[2] );
+
+};
+
 BOOST_AUTO_TEST_SUITE_END();

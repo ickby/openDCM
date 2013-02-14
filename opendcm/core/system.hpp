@@ -104,9 +104,14 @@ struct EmptyModule {
         typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
-	static void system_copy(T& from, T& into) {};
+        static void system_copy(T& from, T& into) {};
     };
 };
+
+template <class T>
+struct is_shared_ptr : boost::mpl::false_ {};
+template <class T>
+struct is_shared_ptr<boost::shared_ptr<T> > : boost::mpl::true_ {};
 
 }
 
@@ -173,18 +178,6 @@ protected:
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
-
-    struct cloner {
-
-        Sys& newSys;
-        cloner(Sys& ns) : newSys(ns) {};
-
-        template<typename Ptr>
-        void operator()(Ptr& p) {
-            p = p->clone(newSys);
-            newSys.push_back(p);
-        };
-    };
 
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
@@ -262,23 +255,39 @@ public:
 
     };
 
-    void copyInto(System& into) {
-      
-      //copy the clustergraph and clone all objects while at it. They are also pushed to the storage
-      cloner cl(into);
-      m_cluster.copyTo(into.m_cluster, cl);
-      
-      //notify all modules that they are copied
-      Type1::system_copy(*this, into);
-      Type2::system_copy(*this, into);
-      Type3::system_copy(*this, into);      
+private:
+    struct cloner {
+
+        System& newSys;
+        cloner(System& ns) : newSys(ns) {};
+
+        template<typename T>
+        typename boost::enable_if< details::is_shared_ptr<T>, void>::type operator()(T& p) const {
+            p = p->clone(newSys);
+            newSys.push_back(p);
+        };
+        template<typename T>
+        typename boost::enable_if< mpl::not_<details::is_shared_ptr<T> >, void>::type operator()(const T& p) const {};
     };
-    
+
+public:
+    void copyInto(System& into) {
+
+        //copy the clustergraph and clone all objects while at it. They are also pushed to the storage
+        cloner cl(into);
+        m_cluster.copyInto(into.m_cluster, cl);
+
+        //notify all modules that they are copied
+        Type1::system_copy(*this, into);
+        Type2::system_copy(*this, into);
+        Type3::system_copy(*this, into);
+    };
+
     System* clone() {
-      
-	System* ns = new System();
-	this->copyInto(*ns);
-	return ns;
+
+        System* ns = new System();
+        this->copyInto(*ns);
+        return ns;
     };
 
     Cluster m_cluster;
@@ -289,5 +298,6 @@ public:
 
 }
 #endif //GCM_SYSTEM_H
+
 
 

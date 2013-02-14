@@ -28,6 +28,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/copy.hpp>
+#include <boost/graph/iteration_macros.hpp>
 
 #include <boost/mpl/transform.hpp>
 #include <boost/mpl/find.hpp>
@@ -203,6 +204,28 @@ private:
         };
     };
 
+    struct edge_copier {
+        edge_copier(ClusterGraph& g1, ClusterGraph& g2)
+            : graph1(g1), graph2(g2) { }
+
+        void operator()(LocalEdge e1, LocalEdge e2) const {
+            graph2[e2] = graph1[e1];
+        }
+        ClusterGraph& graph1;
+        ClusterGraph& graph2;
+    };
+
+    struct vertex_copier {
+        vertex_copier(ClusterGraph& g1, ClusterGraph& g2)
+            : graph1(g1), graph2(g2) { }
+
+        void operator()(LocalVertex v1, LocalVertex v2) const {
+            graph2[v2] = graph1[v1];
+        }
+        ClusterGraph& graph1;
+        ClusterGraph& graph2;
+    };
+
 public:
     //iterators
     typedef boost::transform_iterator<global_extractor, edge_single_iterator> global_edge_iterator;
@@ -244,10 +267,23 @@ public:
     template<typename Functor>
     void copyInto(ClusterGraph& into, Functor& functor) {
 
+        //lists does not provide vertex index, so we have to build our own
+        typedef std::map<LocalVertex, int> IndexMap;
+        IndexMap mapIndex;
+        boost::associative_property_map<IndexMap> propmapIndex(mapIndex);
+
+        std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
+        for(int c=0; vit.first != vit.second; vit.first++, c++)
+            put(propmapIndex, *vit.first, c);
+
         //first copy all vertices and edges, but be aware that the objects in the new graph
-        //are also copys only and point to the old graph
+        //are also copys only and point to the old graph. there is a bug in older boost version
+        //(<1.5 i belive) that breaks vertex_all propety map for bundled properties, so we
+        //have to create our own copie functors
         into.clear();
-        boost::copy_graph(*this, into);
+        vertex_copier vc(*this, into);
+        edge_copier ec(*this, into);
+        boost::copy_graph(*this, into, boost::vertex_index_map(propmapIndex).vertex_copy(vc).edge_copy(ec));
 
         //set the IDgen to the same value to avoid duplicate id's in the copied cluster
         into.m_id->setCount(m_id->count());
@@ -260,13 +296,13 @@ public:
 
             //we already have the new vertex, however, we need to find it
             GlobalVertex gv = getGlobalVertex((*it.first).first);
-            LocalVertex  lv = into.getLocalVertex(gv);
+            LocalVertex  lv = into.getLocalVertex(gv).first;
 
             //add the new graph to the subclustermap
             into.m_clusters[lv] = ng;
 
             //copy the subcluster
-            (*it.first).second->copyInto(ng);
+            (*it.first).second->copyInto(*ng, functor);
         }
 
         //lets see if the objects need special treatment
@@ -876,7 +912,7 @@ protected:
         valid_ptr_apply(Functor& f) : func(f) {};
 
         template<typename Ptr>
-        void operator()(Ptr& p) {
+        void operator()(Ptr& p) const {
             if(p)
                 func(p);
         }
@@ -994,7 +1030,7 @@ public:
 
         std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
         for(; it.first != it.second; it.first++) {
-            typename details::sps<objects>::type& seq = fusion::at_c<0>((*this)[*it.first]);
+            typename details::sps<objects>::type& seq = fusion::at_c<1>((*this)[*it.first]);
             fusion::for_each(seq, func);
         }
 
@@ -1443,6 +1479,7 @@ protected:
 } //namespace solver
 
 #endif // CLUSTERGRAPH_HPP
+
 
 
 
