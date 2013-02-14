@@ -691,6 +691,9 @@ struct Module3D {
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
         };
+	static void system_copy(Sys& from, Sys& into) {
+            //nothing to to as all objects and properties are copyed with the clustergraph
+        };
     };
 };
 

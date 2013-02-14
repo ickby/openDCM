@@ -242,7 +242,7 @@ public:
      * copied graph
      */
     template<typename Functor>
-    void copyTo(ClusterGraph& into, Functor& functor) {
+    void copyInto(ClusterGraph& into, Functor& functor) {
 
         //first copy all vertices and edges, but be aware that the objects in the new graph
         //are also copys only and point to the old graph
@@ -266,7 +266,7 @@ public:
             into.m_clusters[lv] = ng;
 
             //copy the subcluster
-            (*it.first).second->copyTo(ng);
+            (*it.first).second->copyInto(ng);
         }
 
         //lets see if the objects need special treatment
@@ -876,7 +876,7 @@ protected:
         valid_ptr_apply(Functor& f) : func(f) {};
 
         template<typename Ptr>
-        void operator()(Ptr p) {
+        void operator()(Ptr& p) {
             if(p)
                 func(p);
         }

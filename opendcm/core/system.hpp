@@ -73,7 +73,7 @@ struct cluster_fold : mpl::fold< seq, state,
 
 template<typename seq, typename state, typename obj>
 struct obj_fold : mpl::fold< seq, state,
-        mpl::if_< mpl::or_< 
+        mpl::if_< mpl::or_<
         boost::is_same< details::property_kind<mpl::_2>, obj>, is_object_property<mpl::_2> >,
         mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
 
@@ -85,7 +85,7 @@ struct property_map {
 };
 template<typename T>
 struct get_identifier {
-  typedef typename T::Identifier type;
+    typedef typename T::Identifier type;
 };
 
 template<typename seq, typename state>
@@ -104,6 +104,7 @@ struct EmptyModule {
         typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
+	static void system_copy(T& from, T& into) {};
     };
 };
 
@@ -173,6 +174,18 @@ protected:
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
 
+    struct cloner {
+
+        Sys& newSys;
+        cloner(Sys& ns) : newSys(ns) {};
+
+        template<typename Ptr>
+        void operator()(Ptr& p) {
+            p = p->clone(newSys);
+            newSys.push_back(p);
+        };
+    };
+
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
@@ -193,7 +206,7 @@ public:
         Type3::system_init(*this);
 
     };
-    
+
 
     ~System() {
 #ifdef USE_LOGGING
@@ -248,13 +261,24 @@ public:
         //Base::Console().Message("overall solving time in ms: %f\n", ms);
 
     };
+
+    void copyInto(System& into) {
+      
+      //copy the clustergraph and clone all objects while at it. They are also pushed to the storage
+      cloner cl(into);
+      m_cluster.copyTo(into.m_cluster, cl);
+      
+      //notify all modules that they are copied
+      Type1::system_copy(*this, into);
+      Type2::system_copy(*this, into);
+      Type3::system_copy(*this, into);      
+    };
     
     System* clone() {
       
-      System* newsys = new System();
-      
-      //clone the graph
-      
+	System* ns = new System();
+	this->copyInto(*ns);
+	return ns;
     };
 
     Cluster m_cluster;
