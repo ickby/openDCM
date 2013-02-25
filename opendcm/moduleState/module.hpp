@@ -23,17 +23,8 @@
 #include <iosfwd>
 #include "indent.hpp"
 
-//forward declare the generate function so that we don't need to parse the spirit header when we externalize
-//and when we are in a compilation unit which does not compile the generator. Spirit header consume LOTS of
-//memory
-#ifdef USE_EXTERNAL
-namespace dcm {
-template<typename Sys>
-void generate(Sys* m_this, std::ostream& stream);
-}
-#else
 #include "generator.hpp"
-#endif
+
 
 namespace dcm {
 

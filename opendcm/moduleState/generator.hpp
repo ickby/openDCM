@@ -24,18 +24,13 @@
 #include "property_generator.hpp"
 #include "extractor.hpp"
 
-#include <iosfwd>
-#include <boost/shared_ptr.hpp>
-
-#include <opendcm/core/object.hpp>
-#include <opendcm/core/property.hpp>
 #include <opendcm/core/clustergraph.hpp>
 
 #include "traits.hpp"
 #include "traits_impl.hpp"
 #include "indent.hpp"
 #include "edge_vertex_generator.hpp"
-#include <stdio.h>
+
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/for_each.hpp>
 #include <boost/fusion/container/vector/convert.hpp>
@@ -45,11 +40,8 @@
 #include <boost/fusion/include/std_pair.hpp>
 
 #include <boost/spirit/include/karma.hpp>
-#include <boost/spirit/include/karma_rule.hpp>
-#include <boost/spirit/include/karma_grammar.hpp>
-#include <boost/spirit/include/karma_generate.hpp>
 #include <boost/spirit/include/phoenix.hpp>
-#include <boost/spirit/home/support/container.hpp>
+
 
 using namespace boost::spirit::karma;
 
