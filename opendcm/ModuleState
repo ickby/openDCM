@@ -20,6 +20,8 @@
 #ifndef DCM_MODULEPARSER_H
 #define DCM_MODULEPARSER_H
 
+#define DCM_USE_MODULESTATE
+
 #include "moduleState/module.hpp"
 #include "moduleState/traits.hpp"
 

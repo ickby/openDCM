@@ -20,6 +20,8 @@
 #ifndef DCM_MODULE3D_H
 #define DCM_MODULE3D_H
 
+#define DCM_USE_MODULE3D
+
 #include "module3d/geometry.hpp"
 #include "module3d/distance.hpp"
 #include "module3d/parallel.hpp"

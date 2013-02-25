@@ -20,6 +20,7 @@
 #  HAS_CXX11_SIZEOF_MEMBER      - sizeof() non-static members
 #  HAS_CXX11_STATIC_ASSERT      - static_assert()
 #  HAS_CXX11_VARIADIC_TEMPLATES - variadic templates
+#  HAS_CXX11_EXTERN_TEMPLATES   - extern templates
 
 #=============================================================================
 # Copyright 2011,2012 Rolf Eike Beer <eike@sf-mail.de>
@@ -62,8 +63,7 @@ function(cxx11_check_feature FEATURE_NAME RESULT_VAR)
 
         set(_SRCFILE_BASE ${CMAKE_CURRENT_LIST_DIR}/CheckCXX11Features/cxx11-test-${FEATURE_NAME})
         set(_LOG_NAME "\"${FEATURE_NAME}\"")
-        message(STATUS "Checking C++11 support for ${_LOG_NAME}")
-
+   
         set(_SRCFILE "${_SRCFILE_BASE}.cpp")
         set(_SRCFILE_FAIL "${_SRCFILE_BASE}_fail.cpp")
         set(_SRCFILE_FAIL_COMPILE "${_SRCFILE_BASE}_fail_compile.cpp")
@@ -130,3 +130,4 @@ cxx11_check_feature("rvalue-references" HAS_CXX11_RVALUE_REFERENCES)
 cxx11_check_feature("sizeof_member" HAS_CXX11_SIZEOF_MEMBER)
 cxx11_check_feature("static_assert" HAS_CXX11_STATIC_ASSERT)
 cxx11_check_feature("variadic_templates" HAS_CXX11_VARIADIC_TEMPLATES)
+cxx11_check_feature("extern_templates" HAS_CXX11_EXTERN_TEMPLATES)

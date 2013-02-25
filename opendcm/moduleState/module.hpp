@@ -20,35 +20,20 @@
 #ifndef DCM_MODULE_STATE_H
 #define DCM_MODULE_STATE_H
 
-#define DCM_USE_PARSER
-
 #include <iosfwd>
-#include <boost/shared_ptr.hpp>
-
-#include <opendcm/core/object.hpp>
-#include <opendcm/core/property.hpp>
-#include <opendcm/core/clustergraph.hpp>
-#include <opendcm/modulePart/module.hpp>
-#include "traits.hpp"
 #include "indent.hpp"
+
+//forward declare the generate function so that we don't need to parse the spirit header when we externalize
+//and when we are in a compilation unit which does not compile the generator. Spirit header consume LOTS of
+//memory
+#ifdef USE_EXTERNAL
+namespace dcm {
+template<typename Sys>
+void generate(Sys* m_this, std::ostream& stream);
+}
+#else
 #include "generator.hpp"
-
-#include <boost/mpl/int.hpp>
-#include <boost/mpl/for_each.hpp>
-#include <boost/fusion/container/vector/convert.hpp>
-#include <boost/fusion/include/as_vector.hpp>
-#include <boost/fusion/include/at.hpp>
-#include <boost/fusion/include/at_c.hpp>
-
-#include <boost/spirit/include/karma.hpp>
-#include <boost/spirit/include/karma_rule.hpp>
-#include <boost/spirit/include/karma_grammar.hpp>
-#include <boost/spirit/include/karma_generate.hpp>
-#include <boost/spirit/include/phoenix.hpp>
-
-namespace karma = boost::spirit::karma;
-namespace phx = boost::phoenix;
-namespace fusion = boost::fusion;
+#endif
 
 namespace dcm {
 
@@ -57,33 +42,15 @@ struct ModuleState {
     template<typename Sys>
     struct type {
 
-	typedef Unspecified_Identifier Identifier;
-
-        template<typename Derived, typename Sig>
-        void generate_properties(std::ostream stream, boost::shared_ptr< dcm::Object<Sys, Derived, Sig> > obj)  {
-
-            typedef typename dcm::Object<Sys, Derived, Sig>::Sequence Properties;
-        };
+        typedef Unspecified_Identifier Identifier;
 
         struct inheriter {
-
 
             inheriter() :  m_this((Sys*) this) {}
             Sys* m_this;
 
             void saveState(std::ostream& stream) {
-
-                typedef std::ostream_iterator<char> iterator_type;
-                typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
-
-                boost::iostreams::filtering_ostream indent_stream;
-                indent_stream.push(indent_filter());
-                indent_stream.push(stream);
-
-                std::ostream_iterator<char> out(indent_stream);
-                generator<iterator_type, Sys> gen(*m_this);
-
-                karma::generate(out, gen, m_this->m_cluster);
+                generate(m_this, stream);
             };
 
             void loadState(std::istream& stream) {

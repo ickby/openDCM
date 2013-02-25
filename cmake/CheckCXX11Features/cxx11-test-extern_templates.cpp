@@ -1,8 +1,8 @@
 
 template< typename T >
-void foo(T t) {};
+struct foo {};
 
-extern template void foo<int> (int t) {};
+extern template class foo<int>;
 
 int main()
 {

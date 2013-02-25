@@ -20,6 +20,8 @@
 #ifndef DCM_MODULEPART_H
 #define DCM_MODULEPART_H
 
+#define DCM_USE_MODULEPART
+
 #include "modulePart/geometry.hpp"
 #include "modulePart/module.hpp"
 

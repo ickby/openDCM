@@ -24,8 +24,6 @@
 #include <boost/iostreams/operations.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 
-#include <boost/spirit/include/karma_char.hpp>
-
 class indent_filter : public boost::iostreams::output_filter {
 public:
     explicit indent_filter() : indent(0) {};
