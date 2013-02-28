@@ -676,6 +676,21 @@ public:
     GlobalVertex getGlobalVertex(LocalVertex v) {
         return fusion::at_c<2>((*this)[v]);
     };
+    
+    /**
+     * @brief Set the GlobalVertex assiociated with this local one.
+     * 
+     * Be carefull, LocalVertices get an global value assigned while created, override it only when your
+     * are sure that it is unique 
+     *
+     * @param lv LocalVertex which sould get assigned the global one
+     * @param gv The value which the localVertex should get assigned
+     * @return GlobalVertex which was assigned
+     **/
+    GlobalVertex setGlobalVertex(LocalVertex lv, GlobalVertex gv) {
+        fusion::at_c<2>((*this)[lv]) = gv;
+	return gv;
+    };
 
     /**
      * @brief Get the LocalVertex which corresponds to the golab one

@@ -139,6 +139,11 @@ typename property_map<P,G>::reference at(const property_map<P,G>& map,
 //now create some standart properties
 //***********************************
 
+struct empty_prop {
+  typedef int kind;
+  typedef int type;
+};
+
 struct type_prop {
     //states the type of a cluster
     typedef cluster_property kind;

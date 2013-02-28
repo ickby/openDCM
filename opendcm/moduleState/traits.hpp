@@ -37,5 +37,17 @@ struct parser_generator {
     };
 };
 
+template<typename type, typename System>
+struct parser_parse : public boost::mpl::false_ {};
+
+template<typename type, typename System, typename iterator>
+struct parser_parser {
+    typedef int parser;
+
+    static void init(parser& r) {
+        assert(false);
+    };
+};
+
 }
 #endif //DCM_PARSER_TRAITS_H

@@ -21,10 +21,15 @@
 #define DCM_MODULE_STATE_H
 
 #include <iosfwd>
+
 #include "indent.hpp"
-
 #include "generator.hpp"
+#include "parser.hpp"
 
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/support_istream_iterator.hpp>
+
+namespace qi = boost::spirit::qi;
 
 namespace dcm {
 
@@ -41,11 +46,30 @@ struct ModuleState {
             Sys* m_this;
 
             void saveState(std::ostream& stream) {
-                generate(m_this, stream);
+
+                boost::iostreams::filtering_ostream indent_stream;
+                indent_stream.push(indent_filter());
+                indent_stream.push(stream);
+
+                std::ostream_iterator<char> out(indent_stream);
+                generator<Sys> gen(*m_this);
+
+                karma::generate(out, gen, m_this->m_cluster);
             };
 
             void loadState(std::istream& stream) {
+	      
+                //disable skipping of whitespace
+                stream.unsetf(std::ios::skipws);
 
+                // wrap istream into iterator
+                boost::spirit::istream_iterator begin(stream);
+                boost::spirit::istream_iterator end;
+
+                // use iterator to parse file data
+		parser<Sys> par(*m_this);
+		m_this->clear();
+                qi::parse(begin, end, par, m_this->m_cluster);
             };
         };
 

@@ -170,6 +170,13 @@ protected:
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
+    
+    struct clearer {
+      template<typename T>
+      void operator()(T& vector) const {
+	vector.clear();
+      };
+    };
 
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
@@ -197,6 +204,11 @@ public:
 #ifdef USE_LOGGING
         stop_log(sink);
 #endif
+    };
+    
+    void clear() {
+        m_cluster.clear();
+	fusion::for_each(m_storage, clearer());
     };
 
     template<typename Object>

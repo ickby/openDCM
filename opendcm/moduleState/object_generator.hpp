@@ -3,7 +3,6 @@
 
 #include "property_generator.hpp"
 
-using namespace boost::spirit::karma;
 namespace fusion = boost::fusion;
 
 namespace dcm {
@@ -15,9 +14,9 @@ namespace details {
   
     //grammar for a single object
     template<typename Sys, typename Object, typename Gen>
-    struct obj_grammar : public grammar<Iterator, boost::shared_ptr<Object>()> {
+    struct obj_grammar : public karma::grammar<Iterator, boost::shared_ptr<Object>()> {
         typename Gen::generator subrule;
-        rule<Iterator, boost::shared_ptr<Object>()> start;
+        karma::rule<Iterator, boost::shared_ptr<Object>()> start;
         details::prop_gen<Sys, typename Object::Sequence > prop;
 
         obj_grammar();
@@ -36,7 +35,7 @@ namespace details {
 
     //currently max. 10 objects are supported
     template<typename Sys>
-    struct obj_gen : public grammar<Iterator, typename details::sps<typename Sys::objects>::type()> {
+    struct obj_gen : public karma::grammar<Iterator, typename details::sps<typename Sys::objects>::type()> {
 
 	typedef typename Sys::objects ObjectList;
       
@@ -59,7 +58,7 @@ namespace details {
         struct valid : public mpl::less< mpl::int_<I>, mpl::size<ObjectList> > {};
 
         rules_sequnce rules;
-        rule<Iterator, typename details::sps<ObjectList>::type()> obj;
+        karma::rule<Iterator, typename details::sps<ObjectList>::type()> obj;
 
         obj_gen();
     };

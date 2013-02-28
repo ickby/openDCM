@@ -6,7 +6,7 @@
 
 #include "traits.hpp"
 
-using namespace boost::spirit::karma;
+namespace karma = boost::spirit::karma;
 namespace fusion = boost::fusion;
 
 namespace dcm {
@@ -16,18 +16,18 @@ typedef std::ostream_iterator<char> Iterator;
 namespace details {
   
       //a grammar that does nothing exept failing
-    struct empty_grammar : public grammar<Iterator> {
-        rule<Iterator> start;
+    struct empty_grammar : public karma::grammar<Iterator> {
+        karma::rule<Iterator> start;
         empty_grammar(): empty_grammar::base_type(start) {
-	    start = eps(false);
+	    start = karma::eps(false);
 	};
     };
 
     //grammar for a single property
     template<typename Prop, typename Gen>
-    struct prop_grammar : public grammar<Iterator, typename Prop::type()> {
+    struct prop_grammar : public karma::grammar<Iterator, typename Prop::type()> {
         typename Gen::generator subrule;
-        rule<Iterator, typename Prop::type()> start;
+        karma::rule<Iterator, typename Prop::type()> start;
         prop_grammar();
     };
 
@@ -40,7 +40,7 @@ namespace details {
 
     //grammar for a fusion sequence of properties. currently max. 10 properties are supported
     template<typename Sys, typename PropertyList>
-    struct prop_gen : grammar<Iterator, typename details::pts<PropertyList>::type()> {
+    struct prop_gen : karma::grammar<Iterator, typename details::pts<PropertyList>::type()> {
 
         //create a vector with the appropriate rules for all properties. Do this with the rule init struct, as it gives
         //automatic initialisation of the rules when the objects are created
@@ -60,7 +60,7 @@ namespace details {
         struct valid : public mpl::less< mpl::int_<I>, mpl::size<PropertyList> > {};
 
         rules_sequnce rules;
-        rule<Iterator, typename details::pts<PropertyList>::type()> prop;
+        karma::rule<Iterator, typename details::pts<PropertyList>::type()> prop;
 
         prop_gen();
     };

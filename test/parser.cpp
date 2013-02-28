@@ -19,6 +19,7 @@
 
 #include "parser.hpp"
 
+
 BOOST_AUTO_TEST_SUITE(parser_suit);
 
 BOOST_AUTO_TEST_CASE(parser_graph) {
@@ -37,7 +38,7 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     
     sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e1, 1);
     sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e2, 2);
-    sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);
+    sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);       
     
     //subcluster
     System::Cluster& scl1 = sys.m_cluster.createCluster().first;
@@ -51,10 +52,11 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     dcm::LocalEdge e6 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res4)));
     
 
-    std::ostringstream s;
+    std::stringstream s;
     sys.saveState(s);
-
     std::cout<<s.str()<<std::endl;
+    sys.loadState(s);
+    std::cout<<"load state done"<<std::endl;
 }
 
 BOOST_AUTO_TEST_SUITE_END();

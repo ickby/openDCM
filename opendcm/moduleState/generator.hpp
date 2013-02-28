@@ -42,9 +42,6 @@
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 
-
-using namespace boost::spirit::karma;
-
 namespace karma = boost::spirit::karma;
 namespace phx = boost::phoenix;
 namespace fusion = boost::fusion;
@@ -54,17 +51,17 @@ namespace dcm {
 typedef std::ostream_iterator<char> Iterator;
 
 template<typename Sys>
-struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
+struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
 
     typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
     typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
 
     generator(Sys& s);
 
-    rule<Iterator, typename Sys::Cluster& ()> start;
+    karma::rule<Iterator, typename Sys::Cluster& ()> start;
 
-    rule<Iterator, std::map<LocalVertex, typename Sys::Cluster*>()> cluster_range;
-    rule<Iterator, std::pair<LocalVertex, typename Sys::Cluster*>()> cluster;
+    karma::rule<Iterator, std::map<LocalVertex, typename Sys::Cluster*>()> cluster_range;
+    karma::rule<Iterator, std::pair<LocalVertex, typename Sys::Cluster*>()> cluster;
     details::cluster_prop_gen<Sys> cluster_prop;
 
     details::vertex_generator<Sys> vertex_range;
@@ -80,29 +77,16 @@ struct generator : grammar<Iterator, typename Sys::Cluster& ()> {
 template<typename Sys>
 generator<Sys>::generator(Sys& s) : generator<Sys>::base_type(start), system(s) {
 
-    cluster = lit("<Cluster id=") <<int_[phx::bind(&Extractor<Sys>::getVertexID, ex, phx::at_c<1>(_val), phx::at_c<0>(_val), karma::_1)]
-              << ">+" << cluster_prop[phx::bind(&Extractor<Sys>::getClusterProperties, ex, phx::at_c<1>(_val), karma::_1)]
-              << vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, ex, phx::at_c<1>(_val), karma::_1)]
-              << -buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, ex, phx::at_c<1>(_val), karma::_1)]]
-              << -buffer["\n" << cluster_range[phx::bind(&Extractor<Sys>::getClusterRange, ex, phx::at_c<1>(_val), karma::_1)]] << "-\n"
+    cluster = karma::lit("<Cluster id=") <<karma::int_[phx::bind(&Extractor<Sys>::getVertexID, ex, phx::at_c<1>(karma::_val), phx::at_c<0>(karma::_val), karma::_1)]
+              << ">+" << cluster_prop[phx::bind(&Extractor<Sys>::getClusterProperties, ex, phx::at_c<1>(karma::_val), karma::_1)]
+              << vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, ex, phx::at_c<1>(karma::_val), karma::_1)]
+              << -karma::buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, ex, phx::at_c<1>(karma::_val), karma::_1)]]
+              << -karma::buffer["\n" << cluster_range[phx::bind(&Extractor<Sys>::getClusterRange, ex, phx::at_c<1>(karma::_val), karma::_1)]] << "-\n"
               << "</Cluster>";
 
-    cluster_range = cluster % eol;
+    cluster_range = cluster % karma::eol;
 
-    start = cluster[phx::bind(&Extractor<Sys>::makeInitPair, ex, _val, karma::_1)];
-};
-
-template<typename Sys>
-void generate(Sys* m_this, std::ostream& stream) {
-
-    boost::iostreams::filtering_ostream indent_stream;
-    indent_stream.push(indent_filter());
-    indent_stream.push(stream);
-
-    std::ostream_iterator<char> out(indent_stream);
-    generator<Sys> gen(*m_this);
-
-    karma::generate(out, gen, m_this->m_cluster);
+    start = cluster[phx::bind(&Extractor<Sys>::makeInitPair, ex, karma::_val, karma::_1)];
 };
 
 }//namespace dcm

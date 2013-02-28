@@ -27,7 +27,6 @@
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 
-using namespace boost::spirit::karma;
 namespace karma = boost::spirit::karma;
 namespace phx = boost::phoenix;
 
@@ -35,26 +34,26 @@ namespace dcm {
 namespace details {
   
 template<typename Sys>
-struct edge_generator : grammar<Iterator, std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >()> {
+struct edge_generator : karma::grammar<Iterator, std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >()> {
   
       edge_generator();
 
-      rule<Iterator, std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >()> edge_range;
-      rule<Iterator, fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex>()> edge;
-      rule<Iterator, std::vector<typename Sys::Cluster::edge_bundle_single>&()> globaledge_range;
-      rule<Iterator, typename Sys::Cluster::edge_bundle_single()> globaledge;
+      karma::rule<Iterator, std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >()> edge_range;
+      karma::rule<Iterator, fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex>()> edge;
+      karma::rule<Iterator, std::vector<typename Sys::Cluster::edge_bundle_single>&()> globaledge_range;
+      karma::rule<Iterator, typename Sys::Cluster::edge_bundle_single()> globaledge;
       details::edge_prop_gen<Sys> edge_prop;
       details::obj_gen<Sys> objects;	
       Extractor<Sys> ex;
 };
 
 template<typename Sys>
-struct vertex_generator : grammar<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> {
+struct vertex_generator : karma::grammar<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> {
   
       vertex_generator();
 
-      rule<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> vertex_range;
-      rule<Iterator, typename Sys::Cluster::vertex_bundle()> vertex;
+      karma::rule<Iterator, std::vector<typename Sys::Cluster::vertex_bundle>()> vertex_range;
+      karma::rule<Iterator, typename Sys::Cluster::vertex_bundle()> vertex;
       details::vertex_prop_gen<Sys> vertex_prop;
       details::obj_gen<Sys> objects;
       Extractor<Sys> ex;
