@@ -19,8 +19,8 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include<opendcm/Core>
-#include<opendcm/Module3D>
+#include<opendcm/core.hpp>
+#include<opendcm/module3d.hpp>
 
 namespace dcm {
 

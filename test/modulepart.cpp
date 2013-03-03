@@ -17,9 +17,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/Core"
-#include "opendcm/Module3D"
-#include "opendcm/ModulePart"
+#include "opendcm/core.hpp"
+#include "opendcm/module3d.hpp"
+#include "opendcm/modulepart.hpp"
 
 #include "test/Octave/debugsolver.hpp"
 

@@ -20,11 +20,11 @@
 #ifndef GCM_MODULE_PART_H
 #define GCM_MODULE_PART_H
 
-#include "opendcm/Core"
+#include "opendcm/core.hpp"
 #include "opendcm/core/traits.hpp"
 #include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/property.hpp"
-#include "opendcm/Module3D"
+#include "opendcm/module3d.hpp"
 
 #include <boost/mpl/assert.hpp>
 #include <boost/utility/enable_if.hpp>

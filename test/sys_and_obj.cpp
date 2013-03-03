@@ -17,7 +17,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/Core"
+#include "opendcm/core.hpp"
 #include "opendcm/core/object.hpp"
 
 #include <boost/function.hpp>
