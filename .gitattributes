@@ -5,8 +5,3 @@
 # to native line endings on checkout.
 *.cpp text
 *.hpp text
-Externalize text
-Core text
-Module3D text
-ModulePart text
-ModuleState text
