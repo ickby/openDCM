@@ -409,6 +409,14 @@ public:
         placehoder p;
         removeCluster(getClusterVertex(g), p);
     };
+    void clearClusters() {
+
+        typedef typename ClusterMap::iterator iter;
+        for(iter it = m_clusters.begin(); it != m_clusters.end(); it++) {
+            delete(*it).second;
+        };
+        m_clusters.clear();
+    };
 
     /**
      * @brief Remove a subcluster and applys the functor to all removed edges and vertices
@@ -604,6 +612,10 @@ public:
 
     };
 
+    fusion::vector<LocalEdge, GlobalEdge, bool, bool> addEdgeGlobal(GlobalVertex source, GlobalVertex target) {
+        return addEdge(source, target);
+    };
+
     /**
      * @brief Get an iterator to all the global edges hold by this local edge
      *
@@ -676,12 +688,12 @@ public:
     GlobalVertex getGlobalVertex(LocalVertex v) {
         return fusion::at_c<2>((*this)[v]);
     };
-    
+
     /**
      * @brief Set the GlobalVertex assiociated with this local one.
-     * 
+     *
      * Be carefull, LocalVertices get an global value assigned while created, override it only when your
-     * are sure that it is unique 
+     * are sure that it is unique
      *
      * @param lv LocalVertex which sould get assigned the global one
      * @param gv The value which the localVertex should get assigned
@@ -689,7 +701,7 @@ public:
      **/
     GlobalVertex setGlobalVertex(LocalVertex lv, GlobalVertex gv) {
         fusion::at_c<2>((*this)[lv]) = gv;
-	return gv;
+        return gv;
     };
 
     /**

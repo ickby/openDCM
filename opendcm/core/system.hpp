@@ -207,7 +207,9 @@ public:
     };
     
     void clear() {
-        m_cluster.clear();
+        
+	m_cluster.clearClusters();
+	m_cluster.clear();
 	fusion::for_each(m_storage, clearer());
     };
 

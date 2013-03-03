@@ -69,7 +69,7 @@ struct ModuleState {
                 // use iterator to parse file data
 		parser<Sys> par(*m_this);
 		m_this->clear();
-                qi::parse(begin, end, par, m_this->m_cluster);
+                qi::phrase_parse(begin, end, par, qi::space, m_this);
             };
         };
 
