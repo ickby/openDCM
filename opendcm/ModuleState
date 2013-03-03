@@ -26,3 +26,4 @@
 #include "moduleState/traits.hpp"
 
 #endif //DCM_MODULEPARSER_H
+
