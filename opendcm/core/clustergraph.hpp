@@ -57,7 +57,7 @@ namespace dcm {
 
 namespace details {
 
-typedef boost::adjacency_list_traits<boost::slistS, boost::slistS, boost::undirectedS> list_traits;
+typedef boost::adjacency_list_traits<boost::listS, boost::listS, boost::undirectedS> list_traits;
 typedef int universalID;
 
 struct IDgen {
@@ -121,7 +121,7 @@ struct 	GlobalEdge {
 
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-class ClusterGraph : public boost::adjacency_list< boost::slistS, boost::slistS,
+class ClusterGraph : public boost::adjacency_list< boost::listS, boost::listS,
     boost::undirectedS,
     fusion::vector< typename details::pts<vertex_prop>::type,
     typename details::sps<objects>::type, GlobalVertex >,
@@ -136,7 +136,7 @@ public:
             typename details::sps<objects>::type, GlobalVertex > vertex_bundle;
 
 
-    typedef boost::adjacency_list< boost::slistS, boost::slistS,
+    typedef boost::adjacency_list< boost::listS, boost::listS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
 
     typedef mpl::vector<changed_prop, type_prop> extras;
@@ -647,7 +647,7 @@ public:
      * @return std::pair<begin, end> with the global_edge_iterator's pointing to the vector<GlobalEdge>'s start
      * and end
      **/
-    uint getGlobalEdgeCount(LocalEdge e) {
+    int getGlobalEdgeCount(LocalEdge e) {
 
         return fusion::at_c<1>((*this)[e]).size();
     };

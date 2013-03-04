@@ -11,7 +11,7 @@ option(EXTERNALIZE "Use external templates to reduce compile time memory (c++0x 
 
 
 find_package(Boost COMPONENTS unit_test_framework system filesystem thread REQUIRED)
-FIND_PACKAGE(Eigen3)
+find_package(Eigen3)
 
 #check for extern templates
 include(CheckCXX11Features)

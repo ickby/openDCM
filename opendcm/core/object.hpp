@@ -28,6 +28,8 @@
 #include <boost/mpl/void.hpp>
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/transform.hpp>
+#include <boost/mpl/key_type.hpp>
+#include <boost/mpl/value_type.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
@@ -51,18 +53,6 @@ namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
 namespace dcm {
-
-namespace details {
-template<typename T>
-struct map_key {
-    typedef typename T::first type;
-};
-template<typename T>
-struct map_val {
-    typedef typename T::second type;
-};
-
-}
 
 //few standart signal names
 struct remove {};
@@ -195,9 +185,9 @@ protected:
      * and store these vectors in a fusion::vector for easy access.
      * */
     typedef typename mpl::fold< Sig, mpl::vector<>,
-            mpl::push_back<mpl::_1, details::map_key<mpl::_2> > >::type sig_name;
+            mpl::push_back<mpl::_1, mpl::key_type<Sig, mpl::_2> > >::type sig_name;
     typedef typename mpl::fold< Sig, mpl::vector<>,
-            mpl::push_back<mpl::_1, details::map_val<mpl::_2> > >::type sig_functions;
+            mpl::push_back<mpl::_1, mpl::value_type<Sig, mpl::_2> > >::type sig_functions;
     typedef typename mpl::fold< sig_functions, mpl::vector<>,
             mpl::push_back<mpl::_1, std::list<mpl::_2> > >::type sig_vectors;
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;

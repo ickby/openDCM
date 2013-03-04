@@ -53,6 +53,8 @@ struct TestModule1 {
         typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
                 mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
 
+		typedef dcm::Unspecified_Identifier Identifier;
+
         struct test_object1 : public dcm::Object<Sys, test_object1, signal_map > {
             test_object1(Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
             int value;
@@ -91,8 +93,11 @@ struct TestModule2 {
 
     template<typename Sys>
     struct type {
-        struct test_object2 : public dcm::Object<Sys, test_object2, mpl::map<> > {
-            test_object2(Sys& system) : dcm::Object<Sys, test_object2, mpl::map<> >(system) { };
+		typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
+                mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
+
+        struct test_object2 : public dcm::Object<Sys, test_object2, signal_map > {
+            test_object2(Sys& system) : dcm::Object<Sys, test_object2, signal_map >(system) { };
             int value;
         };
 
@@ -115,6 +120,7 @@ struct TestModule2 {
         typedef mpl::vector1<test_object2>  	objects;
         typedef mpl::vector4<test_edge_property2, test_vertex_property2,
                 test_object2_prop, test_object1_external_prop> properties;
+		typedef dcm::Unspecified_Identifier Identifier;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -184,7 +190,7 @@ struct test_functor_void {
 struct test_functor_double {
     test_functor_double() : counter(0) {};
     void count(double d1, double d2) {
-        counter += d1+d2;
+        counter += int(d1+d2);
     };
     int counter;
 };

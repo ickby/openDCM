@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
 
     //check the transformations
     Kernel::Vector3 vec(1,2,3);
-    trans3d.scale(0.5);
+    trans3d.scale(Transform::Scaling(0.5));
     vec = trans3d*vec;
     BOOST_CHECK((Kernel::Vector3(1,2,3)*0.5).isApprox(vec, 1e-10));
 
@@ -142,11 +142,11 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
     BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
 
     Transform trans3d_3(Transform::Rotation(4,9,1,2),
-            Transform::Translation(4,2,-6), 2);
+            Transform::Translation(4,2,-6), Transform::Scaling(2));
     Transform trans3d_4(Transform::Rotation(1,2,4,3),
-            Transform::Translation(-4,1,0), 3);
+            Transform::Translation(-4,1,0), Transform::Scaling(3));
     Transform trans3d_5(Transform::Rotation(4,2,1,3),
-            Transform::Translation(-4,-1,2), 4);
+            Transform::Translation(-4,-1,2), Transform::Scaling(4));
     
     vec << 1,2,3;
     trans3d_3.transform(vec);

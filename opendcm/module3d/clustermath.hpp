@@ -52,8 +52,8 @@ public:
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;
     typedef boost::shared_ptr<Geometry3D> Geom;
-    typedef typename module3d::type::math_prop math_prop;
-    typedef typename module3d::type::fix_prop fix_prop;
+    typedef typename module3d::math_prop math_prop;
+    typedef typename module3d::fix_prop fix_prop;
 
     typedef typename Kernel::number_type Scalar;
 
@@ -141,9 +141,9 @@ public:
         trans = m_diffTrans;
         trans *= scale;
     };
-    void transformToMaps(const typename Kernel::Transform3D& trans) {
+    void transformToMaps(typename Kernel::Transform3D& trans) {
 
-        const typename Kernel::Quaternion& m_quaternion = trans.rotation();
+        typename Kernel::Quaternion& m_quaternion = trans.rotation();
         if(m_quaternion.w() < 1.) {
             Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
             m_normQ = m_quaternion.vec()*s;

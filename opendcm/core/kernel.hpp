@@ -408,12 +408,12 @@ struct Kernel {
 
     static int solve(MappedEquationSystem& mes) {
         nothing n;
-        return Nonlinear< Kernel<Scalar, Nonlinear> >().template solve(mes, n);
+        return Nonlinear< Kernel<Scalar, Nonlinear> >().solve(mes, n);
     };
 
     template<typename Functor>
     static int solve(MappedEquationSystem& mes, Functor& f) {
-        return Nonlinear< Kernel<Scalar, Nonlinear> >().template solve(mes, f);
+        return Nonlinear< Kernel<Scalar, Nonlinear> >().solve(mes, f);
     };
 
 };
