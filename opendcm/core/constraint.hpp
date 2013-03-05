@@ -65,73 +65,24 @@ class Constraint : public Object<Sys, Derived, Signals > {
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
 public:
-    Constraint(Sys& system, Geom f, Geom s) : Object<Sys, Derived, Signals > (system),
-        first(f), second(s), content(0)	{
+    Constraint(Sys& system, Geom f, Geom s);
+    ~Constraint();
 
-        cf = first->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
-        cs = second->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
-    };
-
-    ~Constraint()  {
-        delete content;
-        first->template disconnectSignal<reset>(cf);
-        second->template disconnectSignal<reset>(cs);
-    }
-
-    virtual boost::shared_ptr<Derived> clone(Sys& newSys) {
-
-        //copy the standart stuff
-        boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
-        //copy the internals
-        np->content = content->clone();
-        //and get the geometry pointers right
-        if(first) {
-            GlobalVertex v = first->template getProperty<typename Geometry::vertex_propertie>();
-            np->first = newSys.m_cluster.template getObject<Geometry>(v);
-        }
-        if(second) {
-            GlobalVertex v = second->template getProperty<typename Geometry::vertex_propertie>();
-            np->second = newSys.m_cluster.template getObject<Geometry>(v);
-        }
-	return np;
-    }
+    virtual boost::shared_ptr<Derived> clone(Sys& newSys);
 
 protected:
 
     template<typename ConstraintVector>
-    void initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj) {
+    void initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj);
 
-        //first create the new placeholder
-        creator<ConstraintVector> c(obj);
-        boost::apply_visitor(c, first->m_geometry, second->m_geometry);
-
-        //and now store it
-        content = c.p;
-        //geometry order needs to be the one needed by equations
-        if(c.need_swap) first.swap(second);
-
-    };
-
-
-
-    int equationCount() {
-        return content->equationCount();
-    };
+    int equationCount();
 
     template< typename creator_type>
-    void resetType(creator_type& c) {
-        boost::apply_visitor(c, first->m_geometry, second->m_geometry);
-        content = c.p;
-        if(c.need_swap) first.swap(second);
-    };
+    void resetType(creator_type& c);
 
-    void calculate(Scalar scale) {
-        content->calculate(first, second, scale);
-    };
+    void calculate(Scalar scale);
 
-    void setMaps(MES& mes) {
-        content->setMaps(mes, first, second);
-    };
+    void setMaps(MES& mes);
 
     void geometryReset(Geom g) {
         /*    placeholder* p = content->resetConstraint(first, second);
@@ -139,9 +90,7 @@ protected:
             content = p;*/
     };
 
-    void collectPseudoPoints(Vec& vec1, Vec& vec2) {
-        content->collectPseudoPoints(first, second, vec1, vec2);
-    };
+    void collectPseudoPoints(Vec& vec1, Vec& vec2);
 
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
@@ -193,101 +142,37 @@ protected:
 
             Objects& objects;
 
-            OptionSetter(Objects& val) : objects(val) {};
+            OptionSetter(Objects& val);
 
             //only set the value if the equation has a option
             template< typename T >
             typename boost::enable_if<typename has_option<T>::type, void>::type
-            operator()(EquationSet<T>& val) const {
-
-                //get the index of the corresbonding equation
-                typedef typename mpl::find<EquationVector, T>::type iterator;
-                typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
-                BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
-                val.m_eq.value = fusion::at<distance>(objects).value;
-            }
+            operator()(EquationSet<T>& val) const;
             //if the equation has no otpion we do nothing!
             template< typename T >
             typename boost::enable_if<mpl::not_<typename has_option<T>::type>, void>::type
-            operator()(EquationSet<T>& val) const {}
+            operator()(EquationSet<T>& val) const;
         };
 
         struct Calculater {
 
             Geom first, second;
             Scalar scale;
-            Calculater(Geom f, Geom s, Scalar sc) : first(f), second(s), scale(sc) {};
+
+            Calculater(Geom f, Geom s, Scalar sc);
 
             template< typename T >
-            void operator()(T& val) const {
-
-                val.m_eq.setScale(scale);
-
-                val.m_residual(0) = val.m_eq.calculate(first->m_parameter, second->m_parameter);
-
-                //now see which way we should calculate the gradient (may be diffrent for both geometries)
-                if(first->m_parameterCount) {
-                    if(first->getClusterMode()) {
-                        //when the cluster is fixed no maps are set as no parameters exist.
-                        if(!first->isClusterFixed()) {
-
-                            //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                            for(int i=0; i<6; i++) {
-                                typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                                val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                      second->m_parameter, block);
-                            }
-                        }
-                    } else {
-                        //not in cluster, so allow the constraint to optimize the gradient calculation
-                        val.m_eq.calculateGradientFirstComplete(first->m_parameter, second->m_parameter, val.m_diff_first);
-                    }
-                }
-                if(second->m_parameterCount) {
-                    if(second->getClusterMode()) {
-                        if(!second->isClusterFixed()) {
-
-                            //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
-                            for(int i=0; i<6; i++) {
-                                typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                                val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                       second->m_parameter, block);
-                            }
-                        }
-                    } else {
-                        //not in cluster, so allow the constraint to optimize the gradient calculation
-                        val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
-                    }
-
-                }
-            };
+            void operator()(T& val) const;
         };
 
         struct MapSetter {
             MES& mes;
             Geom first, second;
 
-            MapSetter(MES& m, Geom f, Geom s) : mes(m), first(f), second(s) {};
+            MapSetter(MES& m, Geom f, Geom s);
 
             template< typename T >
-            void operator()(T& val) const {
-
-                //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
-                //for every parameter in the geometry;
-                int equation = mes.setResidualMap(val.m_residual);
-                if(first->getClusterMode()) {
-                    if(!first->isClusterFixed()) {
-                        mes.setJacobiMap(equation, first->m_offset, 6, val.m_diff_first);
-                    }
-                } else mes.setJacobiMap(equation, first->m_offset, first->m_parameterCount, val.m_diff_first);
-
-
-                if(second->getClusterMode()) {
-                    if(!second->isClusterFixed()) {
-                        mes.setJacobiMap(equation, second->m_offset, 6, val.m_diff_second);
-                    }
-                } else mes.setJacobiMap(equation, second->m_offset, second->m_parameterCount, val.m_diff_second);
-            };
+            void operator()(T& val) const;
         };
 
         struct PseudoCollector {
@@ -295,51 +180,21 @@ protected:
             Vec& points2;
             Geom first,second;
 
-            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2)
-                : first(f), second(s), points1(vec1), points2(vec2) {};
+            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2);
 
             template< typename T >
-            void operator()(T& val) const {
-                if(first->m_isInCluster && second->m_isInCluster) {
-                    val.m_eq.calculatePseudo(first->m_rotated, points1, second->m_rotated, points2);
-                } else if(first->m_isInCluster) {
-                    typename Kernel::Vector sec = second->m_parameter;
-                    val.m_eq.calculatePseudo(first->m_rotated, points1, sec, points2);
-                } else if(second->m_isInCluster) {
-                    typename Kernel::Vector fir = first->m_parameter;
-                    val.m_eq.calculatePseudo(fir, points1, second->m_rotated, points2);
-                }
-            };
+            void operator()(T& val) const;
         };
 
-        holder(Objects& obj)  {
-            //set the initial values in the equations
-            fusion::for_each(m_sets, OptionSetter(obj));
-        };
-
-        virtual void calculate(Geom first, Geom second, Scalar scale) {
-            fusion::for_each(m_sets, Calculater(first, second, scale));
-        };
-
-        virtual placeholder* resetConstraint(Geom first, Geom second) const {
-            //boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
-            //if(creator.need_swap) first.swap(second);
-            return NULL;
-        };
-        virtual int equationCount() {
+        holder(Objects& obj);
+	
+        virtual void calculate(Geom first, Geom second, Scalar scale);
+        virtual placeholder* resetConstraint(Geom first, Geom second) const;
+        virtual void setMaps(MES& mes, Geom first, Geom second);
+        virtual void collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2);
+        virtual placeholder* clone();
+	virtual int equationCount() {
             return mpl::size<EquationVector>::value;
-        };
-
-        virtual void setMaps(MES& mes, Geom first, Geom second) {
-            fusion::for_each(m_sets, MapSetter(mes, first, second));
-        };
-
-        virtual void collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2) {
-            fusion::for_each(m_sets, PseudoCollector(f, s, vec1, vec2));
-        };
-
-        virtual placeholder* clone() {
-            return new holder(*this);
         };
 
         EquationSets m_sets;
@@ -351,7 +206,7 @@ protected:
         typedef typename fusion::result_of::as_vector<ConstraintVector>::type Objects;
         Objects& objects;
 
-        creator(Objects& obj) : objects(obj) {};
+        creator(Objects& obj);
 
         template<typename C, typename T1, typename T2>
         struct equation {
@@ -359,18 +214,8 @@ protected:
         };
 
         template<typename T1, typename T2>
-        void operator()(const T1&, const T2&) {
-            typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
-
-            //transform the constraints into eqautions with the now known types
-            typedef typename mpl::fold< ConstraintVector, mpl::vector<>,
-                    mpl::push_back<mpl::_1, equation<mpl::_2, typename order::first_tag,
-                    typename order::second_tag> > >::type EquationVector;
-
-            //and build the placeholder
-            p = new holder<ConstraintVector, EquationVector>(objects);
-            need_swap = order::swapt::value;
-        };
+        void operator()(const T1&, const T2&);
+	
         placeholder* p;
         bool need_swap;
     };
@@ -379,6 +224,281 @@ protected:
     Geom first, second;
     Connection cf, cs;
 };
+
+
+/*****************************************************************************************************************/
+/*****************************************************************************************************************/
+/*****************************************************************************************************************/
+/*****************************************************************************************************************/
+
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+Constraint<Sys, Derived, Signals, MES, Geometry>::Constraint(Sys& system, Geom f, Geom s)
+    : Object<Sys, Derived, Signals > (system), first(f), second(s), content(0)	{
+
+    cf = first->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
+    cs = second->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+Constraint<Sys, Derived, Signals, MES, Geometry>::~Constraint()  {
+    delete content;
+    first->template disconnectSignal<reset>(cf);
+    second->template disconnectSignal<reset>(cs);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+boost::shared_ptr<Derived> Constraint<Sys, Derived, Signals, MES, Geometry>::clone(Sys& newSys) {
+
+    //copy the standart stuff
+    boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
+    //copy the internals
+    np->content = content->clone();
+    //and get the geometry pointers right
+    if(first) {
+        GlobalVertex v = first->template getProperty<typename Geometry::vertex_propertie>();
+        np->first = newSys.m_cluster.template getObject<Geometry>(v);
+    }
+    if(second) {
+        GlobalVertex v = second->template getProperty<typename Geometry::vertex_propertie>();
+        np->second = newSys.m_cluster.template getObject<Geometry>(v);
+    }
+    return np;
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::initialize(typename fusion::result_of::as_vector<ConstraintVector>::type& obj) {
+
+    //first create the new placeholder
+    creator<ConstraintVector> c(obj);
+    boost::apply_visitor(c, first->m_geometry, second->m_geometry);
+
+    //and now store it
+    content = c.p;
+    //geometry order needs to be the one needed by equations
+    if(c.need_swap) first.swap(second);
+
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+int Constraint<Sys, Derived, Signals, MES, Geometry>::equationCount() {
+    return content->equationCount();
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template< typename creator_type>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::resetType(creator_type& c) {
+    boost::apply_visitor(c, first->m_geometry, second->m_geometry);
+    content = c.p;
+    if(c.need_swap) first.swap(second);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::calculate(Scalar scale) {
+    content->calculate(first, second, scale);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::setMaps(MES& mes) {
+    content->setMaps(mes, first, second);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::collectPseudoPoints(Vec& vec1, Vec& vec2) {
+    content->collectPseudoPoints(first, second, vec1, vec2);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::OptionSetter::OptionSetter(Objects& val) : objects(val) {};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+template<typename T>
+typename boost::enable_if<typename Constraint<Sys, Derived, Signals, MES, Geometry>::template holder<ConstraintVector, EquationVector>::template has_option<T>::type, void>::type
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::OptionSetter::operator()(EquationSet<T>& val) const {
+
+    //get the index of the corresbonding equation
+    typedef typename mpl::find<EquationVector, T>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<EquationVector>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<EquationVector>::type > >));
+    val.m_eq.value = fusion::at<distance>(objects).value;
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+template<typename T>
+typename boost::enable_if<mpl::not_<typename Constraint<Sys, Derived, Signals, MES, Geometry>::template holder<ConstraintVector, EquationVector>::template has_option<T>::type>, void>::type
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::OptionSetter::operator()(EquationSet<T>& val) const {
+
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::Calculater::Calculater(Geom f, Geom s, Scalar sc) : first(f), second(s), scale(sc) {
+
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+template< typename T >
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::Calculater::operator()(T& val) const {
+
+    val.m_eq.setScale(scale);
+
+    val.m_residual(0) = val.m_eq.calculate(first->m_parameter, second->m_parameter);
+
+    //now see which way we should calculate the gradient (may be diffrent for both geometries)
+    if(first->m_parameterCount) {
+        if(first->getClusterMode()) {
+            //when the cluster is fixed no maps are set as no parameters exist.
+            if(!first->isClusterFixed()) {
+
+                //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
+                for(int i=0; i<6; i++) {
+                    typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
+                    val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                          second->m_parameter, block);
+                }
+            }
+        } else {
+            //not in cluster, so allow the constraint to optimize the gradient calculation
+            val.m_eq.calculateGradientFirstComplete(first->m_parameter, second->m_parameter, val.m_diff_first);
+        }
+    }
+    if(second->m_parameterCount) {
+        if(second->getClusterMode()) {
+            if(!second->isClusterFixed()) {
+
+                //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
+                for(int i=0; i<6; i++) {
+                    typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
+                    val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                                           second->m_parameter, block);
+                }
+            }
+        } else {
+            //not in cluster, so allow the constraint to optimize the gradient calculation
+            val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
+        }
+    }
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::MapSetter::MapSetter(MES& m, Geom f, Geom s)
+    : mes(m), first(f), second(s) {
+
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+template< typename T >
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::MapSetter::operator()(T& val) const {
+
+    //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
+    //for every parameter in the geometry;
+    int equation = mes.setResidualMap(val.m_residual);
+    if(first->getClusterMode()) {
+        if(!first->isClusterFixed()) {
+            mes.setJacobiMap(equation, first->m_offset, 6, val.m_diff_first);
+        }
+    } else mes.setJacobiMap(equation, first->m_offset, first->m_parameterCount, val.m_diff_first);
+
+
+    if(second->getClusterMode()) {
+        if(!second->isClusterFixed()) {
+            mes.setJacobiMap(equation, second->m_offset, 6, val.m_diff_second);
+        }
+    } else mes.setJacobiMap(equation, second->m_offset, second->m_parameterCount, val.m_diff_second);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::PseudoCollector::PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2)
+    : first(f), second(s), points1(vec1), points2(vec2) {
+
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+template< typename T >
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::PseudoCollector::operator()(T& val) const {
+    if(first->m_isInCluster && second->m_isInCluster) {
+        val.m_eq.calculatePseudo(first->m_rotated, points1, second->m_rotated, points2);
+    } else if(first->m_isInCluster) {
+        typename Kernel::Vector sec = second->m_parameter;
+        val.m_eq.calculatePseudo(first->m_rotated, points1, sec, points2);
+    } else if(second->m_isInCluster) {
+        typename Kernel::Vector fir = first->m_parameter;
+        val.m_eq.calculatePseudo(fir, points1, second->m_rotated, points2);
+    }
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::holder(Objects& obj)  {
+    //set the initial values in the equations
+    fusion::for_each(m_sets, OptionSetter(obj));
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::calculate(Geom first, Geom second, Scalar scale) {
+    fusion::for_each(m_sets, Calculater(first, second, scale));
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+typename Constraint<Sys, Derived, Signals, MES, Geometry>::placeholder* 
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::resetConstraint(Geom first, Geom second) const {
+    //boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
+    //if(creator.need_swap) first.swap(second);
+    return NULL;
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::setMaps(MES& mes, Geom first, Geom second) {
+    fusion::for_each(m_sets, MapSetter(mes, first, second));
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2) {
+    fusion::for_each(m_sets, PseudoCollector(f, s, vec1, vec2));
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template<typename ConstraintVector, typename EquationVector>
+typename Constraint<Sys, Derived, Signals, MES, Geometry>::placeholder* 
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::clone() {
+    return new holder(*this);
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template< typename  ConstraintVector >
+Constraint<Sys, Derived, Signals, MES, Geometry>::creator<ConstraintVector>::creator(Objects& obj) : objects(obj) {
+  
+};
+
+template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
+template< typename  ConstraintVector >
+template<typename T1, typename T2>
+void Constraint<Sys, Derived, Signals, MES, Geometry>::creator<ConstraintVector>::operator()(const T1&, const T2&) {
+    typedef tag_order< typename geometry_traits<T1>::tag, typename geometry_traits<T2>::tag > order;
+
+    //transform the constraints into eqautions with the now known types
+    typedef typename mpl::fold< ConstraintVector, mpl::vector<>,
+            mpl::push_back<mpl::_1, equation<mpl::_2, typename order::first_tag,
+            typename order::second_tag> > >::type EquationVector;
+
+    //and build the placeholder
+    p = new holder<ConstraintVector, EquationVector>(objects);
+    need_swap = order::swapt::value;
+};
+
 
 };//detail
 
