@@ -56,7 +56,7 @@ struct ModulePart {
         protected:
 
             //check if we have module3d in this system
-            typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
             BOOST_MPL_ASSERT((mpl::not_<boost::is_same<module3d, mpl::void_> >));
 
             //define what we need
@@ -253,7 +253,7 @@ struct ModulePart {
             //function object to emit remove signal too al geometry which is deleted by part deletion
             struct remover {
                 typedef typename system_traits<Sys>::Cluster Cluster;
-                typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+                typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
                 typedef typename module3d::Geometry3D Geometry3D;
                 typedef boost::shared_ptr<Geometry3D> Geom;
                 typedef typename module3d::Constraint3D Constraint3D;
@@ -321,7 +321,7 @@ struct ModulePart {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename system_traits<Sys>::Kernel Kernel;
-            typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
 
             PrepareCluster() {
                 Job<Sys>::priority = 1000;
@@ -342,7 +342,7 @@ struct ModulePart {
 
             typedef typename system_traits<Sys>::Cluster Cluster;
             typedef typename system_traits<Sys>::Kernel Kernel;
-            typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
 
             EvaljuateCluster() {
                 Job<Sys>::priority = 1000;
