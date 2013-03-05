@@ -324,7 +324,7 @@ protected:
         //after rotating the needed parameters we translate the stuff that needs to be moved
         for(int i=0; i!=m_translations; i++) {
             m_rotated.block(i*Dim,0,Dim,1) += trans.translation().vector();
-            m_rotated.block(i*Dim,0,Dim,1) *= trans.scaling();
+            m_rotated.block(i*Dim,0,Dim,1) *= trans.scaling().factor();
             //calculate the gradient vectors and add them to diffparam
             m_diffparam.block(i*Dim,Dim,Dim,Dim).setIdentity();
         }

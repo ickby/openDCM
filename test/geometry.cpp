@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
     //check if initial initialisation is correct
     BOOST_CHECK(trans3d.rotation().isApprox(Kernel::Quaternion(1,0,0,0), 1e-10));
     BOOST_CHECK(trans3d.translation().vector().isApprox(Kernel::Vector3(0,0,0), 1e-10));
-    BOOST_CHECK(Kernel::isSame(trans3d.scaling(), 1.));
+    BOOST_CHECK(Kernel::isSame(trans3d.scaling().factor(), 1.));
 
     //check the transformations
     Kernel::Vector3 vec(1,2,3);

@@ -143,7 +143,7 @@ public:
     };
     void transformToMaps(typename Kernel::Transform3D& trans) {
 
-        typename Kernel::Quaternion& m_quaternion = trans.rotation();
+        const typename Kernel::Quaternion& m_quaternion = trans.rotation();
         if(m_quaternion.w() < 1.) {
             Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
             m_normQ = m_quaternion.vec()*s;
@@ -166,7 +166,7 @@ public:
         m_transform = m_ssrTransform*m_transform;
 
         //scale all geometries back to the original size
-        m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling());
+        m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
         typedef typename std::vector<Geom>::iterator iter;
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
             (*it)->recalculate(m_diffTrans);

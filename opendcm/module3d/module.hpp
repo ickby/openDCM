@@ -38,7 +38,7 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
-#include "opendcm/Core"
+#include "opendcm/core.hpp"
 #include "opendcm/core/object.hpp"
 #include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/sheduler.hpp"

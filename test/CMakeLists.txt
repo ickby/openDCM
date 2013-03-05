@@ -20,16 +20,16 @@ else(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
 endif(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
 
 set(test_SRC  define.cpp
-	      #kernel.cpp
-	      #clustergraph.cpp
-	      #sys_and_obj.cpp
-	      #geometry.cpp
-	      #clustermath.cpp
-	      #constraints3d.cpp
-	      #module3d.cpp
-	      #dof.cpp
-	      #modulepart.cpp
-	      ${state_SRC}	      
+	      kernel.cpp
+	      clustergraph.cpp
+	      sys_and_obj.cpp
+	      geometry.cpp
+	      clustermath.cpp
+	      constraints3d.cpp
+	      module3d.cpp
+	      dof.cpp
+	      modulepart.cpp
+	      #${state_SRC}	      
 )
 
 if(LOGGING)
