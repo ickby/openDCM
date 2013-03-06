@@ -50,6 +50,7 @@ inline typename Kernel::number_type calc(T d1,
 	default:
 	    assert(false);
     }
+	return 0;
 };
 
 

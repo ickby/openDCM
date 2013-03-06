@@ -188,7 +188,7 @@ public:
     typedef KernelType Kernel;
 
 public:
-    System() : m_sheduler(*this)
+    System()
 #ifdef USE_LOGGING
         , sink(init_log())
 #endif
@@ -254,7 +254,7 @@ public:
 
     void solve() {
         clock_t start = clock();
-        m_sheduler.execute();
+        m_sheduler.execute(*this);
         clock_t end = clock();
         double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
         //Base::Console().Message("overall solving time in ms: %f\n", ms);

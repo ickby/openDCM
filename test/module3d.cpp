@@ -70,14 +70,17 @@ struct test_constraint {
 
         Scalar calculate(Vector& param1,  Vector& param2)  {
             assert(false);
+			return 0;
         };
 
         Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
             assert(false);
+			return 0;
         };
 
         Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
             assert(false);
+			return 0;
         };
 
         void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {

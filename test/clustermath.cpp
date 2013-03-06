@@ -52,13 +52,13 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
 
     System sys;
     cmath math;
-
+	
     Kernel::Vector3 vec(0,0,0);
     math.initFixMaps();
     new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
-
+	
     for(int i=1; i<100; i++) {
-
+		
         //add the amount of points
         for(int j=0; j<i; j++) {
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
             g->clusterMode(true, false);
             math.addGeometry(g);
         };
-
+		
         //calculate the scale value for these points
         double scale = math.calculateClusterScale();
 
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         math.initFixMaps();
     }
 }
-
+/*
 BOOST_AUTO_TEST_CASE(clustermath_multiscaling) {
 
     System sys;
@@ -261,6 +261,6 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     BOOST_CHECK( g1->rotated().isApprox(v1, 1e-10) );
     BOOST_CHECK( g2->rotated().isApprox(v2, 1e-10) );
     BOOST_CHECK( g3->rotated().isApprox(v3, 1e-10) );
-}
+}*/
 
 BOOST_AUTO_TEST_SUITE_END();

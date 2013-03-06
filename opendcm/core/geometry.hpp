@@ -202,7 +202,9 @@ public:
     };
 #endif
 
-protected:
+//protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs 
+//are declared friend
+//protected: 
     Variant m_geometry; //Variant holding the real geometry type
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
     int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
@@ -269,13 +271,14 @@ protected:
 template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
 template<typename T>
 Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::Geometry(T geometry, Sys& system)
-    : Base(system), m_isInCluster(false), m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
+    : m_isInCluster(false), m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
+	m_system = &system;
     init<T>(geometry);
 };
 
@@ -284,7 +287,7 @@ template<typename T>
 void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::set(T geometry) {
     m_geometry = geometry;
     init<T>(geometry);
-    Base::template emitSignal<reset> (Base::shared_from_this());
+    //Base::template emitSignal<reset>( ((Derived*)this)->shared_from_this() );
 };
 
 template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
@@ -302,7 +305,8 @@ template<typename Sys, typename Derived, typename GeometrieTypeList, typename Si
 boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::clone(Sys& newSys) {
 
     //copy the standart stuff
-    boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
+    boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
+    np->m_system = &newSys;
     //it's possible that the variant contains pointers, so we need to clone them
     cloner clone_fnc(np->m_geometry);
     boost::apply_visitor(clone_fnc, m_geometry);

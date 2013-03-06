@@ -123,10 +123,12 @@ struct Module3D {
 
             //allow accessing the internals by module3d classes but not by users
             friend struct details::ClusterMath<Sys>;
+			friend struct details::ClusterMath<Sys>::map_downstream;
             friend struct details::SystemSolver<Sys>;
-            friend class detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>;
+			friend struct details::SystemSolver<Sys>::Rescaler;
+			friend class detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>;
         };
-
+		
         template<typename Derived>
         class Constraint3D_id : public detail::Constraint<Sys, Derived, ConsSignal, MES, Geometry3D> {
 
@@ -145,6 +147,7 @@ struct Module3D {
             Constraint3D(Sys& system, Geom first, Geom second);
 
             friend struct details::SystemSolver<Sys>;
+			friend struct details::SystemSolver<Sys>::Rescaler;
             friend struct details::MES<Sys>;
             friend struct inheriter_base;
         };
@@ -203,7 +206,7 @@ struct Module3D {
         };
 
         typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
-        typedef mpl::vector2<Geometry3D, Constraint3D> objects;
+        typedef mpl::vector<Geometry3D, Constraint3D> objects;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());

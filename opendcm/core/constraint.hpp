@@ -116,6 +116,7 @@ protected:
         virtual placeholder* clone() = 0;
     };
 
+public:
     template< typename ConstraintVector, typename EquationVector>
     struct holder : public placeholder  {
 
@@ -193,13 +194,14 @@ protected:
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
         virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
         virtual placeholder* clone();
-	virtual int equationCount() {
+		virtual int equationCount() {
             return mpl::size<EquationVector>::value;
         };
 
         EquationSets m_sets;
     };
 
+protected:
     template< typename  ConstraintVector >
     struct creator : public boost::static_visitor<void> {
 
@@ -234,8 +236,9 @@ protected:
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 Constraint<Sys, Derived, Signals, MES, Geometry>::Constraint(Sys& system, geom_ptr f, geom_ptr s)
-    : Object<Sys, Derived, Signals > (system), first(f), second(s), content(0)	{
+    : first(f), second(s), content(0)	{
 
+	m_system = &system;
     cf = first->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
     cs = second->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
 };
@@ -249,9 +252,10 @@ Constraint<Sys, Derived, Signals, MES, Geometry>::~Constraint()  {
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 boost::shared_ptr<Derived> Constraint<Sys, Derived, Signals, MES, Geometry>::clone(Sys& newSys) {
-
+	
     //copy the standart stuff
-    boost::shared_ptr<Derived> np = Object<Sys, Derived, Signals >::clone(newSys);
+    boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
+    np->m_system = &newSys;
     //copy the internals
     np->content = content->clone();
     //and get the geometry pointers right

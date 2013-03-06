@@ -54,7 +54,7 @@ template<typename Sys>
 class Sheduler {
 
 public:
-    Sheduler(Sys& s) : m_system(s) {};
+    Sheduler() {};
     ~Sheduler() {
       
       std::for_each(m_preprocess.begin(), m_preprocess.end(), Deleter());
@@ -72,10 +72,10 @@ public:
         m_process.insert(j);
     };
 
-    void execute() {
-        std::for_each(m_preprocess.begin(), m_preprocess.end(), Executer(m_system));
-        std::for_each(m_process.begin(), m_process.end(), Executer(m_system));
-        std::for_each(m_postprocess.begin(), m_postprocess.end(), Executer(m_system));
+    void execute(Sys& system) {
+        std::for_each(m_preprocess.begin(), m_preprocess.end(), Executer(system));
+        std::for_each(m_process.begin(), m_process.end(), Executer(system));
+        std::for_each(m_postprocess.begin(), m_postprocess.end(), Executer(system));
     };
 
 protected:
@@ -93,7 +93,6 @@ protected:
     };
 
     std::set< Job<Sys>* > m_preprocess, m_process, m_postprocess;
-    Sys& m_system;
 };
 
 }

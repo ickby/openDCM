@@ -54,22 +54,22 @@
 
 #define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/generator.hpp>
 #define DCM_EXTERNAL_001( System )\
-    template class dcm::generator<System>; \
+    template struct dcm::generator<System>; \
      
 #define DCM_EXTERNAL_INCLUDE_002 <opendcm/moduleState/object_generator_imp.hpp>
 #define DCM_EXTERNAL_002( System )\
-    template class dcm::details::obj_gen<System>; \
+    template struct dcm::details::obj_gen<System>; \
      
 #define DCM_EXTERNAL_INCLUDE_003 <opendcm/moduleState/property_generator_imp.hpp>
 #define DCM_EXTERNAL_003( System )\
-    template class dcm::details::vertex_prop_gen<System>; \
-    template class dcm::details::edge_prop_gen<System>; \
-    template class dcm::details::cluster_prop_gen<System>;
+    template struct dcm::details::vertex_prop_gen<System>; \
+    template struct dcm::details::edge_prop_gen<System>; \
+    template struct dcm::details::cluster_prop_gen<System>;
 
 #define DCM_EXTERNAL_INCLUDE_004 <opendcm/moduleState/edge_vertex_generator_imp.hpp>
 #define DCM_EXTERNAL_004( System )\
-    template class dcm::details::edge_generator<System>; \
-    template class dcm::details::vertex_generator<System>; \
+    template struct dcm::details::edge_generator<System>; \
+    template struct dcm::details::vertex_generator<System>; \
      
 #else
 #define DCM_EXTERNALIZE( System )

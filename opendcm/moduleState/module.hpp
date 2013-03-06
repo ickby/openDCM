@@ -42,7 +42,10 @@ struct ModuleState {
 
         struct inheriter {
 
-            inheriter() :  m_this((Sys*) this) {}
+            inheriter()  {
+				m_this = (Sys*) this;
+			};
+
             Sys* m_this;
 
             void saveState(std::ostream& stream) {

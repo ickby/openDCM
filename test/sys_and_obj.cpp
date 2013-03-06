@@ -45,6 +45,7 @@ struct test_vertex_property2 {
 };
 struct test_signal1 {};
 struct test_signal2 {};
+struct test_signal3 {};
 
 struct TestModule1 {
 
@@ -55,17 +56,22 @@ struct TestModule1 {
 
 		typedef dcm::Unspecified_Identifier Identifier;
 
-        struct test_object1 : public dcm::Object<Sys, test_object1, signal_map > {
-            test_object1(Sys& system) : dcm::Object<Sys, test_object1, signal_map >(system) { };
+		template<typename Syst, typename Derived>
+        struct test_object1_base : public dcm::Object<Syst, Derived, signal_map > {
+            test_object1_base(Syst& system) : dcm::Object<Syst, Derived, signal_map >(system) { };
             int value;
 
             void emit_test_void() {
-                dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal1>();
+                dcm::Object<Syst, test_object1, signal_map >::template emitSignal<test_signal1>();
             };
             void emit_test_double(const double& d1, const double& d2) {
-                dcm::Object<Sys, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
+                dcm::Object<Syst, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
             };
         };
+
+		struct test_object1 : public test_object1_base<Sys, test_object1> {
+			test_object1(Sys& system) : test_object1_base<Sys, test_object1>(system) { };
+		};
 
         struct inheriter {
             int test_inherit1() {
@@ -227,7 +233,6 @@ BOOST_AUTO_TEST_CASE(object_signals) {
     o1.emit_test_double(2,4);
 
     BOOST_CHECK(d.counter == 6);
-
 };
 
 BOOST_AUTO_TEST_SUITE_END();
