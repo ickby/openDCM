@@ -149,8 +149,6 @@ struct parser_parser< typename TestModule1::type<System>::test_edge1_prop, Syste
     };
 };
 
-
-
 template<typename System>
 struct parser_generate< typename TestModule1::type<System>::test_object1, System>
   : public mpl::true_{};
@@ -183,7 +181,5 @@ struct parser_parser< typename TestModule1::type<System>::test_object1, System, 
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type> System;
-
-DCM_EXTERNALIZE( System )
 
 #endif //DCM_PARSER_H

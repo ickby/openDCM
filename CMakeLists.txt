@@ -7,20 +7,19 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}, ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 #options for build-finetuning
 option(GENERATE_DOCS "Generate the documentation if doxygen is available" OFF)
 option(LOGGING "Log internals to a file. Warning: serious speed tradeoff" OFF)
-option(EXTERNALIZE "Use external templates to reduce compile time memory (c++0x feature)" ON)
+option(EXTERNALIZE "Explicit instantiation of templates to reduce compile time memory" ON)
 
 
 find_package(Boost COMPONENTS unit_test_framework system filesystem thread REQUIRED)
 find_package(Eigen3)
 
 #check for extern templates
-include(CheckCXX11Features)
-if(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
+if(EXTERNALIZE)
   add_definitions( -DUSE_EXTERNAL )
-endif(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
+endif(EXTERNALIZE)
 
 if(LOGGING)
-  add_definitions( -DUSE_LOGGING)
+  add_definitions( -DUSE_LOGGING )
 ENDIF(LOGGING)
 
 if(GENERATE_DOCS)

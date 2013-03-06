@@ -9,16 +9,16 @@ link_directories ( ${Boost_LIBRARY_DIRS} )
 
 set(framework_SRC framework.cpp)
 
-if(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
+if(EXTERNALIZE)
   set(state_SRC parser.cpp
-		parser_ext1.cpp
-		parser_ext2.cpp
-		parser_ext3.cpp
-		parser_ext4.cpp
+		#parser_ext1.cpp
+		#parser_ext2.cpp
+		#parser_ext3.cpp
+		#parser_ext4.cpp
   )
-else(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
+else(EXTERNALIZE)
   set(state_SRC parser.cpp)
-endif(HAS_CXX11_EXTERN_TEMPLATES AND EXTERNALIZE)
+endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
 	      kernel.cpp
@@ -30,7 +30,7 @@ set(test_SRC  define.cpp
 	      module3d.cpp
 	      dof.cpp
 	      modulepart.cpp
-	      #${state_SRC}	      
+	      ${state_SRC}	      
 )
 
 if(LOGGING)

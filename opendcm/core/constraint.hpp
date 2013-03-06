@@ -238,7 +238,7 @@ template<typename Sys, typename Derived, typename Signals, typename MES, typenam
 Constraint<Sys, Derived, Signals, MES, Geometry>::Constraint(Sys& system, geom_ptr f, geom_ptr s)
     : first(f), second(s), content(0)	{
 
-	m_system = &system;
+    Object<Sys, Derived, Signals>::m_system = &system;
     cf = first->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
     cs = second->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
 };

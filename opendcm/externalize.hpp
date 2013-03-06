@@ -26,32 +26,6 @@
 
 #ifdef USE_EXTERNAL
 
-#define FOLD(r, data, elem) extern template class elem<data>;
-
-#ifdef DCM_USE_MODULESTATE
-
-#define LIST_STATE (dcm::generator, \
-                    (dcm::details::obj_gen, \
-                     (dcm::details::vertex_prop_gen, \
-                      (dcm::details::edge_prop_gen, \
-                       (dcm::details::cluster_prop_gen, \
-                        (dcm::details::edge_generator, \
-                         (dcm::details::vertex_generator, BOOST_PP_NIL)))))))                     
-#else
-#define LIST_STATE BOOST_PP_NIL
-#endif
-
-#ifdef DCM_USE_MODULE3D
-#define LIST_3D BOOST_PP_NIL
-#else
-#define LIST_3D BOOST_PP_NIL
-#endif
-
-#define LIST BOOST_PP_LIST_APPEND(LIST_STATE, LIST_3D)
-
-#define DCM_EXTERNALIZE( System ) \
-    BOOST_PP_LIST_FOR_EACH(FOLD,System, LIST)
-
 #define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/generator.hpp>
 #define DCM_EXTERNAL_001( System )\
     template struct dcm::generator<System>; \

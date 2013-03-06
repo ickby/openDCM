@@ -278,7 +278,7 @@ Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::Geometry(T geometry, Sy
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
-	m_system = &system;
+	Base::m_system = &system;
     init<T>(geometry);
 };
 
