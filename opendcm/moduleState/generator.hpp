@@ -73,23 +73,11 @@ struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
     Sys& system;
 };
 
-//definitions outside to avoid automatic inline
-template<typename Sys>
-generator<Sys>::generator(Sys& s) : generator<Sys>::base_type(start), system(s) {
-
-    cluster = karma::lit("<Cluster id=") <<karma::int_[phx::bind(&Extractor<Sys>::getVertexID, ex, phx::at_c<1>(karma::_val), phx::at_c<0>(karma::_val), karma::_1)]
-              << ">+" << cluster_prop[phx::bind(&Extractor<Sys>::getClusterProperties, ex, phx::at_c<1>(karma::_val), karma::_1)]
-              << vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, ex, phx::at_c<1>(karma::_val), karma::_1)]
-              << -karma::buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, ex, phx::at_c<1>(karma::_val), karma::_1)]]
-              << -karma::buffer["\n" << cluster_range[phx::bind(&Extractor<Sys>::getClusterRange, ex, phx::at_c<1>(karma::_val), karma::_1)]] << "-\n"
-              << "</Cluster>";
-
-    cluster_range = cluster % karma::eol;
-
-    start = cluster[phx::bind(&Extractor<Sys>::makeInitPair, ex, karma::_val, karma::_1)];
-};
-
 }//namespace dcm
+
+#ifndef USE_EXTERNAL
+#include "generator_imp.hpp"
+#endif
 
 #endif //DCM_GENERATOR_H
 

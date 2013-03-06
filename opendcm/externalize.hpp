@@ -26,7 +26,7 @@
 
 #ifdef USE_EXTERNAL
 
-#define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/generator.hpp>
+#define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/generator_imp.hpp>
 #define DCM_EXTERNAL_001( System )\
     template struct dcm::generator<System>; \
      
@@ -44,6 +44,25 @@
 #define DCM_EXTERNAL_004( System )\
     template struct dcm::details::edge_generator<System>; \
     template struct dcm::details::vertex_generator<System>; \
+    
+#define DCM_EXTERNAL_INCLUDE_005 <opendcm/moduleState/property_parser_imp.hpp>
+#define DCM_EXTERNAL_005( System )\
+    template struct dcm::details::vertex_prop_par<System>; \
+    template struct dcm::details::edge_prop_par<System>; \
+    template struct dcm::details::cluster_prop_par<System>;
+    
+#define DCM_EXTERNAL_INCLUDE_006 <opendcm/moduleState/object_parser_imp.hpp>
+#define DCM_EXTERNAL_006( System )\
+    template struct dcm::details::obj_par<System>; \
+    
+#define DCM_EXTERNAL_INCLUDE_007 <opendcm/moduleState/edge_vertex_parser_imp.hpp>
+#define DCM_EXTERNAL_007( System )\
+    template struct dcm::details::edge_parser<System>; \
+    template struct dcm::details::vertex_parser<System>; \
+    
+#define DCM_EXTERNAL_INCLUDE_008 <opendcm/moduleState/parser_imp.hpp>
+#define DCM_EXTERNAL_008( System )\
+    template struct dcm::parser<System>; \
      
 #else
 #define DCM_EXTERNALIZE( System )

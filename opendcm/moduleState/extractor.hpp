@@ -75,6 +75,33 @@ struct Extractor {
     };
 };
 
+template<typename Sys>
+struct Injector {
+
+    void setClusterProperties(typename Sys::Cluster* cluster,
+                              typename details::pts<typename Sys::Cluster::cluster_properties>::type& prop) {
+        cluster->m_cluster_bundle = prop;
+    };
+    void setVertexProperties(typename Sys::Cluster* cluster, LocalVertex v,
+                             typename details::pts<typename Sys::vertex_properties>::type& prop) {
+        fusion::at_c<0>(cluster->operator[](v)) = prop;
+    };
+    void setVertexObjects(typename Sys::Cluster* cluster, LocalVertex v,
+                          typename details::sps<typename Sys::objects>::type& obj) {
+        fusion::at_c<1>(cluster->operator[](v)) = obj;
+    };
+
+    void setEdgeProperties(typename Sys::Cluster* cluster, LocalEdge e,
+                           typename details::pts<typename Sys::edge_properties>::type& prop) {
+        fusion::at_c<0>(cluster->operator[](e)) = prop;
+    };
+    void addCluster(typename Sys::Cluster* cluster, fusion::vector2<GlobalVertex, typename Sys::Cluster*>& vec) {
+        LocalVertex v = cluster->getLocalVertex(fusion::at_c<0>(vec)).first;
+        cluster->m_clusters[v] = fusion::at_c<1>(vec);
+    };
+
+};
+
 
 
 }//namespace dcm
