@@ -11,10 +11,14 @@ set(framework_SRC framework.cpp)
 
 if(EXTERNALIZE)
   set(state_SRC parser.cpp
-		#parser_ext1.cpp
-		#parser_ext2.cpp
-		#parser_ext3.cpp
-		#parser_ext4.cpp
+		parser_ext1.cpp
+		parser_ext2.cpp
+		parser_ext3.cpp
+		parser_ext4.cpp
+	        parser_ext5.cpp
+	        parser_ext6.cpp
+	        parser_ext7.cpp
+	        parser_ext8.cpp
   )
 else(EXTERNALIZE)
   set(state_SRC parser.cpp)
