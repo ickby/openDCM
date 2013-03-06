@@ -25,6 +25,7 @@
 
 #include <Eigen/StdVector>
 #include <opendcm/core/logging.hpp>
+#include "defines.hpp"
 
 #define MAXFAKTOR 1.2   //the maximal distance allowd by a point normed to the cluster size
 #define MINFAKTOR 0.8   //the minimal distance allowd by a point normed to the cluster size
