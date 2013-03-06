@@ -242,13 +242,11 @@ class DiffTransform : public Transform<Scalar, Dim> {
     DiffMatrix m_diffMatrix;
 
 public:
-    DiffTransform(Rotation q = Rotation::Identity(),
-                  Translation v = Translation::Identity(),
-                  Scaling s = Scaling(1.))
-        : Transform<Scalar, Dim>(q,v,s) {
-
-        m_diffMatrix.setZero();
-    };
+    DiffTransform() : Transform<Scalar, Dim>() { };
+    DiffTransform(const Rotation& r) : Transform<Scalar, Dim>(r) {};
+    DiffTransform(const Rotation& r, const Translation& t) : Transform<Scalar, Dim>(r,t) {};
+    DiffTransform(const Rotation& r, const Translation& t, const Scaling& s) : Transform<Scalar, Dim>(r,t,s) {};
+   
     DiffTransform(Transform<Scalar, Dim>& trans)
         : Transform<Scalar, Dim>(trans.rotation(), trans.translation(), trans.scaling()) {
 

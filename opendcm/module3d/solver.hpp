@@ -184,10 +184,10 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
 };
 
 template<typename Sys>
-void SystemSolver<Sys>::Rescaler::collectPseudoPoints(Cluster& parent,
+void SystemSolver<Sys>::Rescaler::collectPseudoPoints(typename SystemSolver<Sys>::Cluster& parent,
         LocalVertex cluster,
-        std::vector<typename Kernel::Vector3,
-        Eigen::aligned_allocator<typename Kernel::Vector3> >& vec) {
+        std::vector<typename SystemSolver<Sys>::Kernel::Vector3,
+        Eigen::aligned_allocator<typename SystemSolver<Sys>::Kernel::Vector3> >& vec) {
 
     std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > vec2;
     typedef typename Cluster::template object_iterator<Constraint3D> c_iter;

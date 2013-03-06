@@ -122,8 +122,8 @@ struct Module3D {
             Geometry3D(T geometry, Sys& system);
 
             //allow accessing the internals by module3d classes but not by users
-            friend class details::ClusterMath<Sys>;
-            friend class details::SystemSolver<Sys>;
+            friend struct details::ClusterMath<Sys>;
+            friend struct details::SystemSolver<Sys>;
             friend class detail::Constraint<Sys, Constraint3D, ConsSignal, MES, Geometry3D>;
         };
 
@@ -144,8 +144,8 @@ struct Module3D {
 
             Constraint3D(Sys& system, Geom first, Geom second);
 
-            friend class details::SystemSolver<Sys>;
-            friend class details::MES<Sys>;
+            friend struct details::SystemSolver<Sys>;
+            friend struct details::MES<Sys>;
             friend struct inheriter_base;
         };
 

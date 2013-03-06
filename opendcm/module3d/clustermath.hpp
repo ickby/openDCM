@@ -212,7 +212,7 @@ typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform()
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::mapsToTransform(typename Kernel::Transform3D& trans) {
+void ClusterMath<Sys>::mapsToTransform(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
     //add scale only after possible reset
     typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
     trans = m_diffTrans;
@@ -220,7 +220,7 @@ void ClusterMath<Sys>::mapsToTransform(typename Kernel::Transform3D& trans) {
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::transformToMaps(typename Kernel::Transform3D& trans) {
+void ClusterMath<Sys>::transformToMaps(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
 
     const typename Kernel::Quaternion& m_quaternion = trans.rotation();
     if(m_quaternion.w() < 1.) {
@@ -271,7 +271,7 @@ void ClusterMath<Sys>::finishFixCalculation() {
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::resetClusterRotation(typename Kernel::Transform3D& trans) {
+void ClusterMath<Sys>::resetClusterRotation(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Reset cluster rotation:"<<std::endl<<m_diffTrans;
@@ -289,7 +289,7 @@ void ClusterMath<Sys>::resetClusterRotation(typename Kernel::Transform3D& trans)
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::calcDiffTransform(typename Kernel::DiffTransform3D& trans) {
+void ClusterMath<Sys>::calcDiffTransform(typename ClusterMath<Sys>::Kernel::DiffTransform3D& trans) {
 
     Scalar norm = m_normQ.norm();
     trans.setIdentity();
@@ -699,7 +699,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 };
 
 template<typename Sys>
-typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcOnePoint(const typename Kernel::Vector3& p) {
+typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcOnePoint(const typename ClusterMath<Sys>::Kernel::Vector3& p) {
 
     //one point can have every scale when moving the midpoint on the origin - point vector
     midpoint  = p;
@@ -711,7 +711,8 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcOnePoint(const typename 
 };
 
 template<typename Sys>
-typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcTwoPoints(const typename Kernel::Vector3& p1, const typename Kernel::Vector3& p2) {
+typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcTwoPoints(const typename ClusterMath<Sys>::Kernel::Vector3& p1,
+																  const typename ClusterMath<Sys>::Kernel::Vector3& p2) {
 
     //two points have their minimal scale at the mid position. Scaling perpendicular to this
     //line allows arbitrary scale values. Best is to have the scale dir move towards the origin
@@ -727,8 +728,8 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcTwoPoints(const typename
 };
 
 template<typename Sys>
-typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcThreePoints(const typename Kernel::Vector3& p1,
-        const typename Kernel::Vector3& p2, const typename Kernel::Vector3& p3) {
+typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcThreePoints(const typename ClusterMath<Sys>::Kernel::Vector3& p1,
+        const typename ClusterMath<Sys>::Kernel::Vector3& p2, const typename ClusterMath<Sys>::Kernel::Vector3& p3) {
 
     //Three points form a triangle with it's minimal scale at the center of it's outer circle.
     //Arbitrary scale values can be achieved by moving perpendicular to the triangle plane.

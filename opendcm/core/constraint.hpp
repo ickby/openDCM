@@ -61,11 +61,11 @@ class Constraint : public Object<Sys, Derived, Signals > {
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::DynStride DS;
 
-    typedef boost::shared_ptr<Geometry> Geom;
+    typedef boost::shared_ptr<Geometry> geom_ptr;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
 public:
-    Constraint(Sys& system, Geom f, Geom s);
+    Constraint(Sys& system, geom_ptr f, geom_ptr s);
     ~Constraint();
 
     virtual boost::shared_ptr<Derived> clone(Sys& newSys);
@@ -84,7 +84,7 @@ protected:
 
     void setMaps(MES& mes);
 
-    void geometryReset(Geom g) {
+    void geometryReset(geom_ptr g) {
         /*    placeholder* p = content->resetConstraint(first, second);
             delete content;
             content = p;*/
@@ -108,11 +108,11 @@ protected:
 
     struct placeholder  {
         virtual ~placeholder() {}
-        virtual placeholder* resetConstraint(Geom first, Geom second) const = 0;
-        virtual void calculate(Geom first, Geom second, Scalar scale) = 0;
+        virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const = 0;
+        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale) = 0;
         virtual int  equationCount() = 0;
-        virtual void setMaps(MES& mes, Geom first, Geom second) = 0;
-        virtual void collectPseudoPoints(Geom first, Geom second, Vec& vec1, Vec& vec2) = 0;
+        virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
+        virtual void collectPseudoPoints(geom_ptr first, geom_ptr second, Vec& vec1, Vec& vec2) = 0;
         virtual placeholder* clone() = 0;
     };
 
@@ -156,10 +156,10 @@ protected:
 
         struct Calculater {
 
-            Geom first, second;
+            geom_ptr first, second;
             Scalar scale;
 
-            Calculater(Geom f, Geom s, Scalar sc);
+            Calculater(geom_ptr f, geom_ptr s, Scalar sc);
 
             template< typename T >
             void operator()(T& val) const;
@@ -167,9 +167,9 @@ protected:
 
         struct MapSetter {
             MES& mes;
-            Geom first, second;
+            geom_ptr first, second;
 
-            MapSetter(MES& m, Geom f, Geom s);
+            MapSetter(MES& m, geom_ptr f, geom_ptr s);
 
             template< typename T >
             void operator()(T& val) const;
@@ -178,9 +178,9 @@ protected:
         struct PseudoCollector {
             Vec& points1;
             Vec& points2;
-            Geom first,second;
+            geom_ptr first,second;
 
-            PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2);
+            PseudoCollector(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
 
             template< typename T >
             void operator()(T& val) const;
@@ -188,10 +188,10 @@ protected:
 
         holder(Objects& obj);
 	
-        virtual void calculate(Geom first, Geom second, Scalar scale);
-        virtual placeholder* resetConstraint(Geom first, Geom second) const;
-        virtual void setMaps(MES& mes, Geom first, Geom second);
-        virtual void collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2);
+        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale);
+        virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const;
+        virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
+        virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
         virtual placeholder* clone();
 	virtual int equationCount() {
             return mpl::size<EquationVector>::value;
@@ -221,7 +221,7 @@ protected:
     };
 
     placeholder* content;
-    Geom first, second;
+    geom_ptr first, second;
     Connection cf, cs;
 };
 
@@ -233,7 +233,7 @@ protected:
 
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
-Constraint<Sys, Derived, Signals, MES, Geometry>::Constraint(Sys& system, Geom f, Geom s)
+Constraint<Sys, Derived, Signals, MES, Geometry>::Constraint(Sys& system, geom_ptr f, geom_ptr s)
     : Object<Sys, Derived, Signals > (system), first(f), second(s), content(0)	{
 
     cf = first->template connectSignal<reset> (boost::bind(&Constraint::geometryReset, this, _1));
@@ -336,7 +336,7 @@ Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, Equat
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::Calculater::Calculater(Geom f, Geom s, Scalar sc) : first(f), second(s), scale(sc) {
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::Calculater::Calculater(geom_ptr f, geom_ptr s, Scalar sc) : first(f), second(s), scale(sc) {
 
 };
 
@@ -387,7 +387,7 @@ void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, 
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::MapSetter::MapSetter(MES& m, Geom f, Geom s)
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::MapSetter::MapSetter(MES& m, geom_ptr f, geom_ptr s)
     : mes(m), first(f), second(s) {
 
 };
@@ -416,7 +416,7 @@ void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, 
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::PseudoCollector::PseudoCollector(Geom f, Geom s, Vec& vec1, Vec& vec2)
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::PseudoCollector::PseudoCollector(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2)
     : first(f), second(s), points1(vec1), points2(vec2) {
 
 };
@@ -445,14 +445,14 @@ Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, Equat
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::calculate(Geom first, Geom second, Scalar scale) {
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::calculate(geom_ptr first, geom_ptr second, Scalar scale) {
     fusion::for_each(m_sets, Calculater(first, second, scale));
 };
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
 typename Constraint<Sys, Derived, Signals, MES, Geometry>::placeholder* 
-Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::resetConstraint(Geom first, Geom second) const {
+Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::resetConstraint(geom_ptr first, geom_ptr second) const {
     //boost::apply_visitor(creator, first->m_geometry, second->m_geometry);
     //if(creator.need_swap) first.swap(second);
     return NULL;
@@ -460,13 +460,13 @@ Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, Equat
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::setMaps(MES& mes, Geom first, Geom second) {
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::setMaps(MES& mes, geom_ptr first, geom_ptr second) {
     fusion::for_each(m_sets, MapSetter(mes, first, second));
 };
 
 template<typename Sys, typename Derived, typename Signals, typename MES, typename Geometry>
 template<typename ConstraintVector, typename EquationVector>
-void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::collectPseudoPoints(Geom f, Geom s, Vec& vec1, Vec& vec2) {
+void Constraint<Sys, Derived, Signals, MES, Geometry>::holder<ConstraintVector, EquationVector>::collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2) {
     fusion::for_each(m_sets, PseudoCollector(f, s, vec1, vec2));
 };
 
