@@ -99,7 +99,9 @@ struct Injector {
         LocalVertex v = cluster->getLocalVertex(fusion::at_c<0>(vec)).first;
         cluster->m_clusters[v] = fusion::at_c<1>(vec);
     };
-
+	void addVertex(typename Sys::Cluster* cluster, fusion::vector<LocalVertex, GlobalVertex>& vec) {
+		vec = cluster->addVertex();
+	};
 };
 
 

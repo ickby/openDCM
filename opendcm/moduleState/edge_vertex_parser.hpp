@@ -34,39 +34,38 @@ typedef boost::spirit::istream_iterator IIterator;
 namespace details {
 
 template<typename Sys>
-struct edge_parser : qi::grammar< IIterator, fusion::vector4<LocalEdge, GlobalEdge, bool, bool>(typename Sys::Cluster*, Sys*),
+struct edge_parser : qi::grammar< IIterator, fusion::vector<LocalEdge, GlobalEdge, bool, bool>(typename Sys::Cluster*, Sys*),
        qi::space_type > {
 
            edge_parser();
            details::obj_par<Sys> objects;
-	   Injector<Sys> in;
+		   Injector<Sys> in;
 
-           qi::rule<IIterator, fusion::vector4<LocalEdge, GlobalEdge, bool, bool>(typename Sys::Cluster*, Sys*),
-           qi::space_type> edge;
+           qi::rule<IIterator, fusion::vector<LocalEdge, GlobalEdge, bool, bool>(typename Sys::Cluster*, Sys*), qi::space_type> edge;
            qi::rule<IIterator, typename Sys::Cluster::edge_bundle_single(Sys*), qi::space_type> global_edge;
            details::edge_prop_par<Sys> edge_prop;
 
        };
 
 template<typename Sys>
-struct vertex_parser : qi::grammar< IIterator, fusion::vector2<LocalVertex, GlobalVertex>(typename Sys::Cluster*, Sys*),
+struct vertex_parser : qi::grammar< IIterator, fusion::vector<LocalVertex, GlobalVertex>(typename Sys::Cluster*, Sys*),
        qi::space_type> {
 
            vertex_parser();
-           details::obj_par<Sys> objects;
-	   Injector<Sys> in;
 
-           qi::rule<IIterator,
-           fusion::vector2<LocalVertex, GlobalVertex>(typename Sys::Cluster*, Sys*), qi::space_type> vertex;
-           details::vertex_prop_par<Sys> vertex_prop;
+           details::obj_par<Sys> objects;
+		   Injector<Sys> in;
+
+           qi::rule<IIterator, fusion::vector<LocalVertex, GlobalVertex>(typename Sys::Cluster*, Sys*), qi::space_type> vertex;
+           details::vertex_prop_par<Sys> prop;
 
        };
 
 }
 }
 
-#ifndef USE_EXTERNAL
-#include "edge_vertex_parser_imp.hpp"
-#endif
+//#ifndef USE_EXTERNAL
+//#include "edge_vertex_parser_imp.hpp"
+//#endif
 
 #endif

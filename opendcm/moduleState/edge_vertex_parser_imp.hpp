@@ -24,7 +24,7 @@
 
 namespace dcm {
 namespace details {
-
+	
 template<typename Sys>
 edge_parser<Sys>::edge_parser() : edge_parser<Sys>::base_type(edge) {
 
@@ -41,10 +41,10 @@ edge_parser<Sys>::edge_parser() : edge_parser<Sys>::base_type(edge) {
 
 template<typename Sys>
 vertex_parser<Sys>::vertex_parser() : vertex_parser<Sys>::base_type(vertex) {
-
-    vertex = ascii::string("<Vertex")[qi::_val = phx::bind(&Sys::Cluster::addVertex, qi::_r1)] >> ("id=")
+	
+    vertex = qi::lit("<Vertex")[phx::bind(&Injector<Sys>::addVertex, in, qi::_r1, qi::_val)] >> qi::lit("id=")
              >> qi::int_[phx::at_c<1>(qi::_val) = phx::bind(&Sys::Cluster::setGlobalVertex, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
-             >> '>' >> vertex_prop[phx::bind(&Injector<Sys>::setVertexProperties, in, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
+             >> '>' >> prop[phx::bind(&Injector<Sys>::setVertexProperties, in, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
              >> objects(qi::_r2)[phx::bind(&Injector<Sys>::setVertexObjects, in, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
              >> ("</Vertex>");
 };
