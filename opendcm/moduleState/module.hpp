@@ -25,6 +25,7 @@
 #include "indent.hpp"
 #include "generator.hpp"
 #include "parser.hpp"
+#include "defines.hpp"
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/support_istream_iterator.hpp>
@@ -43,8 +44,8 @@ struct ModuleState {
         struct inheriter {
 
             inheriter()  {
-				m_this = (Sys*) this;
-			};
+                m_this = (Sys*) this;
+            };
 
             Sys* m_this;
 
@@ -55,13 +56,13 @@ struct ModuleState {
                 indent_stream.push(stream);
 
                 std::ostream_iterator<char> out(indent_stream);
-                generator<Sys> gen(*m_this);
+                generator<Sys> gen;
 
                 karma::generate(out, gen, m_this->m_cluster);
             };
 
             void loadState(std::istream& stream) {
-	      
+
                 //disable skipping of whitespace
                 stream.unsetf(std::ios::skipws);
 
@@ -70,15 +71,16 @@ struct ModuleState {
                 boost::spirit::istream_iterator end;
 
                 // use iterator to parse file data
-		parser<Sys> par(*m_this);
-		m_this->clear();
-                qi::phrase_parse(begin, end, par, qi::space, m_this);
+                parser<Sys> par;
+                m_this->clear();
+                typename Sys::Cluster* cl_ptr = &(m_this->m_cluster);
+                qi::phrase_parse(begin, end, par(m_this), qi::space, cl_ptr);
             };
         };
 
 
-        //nothing to add to the objects and properties of other modules
-        typedef mpl::vector0<>  properties;
+        //add only a property to the cluster as we need it to store the clusers global vertex
+        typedef mpl::vector1<details::cluster_vertex_prop>  properties;
         typedef mpl::vector0<>  objects;
 
         //nothing to do on startup

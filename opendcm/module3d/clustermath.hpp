@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include <Eigen/StdVector>
+#include <boost/noncopyable.hpp>
 #include <opendcm/core/logging.hpp>
 #include "defines.hpp"
 

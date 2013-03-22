@@ -20,8 +20,8 @@
 #ifndef DCM_GENERATOR_H
 #define DCM_GENERATOR_H
 
-#include "object_generator.hpp"
 #include "property_generator.hpp"
+#include "edge_vertex_generator.hpp"
 #include "extractor.hpp"
 
 #include <opendcm/core/clustergraph.hpp>
@@ -29,7 +29,6 @@
 #include "traits.hpp"
 #include "traits_impl.hpp"
 #include "indent.hpp"
-#include "edge_vertex_generator.hpp"
 
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/for_each.hpp>
@@ -37,7 +36,6 @@
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/at.hpp>
 #include <boost/fusion/include/at_c.hpp>
-#include <boost/fusion/include/std_pair.hpp>
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/phoenix.hpp>
@@ -53,24 +51,23 @@ typedef std::ostream_iterator<char> Iterator;
 template<typename Sys>
 struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
 
-    typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
-    typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
+    typedef typename Sys::Cluster graph;
+    typedef typename graph::cluster_bundle graph_bundle;
+    typedef typename boost::graph_traits<graph>::vertex_iterator viter;
+    typedef typename boost::graph_traits<graph>::edge_iterator eiter;
 
-    generator(Sys& s);
+    generator();
 
-    karma::rule<Iterator, typename Sys::Cluster& ()> start;
+    karma::rule<Iterator, graph& ()> start;
 
-    karma::rule<Iterator, std::map<LocalVertex, typename Sys::Cluster*>()> cluster_range;
-    karma::rule<Iterator, std::pair<LocalVertex, typename Sys::Cluster*>()> cluster;
+    karma::rule<Iterator, std::pair<GlobalVertex, graph*>()> cluster_pair;
+    karma::rule<Iterator, graph&()> cluster;   
     details::cluster_prop_gen<Sys> cluster_prop;
 
     details::vertex_generator<Sys> vertex_range;
     details::edge_generator<Sys> edge_range;
 
-    details::obj_gen<Sys> objects;
     Extractor<Sys> ex;
-
-    Sys& system;
 };
 
 }//namespace dcm

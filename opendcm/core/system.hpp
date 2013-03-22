@@ -158,7 +158,9 @@ public:
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
     typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
-    typedef typename details::cluster_fold< properties, mpl::vector<> >::type 	cluster_properties;
+    typedef typename details::cluster_fold< properties,
+            mpl::vector<changed_prop, type_prop>  >::type 			cluster_properties;
+
     typedef typename details::property_map<objects, properties>::type 		object_properties;
 
 protected:
@@ -170,12 +172,12 @@ protected:
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
-    
+
     struct clearer {
-      template<typename T>
-      void operator()(T& vector) const {
-	vector.clear();
-      };
+        template<typename T>
+        void operator()(T& vector) const {
+            vector.clear();
+        };
     };
 
 #ifdef USE_LOGGING
@@ -190,7 +192,7 @@ public:
 public:
     System()
 #ifdef USE_LOGGING
-        , sink(init_log())
+    , sink(init_log())
 #endif
     {
         Type1::system_init(*this);
@@ -205,12 +207,12 @@ public:
         stop_log(sink);
 #endif
     };
-    
+
     void clear() {
-        
-	m_cluster.clearClusters();
-	m_cluster.clear();
-	fusion::for_each(m_storage, clearer());
+
+        m_cluster.clearClusters();
+        m_cluster.clear();
+        fusion::for_each(m_storage, clearer());
     };
 
     template<typename Object>

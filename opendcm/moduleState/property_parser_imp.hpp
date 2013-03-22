@@ -29,31 +29,20 @@ typedef boost::spirit::istream_iterator IIterator;
 
 namespace details {
 
-template<typename Prop>
-empty_pop_parser<Prop>::empty_pop_parser(): empty_pop_parser<Prop>::base_type(start) {
-    start = qi::eps(false);
-};
-
 template<typename Prop, typename Par>
 prop_parser<Prop, Par>::prop_parser() : prop_parser<Prop, Par>::base_type(start) {
     Par::init(subrule);
-    start =  qi::lit("<Property>") >> subrule >> qi::lit("</Property>");
+    start %=  qi::lit("<Property>") >> subrule >> qi::lit("</Property>");
 };
 
 
 template<typename Sys, typename PropertyList>
 prop_par<Sys, PropertyList>::prop_par() : prop_par<Sys, PropertyList>::base_type(prop) {
 
-    prop =       -(qi::eps(valid<0>::value) >> fusion::at<index<0> >(rules)[phx::at_c<index<0>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<1>::value) >> fusion::at<index<1> >(rules)[phx::at_c<index<1>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<2>::value) >> fusion::at<index<2> >(rules)[phx::at_c<index<2>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<3>::value) >> fusion::at<index<3> >(rules)[phx::at_c<index<3>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<4>::value) >> fusion::at<index<4> >(rules)[phx::at_c<index<4>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<5>::value) >> fusion::at<index<5> >(rules)[phx::at_c<index<5>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<6>::value) >> fusion::at<index<6> >(rules)[phx::at_c<index<6>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<7>::value) >> fusion::at<index<7> >(rules)[phx::at_c<index<7>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<8>::value) >> fusion::at<index<8> >(rules)[phx::at_c<index<8>::value>(qi::_val) = qi::_1])
-                 >> -(qi::eps(valid<9>::value) >> fusion::at<index<9> >(rules)[phx::at_c<index<9>::value>(qi::_val) = qi::_1]);
+    prop %=  fusion::at_c<0>(rules) >> fusion::at_c<1>(rules) >> fusion::at_c<2>(rules)
+	    >> fusion::at_c<3>(rules) >> fusion::at_c<4>(rules) >> fusion::at_c<5>(rules)
+	    >> fusion::at_c<6>(rules) >> fusion::at_c<7>(rules) >> fusion::at_c<8>(rules)
+	    >> fusion::at_c<9>(rules);
 };
 
 template<typename Sys>

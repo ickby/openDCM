@@ -11,10 +11,10 @@ set(framework_SRC framework.cpp)
 
 if(EXTERNALIZE)
   set(state_SRC parser.cpp
-		parser_ext1.cpp
+		parser_ext4.cpp
 		parser_ext2.cpp
 		parser_ext3.cpp
-		parser_ext4.cpp
+		parser_ext1.cpp
 	        parser_ext5.cpp
 	        parser_ext6.cpp
 	        parser_ext7.cpp
@@ -25,15 +25,15 @@ else(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
-	      kernel.cpp
-	      clustergraph.cpp
-	      sys_and_obj.cpp
-	      geometry.cpp
-	      clustermath.cpp
-	      constraints3d.cpp
-	      module3d.cpp
-	      dof.cpp
-	      modulepart.cpp
+	      #kernel.cpp
+	      #clustergraph.cpp
+	      #sys_and_obj.cpp
+	      #geometry.cpp
+	      #clustermath.cpp
+	      #constraints3d.cpp
+	      #module3d.cpp
+	      #dof.cpp
+	      #modulepart.cpp
 	      ${state_SRC}	      
 )
 

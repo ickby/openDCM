@@ -36,7 +36,7 @@ struct direction3D  {
     typedef mpl::int_<3>  parameters;
     typedef mpl::int_<1>  rotations;
     typedef mpl::int_<0>  translations;
-    typedef weight::point weight; 
+    typedef weight::direction weight; 
 };
 
 struct line3D  {

@@ -46,10 +46,7 @@ edge_generator<Sys>::edge_generator() : edge_generator<Sys>::base_type(edge_rang
 template<typename Sys>
 vertex_generator<Sys>::vertex_generator() : vertex_generator<Sys>::base_type(vertex_range) {
   
-        vertex = karma::int_[karma::_1 = phx::at_c<2>(karma::_val)] << ">+"
-                 << vertex_prop[karma::_1 = phx::at_c<0>(karma::_val)]
-                 << objects[karma::_1 = phx::at_c<1>(karma::_val)]
-                 << "-\n";
+        vertex = karma::int_ << ">+" << vertex_prop << objects << "-\n";
 
         vertex_range = '\n' << (karma::lit("<Vertex id=") << vertex  << karma::lit("</Vertex>")) % karma::eol;
 };

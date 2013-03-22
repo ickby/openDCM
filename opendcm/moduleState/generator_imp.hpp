@@ -21,22 +21,47 @@
 #define DCM_GENERATOR_IMP_H
 
 #include "generator.hpp"
+#include "opendcm/core/clustergraph.hpp"
+//#include "karma_trans.hpp"
+
+#include <boost/fusion/include/std_pair.hpp>
+#include <boost/fusion/adapted/struct/adapt_struct.hpp>
+#include <boost/fusion/include/adapt_struct.hpp>
+
+
+BOOST_FUSION_ADAPT_TPL_STRUCT(
+    (T1)(T2)(T3)(T4),
+    (dcm::ClusterGraph) (T1)(T2)(T3)(T4),
+    (int, test)
+    (typename dcm::details::pts<T3>::type, m_cluster_bundle))
+
+
+namespace boost { namespace spirit { namespace traits
+{
+    template <typename T1, typename T2, typename T3, typename T4>
+    struct transform_attribute<dcm::ClusterGraph<T1,T2,T3,T4>* const, dcm::ClusterGraph<T1,T2,T3,T4>&, karma::domain>
+    {
+        typedef dcm::ClusterGraph<T1,T2,T3,T4>& type;
+        static type pre(dcm::ClusterGraph<T1,T2,T3,T4>* const& val) { 
+	    return *val; 
+        }
+    };
+}}}
 
 namespace dcm {
 
 template<typename Sys>
-generator<Sys>::generator(Sys& s) : generator<Sys>::base_type(start), system(s) {
+generator<Sys>::generator() : generator<Sys>::base_type(start) {
+           
+    cluster %= karma::omit[karma::int_] << cluster_prop  << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, ex, karma::_val, karma::_1)]
+	       << -karma::buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, ex, karma::_val, karma::_1)]]
+               << -karma::buffer["\n" << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, ex, karma::_val, karma::_1)]] << "-\n"
+               << "</Cluster>";
 
-    cluster = karma::lit("<Cluster id=") <<karma::int_[phx::bind(&Extractor<Sys>::getVertexID, ex, phx::at_c<1>(karma::_val), phx::at_c<0>(karma::_val), karma::_1)]
-              << ">+" << cluster_prop[phx::bind(&Extractor<Sys>::getClusterProperties, ex, phx::at_c<1>(karma::_val), karma::_1)]
-              << vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, ex, phx::at_c<1>(karma::_val), karma::_1)]
-              << -karma::buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, ex, phx::at_c<1>(karma::_val), karma::_1)]]
-              << -karma::buffer["\n" << cluster_range[phx::bind(&Extractor<Sys>::getClusterRange, ex, phx::at_c<1>(karma::_val), karma::_1)]] << "-\n"
-              << "</Cluster>";
-
-    cluster_range = cluster % karma::eol;
-
-    start = cluster[phx::bind(&Extractor<Sys>::makeInitPair, ex, karma::_val, karma::_1)];
+    cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">+" 
+		    << karma::attr_cast<graph*,graph&>(cluster); 
+		    
+    start %= karma::lit("<Cluster id=0>+") << cluster;
 };
 
 }//namespace dcm

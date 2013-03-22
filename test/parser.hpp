@@ -24,6 +24,7 @@
 
 #include "opendcm/core.hpp"
 #include "opendcm/modulestate.hpp"
+#include "opendcm/module3d.hpp"
 #include "opendcm/externalize.hpp"
 
 #include <iosfwd>
@@ -32,8 +33,6 @@
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
-
-
 
 namespace karma = boost::spirit::karma;
 
@@ -52,6 +51,10 @@ struct TestModule1 {
 
         struct inheriter {};
 
+	struct test_cluster_prop {
+            typedef int type;
+            typedef dcm::cluster_property kind;
+        };
         struct test_object1_prop {
             typedef int type;
             typedef test_object1 kind;
@@ -61,7 +64,7 @@ struct TestModule1 {
             typedef test_object1 kind;
         };
         struct test_vertex1_prop {
-            typedef std::string type;
+            typedef int type;
             typedef dcm::vertex_property kind;
         };
         struct test_edge1_prop {
@@ -70,7 +73,8 @@ struct TestModule1 {
         };
 
         typedef mpl::vector2<test_object1, test_object2> objects;
-        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, test_edge1_prop>   properties;
+        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, 
+			      test_edge1_prop>   properties;
 	typedef dcm::Unspecified_Identifier Identifier;
 	
         static void system_init(Sys& sys) {};
@@ -84,14 +88,12 @@ struct test_prop {
 
 namespace dcm {
 
-//template<typename System, typename iterator>
-//struct parser_generator< typename TestModule1::type<System>::test_object1_prop, System, iterator > {
-
-//    typedef rule<iterator, int()> generator;
-//    static void init(generator& r) {
-//        r = lit("<type>test o1 property</type>\n<value>")<<int_<<"</value>";
-//    };
-//};
+template<>
+struct geometry_traits<Eigen::Vector3d> {
+    typedef tag::point3D tag;
+    typedef modell::XYZ modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
 
 template<typename System>
 struct parser_generate< typename TestModule1::type<System>::test_vertex1_prop, System>
@@ -100,9 +102,9 @@ struct parser_generate< typename TestModule1::type<System>::test_vertex1_prop, S
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
-    typedef karma::rule<iterator, std::string()> generator;
+    typedef karma::rule<iterator, int()> generator;
     static void init(generator& r) {
-        r = karma::lit("<type>vertex 1 prop</type>\n<value>")<<boost::spirit::ascii::string<<"</value>";
+        r = karma::lit("<type>vertex 1 prop</type>\n<value>")<<karma::int_<<"</value>";
     };
 };
 
@@ -113,10 +115,10 @@ struct parser_parse< typename TestModule1::type<System>::test_vertex1_prop, Syst
 template<typename System, typename iterator>
 struct parser_parser< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
-    typedef qi::rule<iterator, std::string(), qi::space_type> parser;
+    typedef qi::rule<iterator, int(), qi::space_type> parser;
     static void init(parser& r) {
         r = qi::lexeme[qi::lit("<type>vertex 1 prop</type>")] >> ("<value>") 
-	>> -(+qi::char_("a...zA...Z0..9")) >> ("</value>");
+	>> qi::int_ >> ("</value>");
     };
 };
 
@@ -180,6 +182,7 @@ struct parser_parser< typename TestModule1::type<System>::test_object1, System, 
 }
 
 typedef dcm::Kernel<double> Kernel;
-typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type> System;
+typedef dcm::Module3D< mpl::vector<Eigen::Vector3d>, int> Module3D;
+typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type, Module3D::type> System;
 
 #endif //DCM_PARSER_H

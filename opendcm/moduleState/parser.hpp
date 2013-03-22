@@ -48,19 +48,20 @@ struct sp : qi::grammar<IIterator, std::string()> {
     sp() : sp::base_type(start) {
     start %= +qi::char_;
 };
-static void print(std::string& s) {
+static void print(std::string s) {
     std::cout<<"parsed string:"<<std::endl<<s<<std::endl<<"done print string"<<std::endl;
 };
+
 };
 
 template<typename Sys>
-struct parser : qi::grammar<IIterator, Sys*(), qi::space_type> {
+struct parser : qi::grammar<IIterator, typename Sys::Cluster*(Sys*), qi::locals<int>, qi::space_type> {
 
-    parser(Sys& s);
+    typedef typename Sys::Cluster graph;
+  
+    parser();
 
-    qi::rule<IIterator, Sys*(), qi::space_type> start;
-
-    qi::rule<IIterator, fusion::vector2<GlobalVertex, typename Sys::Cluster*>(Sys*), qi::space_type> cluster;
+    qi::rule<IIterator, graph*(Sys*), qi::locals<int>, qi::space_type> cluster;
     details::cluster_prop_par<Sys> cluster_prop;
     
     details::obj_par<Sys> objects;
@@ -69,7 +70,6 @@ struct parser : qi::grammar<IIterator, Sys*(), qi::space_type> {
     details::edge_parser<Sys> edge;
 
     sp str;
-    Sys& system;
     Injector<Sys> in;
 };
 

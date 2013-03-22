@@ -3,9 +3,6 @@
 
 #include "property_generator.hpp"
 #include "traits_impl.hpp"
-#include <boost/spirit/include/phoenix.hpp>
-
-namespace phx = boost::phoenix;
 
 namespace dcm {
 
@@ -16,6 +13,7 @@ namespace details {
 //grammar for a single property
 template<typename Prop, typename Gen>
 prop_grammar<Prop, Gen>::prop_grammar() : prop_grammar<Prop, Gen>::base_type(start) {
+  
     Gen::init(subrule);
     start =  karma::lit("\n<Property>") << '+' << karma::eol << subrule
              << '-' << karma::eol << karma::lit("</Property>");
@@ -23,17 +21,11 @@ prop_grammar<Prop, Gen>::prop_grammar() : prop_grammar<Prop, Gen>::base_type(sta
 
 template<typename Sys, typename PropertyList>
 prop_gen<Sys, PropertyList>::prop_gen() : prop_gen<Sys, PropertyList>::base_type(prop) {
-
-    prop =    -(karma::eps(valid<0>::value) << fusion::at<index<0> >(rules)[karma::_1 = phx::at_c<index<0>::value >(karma::_val)])
-              << -(karma::eps(valid<1>::value) << fusion::at<index<1> >(rules)[karma::_1 = phx::at_c<index<1>::value>(karma::_val)])
-              << -(karma::eps(valid<2>::value) << fusion::at<index<2> >(rules)[karma::_1 = phx::at_c<index<2>::value>(karma::_val)])
-              << -(karma::eps(valid<3>::value) << fusion::at<index<3> >(rules)[karma::_1 = phx::at_c<index<3>::value>(karma::_val)])
-              << -(karma::eps(valid<4>::value) << fusion::at<index<4> >(rules)[karma::_1 = phx::at_c<index<4>::value>(karma::_val)])
-              << -(karma::eps(valid<5>::value) << fusion::at<index<5> >(rules)[karma::_1 = phx::at_c<index<5>::value>(karma::_val)])
-              << -(karma::eps(valid<6>::value) << fusion::at<index<6> >(rules)[karma::_1 = phx::at_c<index<6>::value>(karma::_val)])
-              << -(karma::eps(valid<7>::value) << fusion::at<index<7> >(rules)[karma::_1 = phx::at_c<index<7>::value>(karma::_val)])
-              << -(karma::eps(valid<8>::value) << fusion::at<index<8> >(rules)[karma::_1 = phx::at_c<index<8>::value>(karma::_val)])
-              << -(karma::eps(valid<9>::value) << fusion::at<index<9> >(rules)[karma::_1 = phx::at_c<index<9>::value>(karma::_val)]);
+  
+    prop  =    fusion::at_c<0>(rules) << fusion::at_c<1>(rules) << fusion::at_c<2>(rules)
+	    << fusion::at_c<3>(rules) << fusion::at_c<4>(rules) << fusion::at_c<5>(rules)
+	    << fusion::at_c<6>(rules) << fusion::at_c<7>(rules) << fusion::at_c<8>(rules)
+	    << fusion::at_c<9>(rules);
 };
 
 template<typename Sys>

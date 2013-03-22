@@ -158,8 +158,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
         //get the biggest scale factor
         details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
 
-        math.m_pseudo.clear();
-        collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
+        //math.m_pseudo.clear();
+        //collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
 
         const Scalar s = math.calculateClusterScale();
         sc = (s>sc) ? s : sc;

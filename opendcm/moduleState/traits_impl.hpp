@@ -24,6 +24,7 @@
 #define DCM_PARSER_TRAITS_IMPL_H
 
 #include "traits.hpp"
+#include "defines.hpp"
 
 #include <boost/mpl/bool.hpp>
 
@@ -60,7 +61,7 @@ struct parser_generate<type_prop, System> : public mpl::true_ {};
 
 template<typename System, typename iterator>
 struct parser_generator<type_prop, System, iterator> {
-    typedef karma::rule<iterator, int()> generator;
+    typedef karma::rule<iterator, int&()> generator;
 
     static void init(generator& r) {
         r = karma::lit("<type>clustertype</type>\n<value>") << karma::int_ <<"</value>";
@@ -72,7 +73,7 @@ struct parser_generate<changed_prop, System> : public mpl::true_ {};
 
 template<typename System, typename iterator>
 struct parser_generator<changed_prop, System, iterator> {
-    typedef karma::rule<iterator, bool()> generator;
+    typedef karma::rule<iterator, bool&()> generator;
 
     static void init(generator& r) {
         r = karma::lit("<type>clusterchanged</type>\n<value>") << karma::bool_ <<"</value>";
@@ -128,6 +129,31 @@ struct parser_parser<id_prop<typename System::Identifier>, System, iterator> {
         r = qi::lit("<type>id</type>") >> ("<value>") >> qi::auto_ >>"</value>";
     };
 };
+/*
+template<typename System>
+struct parser_generate<details::cluster_vertex_prop, System>
+        : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_generator<details::cluster_vertex_prop, System, iterator> {
+    typedef karma::rule<iterator, int()> generator;
+
+    static void init(generator& r) {
+        r = karma::lit("<type>id</type>\n<value>") << karma::int_ <<"</value>";
+    };
+};
+
+template<typename System>
+struct parser_parse<details::cluster_vertex_prop, System> : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_parser<details::cluster_vertex_prop, System, iterator> {
+    typedef qi::rule<iterator, int(), qi::space_type> parser;
+
+    static void init(parser& r) {
+        r = qi::lit("<type>id</type>") >> ("<value>") >> qi::int_ >>"</value>";
+    };
+};*/
 
 } //namespace dcm
 

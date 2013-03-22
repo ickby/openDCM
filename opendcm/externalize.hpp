@@ -26,9 +26,11 @@
 
 #ifdef USE_EXTERNAL
 
-#define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/generator_imp.hpp>
+#define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/edge_vertex_generator_imp.hpp>
 #define DCM_EXTERNAL_001( System )\
-    template struct dcm::generator<System>; \
+    template struct dcm::details::edge_generator<System>; \
+    template struct dcm::details::vertex_generator<System>; \
+    
      
 #define DCM_EXTERNAL_INCLUDE_002 <opendcm/moduleState/object_generator_imp.hpp>
 #define DCM_EXTERNAL_002( System )\
@@ -40,10 +42,9 @@
     template struct dcm::details::edge_prop_gen<System>; \
     template struct dcm::details::cluster_prop_gen<System>;
 
-#define DCM_EXTERNAL_INCLUDE_004 <opendcm/moduleState/edge_vertex_generator_imp.hpp>
+#define DCM_EXTERNAL_INCLUDE_004 <opendcm/moduleState/generator_imp.hpp>
 #define DCM_EXTERNAL_004( System )\
-    template struct dcm::details::edge_generator<System>; \
-    template struct dcm::details::vertex_generator<System>; \
+    template struct dcm::generator<System>; \
     
 #define DCM_EXTERNAL_INCLUDE_005 <opendcm/moduleState/property_parser_imp.hpp>
 #define DCM_EXTERNAL_005( System )\

@@ -60,6 +60,7 @@ struct undefined {
 
 //we need to order tags, this values make it easy for module tags
 namespace weight {
+struct direction : mpl::int_<0> {};
 struct point : mpl::int_<1> {};
 struct line  : mpl::int_<2> {};
 struct plane : mpl::int_<3> {};
@@ -316,6 +317,7 @@ boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Signals, Di
 template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
 template<typename T>
 void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::init(T& t) {
+  
     m_BaseParameterCount = geometry_traits<T>::tag::parameters::value;
     m_parameterCount = m_BaseParameterCount;
     m_rotations = geometry_traits<T>::tag::rotations::value;

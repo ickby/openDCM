@@ -40,10 +40,21 @@ typedef boost::spirit::istream_iterator IIterator;
 
 namespace details {
 
+struct empty_parser : public qi::grammar<IIterator> {
+    qi::rule<IIterator> start;
+    empty_parser(): empty_parser::base_type(start) {
+	start = qi::eps(true);
+    };
+    empty_parser(const empty_parser& other) : empty_parser::base_type(start) {};
+};
+
 template<typename Prop>
-struct empty_pop_parser : public qi::grammar<IIterator, typename Prop::type()> {
+struct skip_parser : public qi::grammar<IIterator, typename Prop::type()> {
     qi::rule<IIterator, typename Prop::type()> start;
-    empty_pop_parser();
+    skip_parser() : skip_parser<Prop>::base_type(start) {
+	start = qi::eps(true);
+    };
+    skip_parser(const skip_parser& other) : skip_parser::base_type(start) {};
 };
 
 template<typename Prop, typename Par>
@@ -52,6 +63,7 @@ struct prop_parser : qi::grammar<IIterator, typename Prop::type(), qi::space_typ
     typename Par::parser subrule;
     qi::rule<IIterator, typename Prop::type(), qi::space_type> start;
     prop_parser();
+    prop_parser(const prop_parser& other) : prop_parser::base_type(start) {};
 };
 
 template<typename Sys, typename seq, typename state>
@@ -59,30 +71,24 @@ struct prop_parser_fold : mpl::fold< seq, state,
         mpl::if_< dcm::parser_parse<mpl::_2, Sys>,
         mpl::push_back<mpl::_1,
         prop_parser<mpl::_2, dcm::parser_parser<mpl::_2, Sys, IIterator> > >,
-        mpl::push_back<mpl::_1, empty_pop_parser<mpl::_2> > > > {};
+        mpl::push_back<mpl::_1, skip_parser<mpl::_2> > > > {};
 
 //grammar for a fusion sequence of properties. currently max. 10 properties are supported
 template<typename Sys, typename PropertyList>
 struct prop_par : qi::grammar<IIterator, typename details::pts<PropertyList>::type(), qi::space_type> {
 
-    //create a vector with the appropriate rules for all properties. Do this with the rule init struct, as it gives
-    //automatic initialisation of the rules when the objects are created
-    typedef typename prop_parser_fold<Sys, PropertyList, mpl::vector<> >::type init_rules_vector;
-    //add a empty rule to the end so that we can call it everytime our propertvector is smaller 10
-    typedef typename mpl::push_back<init_rules_vector, empty_pop_parser<typename mpl::back<PropertyList>::type> >::type rules_vector;
-    //create the fusion sequence of our rules
-    typedef typename fusion::result_of::as_vector<rules_vector>::type rules_sequnce;
+    //create a vector with the appropriate rules for all properties.
+    typedef typename prop_parser_fold<Sys, PropertyList, mpl::vector<> >::type init_rules_sequence;
+    //allow max 10 types as the following code expect this
+    BOOST_MPL_ASSERT((mpl::less_equal< mpl::size<init_rules_sequence>, mpl::int_<10> >));
+    //we want to process 10 elements, so create a vector with (10-prop.size()) empty rules
+    //and append it to our rules vector
+    typedef mpl::range_c<int,0, mpl::minus< mpl::int_<10>, mpl::size<init_rules_sequence> >::value > range;
+    typedef typename mpl::fold< range,
+				init_rules_sequence,
+				mpl::push_back<mpl::_1, empty_parser> >::type rules_sequence;
 
-    //this struct returns the right accessvalue for the sequences. If we access a value bigger than the property vector size
-    //we use the last rule, as we made sure this is an empty one
-    template<int I>
-    struct index : public mpl::if_< mpl::less<mpl::int_<I>, mpl::size<PropertyList> >,
-    mpl::int_<I>, typename mpl::prior<mpl::size<PropertyList> >::type >::type {};
-    //this struct tells us if we should execute the generator
-    template<int I>
-    struct valid : public mpl::less< mpl::int_<I>, mpl::size<PropertyList> > {};
-
-    rules_sequnce rules;
+    typename fusion::result_of::as_vector<rules_sequence>::type rules;
     qi::rule<IIterator, typename details::pts<PropertyList>::type(), qi::space_type> prop;
 
     prop_par();

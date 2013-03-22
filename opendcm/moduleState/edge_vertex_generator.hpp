@@ -26,6 +26,9 @@
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/phoenix.hpp>
+#include <boost/fusion/support/is_sequence.hpp>
+
+#include <boost/fusion/include/is_sequence.hpp>
 
 namespace karma = boost::spirit::karma;
 namespace phx = boost::phoenix;

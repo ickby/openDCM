@@ -20,34 +20,35 @@
 #ifndef DCM_EXTRACTOR_H
 #define DCM_EXTRACTOR_H
 
+#include "defines.hpp"
 #include <opendcm/core/clustergraph.hpp>
 #include <boost/fusion/include/at_c.hpp>
 
 namespace fusion = boost::fusion;
 
 namespace dcm {
-  
+
 typedef std::ostream_iterator<char> Iterator;
 
 template<typename Sys>
 struct Extractor {
-  
+
     typedef typename boost::graph_traits<typename Sys::Cluster>::vertex_iterator viter;
     typedef typename boost::graph_traits<typename Sys::Cluster>::edge_iterator eiter;
-  
-    void getVertexRange(typename Sys::Cluster* cluster, std::vector<typename Sys::Cluster::vertex_bundle>& range) {
-        std::pair<viter, viter> res = boost::vertices(*cluster);
+
+    void getVertexRange(typename Sys::Cluster& cluster, std::vector<typename Sys::Cluster::vertex_bundle>& range) {
+        std::pair<viter, viter> res = boost::vertices(cluster);
         for(; res.first != res.second; res.first++)
-            range.push_back((*cluster)[*res.first]);
+            range.push_back(cluster[*res.first]);
     };
-    void getEdgeRange(typename Sys::Cluster* cluster,
+    void getEdgeRange(typename Sys::Cluster& cluster,
                       std::vector<fusion::vector3<typename Sys::Cluster::edge_bundle, GlobalVertex, GlobalVertex> >& range) {
 
-        std::pair<eiter, eiter> res = boost::edges(*cluster);
+        std::pair<eiter, eiter> res = boost::edges(cluster);
         for(; res.first != res.second; res.first++)
-            range.push_back(fusion::make_vector((*cluster)[*res.first],
-                                                (*cluster).getGlobalVertex(boost::source(*res.first, *cluster)),
-                                                (*cluster).getGlobalVertex(boost::target(*res.first, *cluster))));
+            range.push_back(fusion::make_vector(cluster[*res.first],
+                                                cluster.getGlobalVertex(boost::source(*res.first, cluster)),
+                                                cluster.getGlobalVertex(boost::target(*res.first, cluster))));
 
     };
     void getGlobalEdgeSource(typename Sys::Cluster::edge_bundle_single b, int& source) {
@@ -59,19 +60,19 @@ struct Extractor {
     void getGlobalEdgeID(typename Sys::Cluster::edge_bundle_single b, int& id) {
         id = fusion::at_c<1>(b).ID;
     };
-    void getVertexID(typename Sys::Cluster* cluster, LocalVertex v, int& id) {
+    void setVertexID(typename Sys::Cluster* cluster, LocalVertex v, long& l) {
         if(v)
-            id = cluster->getGlobalVertex(v);
-        else id=0;
+            l = cluster->getGlobalVertex(v);
+        else
+            l = 0;
     };
-    void makeInitPair(typename Sys::Cluster& cluster, std::pair<LocalVertex, typename Sys::Cluster*>& pair) {
-        pair = std::make_pair((LocalVertex)NULL, &cluster);
-    };
-    void getClusterRange(typename Sys::Cluster* cluster, std::map<LocalVertex, typename Sys::Cluster*>& range) {
-        range = cluster->m_clusters;
-    };
-    void getClusterProperties(typename Sys::Cluster* cluster, typename Sys::Cluster::cluster_bundle& seq) {
-        seq = cluster->m_cluster_bundle;
+    void getClusterRange(typename Sys::Cluster& cluster, std::vector<std::pair<GlobalVertex, typename Sys::Cluster*> >& range) {
+	
+	typedef typename std::map<LocalVertex, typename Sys::Cluster*>::const_iterator iter;
+	
+	for(iter it = cluster.m_clusters.begin(); it != cluster.m_clusters.end(); it++) {
+	  range.push_back( std::make_pair( cluster.getGlobalVertex((*it).first), (*it).second ));
+	};
     };
 };
 
@@ -84,24 +85,27 @@ struct Injector {
     };
     void setVertexProperties(typename Sys::Cluster* cluster, LocalVertex v,
                              typename details::pts<typename Sys::vertex_properties>::type& prop) {
-        fusion::at_c<0>(cluster->operator[](v)) = prop;
+        fusion::at_c<1>(cluster->operator[](v)) = prop;
     };
     void setVertexObjects(typename Sys::Cluster* cluster, LocalVertex v,
                           typename details::sps<typename Sys::objects>::type& obj) {
-        fusion::at_c<1>(cluster->operator[](v)) = obj;
+        fusion::at_c<2>(cluster->operator[](v)) = obj;
     };
 
     void setEdgeProperties(typename Sys::Cluster* cluster, LocalEdge e,
                            typename details::pts<typename Sys::edge_properties>::type& prop) {
         fusion::at_c<0>(cluster->operator[](e)) = prop;
     };
-    void addCluster(typename Sys::Cluster* cluster, fusion::vector2<GlobalVertex, typename Sys::Cluster*>& vec) {
-        LocalVertex v = cluster->getLocalVertex(fusion::at_c<0>(vec)).first;
-        cluster->m_clusters[v] = fusion::at_c<1>(vec);
+    void setVertexProperty(typename Sys::Cluster* cluster, int value) {
+	cluster->template setClusterProperty<details::cluster_vertex_prop>(value);
     };
-	void addVertex(typename Sys::Cluster* cluster, fusion::vector<LocalVertex, GlobalVertex>& vec) {
-		vec = cluster->addVertex();
-	};
+    void addCluster(typename Sys::Cluster* cluster, typename Sys::Cluster* addcl) {
+        LocalVertex v = cluster->getLocalVertex(addcl->template getClusterProperty<details::cluster_vertex_prop>()).first;
+        cluster->m_clusters[v] = addcl;
+    };
+    void addVertex(typename Sys::Cluster* cluster, fusion::vector<LocalVertex, GlobalVertex>& vec) {
+        vec = cluster->addVertex();
+    };
 };
 
 
