@@ -213,24 +213,24 @@ private:
     };
 
     struct edge_copier {
-        edge_copier(ClusterGraph& g1, ClusterGraph& g2)
+        edge_copier(const ClusterGraph& g1, ClusterGraph& g2)
             : graph1(g1), graph2(g2) { }
 
         void operator()(LocalEdge e1, LocalEdge e2) const {
             graph2[e2] = graph1[e1];
         }
-        ClusterGraph& graph1;
+        const ClusterGraph& graph1;
         ClusterGraph& graph2;
     };
 
     struct vertex_copier {
-        vertex_copier(ClusterGraph& g1, ClusterGraph& g2)
+        vertex_copier(const ClusterGraph& g1, ClusterGraph& g2)
             : graph1(g1), graph2(g2) { }
 
         void operator()(LocalVertex v1, LocalVertex v2) const {
             graph2[v2] = graph1[v1];
         }
-        ClusterGraph& graph1;
+        const ClusterGraph& graph1;
         ClusterGraph& graph2;
     };
 
@@ -245,7 +245,8 @@ public:
             : boost::transform_iterator<object_extractor<Obj>,edge_single_iterator>(it, f) {};
     };
 
-    typedef typename ClusterMap::iterator 	cluster_iterator;
+    typedef typename ClusterMap::iterator cluster_iterator;
+    typedef typename ClusterMap::const_iterator const_cluster_iterator;
 
     ClusterGraph(ClusterGraph* g = 0) : m_parent(g), m_id(new details::IDgen) {
 
@@ -272,7 +273,7 @@ public:
      * copied graph
      */
     template<typename Functor>
-    void copyInto(ClusterGraph& into, Functor& functor) {
+    void copyInto(ClusterGraph& into, Functor& functor) const {
 
         //lists does not provide vertex index, so we have to build our own
         typedef std::map<LocalVertex, int> IndexMap;
@@ -296,7 +297,7 @@ public:
         into.m_id->setCount(m_id->count());
 
         //now that we have all vertices we can recreate the subclusters
-        std::pair<cluster_iterator, cluster_iterator> it = clusters();
+        std::pair<const_cluster_iterator, const_cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
             //create the new Graph
             ClusterGraph* ng = new ClusterGraph(&into);
@@ -381,6 +382,9 @@ public:
     };
 
     std::pair<cluster_iterator, cluster_iterator> clusters() {
+        return std::make_pair(m_clusters.begin(), m_clusters.end());
+    }
+    std::pair<const_cluster_iterator, const_cluster_iterator> clusters() const {
         return std::make_pair(m_clusters.begin(), m_clusters.end());
     }
 

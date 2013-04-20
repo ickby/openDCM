@@ -37,7 +37,7 @@ struct geometry_traits<Eigen::Vector3d> {
 typedef double Scalar;
 typedef dcm::Kernel<Scalar> Kernel;
 typedef dcm::Module3D< mpl::vector1< Eigen::Vector3d> > Module3D;
-typedef dcm::System<Kernel, Module3D::type> System;
+typedef dcm::System<Kernel, Module3D> System;
 
 typedef Module3D::type<System>::Geometry3D Geometry3D;
 typedef boost::shared_ptr<Geometry3D> Geom;

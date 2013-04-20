@@ -183,6 +183,6 @@ struct parser_parser< typename TestModule1::type<System>::test_object1, System, 
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector<Eigen::Vector3d>, int> Module3D;
-typedef dcm::System<Kernel, dcm::ModuleState::type, TestModule1::type, Module3D::type> System;
+typedef dcm::System<Kernel, dcm::ModuleState, TestModule1, Module3D> System;
 
 #endif //DCM_PARSER_H

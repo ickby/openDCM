@@ -180,6 +180,9 @@ struct Module3D {
             template<typename T>
             Cons createConstraint3D(Identifier id, Geom first, Geom second, T constraint1);
 
+	    void removeGeometry3D(Identifier id);
+            void removeConstraint3D(Identifier id);
+	    
             bool hasGeometry3D(Identifier id);
             Geom getGeometry3D(Identifier id);
             bool hasConstraint3D(Identifier id);
@@ -211,7 +214,7 @@ struct Module3D {
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
         };
-        static void system_copy(Sys& from, Sys& into) {
+        static void system_copy(const Sys& from, Sys& into) {
             //nothing to to as all objects and properties are copyed with the clustergraph
         };
     };
@@ -469,6 +472,14 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_id::createGeometry3D(T geom, Identi
 
 template<typename Typelist, typename ID>
 template<typename Sys>
+void Module3D<Typelist, ID>::type<Sys>::inheriter_id::removeGeometry3D(Identifier id) {
+
+    if(hasGeometry3D(id))
+      inheriter_base::removeGeometry3D(getGeometry3D(id));
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
 template<typename T>
 typename Module3D<Typelist, ID>::template type<Sys>::Cons
 Module3D<Typelist, ID>::type<Sys>::inheriter_id::createConstraint3D(Identifier id, Geom first, Geom second, T constraint1) {
@@ -477,6 +488,15 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_id::createConstraint3D(Identifier i
     c->setIdentifier(id);
     return c;
 };
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+void Module3D<Typelist, ID>::type<Sys>::inheriter_id::removeConstraint3D(Identifier id) {
+
+    if(hasConstraint3D(id))
+      removeConstraint3D(getConstraint3D(id));
+};
+
 
 template<typename Typelist, typename ID>
 template<typename Sys>

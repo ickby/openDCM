@@ -216,7 +216,7 @@ struct ModulePart {
             sys.m_sheduler.addPreprocessJob(new PrepareCluster());
             sys.m_sheduler.addPostprocessJob(new EvaljuateCluster());
         };
-        static void system_copy(Sys& from, Sys& into) {};
+        static void system_copy(const Sys& from, Sys& into) {};
     };
 };
 

@@ -53,7 +53,7 @@ struct system_traits {
 template<typename T>
 struct compare_traits {
 
-    BOOST_MPL_ASSERT_MSG((boost::is_same<T, const char*>::value),
+    BOOST_MPL_ASSERT_MSG((mpl::not_<boost::is_same<T, const char*> >::value),
                          YOU_SHOULD_NOT_USE_THIS_TYPE_AS_IDENTIFIER,
                          (const char*));
 

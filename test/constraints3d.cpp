@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_SUITE(constraint3d_test_suit);
 typedef dcm::Kernel<double, CheckSolver> Kernel;
 typedef Module3D< mpl::vector3<point_t, line_t, plane_t > > Module;
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
-typedef System<Kernel, Module::type, ModulePart::type> System;
+typedef System<Kernel, Module, ModulePart> System;
 
 typedef Module::type<System>::Geometry3D geom;
 typedef boost::shared_ptr<geom> geom_ptr;

@@ -104,7 +104,7 @@ struct EmptyModule {
         typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
-        static void system_copy(T& from, T& into) {};
+        static void system_copy(const T& from, T& into) {};
     };
 };
 
@@ -116,18 +116,18 @@ struct is_shared_ptr<boost::shared_ptr<T> > : boost::mpl::true_ {};
 }
 
 template< typename KernelType,
-          template<class> class T1 = details::EmptyModule<1>::type,
-          template<class> class T2 = details::EmptyModule<2>::type,
-          template<class> class T3 = details::EmptyModule<3>::type >
-class System : 	public T1< System<KernelType,T1,T2,T3> >::inheriter,
-    public T2< System<KernelType,T1,T2,T3> >::inheriter,
-    public T3< System<KernelType,T1,T2,T3> >::inheriter {
+          typename  T1 = details::EmptyModule<1>,
+          typename  T2 = details::EmptyModule<2>,
+          typename  T3 = details::EmptyModule<3> >
+class System : 	public T1::template type< System<KernelType,T1,T2,T3> >::inheriter,
+    public T2::template type< System<KernelType,T1,T2,T3> >::inheriter,
+    public T3::template type< System<KernelType,T1,T2,T3> >::inheriter {
 
     typedef System<KernelType,T1,T2,T3> BaseType;
 public:
-    typedef T1< BaseType > Type1;
-    typedef T2< BaseType > Type2;
-    typedef T3< BaseType > Type3;
+    typedef typename T1::template type< BaseType > Type1;
+    typedef typename T2::template type< BaseType > Type2;
+    typedef typename T3::template type< BaseType > Type3;
     typedef mpl::vector3<Type1, Type2, Type3> TypeVector;
 
     //Check if all Identifiers are the same and find out which type it is
@@ -279,7 +279,7 @@ private:
     };
 
 public:
-    void copyInto(System& into) {
+    void copyInto(System& into) const {
 
         //copy the clustergraph and clone all objects while at it. They are also pushed to the storage
         cloner cl(into);
@@ -291,7 +291,7 @@ public:
         Type3::system_copy(*this, into);
     };
 
-    System* clone() {
+    System* clone() const {
 
         System* ns = new System();
         this->copyInto(*ns);

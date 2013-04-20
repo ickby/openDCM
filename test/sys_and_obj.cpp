@@ -133,7 +133,7 @@ struct TestModule2 {
     };
 };
 
-typedef dcm::System<dcm::Kernel<double>, TestModule1::type, TestModule2::type> System;
+typedef dcm::System<dcm::Kernel<double>, TestModule1, TestModule2> System;
 
 BOOST_AUTO_TEST_CASE(inherit_functions) {
 

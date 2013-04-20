@@ -114,8 +114,8 @@ typedef dcm::Module3D< mpl::vector2< Eigen::Vector3d, plane_t>, std::string > Mo
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
 typedef dcm::ModulePart< mpl::vector1< place >, std::string > ModulePartID;
 
-typedef dcm::System<Kernel, Module3D::type, ModulePart::type> SystemNOID;
-typedef dcm::System<Kernel, Module3DID::type, ModulePartID::type> SystemID;
+typedef dcm::System<Kernel, Module3D, ModulePart> SystemNOID;
+typedef dcm::System<Kernel, Module3DID, ModulePartID> SystemID;
 
 typedef ModulePart::type<SystemNOID>::Part Part;
 typedef ModulePartID::type<SystemID>::Part PartID;
