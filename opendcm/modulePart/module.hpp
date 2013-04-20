@@ -132,6 +132,7 @@ struct ModulePart {
             void set(T geometry, Identifier id);
 
             bool hasGeometry3D(Identifier id);
+	    typename Part_base::Geom getGeometry3D(Identifier id);
 
             Identifier& getIdentifier();
             void setIdentifier(Identifier id);
@@ -339,6 +340,13 @@ bool ModulePart<Typelist, ID>::type<Sys>::Part_id::hasGeometry3D(Identifier id) 
     //get the global vertex and check if it is a child of the part cluster
     GlobalVertex v = g->template getProperty<typename Part_base::module3d::vertex_prop>();
     return Part_base::m_cluster->getLocalVertex(v).second;
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+typename ModulePart<Typelist, ID>::template type<Sys>::Part_base::Geom 
+ModulePart<Typelist, ID>::type<Sys>::Part_id::getGeometry3D(Identifier id) {
+    return Part_base::m_system->getGeometry3D(id);
 };
 
 template<typename Typelist, typename ID>
