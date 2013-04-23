@@ -191,7 +191,7 @@ public:
     typedef KernelType Kernel;
 
 public:
-    System() : m_cluster(new Cluster)
+    System() : m_cluster(new Cluster), m_storage(new Storage)
 #ifdef USE_LOGGING
     , sink(init_log())
 #endif
@@ -213,7 +213,7 @@ public:
 
         m_cluster->clearClusters();
         m_cluster->clear();
-        fusion::for_each(m_storage, clearer());
+        fusion::for_each(*m_storage, clearer());
     };
 
     template<typename Object>
@@ -222,7 +222,7 @@ public:
         typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-        return fusion::at<distance>(m_storage).begin();
+        return fusion::at<distance>(*m_storage).begin();
     };
 
     template<typename Object>
@@ -231,7 +231,7 @@ public:
         typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-        return fusion::at<distance>(m_storage).end();
+        return fusion::at<distance>(*m_storage).end();
     };
 
     template<typename Object>
@@ -240,7 +240,7 @@ public:
         typedef typename mpl::find<objects, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<objects>::type, iterator>::type distance;
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<objects>::type > >));
-        return fusion::at<distance>(m_storage);
+        return fusion::at<distance>(*m_storage);
     };
 
     template<typename Object>
@@ -304,9 +304,9 @@ public:
     };
 
     boost::shared_ptr<Cluster> m_cluster;
+    boost::shared_ptr<Storage> m_storage;
     Shedule m_sheduler;
     Kernel  m_kernel;
-    Storage m_storage;
 };
 
 }
