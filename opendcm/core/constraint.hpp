@@ -261,11 +261,11 @@ boost::shared_ptr<Derived> Constraint<Sys, Derived, Signals, MES, Geometry>::clo
     //and get the geometry pointers right
     if(first) {
         GlobalVertex v = first->template getProperty<typename Geometry::vertex_propertie>();
-        np->first = newSys.m_cluster.template getObject<Geometry>(v);
+        np->first = newSys.m_cluster->template getObject<Geometry>(v);
     }
     if(second) {
         GlobalVertex v = second->template getProperty<typename Geometry::vertex_propertie>();
-        np->second = newSys.m_cluster.template getObject<Geometry>(v);
+        np->second = newSys.m_cluster->template getObject<Geometry>(v);
     }
     return np;
 };

@@ -374,8 +374,8 @@ typename Module3D<Typelist, ID>::template type<Sys>::Geom
 Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D(T geom) {
 
     Geom g(new Geometry3D(geom, * ((Sys*) this)));
-    fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster.addVertex();
-    m_this->m_cluster.template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+    fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster->addVertex();
+    m_this->m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
     g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
     m_this->push_back(g);
     return g;
@@ -388,7 +388,7 @@ void Module3D<Typelist, ID>::type<Sys>::inheriter_base::removeGeometry3D(Geom g)
     GlobalVertex v = g->template getProperty<vertex_prop>();
 
     //check if this vertex holds a constraint
-    Cons c = m_this->m_cluster.template getObject<Constraint3D>(v);
+    Cons c = m_this->m_cluster->template getObject<Constraint3D>(v);
     if(c)
         c->template emitSignal<remove>(c);
 
@@ -398,7 +398,7 @@ void Module3D<Typelist, ID>::type<Sys>::inheriter_base::removeGeometry3D(Geom g)
 
     //remove the vertex from graph and emit all edges that get removed with the functor
     boost::function<void(GlobalEdge)> functor = boost::bind(&inheriter_base::apply_edge_remove, this, _1);
-    m_this->m_cluster.removeVertex(v, functor);
+    m_this->m_cluster->removeVertex(v, functor);
     m_this->erase(g);
 };
 
@@ -427,13 +427,13 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::createConstraint3D(Geom first
 
     //add it to the clustergraph
     fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;
-    res = m_this->m_cluster.addEdge(first->template getProperty<vertex_prop>(),
+    res = m_this->m_cluster->addEdge(first->template getProperty<vertex_prop>(),
                                     second->template getProperty<vertex_prop>());
     if(!fusion::at_c<2>(res))  {
         Cons rc;
         return rc; //TODO: throw
     };
-    m_this->m_cluster.template setObject<Constraint3D> (fusion::at_c<1> (res), c);
+    m_this->m_cluster->template setObject<Constraint3D> (fusion::at_c<1> (res), c);
     //add the coresbondig edge to the constraint
     c->template setProperty<edge_prop>(fusion::at_c<1>(res));
     //store the constraint in general object vector of main system
@@ -448,14 +448,14 @@ void Module3D<Typelist, ID>::type<Sys>::inheriter_base::removeConstraint3D(Cons 
 
     GlobalEdge e = c->template getProperty<edge_prop>();
     c->template emitSignal<remove>(c);
-    m_this->m_cluster.removeEdge(e);
+    m_this->m_cluster->removeEdge(e);
     m_this->erase(c);
 };
 
 template<typename Typelist, typename ID>
 template<typename Sys>
 void Module3D<Typelist, ID>::type<Sys>::inheriter_base::apply_edge_remove(GlobalEdge e) {
-    Cons c = m_this->m_cluster.template getObject<Constraint3D>(e);
+    Cons c = m_this->m_cluster->template getObject<Constraint3D>(e);
     c->template emitSignal<remove>(c);
     m_this->erase(c);
 };

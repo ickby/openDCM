@@ -58,7 +58,7 @@ struct ModuleState {
                 std::ostream_iterator<char> out(indent_stream);
                 generator<Sys> gen;
 
-                karma::generate(out, gen, m_this->m_cluster);
+                karma::generate(out, gen, *m_this->m_cluster);
             };
 
             void loadState(std::istream& stream) {
@@ -73,7 +73,7 @@ struct ModuleState {
                 // use iterator to parse file data
                 parser<Sys> par;
                 m_this->clear();
-                typename Sys::Cluster* cl_ptr = &(m_this->m_cluster);
+                typename Sys::Cluster* cl_ptr = m_this->m_cluster.get();
                 qi::phrase_parse(begin, end, par(m_this), qi::space, cl_ptr);
             };
         };

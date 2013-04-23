@@ -36,6 +36,8 @@
 
 #include <boost/utility/enable_if.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 
 #include <boost/fusion/include/make_vector.hpp>
 #include <boost/fusion/include/at_c.hpp>
@@ -127,7 +129,8 @@ class ClusterGraph : public boost::adjacency_list< boost::listS, boost::listS,
     typename details::sps<objects>::type>,
     fusion::vector< typename details::pts<edge_prop>::type,
     std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >,
-        boost::noncopyable {
+        public boost::noncopyable, 
+	public boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > {
 
 public:
     typedef fusion::vector< typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
@@ -139,6 +142,8 @@ public:
 
     typedef boost::adjacency_list< boost::listS, boost::listS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
+	    
+    typedef boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > sp_base;
 
     //if changed_prop is not a property we have to add it now
     typedef typename mpl::if_<
@@ -154,7 +159,7 @@ public:
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;
     typedef typename boost::graph_traits<Graph>::out_edge_iterator local_out_edge_iterator;
 
-    typedef std::map<LocalVertex,ClusterGraph*> ClusterMap;
+    typedef std::map<LocalVertex,boost::shared_ptr<ClusterGraph> > ClusterMap;
 
     cluster_bundle m_cluster_bundle;
 
@@ -248,18 +253,13 @@ public:
     typedef typename ClusterMap::iterator cluster_iterator;
     typedef typename ClusterMap::const_iterator const_cluster_iterator;
 
-    ClusterGraph(ClusterGraph* g = 0) : m_parent(g), m_id(new details::IDgen) {
-
+    ClusterGraph() : m_id(new details::IDgen) {};
+	
+    ClusterGraph(boost::shared_ptr<ClusterGraph> g) : m_parent(g), m_id(new details::IDgen) {
         if(g) m_id = g->m_id;
     };
 
-    ~ClusterGraph() {
-
-        //delete all child cluster
-        for(typename ClusterMap::iterator i = m_clusters.begin(); i != m_clusters.end(); ++i)  {
-            delete(*i).second;
-        }
-    };
+    ~ClusterGraph() {};
 
     /**
      * @brief Copys the Clustergraph into a new one
@@ -273,7 +273,7 @@ public:
      * copied graph
      */
     template<typename Functor>
-    void copyInto(ClusterGraph& into, Functor& functor) const {
+    void copyInto(boost::shared_ptr<ClusterGraph> into, Functor& functor) const {
 
         //lists does not provide vertex index, so we have to build our own
         typedef std::map<LocalVertex, int> IndexMap;
@@ -288,33 +288,33 @@ public:
         //are also copys only and point to the old graph. there is a bug in older boost version
         //(<1.5 i belive) that breaks vertex_all propety map for bundled properties, so we
         //have to create our own copie functors
-        into.clear();
-        vertex_copier vc(*this, into);
-        edge_copier ec(*this, into);
-        boost::copy_graph(*this, into, boost::vertex_index_map(propmapIndex).vertex_copy(vc).edge_copy(ec));
+        into->clear();
+        vertex_copier vc(*this, *into);
+        edge_copier ec(*this, *into);
+        boost::copy_graph(*this, *into, boost::vertex_index_map(propmapIndex).vertex_copy(vc).edge_copy(ec));
 
         //set the IDgen to the same value to avoid duplicate id's in the copied cluster
-        into.m_id->setCount(m_id->count());
+        into->m_id->setCount(m_id->count());
 
         //now that we have all vertices we can recreate the subclusters
         std::pair<const_cluster_iterator, const_cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
             //create the new Graph
-            ClusterGraph* ng = new ClusterGraph(&into);
+            boost::shared_ptr<ClusterGraph> ng = boost::shared_ptr<ClusterGraph>(new ClusterGraph(into));
 
             //we already have the new vertex, however, we need to find it
             GlobalVertex gv = getGlobalVertex((*it.first).first);
-            LocalVertex  lv = into.getLocalVertex(gv).first;
+            LocalVertex  lv = into->getLocalVertex(gv).first;
 
             //add the new graph to the subclustermap
-            into.m_clusters[lv] = ng;
+            into->m_clusters[lv] = ng;
 
             //copy the subcluster
-            (*it.first).second->copyInto(*ng, functor);
+            (*it.first).second->copyInto(ng, functor);
         }
 
         //lets see if the objects need special treatment
-        into.for_each_object(functor, false);
+        into->for_each_object(functor, false);
     };
    
     template<typename T>
@@ -343,7 +343,7 @@ public:
     };
     template<typename P>
     typename P::type& getSubclusterProperty(LocalVertex v) {
-        return getVertexCluster(v).getClusterProperty<P>();
+        return getVertexCluster(v)->getClusterProperty<P>();
     };
 
     template<typename P>
@@ -355,30 +355,30 @@ public:
     /* *******************************************************
      * Subclustering
      * *******************************************************/
-    std::pair<ClusterGraph&, LocalVertex> createCluster() {
+    std::pair<boost::shared_ptr<ClusterGraph>, LocalVertex> createCluster() {
         vertex_bundle vp;
         fusion::at_c<0>(vp) = m_id->generate();
         LocalVertex v= boost::add_vertex(vp, *this);
-        return std::pair<ClusterGraph&, LocalVertex>(* (m_clusters[v] = new ClusterGraph(this)), v);
+        return std::pair<boost::shared_ptr<ClusterGraph>, LocalVertex>(m_clusters[v] = boost::shared_ptr<ClusterGraph>(new ClusterGraph(sp_base::shared_from_this())), v);
     };
 
-    ClusterGraph&	 parent() 	{
-        return *m_parent;
+    boost::shared_ptr<ClusterGraph> parent() 	{
+        return m_parent;
     };
 
-    const ClusterGraph& parent() const 	{
-        return *m_parent;
+    const boost::shared_ptr<ClusterGraph> parent() const 	{
+        return m_parent;
     };
-    bool 		isRoot() const {
-        return m_parent == 0;
-    };
-
-    ClusterGraph&	 root()		{
-        return isRoot() ? *this : m_parent->root();
+    bool isRoot() const {
+        return m_parent ? false : true;
     };
 
-    const ClusterGraph& root() const    {
-        return isRoot() ? *this : m_parent->root();
+    boost::shared_ptr<ClusterGraph>	 root()		{
+        return isRoot() ? sp_base::shared_from_this() : m_parent->root();
+    };
+
+    const boost::shared_ptr<ClusterGraph> root() const    {
+        return isRoot() ? sp_base::shared_from_this() : m_parent->root();
     };
 
     std::pair<cluster_iterator, cluster_iterator> clusters() {
@@ -396,36 +396,31 @@ public:
         return (m_clusters.find(v) != m_clusters.end());
     };
 
-    ClusterGraph& getVertexCluster(LocalVertex v) {
+    boost::shared_ptr<ClusterGraph> getVertexCluster(LocalVertex v) {
         if(isCluster(v))
-            return *m_clusters[v];
+            return m_clusters[v];
         //TODO:throw if not a cluster
-        return *this;
+        return sp_base::shared_from_this();
     };
 
-    LocalVertex	getClusterVertex(ClusterGraph& g) {
+    LocalVertex	getClusterVertex(boost::shared_ptr<ClusterGraph> g) {
         std::pair<cluster_iterator, cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
-            if((*it.first).second == &g)
+            if((*it.first).second == g)
                 return (*it.first).first;
         }
         return LocalVertex();
     };
 
     template<typename Functor>
-    void removeCluster(ClusterGraph& g, Functor& f) {
+    void removeCluster(boost::shared_ptr<ClusterGraph> g, Functor& f) {
         removeCluster(getClusterVertex(g), f);
     };
-    void removeCluster(ClusterGraph& g) {
+    void removeCluster(boost::shared_ptr<ClusterGraph> g) {
         placehoder p;
         removeCluster(getClusterVertex(g), p);
     };
     void clearClusters() {
-
-        typedef typename ClusterMap::iterator iter;
-        for(iter it = m_clusters.begin(); it != m_clusters.end(); it++) {
-            delete(*it).second;
-        };
         m_clusters.clear();
     };
 
@@ -447,15 +442,14 @@ public:
         if(it == m_clusters.end())
             return; //TODO:throw
 
-        std::pair<LocalVertex, ClusterGraph*> res = *it;
+        std::pair<LocalVertex, boost::shared_ptr<ClusterGraph> > res = *it;
 
         //apply functor to all vertices and edges in the subclusters
-        f(*res.second);
+        f(res.second);
         res.second->remove_vertices(f, true);
 
         //remove from map, delete subcluster and remove vertex
         m_clusters.erase(v);
-        delete res.second;
         boost::clear_vertex(v, *this); //should not be needed, just to ensure it
         boost::remove_vertex(v, *this);
     };
@@ -485,7 +479,7 @@ protected:
         if(recursive) {
             cluster_iterator cit;
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
-                f(*((*cit).second));
+                f((*cit).second);
                 (*cit).second->remove_vertices(f, recursive);
             }
         }
@@ -602,7 +596,7 @@ public:
 
         //if both vertices are in a subcluster this one must do the job as we cant access the local edge from here
         if(v1==v2 && isCluster(v1)) {
-            fusion::vector<LocalEdge, GlobalEdge, bool, bool> res = getVertexCluster(v1).addEdge(source, target);
+            fusion::vector<LocalEdge, GlobalEdge, bool, bool> res = getVertexCluster(v1)->addEdge(source, target);
             fusion::at_c<3>(res)=false;
             return res;
         }
@@ -737,7 +731,7 @@ public:
      * @param v GlobalVertex for which the containing local one is wanted
      * @return fusion::vector<LocalVertex, ClusterGraph*, bool> with the containing LocalVertex, the cluster which holds it and a bool indicator if function was successful.
      **/
-    fusion::vector<LocalVertex, ClusterGraph*, bool> getLocalVertexGraph(GlobalVertex v) {
+    fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph>, bool> getLocalVertexGraph(GlobalVertex v) {
         return getContainingVertexGraph(v);
     };
 
@@ -841,7 +835,7 @@ public:
     **/
     template<typename Functor>
     void removeVertex(GlobalVertex id, Functor& f) {
-        root().downstreamRemoveVertex(id, f);
+        root()->downstreamRemoveVertex(id, f);
     };
     //no default template arguments for template functions allowed before c++0x, so a little workaround
     void removeVertex(GlobalVertex id) {
@@ -1044,7 +1038,7 @@ public:
         if(recursive) {
             cluster_iterator cit;
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
-                f(*((*cit).second));
+                f((*cit).second);
                 (*cit).second->for_each<Obj>(f, recursive);
             }
         }
@@ -1085,7 +1079,7 @@ public:
         if(recursive) {
             cluster_iterator cit;
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
-                f(*((*cit).second));
+                f((*cit).second);
                 (*cit).second->for_each_object(f, recursive);
             }
         }
@@ -1176,7 +1170,7 @@ public:
      * @param cg reference to the subcluster to which v should be moved
      * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex moveToSubcluster(LocalVertex v, ClusterGraph& cg) {
+    LocalVertex moveToSubcluster(LocalVertex v, boost::shared_ptr<ClusterGraph> cg) {
 
         LocalVertex cv = getClusterVertex(cg);
         return moveToSubcluster(v, cv, cg);
@@ -1194,7 +1188,7 @@ public:
      **/
     LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster) {
 
-        ClusterGraph& cg = getVertexCluster(Cluster);
+        boost::shared_ptr<ClusterGraph> cg = getVertexCluster(Cluster);
         return moveToSubcluster(v, Cluster, cg);
     };
 
@@ -1213,7 +1207,7 @@ public:
      * @param cg reference to the subcluster to which v should be moved
      * @return LocalVertex the local descriptor of the moved vertex in the subcluster
      **/
-    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster, ClusterGraph& cg) {
+    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster, boost::shared_ptr<ClusterGraph> cg) {
 
         std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
 
@@ -1240,12 +1234,12 @@ public:
 
         /* Create new Vertex in Cluster and map the edge to vertices and clusters in the cluster
         * if a connection existed */
-        LocalVertex nv= boost::add_vertex((*this)[v], cg);
+        LocalVertex nv= boost::add_vertex((*this)[v], *cg);
         //resort cluster parentship if needed
         if(isCluster(v)) {
 
-            cg.m_clusters[nv] = m_clusters[v];
-            cg.m_clusters[nv]->m_parent = &cg;
+            cg->m_clusters[nv] = m_clusters[v];
+            cg->m_clusters[nv]->m_parent = cg;
             m_clusters.erase(v);
         }
 
@@ -1259,19 +1253,19 @@ public:
                 GlobalEdge global = global_extractor()(*i);
                 GlobalVertex target;
                 //bit cumbersome to support moving clusters
-                target = (cg.getContainingVertex(global.source).first == nv) ? global.target : global.source;
-                std::pair<LocalVertex, bool> res = cg.getContainingVertex(target);
+                target = (cg->getContainingVertex(global.source).first == nv) ? global.target : global.source;
+                std::pair<LocalVertex, bool> res = cg->getContainingVertex(target);
                 //if(!res.second) TODO: throw
 
                 //get or create the edge between the new vertex and the target
                 LocalEdge e;
                 bool done;
-                boost::tie(e,done) = boost::edge(nv, res.first, cg);
-                if(!done) boost::tie(e,done) = boost::add_edge(nv, res.first, cg);
+                boost::tie(e,done) = boost::edge(nv, res.first, *cg);
+                if(!done) boost::tie(e,done) = boost::add_edge(nv, res.first, *cg);
                 //if(!done) TODO: throw
 
                 //push the global edge to the local edge
-                fusion::at_c<1>(cg[e]).push_back(*i);
+                fusion::at_c<1>((*cg)[e]).push_back(*i);
             };
         }
 
@@ -1281,7 +1275,7 @@ public:
         boost::remove_vertex(v, *this);
 
         setChanged();
-        cg.setChanged();
+        cg->setChanged();
 
         return nv;
     };
@@ -1306,7 +1300,7 @@ public:
 
         //create new vertex
         vertex_bundle& vb = (*this)[v];
-        LocalVertex nv = boost::add_vertex(vb, parent());
+        LocalVertex nv = boost::add_vertex(vb, *parent());
         //regrouping if needed
         if(isCluster(v)) {
             m_parent->m_clusters[nv] = m_clusters[v];
@@ -1318,11 +1312,11 @@ public:
 
         //get all out_edges of this cluster in the parentcluster (because only they can hold relevant global_Edgs)
         std::vector<LocalEdge> edge_vec;
-        LocalVertex this_v = m_parent->getClusterVertex(*this);
-        std::pair<local_out_edge_iterator, local_out_edge_iterator> it = boost::out_edges(this_v, parent());
+        LocalVertex this_v = m_parent->getClusterVertex(sp_base::shared_from_this());
+        std::pair<local_out_edge_iterator, local_out_edge_iterator> it = boost::out_edges(this_v, *parent());
         for(; it.first != it.second; it.first++) {
             //iterate all global edges and find relevant ones
-            std::vector<edge_bundle_single>& vec = fusion::at_c<1>(parent()[*it.first]);
+            std::vector<edge_bundle_single>& vec = fusion::at_c<1>((*parent())[*it.first]);
             edge_single_iterator i = vec.begin();
             while(i != vec.end()) {
 
@@ -1341,12 +1335,12 @@ public:
                 //get or create the edge between the new vertex and the target
                 LocalEdge e;
                 bool done;
-                boost::tie(e,done) = boost::edge(nv, res.first, parent());
-                if(!done) boost::tie(e,done) = boost::add_edge(nv, res.first, parent());
+                boost::tie(e,done) = boost::edge(nv, res.first, *parent());
+                if(!done) boost::tie(e,done) = boost::add_edge(nv, res.first, *parent());
                 //if(!done) TODO: throw
 
                 //push the global edge bundle to the new local edge and erase it in the old
-                fusion::at_c<1>(parent()[e]).push_back(*i);
+                fusion::at_c<1>((*parent())[e]).push_back(*i);
                 i = vec.erase(i);
             }
             //see if we should destroy this edge (no global edges remain in local one)
@@ -1356,10 +1350,10 @@ public:
         //create a edge between new vertex and this cluster and add all global edges from within this cluster
         it = boost::out_edges(v, *this);
         LocalEdge e;
-        if(it.first != it.second) e = boost::add_edge(nv, this_v, parent()).first;
+        if(it.first != it.second) e = boost::add_edge(nv, this_v, *parent()).first;
         for(; it.first != it.second; it.first++) {
             std::vector<edge_bundle_single>& ep = fusion::at_c<1>((*this)[*it.first]);
-            std::vector<edge_bundle_single>& nep = fusion::at_c<1>(parent()[e]);
+            std::vector<edge_bundle_single>& nep = fusion::at_c<1>((*parent())[e]);
             nep.insert(nep.end(), ep.begin(), ep.end());
         }
 
@@ -1370,10 +1364,10 @@ public:
 
         //it's possible that some local edges in the parent are empty now, let's destroy them
         for(std::vector<LocalEdge>::iterator it=edge_vec.begin(); it!=edge_vec.end(); it++)
-            boost::remove_edge(*it, parent());
+            boost::remove_edge(*it, *parent());
 
         setChanged();
-        parent().setChanged();
+        parent()->setChanged();
         return nv;
     };
 
@@ -1385,7 +1379,7 @@ public:
     ClusterMap	  m_clusters;
     int test;
 protected:
-    ClusterGraph* m_parent;
+    boost::shared_ptr<ClusterGraph> m_parent;
     details::IDpointer 	  m_id;
     
 
@@ -1418,18 +1412,18 @@ protected:
     /* Searches the local vertex holding the specified global one in this and all it's subclusters.
      * If found, the holding local vertex and the graph in which it is valid will be returned.
      * */
-    fusion::vector<LocalVertex, ClusterGraph*, bool> getContainingVertexGraph(GlobalVertex id) {
+    fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph>, bool> getContainingVertexGraph(GlobalVertex id) {
 
         LocalVertex v;
         bool done;
         boost::tie(v, done) = getContainingVertex(id);
-        if(!done) return fusion::make_vector(LocalVertex(), (ClusterGraph*)NULL, false);
+        if(!done) return fusion::make_vector(LocalVertex(), boost::shared_ptr<ClusterGraph>(), false);
 
         if(isCluster(v) && (getGlobalVertex(v) != id))
             return m_clusters[v]->getContainingVertexGraph(id);
-        else return fusion::make_vector(v,this,true);
+        else return fusion::make_vector(v,sp_base::shared_from_this(),true);
     };
-
+    
     /* Searches the global edge in all local edges of this graph, and returns the local
      * one which holds the global edge. If not successfull the local edge returned will be
      * invalid and the bool parameter will be false.
@@ -1484,7 +1478,7 @@ protected:
         }
 
         //check all clusters if they have the object
-        fusion::vector<LocalVertex, ClusterGraph*, bool> res = getContainingVertexGraph(k);
+        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph>, bool> res = getContainingVertexGraph(k);
         if(!fusion::at_c<2>(res)) {
             //TODO: Throw (propeties return reference, but cant init a reference temporarily)
         }

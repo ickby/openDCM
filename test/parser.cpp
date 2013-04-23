@@ -84,53 +84,53 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     
         System sys;
 
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res1 = sys.m_cluster.addVertex();
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res2 = sys.m_cluster.addVertex();
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res3 = sys.m_cluster.addVertex();
-        dcm::LocalEdge e1 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res2)));
-        dcm::LocalEdge e2 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res2),fusion::at_c<1>(res3)));
-        dcm::LocalEdge e3 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res3)));
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res1 = sys.m_cluster->addVertex();
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res2 = sys.m_cluster->addVertex();
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res3 = sys.m_cluster->addVertex();
+        dcm::LocalEdge e1 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res2)));
+        dcm::LocalEdge e2 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res2),fusion::at_c<1>(res3)));
+        dcm::LocalEdge e3 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res3)));
 
         boost::shared_ptr<TestModule1::type<System>::test_object1> ptr(new TestModule1::type<System>::test_object1(sys));
-        sys.m_cluster.setObject(fusion::at_c<1>(res1), ptr);
+        sys.m_cluster->setObject(fusion::at_c<1>(res1), ptr);
 
-	sys.m_cluster.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res1), 1);
-	sys.m_cluster.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res2), 2);
-	sys.m_cluster.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res3), 3);
-        sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e1, 1);
-        sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e2, 2);
-        sys.m_cluster.setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);
+	sys.m_cluster->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res1), 1);
+	sys.m_cluster->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res2), 2);
+	sys.m_cluster->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res3), 3);
+        sys.m_cluster->setProperty<TestModule1::type<System>::test_edge1_prop>(e1, 1);
+        sys.m_cluster->setProperty<TestModule1::type<System>::test_edge1_prop>(e2, 2);
+        sys.m_cluster->setProperty<TestModule1::type<System>::test_edge1_prop>(e3, 3);
 
         //subcluster
-        System::Cluster& scl1 = sys.m_cluster.createCluster().first;
-        System::Cluster& scl2 = sys.m_cluster.createCluster().first;
+        boost::shared_ptr<System::Cluster> scl1 = sys.m_cluster->createCluster().first;
+        boost::shared_ptr<System::Cluster> scl2 = sys.m_cluster->createCluster().first;
 
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res4 = scl1.addVertex();
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res5 = scl1.addVertex();
-        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res6 = scl2.addVertex();
-        dcm::LocalEdge e4 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res4),fusion::at_c<1>(res5)));
-        dcm::LocalEdge e5 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res5),fusion::at_c<1>(res6)));
-        dcm::LocalEdge e6 = fusion::at_c<0>(sys.m_cluster.addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res4)));
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res4 = scl1->addVertex();
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res5 = scl1->addVertex();
+        fusion::vector<dcm::LocalVertex, dcm::GlobalVertex> res6 = scl2->addVertex();
+        dcm::LocalEdge e4 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res4),fusion::at_c<1>(res5)));
+        dcm::LocalEdge e5 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res5),fusion::at_c<1>(res6)));
+        dcm::LocalEdge e6 = fusion::at_c<0>(sys.m_cluster->addEdge(fusion::at_c<1>(res1),fusion::at_c<1>(res4)));
 
-        sys.m_cluster.setClusterProperty<dcm::type_prop>(5);
-        sys.m_cluster.setClusterProperty<dcm::changed_prop>(false);
-        scl1.setClusterProperty<dcm::type_prop>(2);
-        scl1.setClusterProperty<dcm::changed_prop>(false);
-        scl2.setClusterProperty<dcm::type_prop>(7);
-        scl2.setClusterProperty<dcm::changed_prop>(true);
+        sys.m_cluster->setClusterProperty<dcm::type_prop>(5);
+        sys.m_cluster->setClusterProperty<dcm::changed_prop>(false);
+        scl1->setClusterProperty<dcm::type_prop>(2);
+        scl1->setClusterProperty<dcm::changed_prop>(false);
+        scl2->setClusterProperty<dcm::type_prop>(7);
+        scl2->setClusterProperty<dcm::changed_prop>(true);
 	
-	scl1.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res4), 4);
-	scl1.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res5), 5);
-	scl2.setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res6), 6);
-	scl1.setProperty<TestModule1::type<System>::test_edge1_prop>(e4, 7);
+	scl1->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res4), 4);
+	scl1->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res5), 5);
+	scl2->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res6), 6);
+	scl1->setProperty<TestModule1::type<System>::test_edge1_prop>(e4, 7);
 
         std::stringstream s;
         sys.saveState(s);
         //std::cout<<s.str()<<std::endl;
     
        //change main graphs property as this is not reset
-       sys.m_cluster.setClusterProperty<dcm::type_prop>(2);
-       sys.m_cluster.setClusterProperty<dcm::changed_prop>(false);
+       sys.m_cluster->setClusterProperty<dcm::type_prop>(2);
+       sys.m_cluster->setClusterProperty<dcm::changed_prop>(false);
 
        //load the state
        sys.loadState(s);
@@ -138,36 +138,36 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
 
        //access the two subcluster
        typedef typename System::Cluster::cluster_iterator cit;
-       std::pair<cit, cit> it = sys.m_cluster.clusters();
-       System::Cluster* nscl1 = (*(it.first)).second;
-       System::Cluster* nscl2 = (*(++it.first)).second;
+       std::pair<cit, cit> it = sys.m_cluster->clusters();
+       boost::shared_ptr<System::Cluster> nscl1 = (*(it.first)).second;
+       boost::shared_ptr<System::Cluster> nscl2 = (*(++it.first)).second;
       
        //check clusters
-       BOOST_CHECK( boost::num_vertices(sys.m_cluster) == 5 );
-       BOOST_CHECK( boost::num_edges(sys.m_cluster) == 5 );
-       BOOST_REQUIRE( sys.m_cluster.numClusters() == 2 );
-       BOOST_CHECK( sys.m_cluster.getClusterProperty<dcm::type_prop>() == 5 );
-       BOOST_CHECK( !sys.m_cluster.getClusterProperty<dcm::changed_prop>() );
+       BOOST_CHECK( boost::num_vertices(*sys.m_cluster) == 5 );
+       BOOST_CHECK( boost::num_edges(*sys.m_cluster) == 5 );
+       BOOST_REQUIRE( sys.m_cluster->numClusters() == 2 );
+       BOOST_CHECK( sys.m_cluster->getClusterProperty<dcm::type_prop>() == 5 );
+       BOOST_CHECK( !sys.m_cluster->getClusterProperty<dcm::changed_prop>() );
        BOOST_CHECK( nscl1->getClusterProperty<dcm::type_prop>() == 2 );
        BOOST_CHECK( !nscl1->getClusterProperty<dcm::changed_prop>() );
        BOOST_CHECK( nscl2->getClusterProperty<dcm::type_prop>() == 7 );
        BOOST_CHECK( nscl2->getClusterProperty<dcm::changed_prop>() );
   
        //check vertex and edge properties
-       std::pair<dcm::LocalVertex, bool> v1 = sys.m_cluster.getLocalVertex(fusion::at_c<1>(res1));
-       std::pair<dcm::LocalVertex, bool> v2 = sys.m_cluster.getLocalVertex(fusion::at_c<1>(res2));
-       std::pair<dcm::LocalVertex, bool> v3 = sys.m_cluster.getLocalVertex(fusion::at_c<1>(res3));
+       std::pair<dcm::LocalVertex, bool> v1 = sys.m_cluster->getLocalVertex(fusion::at_c<1>(res1));
+       std::pair<dcm::LocalVertex, bool> v2 = sys.m_cluster->getLocalVertex(fusion::at_c<1>(res2));
+       std::pair<dcm::LocalVertex, bool> v3 = sys.m_cluster->getLocalVertex(fusion::at_c<1>(res3));
        
        BOOST_REQUIRE( v1.second );
        BOOST_REQUIRE( v2.second );
        BOOST_REQUIRE( v3.second );
        
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_vertex1_prop>(v1.first) == 1 );
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_vertex1_prop>(v2.first) == 2 );
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_vertex1_prop>(v3.first) == 3 );
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster.edge(v1.first, v2.first).first) == 1 );
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster.edge(v2.first,v3.first).first) == 2 );
-       BOOST_CHECK( sys.m_cluster.getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster.edge(v1.first,v3.first).first) == 3 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_vertex1_prop>(v1.first) == 1 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_vertex1_prop>(v2.first) == 2 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_vertex1_prop>(v3.first) == 3 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster->edge(v1.first, v2.first).first) == 1 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster->edge(v2.first,v3.first).first) == 2 );
+       BOOST_CHECK( sys.m_cluster->getProperty<TestModule1::type<System>::test_edge1_prop>(sys.m_cluster->edge(v1.first,v3.first).first) == 3 );
 
        std::pair<dcm::LocalVertex, bool> v4 = nscl1->getLocalVertex(fusion::at_c<1>(res4));
        std::pair<dcm::LocalVertex, bool> v5 = nscl1->getLocalVertex(fusion::at_c<1>(res5));

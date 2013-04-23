@@ -117,10 +117,10 @@ public:
         map_downstream(details::ClusterMath<Sys>& cm, bool fix);
 
         void operator()(Geom g);
-        void operator()(Cluster& c);
+        void operator()(boost::shared_ptr<Cluster> c);
     };
 
-    void mapClusterDownstreamGeometry(Cluster& cluster);
+    void mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster);
 
     //Calculate the scale of the cluster. Therefore the midpoint is calculated and the scale is
     // defined as the max distance between the midpoint and the points.
@@ -425,21 +425,21 @@ void ClusterMath<Sys>::map_downstream::operator()(Geom g) {
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::map_downstream::operator()(Cluster& c) {
-    m_transform *= c.template getClusterProperty<math_prop>().getTransform();
+void ClusterMath<Sys>::map_downstream::operator()(boost::shared_ptr<Cluster> c) {
+    m_transform *= c->template getClusterProperty<math_prop>().getTransform();
 };
 
 
 template<typename Sys>
-void ClusterMath<Sys>::mapClusterDownstreamGeometry(Cluster& cluster) {
+void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster) {
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Map downstream geometry";
 #endif
 
-    map_downstream down(cluster.template getClusterProperty<math_prop>(),
-                        cluster.template getClusterProperty<fix_prop>());
-    cluster.template for_each<Geometry3D>(down, true);
+    map_downstream down(cluster->template getClusterProperty<math_prop>(),
+                        cluster->template getClusterProperty<fix_prop>());
+    cluster->template for_each<Geometry3D>(down, true);
     //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
     //	dof's remaining between parts and so nothing can be moved when one part is fixed.
 };

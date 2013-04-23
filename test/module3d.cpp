@@ -216,11 +216,11 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     geom_ptr g3 = sys.createGeometry3D(p3);
 
     //now trick a bit and move two geometries manual in a subcluster
-    std::pair<SystemNOID::Cluster&, LocalVertex> sc = sys.m_cluster.createCluster();
-    sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g1->getProperty<vertex_prop>()).first, sc.second);
-    sys.m_cluster.moveToSubcluster(sys.m_cluster.getLocalVertex(g2->getProperty<vertex_prop>()).first, sc.second);
-    sc.first.setClusterProperty<changed_prop>(true);
-    sc.first.setClusterProperty<type_prop>(details::cluster3D);
+    std::pair<boost::shared_ptr<SystemNOID::Cluster>, LocalVertex> sc = sys.m_cluster->createCluster();
+    sys.m_cluster->moveToSubcluster(sys.m_cluster->getLocalVertex(g1->getProperty<vertex_prop>()).first, sc.second);
+    sys.m_cluster->moveToSubcluster(sys.m_cluster->getLocalVertex(g2->getProperty<vertex_prop>()).first, sc.second);
+    sc.first->setClusterProperty<changed_prop>(true);
+    sc.first->setClusterProperty<type_prop>(details::cluster3D);
 
     //and finally add constraints
     cons_ptr c1 = sys.createConstraint3D(g1, g2, test);

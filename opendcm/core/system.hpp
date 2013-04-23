@@ -31,6 +31,7 @@
 #include <boost/mpl/or.hpp>
 #include <boost/mpl/less_equal.hpp>
 #include <boost/mpl/print.hpp>
+#include <boost/mpl/and.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
 
@@ -190,7 +191,7 @@ public:
     typedef KernelType Kernel;
 
 public:
-    System()
+    System() : m_cluster(new Cluster)
 #ifdef USE_LOGGING
     , sink(init_log())
 #endif
@@ -210,8 +211,8 @@ public:
 
     void clear() {
 
-        m_cluster.clearClusters();
-        m_cluster.clear();
+        m_cluster->clearClusters();
+        m_cluster->clear();
         fusion::for_each(m_storage, clearer());
     };
 
@@ -268,14 +269,18 @@ private:
 
         System& newSys;
         cloner(System& ns) : newSys(ns) {};
+	
+	template<typename T>
+	struct test : mpl::and_<details::is_shared_ptr<T>,
+		    mpl::not_<boost::is_same<T, boost::shared_ptr<typename System::Cluster> > > > {};
 
         template<typename T>
-        typename boost::enable_if< details::is_shared_ptr<T>, void>::type operator()(T& p) const {
+        typename boost::enable_if< test<T>, void>::type operator()(T& p) const {
             p = p->clone(newSys);
             newSys.push_back(p);
         };
         template<typename T>
-        typename boost::enable_if< mpl::not_<details::is_shared_ptr<T> >, void>::type operator()(const T& p) const {};
+        typename boost::enable_if< mpl::not_<test<T> >, void>::type operator()(const T& p) const {};
     };
 
 public:
@@ -283,7 +288,7 @@ public:
 
         //copy the clustergraph and clone all objects while at it. They are also pushed to the storage
         cloner cl(into);
-        m_cluster.copyInto(into.m_cluster, cl);
+        m_cluster->copyInto(into.m_cluster, cl);
 
         //notify all modules that they are copied
         Type1::system_copy(*this, into);
@@ -298,7 +303,7 @@ public:
         return ns;
     };
 
-    Cluster m_cluster;
+    boost::shared_ptr<Cluster> m_cluster;
     Shedule m_sheduler;
     Kernel  m_kernel;
     Storage m_storage;

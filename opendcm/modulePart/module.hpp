@@ -98,7 +98,7 @@ struct ModulePart {
             using Object<Sys, Part, PartSignal >::m_system;
 
             template<typename T>
-            Part_base(T geometry, Sys& system, Cluster& cluster);
+            Part_base(T geometry, Sys& system, boost::shared_ptr<Cluster> cluster);
 
             template<typename Visitor>
             typename Visitor::result_type apply(Visitor& vis);
@@ -114,7 +114,7 @@ struct ModulePart {
         public:
             Variant 	m_geometry;
             Transform 	m_transform;
-            Cluster* 	m_cluster;
+            boost::shared_ptr<Cluster> 	m_cluster;
 
             void finishCalculation();
             void fix(bool fix_value);
@@ -123,7 +123,7 @@ struct ModulePart {
         struct Part_id : public Part_base {
 
             template<typename T>
-            Part_id(T geometry, Sys& system,  typename Part_base::Cluster& cluster);
+            Part_id(T geometry, Sys& system,  boost::shared_ptr<typename Part_base::Cluster> cluster);
 
             template<typename T>
             typename Part_base::Geom addGeometry3D(T geom, Identifier id, CoordinateFrame frame = Global);
@@ -143,7 +143,7 @@ struct ModulePart {
             typedef typename mpl::if_<boost::is_same<Identifier, No_Identifier>, Part_base, Part_id>::type base;
 
             template<typename T>
-            Part(T geometry, Sys& system, typename base::Cluster& cluster);
+            Part(T geometry, Sys& system, boost::shared_ptr<typename base::Cluster> cluster);
 
             friend struct PrepareCluster;
             friend struct EvaljuateCluster;
@@ -176,7 +176,7 @@ struct ModulePart {
                 void operator()(GlobalVertex v);
                 //we delete all global edges connecting to this part
                 void operator()(GlobalEdge e);
-                void operator()(Cluster& g) {};
+                void operator()(boost::shared_ptr<Cluster> g) {};
             };
         };
 
@@ -224,13 +224,13 @@ struct ModulePart {
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename T>
-ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(T geometry, Sys& system, Cluster& cluster)
-    : Object<Sys, Part, PartSignal>(system), m_geometry(geometry), m_cluster(&cluster)  {
+ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(T geometry, Sys& system, boost::shared_ptr<Cluster> cluster)
+    : Object<Sys, Part, PartSignal>(system), m_geometry(geometry), m_cluster(cluster)  {
 
     (typename geometry_traits<T>::modell()).template extract<Kernel,
     typename geometry_traits<T>::accessor >(geometry, m_transform);
 
-    cluster.template setClusterProperty<typename module3d::fix_prop>(false);
+    cluster->template setClusterProperty<typename module3d::fix_prop>(false);
 };
 
 template<typename Typelist, typename ID>
@@ -272,20 +272,20 @@ boost::shared_ptr<typename ModulePart<Typelist, ID>::template type<Sys>::Part>
 ModulePart<Typelist, ID>::type<Sys>::Part_base::clone(Sys& newSys) {
 
     //we need to reset the cluster pointer to the new system cluster
-    LocalVertex  lv = Object<Sys, Part, PartSignal>::m_system->m_cluster.getClusterVertex(*m_cluster);
-    GlobalVertex gv = Object<Sys, Part, PartSignal>::m_system->m_cluster.getGlobalVertex(lv);
+    LocalVertex  lv = Object<Sys, Part, PartSignal>::m_system->m_cluster->getClusterVertex(m_cluster);
+    GlobalVertex gv = Object<Sys, Part, PartSignal>::m_system->m_cluster->getGlobalVertex(lv);
 
     boost::shared_ptr<Part> np = Object<Sys, Part, PartSignal>::clone(newSys);
     //there may be  pointer inside the variant
     cloner clone_fnc(np->m_geometry);
     boost::apply_visitor(clone_fnc, m_geometry);
 
-    fusion::vector<LocalVertex, typename Sys::Cluster*, bool> res = newSys.m_cluster.getLocalVertexGraph(gv);
+    fusion::vector<LocalVertex, boost::shared_ptr<Cluster>, bool> res = newSys.m_cluster->getLocalVertexGraph(gv);
     if(!fusion::at_c<2>(res)) {
         //todo: throw
         return np;
     }
-    np->m_cluster = &(fusion::at_c<1>(res)->getVertexCluster(fusion::at_c<0>(res)));
+    np->m_cluster = fusion::at_c<1>(res)->getVertexCluster(fusion::at_c<0>(res));
 
     return np;
 };
@@ -307,7 +307,7 @@ void ModulePart<Typelist, ID>::type<Sys>::Part_base::fix(bool fix_value) {
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename T>
-ModulePart<Typelist, ID>::type<Sys>::Part_id::Part_id(T geometry, Sys& system,  typename Part_base::Cluster& cluster)
+ModulePart<Typelist, ID>::type<Sys>::Part_id::Part_id(T geometry, Sys& system,  boost::shared_ptr<typename Part_base::Cluster> cluster)
     : Part_base(geometry, system, cluster) {
 
 };
@@ -365,7 +365,7 @@ void ModulePart<Typelist, ID>::type<Sys>::Part_id::setIdentifier(Identifier id) 
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename T>
-ModulePart<Typelist, ID>::type<Sys>::Part::Part(T geometry, Sys& system, typename base::Cluster& cluster)
+ModulePart<Typelist, ID>::type<Sys>::Part::Part(T geometry, Sys& system, boost::shared_ptr<typename base::Cluster> cluster)
     : mpl::if_<boost::is_same<Identifier, No_Identifier>,
       Part_base, Part_id>::type(geometry, system, cluster) {
 
@@ -384,13 +384,13 @@ typename ModulePart<Typelist, ID>::template type<Sys>::Partptr
 ModulePart<Typelist, ID>::type<Sys>::inheriter_base::createPart(T geometry) {
 
     typedef typename system_traits<Sys>::Cluster Cluster;
-    std::pair<Cluster&, LocalVertex>  res = m_this->m_cluster.createCluster();
+    std::pair<boost::shared_ptr<Cluster>, LocalVertex>  res = m_this->m_cluster->createCluster();
     Partptr p(new Part(geometry, * ((Sys*) this), res.first));
 
-    m_this->m_cluster.template setObject<Part> (res.second, p);
+    m_this->m_cluster->template setObject<Part> (res.second, p);
     m_this->push_back(p);
 
-    res.first.template setClusterProperty<type_prop>(clusterPart);
+    res.first->template setClusterProperty<type_prop>(clusterPart);
     return p;
 };
 
@@ -399,7 +399,7 @@ template<typename Sys>
 void ModulePart<Typelist, ID>::type<Sys>::inheriter_base::removePart(Partptr p) {
 
     remover r(*m_this);
-    m_this->m_cluster.removeCluster(*(p->m_cluster), r);
+    m_this->m_cluster->removeCluster(p->m_cluster, r);
     p->template emitSignal<remove>(p);
     m_this->erase(p);
 };
@@ -413,12 +413,12 @@ ModulePart<Typelist, ID>::type<Sys>::inheriter_base::remover::remover(Sys& s) : 
 template<typename Typelist, typename ID>
 template<typename Sys>
 void ModulePart<Typelist, ID>::type<Sys>::inheriter_base::remover::operator()(GlobalVertex v) {
-    Geom g = system.m_cluster.template getObject<Geometry3D>(v);
+    Geom g = system.m_cluster->template getObject<Geometry3D>(v);
     if(g) {
         g->template emitSignal<remove>(g);
         system.erase(g);
     }
-    Cons c = system.m_cluster.template getObject<Constraint3D>(v);
+    Cons c = system.m_cluster->template getObject<Constraint3D>(v);
     if(c) {
         c->template emitSignal<remove>(c);
         system.erase(c);
@@ -428,7 +428,7 @@ void ModulePart<Typelist, ID>::type<Sys>::inheriter_base::remover::operator()(Gl
 template<typename Typelist, typename ID>
 template<typename Sys>
 void ModulePart<Typelist, ID>::type<Sys>::inheriter_base::remover::operator()(GlobalEdge e) {
-    Cons c = system.m_cluster.template getObject<Constraint3D>(e);
+    Cons c = system.m_cluster->template getObject<Constraint3D>(e);
     if(c) {
         c->template emitSignal<remove>(c);
         system.erase(c);

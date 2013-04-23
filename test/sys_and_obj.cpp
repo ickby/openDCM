@@ -147,18 +147,18 @@ BOOST_AUTO_TEST_CASE(graph_properties) {
 
     System sys;
 
-    dcm::GlobalVertex v = fusion::at_c<1>(sys.m_cluster.addVertex());
-    sys.m_cluster.setProperty<test_vertex_property1>(v, 1);
-    sys.m_cluster.setProperty<test_vertex_property2>(v, 2);
-    BOOST_CHECK(sys.m_cluster.getProperty<test_vertex_property1>(v) == 1);
-    BOOST_CHECK(sys.m_cluster.getProperty<test_vertex_property2>(v) == 2);
+    dcm::GlobalVertex v = fusion::at_c<1>(sys.m_cluster->addVertex());
+    sys.m_cluster->setProperty<test_vertex_property1>(v, 1);
+    sys.m_cluster->setProperty<test_vertex_property2>(v, 2);
+    BOOST_CHECK(sys.m_cluster->getProperty<test_vertex_property1>(v) == 1);
+    BOOST_CHECK(sys.m_cluster->getProperty<test_vertex_property2>(v) == 2);
 
-    dcm::GlobalVertex v2 = fusion::at_c<1>(sys.m_cluster.addVertex());
-    dcm::GlobalEdge e = fusion::at_c<1>(sys.m_cluster.addEdge(v, v2));
-    sys.m_cluster.setProperty<test_edge_property1>(e, 1);
-    sys.m_cluster.setProperty<test_edge_property2>(e, 2);
-    BOOST_CHECK(sys.m_cluster.getProperty<test_edge_property1>(e) == 1);
-    BOOST_CHECK(sys.m_cluster.getProperty<test_edge_property2>(e) == 2);
+    dcm::GlobalVertex v2 = fusion::at_c<1>(sys.m_cluster->addVertex());
+    dcm::GlobalEdge e = fusion::at_c<1>(sys.m_cluster->addEdge(v, v2));
+    sys.m_cluster->setProperty<test_edge_property1>(e, 1);
+    sys.m_cluster->setProperty<test_edge_property2>(e, 2);
+    BOOST_CHECK(sys.m_cluster->getProperty<test_edge_property1>(e) == 1);
+    BOOST_CHECK(sys.m_cluster->getProperty<test_edge_property2>(e) == 2);
 
 };
 

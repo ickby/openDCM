@@ -68,10 +68,10 @@ struct Extractor {
     };
     void getClusterRange(typename Sys::Cluster& cluster, std::vector<std::pair<GlobalVertex, typename Sys::Cluster*> >& range) {
 	
-	typedef typename std::map<LocalVertex, typename Sys::Cluster*>::const_iterator iter;
+	typedef typename Sys::Cluster::const_cluster_iterator iter;
 	
 	for(iter it = cluster.m_clusters.begin(); it != cluster.m_clusters.end(); it++) {
-	  range.push_back( std::make_pair( cluster.getGlobalVertex((*it).first), (*it).second ));
+	  range.push_back( std::make_pair( cluster.getGlobalVertex((*it).first), (*it).second.get() ));
 	};
     };
 };
@@ -101,7 +101,7 @@ struct Injector {
     };
     void addCluster(typename Sys::Cluster* cluster, typename Sys::Cluster* addcl) {
         LocalVertex v = cluster->getLocalVertex(addcl->template getClusterProperty<details::cluster_vertex_prop>()).first;
-        cluster->m_clusters[v] = addcl;
+        cluster->m_clusters[v] = boost::shared_ptr<typename Sys::Cluster>(addcl);
     };
     void addVertex(typename Sys::Cluster* cluster, fusion::vector<LocalVertex, GlobalVertex>& vec) {
         vec = cluster->addVertex();
