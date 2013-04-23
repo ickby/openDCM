@@ -132,7 +132,7 @@ struct ModulePart {
             void set(T geometry, Identifier id);
 
             bool hasGeometry3D(Identifier id);
-	    typename Part_base::Geom getGeometry3D(Identifier id);
+            typename Part_base::Geom getGeometry3D(Identifier id);
 
             Identifier& getIdentifier();
             void setIdentifier(Identifier id);
@@ -157,6 +157,30 @@ struct ModulePart {
             template<typename T>
             Partptr createPart(T geometry);
             void removePart(Partptr p);
+
+            template<typename T>
+            void setTransformation(T geom) {
+                details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getClusterProperty<typename module3d::math_prop>();
+
+                (typename geometry_traits<T>::modell()).template extract<Kernel,
+                typename geometry_traits<T>::accessor >(geometry, cm.getTransform());
+            };
+	    
+	    template<typename T>
+	    T getTransformation() {
+
+		T geom;
+                getTransformation(geom);
+		return geom;
+	    };
+	    template<typename T>
+	    void getTransformation(T& geom) {
+	      
+		details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getClusterProperty<typename module3d::math_prop>();
+
+                (typename geometry_traits<T>::modell()).template inject<Kernel,
+                    typename geometry_traits<T>::accessor >(geom, cm.getTransform());
+	    };
 
         protected:
             Sys* m_this;
@@ -344,7 +368,7 @@ bool ModulePart<Typelist, ID>::type<Sys>::Part_id::hasGeometry3D(Identifier id) 
 
 template<typename Typelist, typename ID>
 template<typename Sys>
-typename ModulePart<Typelist, ID>::template type<Sys>::Part_base::Geom 
+typename ModulePart<Typelist, ID>::template type<Sys>::Part_base::Geom
 ModulePart<Typelist, ID>::type<Sys>::Part_id::getGeometry3D(Identifier id) {
     return Part_base::m_system->getGeometry3D(id);
 };

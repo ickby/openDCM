@@ -52,6 +52,8 @@ struct Unspecified_Identifier {};
 
 
 namespace details {
+  
+enum { subcluster = 10};
 
 template<typename seq, typename state>
 struct vector_fold : mpl::fold< seq, state,
@@ -262,6 +264,15 @@ public:
         double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
         //Base::Console().Message("overall solving time in ms: %f\n", ms);
 
+    };
+    
+    System* createSubsystem() {
+	
+      System* s = new System();
+      s->m_cluster = m_cluster->createCluster().first;
+      s->m_storage = m_storage;
+      s->m_cluster->setClusterProperty<type_prop>(subcluster);
+      return s;
     };
 
 private:
