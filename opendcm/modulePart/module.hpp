@@ -48,7 +48,8 @@ struct ModulePart {
         struct PrepareCluster;
         struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
-        typedef mpl::map1< mpl::pair<remove, boost::function<void (Partptr) > > >  PartSignal;
+        typedef mpl::map2< mpl::pair<remove, boost::function<void (Partptr) > >,
+			   mpl::pair<recalculated, boost::function<void (Partptr) > > >  PartSignal;
 
         typedef ID Identifier;
 
@@ -323,6 +324,9 @@ void ModulePart<Typelist, ID>::type<Sys>::Part_base::finishCalculation() {
     m_transform.normalize();
     apply_visitor vis(m_transform);
     apply(vis);
+    
+    //emit the signal for new values
+    base::template emitSignal<recalculated>( ((Part*)this)->shared_from_this() );
 };
 
 template<typename Typelist, typename ID>

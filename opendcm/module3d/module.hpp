@@ -82,8 +82,6 @@ struct Module3D {
         typedef boost::shared_ptr<Geometry3D> Geom;
         typedef boost::shared_ptr<Constraint3D> Cons;
 
-        typedef mpl::map2< mpl::pair<reset, boost::function<void (Geom) > >,
-                mpl::pair<remove, boost::function<void (Geom) > > >  GeomSignal;
         typedef mpl::map1< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
 
         typedef ID Identifier;
@@ -92,9 +90,9 @@ struct Module3D {
         typedef details::SystemSolver<Sys> SystemSolver;
 
         template<typename Derived>
-        class Geometry3D_id : public detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3> {
+        class Geometry3D_id : public detail::Geometry<Sys, Derived, Typelist, 3> {
 
-            typedef detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3> Base;
+            typedef detail::Geometry<Sys, Derived, Typelist, 3> Base;
 
 #ifdef USE_LOGGING
             attrs::mutable_constant< std::string > log_id;
@@ -114,7 +112,7 @@ struct Module3D {
         };
 
         struct Geometry3D : public mpl::if_<boost::is_same<Identifier, No_Identifier>,
-                detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>, Geometry3D_id<Geometry3D> >::type {
+                detail::Geometry<Sys, Geometry3D, Typelist, 3>, Geometry3D_id<Geometry3D> >::type {
 
             typedef vertex_prop vertex_propertie;
 
@@ -270,7 +268,7 @@ template<typename Sys>
 template<typename Derived>
 template<typename T>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D_id<Derived>::Geometry3D_id(T geometry, Sys& system)
-    : detail::Geometry<Sys, Derived, Typelist, GeomSignal, 3>(geometry, system)
+    : detail::Geometry<Sys, Derived, Typelist, 3>(geometry, system)
 #ifdef USE_LOGGING
     , log_id("No ID")
 #endif
@@ -324,7 +322,7 @@ template<typename Sys>
 template<typename T>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D::Geometry3D(T geometry, Sys& system)
     : mpl::if_<boost::is_same<Identifier, No_Identifier>,
-      detail::Geometry<Sys, Geometry3D, Typelist, GeomSignal, 3>,
+      detail::Geometry<Sys, Geometry3D, Typelist, 3>,
       Geometry3D_id<Geometry3D> >::type(geometry, system) {
 
 };

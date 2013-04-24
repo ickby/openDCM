@@ -86,6 +86,7 @@ namespace dcm {
 
 //few standart signal names
 struct remove {};
+struct recalculated {};
 
 typedef boost::any Connection;
 

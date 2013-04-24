@@ -275,7 +275,7 @@ template<typename Kernel, int Dim>
 std::ostream& operator<<(std::ostream& os, const dcm::detail::Transform<Kernel, Dim>& t) {
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
        << "Translation: " << t.translation().vector().transpose() <<std::endl
-       << "Scale:       " << t.scaling();
+       << "Scale:       " << t.scaling().factor();
     return os;
 }
 
@@ -283,7 +283,7 @@ template<typename Kernel, int Dim>
 std::ostream& operator<<(std::ostream& os, dcm::detail::DiffTransform<Kernel, Dim>& t) {
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
        << "Translation: " << t.translation().vector().transpose() <<std::endl
-       << "Scale:       " << t.scaling() << std::endl
+       << "Scale:       " << t.scaling().factor() << std::endl
        << "Differential:" << std::endl<<t.differential();
     return os;
 }

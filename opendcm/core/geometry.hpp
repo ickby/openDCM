@@ -33,11 +33,13 @@
 #include <boost/mpl/or.hpp>
 #include <boost/mpl/not.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/mpl/map.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
 #include <boost/concept_check.hpp>
 #include <boost/graph/graph_concepts.hpp>
+#include <boost/function.hpp>
 
 #include <boost/variant.hpp>
 
@@ -126,8 +128,15 @@ struct reset {}; 	//signal namespace
 
 namespace detail {
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-class Geometry : public Object<Sys, Derived, Signals > {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+class Geometry : public Object<Sys, Derived,
+    mpl::map3<  mpl::pair<reset, boost::function<void (boost::shared_ptr<Derived>) > >,
+        mpl::pair<remove, boost::function<void (boost::shared_ptr<Derived>) > > ,
+        mpl::pair<recalculated, boost::function<void (boost::shared_ptr<Derived>)> > > > {
+
+    typedef mpl::map3<  mpl::pair<reset, boost::function<void (boost::shared_ptr<Derived>) > >,
+            mpl::pair<remove, boost::function<void (boost::shared_ptr<Derived>) > >,
+            mpl::pair<recalculated, boost::function<void (boost::shared_ptr<Derived>)> > > Signals;
 
     typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
     typedef Object<Sys, Derived, Signals> 		Base;
@@ -203,9 +212,9 @@ public:
     };
 #endif
 
-//protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs 
+//protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs
 //are declared friend
-//protected: 
+//protected:
     Variant m_geometry; //Variant holding the real geometry type
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
     int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
@@ -269,9 +278,9 @@ public:
 /*****************************************************************************************************************/
 
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
 template<typename T>
-Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::Geometry(T geometry, Sys& system)
+Geometry<Sys, Derived, GeometrieTypeList, Dim>::Geometry(T geometry, Sys& system)
     : m_isInCluster(false), m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
@@ -279,20 +288,20 @@ Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::Geometry(T geometry, Sy
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
-	this->m_system = &system;
+    this->m_system = &system;
     init<T>(geometry);
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
 template<typename T>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::set(T geometry) {
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::set(T geometry) {
     m_geometry = geometry;
     init<T>(geometry);
     //Base::template emitSignal<reset>( ((Derived*)this)->shared_from_this() );
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::transform(const Transform& t) {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
@@ -302,8 +311,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::transform(const Tr
         transform(t, m_global);
 };
 
-template<typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::clone(Sys& newSys) {
+template<typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Dim>::clone(Sys& newSys) {
 
     //copy the standart stuff
     boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
@@ -314,10 +323,10 @@ boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Signals, Di
     return np;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
 template<typename T>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::init(T& t) {
-  
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::init(T& t) {
+
     m_BaseParameterCount = geometry_traits<T>::tag::parameters::value;
     m_parameterCount = m_BaseParameterCount;
     m_rotations = geometry_traits<T>::tag::rotations::value;
@@ -344,29 +353,29 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::init(T& t) {
 
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::normalize() {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::normalize() {
     //directions are not nessessarily normalized, but we need to ensure this in cluster mode
     for(int i=m_translations; i!=m_rotations; i++)
         m_global.template segment<Dim>(i*Dim).normalize();
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-typename Sys::Kernel::VectorMap& Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::getParameterMap() {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+typename Sys::Kernel::VectorMap& Geometry<Sys, Derived, GeometrieTypeList, Dim>::getParameterMap() {
     m_isInCluster = false;
     m_parameterCount = m_BaseParameterCount;
     return m_parameter;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::initMap() {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::initMap() {
     //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
     m_parameter = m_global;
     m_init = true;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::setClusterMode(bool iscluster, bool isFixed) {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::setClusterMode(bool iscluster, bool isFixed) {
 
     m_isInCluster = iscluster;
     m_clusterFixed = isFixed;
@@ -380,8 +389,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::setClusterMode(boo
     } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::recalculate(DiffTransform& trans) {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::recalculate(DiffTransform& trans) {
     if(!m_isInCluster) return;
 
     for(int i=0; i!=m_rotations; i++) {
@@ -410,8 +419,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::recalculate(DiffTr
 };
 
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::finishCalculation() {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::finishCalculation() {
     //if fixed nothing needs to be changed
     if(m_isInCluster) {
         //recalculate(1.); //remove scaling to get right global value
@@ -432,11 +441,14 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::finishCalculation(
     apply(v);
     m_init = false;
     m_isInCluster = false;
+    
+    //emit the signal for recalculation
+    Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
 template<typename VectorType>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::transform(const Transform& t, VectorType& vec) {
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& t, VectorType& vec) {
 
     //everything that needs to be translated needs to be fully transformed
     for(int i=0; i!=m_translations; i++) {
@@ -455,8 +467,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::transform(const Tr
 #endif
 }
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, typename Signals, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Signals, Dim>::scale(Scalar value) {
+template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+void Geometry<Sys, Derived, GeometrieTypeList, Dim>::scale(Scalar value) {
 
     for(int i=0; i!=m_translations; i++)
         m_parameter.template segment<Dim>(i*Dim) *= 1./value;

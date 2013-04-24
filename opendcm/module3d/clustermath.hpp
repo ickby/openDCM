@@ -448,13 +448,13 @@ template<typename Sys>
 typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling();
+    BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
 #endif
     //ensure the usage of the right transformation
     if(!fix)
         mapsToTransform(m_transform);
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling();
+    BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
 #endif
 
     //collect all points together
@@ -593,7 +593,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Apply cluster scale: "<<scale;
-    BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling();
+    BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling().factor();
 #endif
     //ensure the usage of the right transform
     if(!fix)
@@ -694,8 +694,8 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     transformToMaps(m_transform);
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling();
-    BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling();
+    BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling().factor();
+    BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling().factor();
 #endif
 };
 
