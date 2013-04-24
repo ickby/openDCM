@@ -49,12 +49,16 @@ struct ModulePart {
         struct EvaljuateCluster;
         typedef boost::shared_ptr<Part> Partptr;
         typedef mpl::map2< mpl::pair<remove, boost::function<void (Partptr) > >,
-			   mpl::pair<recalculated, boost::function<void (Partptr) > > >  PartSignal;
+                mpl::pair<recalculated, boost::function<void (Partptr) > > >  PartSignal;
 
         typedef ID Identifier;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
+
+#ifdef USE_LOGGING
+            src::logger log;
+#endif
 
             //check if we have module3d in this system
             typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
@@ -255,10 +259,18 @@ template<typename T>
 ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(T geometry, Sys& system, boost::shared_ptr<Cluster> cluster)
     : Object<Sys, Part, PartSignal>(system), m_geometry(geometry), m_cluster(cluster)  {
 
+#ifdef USE_LOGGING
+    log.add_attribute("Tag", attrs::constant< std::string >("Part3D"));
+#endif  
+      
     (typename geometry_traits<T>::modell()).template extract<Kernel,
     typename geometry_traits<T>::accessor >(geometry, m_transform);
 
     cluster->template setClusterProperty<typename module3d::fix_prop>(false);
+    
+#ifdef USE_LOGGING
+    BOOST_LOG(log) << "Init: "<<m_transform;
+#endif
 };
 
 template<typename Typelist, typename ID>
@@ -321,12 +333,17 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::clone(Sys& newSys) {
 template<typename Typelist, typename ID>
 template<typename Sys>
 void ModulePart<Typelist, ID>::type<Sys>::Part_base::finishCalculation() {
+  
     m_transform.normalize();
     apply_visitor vis(m_transform);
     apply(vis);
+
+#ifdef USE_LOGGING
+    BOOST_LOG(log) << "New Value: "<<m_transform;
+#endif
     
     //emit the signal for new values
-    base::template emitSignal<recalculated>( ((Part*)this)->shared_from_this() );
+    base::template emitSignal<recalculated>(((Part*)this)->shared_from_this());
 };
 
 template<typename Typelist, typename ID>
