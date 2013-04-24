@@ -160,27 +160,30 @@ struct ModulePart {
 
             template<typename T>
             void setTransformation(T geom) {
+
+                typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
                 details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getClusterProperty<typename module3d::math_prop>();
 
-                (typename geometry_traits<T>::modell()).template extract<Kernel,
-                typename geometry_traits<T>::accessor >(geometry, cm.getTransform());
+                (typename geometry_traits<T>::modell()).template extract<typename Sys::Kernel,
+                typename geometry_traits<T>::accessor >(geom, cm.getTransform());
             };
-	    
-	    template<typename T>
-	    T getTransformation() {
 
-		T geom;
+            template<typename T>
+            T getTransformation() {
+
+                T geom;
                 getTransformation(geom);
-		return geom;
-	    };
-	    template<typename T>
-	    void getTransformation(T& geom) {
-	      
-		details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getClusterProperty<typename module3d::math_prop>();
+                return geom;
+            };
+            template<typename T>
+            void getTransformation(T& geom) {
 
-                (typename geometry_traits<T>::modell()).template inject<Kernel,
-                    typename geometry_traits<T>::accessor >(geom, cm.getTransform());
-	    };
+                typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
+                details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getClusterProperty<typename module3d::math_prop>();
+
+                (typename geometry_traits<T>::modell()).template inject<typename Sys::Kernel,
+                typename geometry_traits<T>::accessor >(geom, cm.getTransform());
+            };
 
         protected:
             Sys* m_this;

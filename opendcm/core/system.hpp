@@ -271,7 +271,7 @@ public:
       System* s = new System();
       s->m_cluster = m_cluster->createCluster().first;
       s->m_storage = m_storage;
-      s->m_cluster->setClusterProperty<type_prop>(subcluster);
+      s->m_cluster->template setClusterProperty<dcm::type_prop>(details::subcluster);
       return s;
     };
 
