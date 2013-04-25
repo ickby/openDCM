@@ -65,12 +65,12 @@ BOOST_AUTO_TEST_CASE(parser_seperate) {
     //test property vector
     std::stringstream s2;
     dcm::details::cluster_prop_gen<System> gram2;
-    typename System::Cluster::cluster_bundle bundle;
+    System::Cluster::cluster_bundle bundle;
     fusion::at_c<0>(bundle) = false;
     fusion::at_c<1>(bundle) = 15;
     generate(s2, bundle, gram2);
     
-    typename System::Cluster::cluster_bundle bundle2;
+    System::Cluster::cluster_bundle bundle2;
     dcm::details::cluster_prop_par<System> pars2;
     parse(s2, bundle2, pars2);
     
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
 
 
        //access the two subcluster
-       typedef typename System::Cluster::cluster_iterator cit;
+       typedef System::Cluster::cluster_iterator cit;
        std::pair<cit, cit> it = sys.m_cluster->clusters();
        boost::shared_ptr<System::Cluster> nscl1 = (*(it.first)).second;
        boost::shared_ptr<System::Cluster> nscl2 = (*(++it.first)).second;

@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_SUITE(dof);
 BOOST_AUTO_TEST_CASE(dof_translation) {
 
     typedef dcm::Kernel<double> Kernel;
-    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
     typedef dcm::Dof<Kernel, int>::Result Result;
     dcm::Dof<Kernel, int> d;
 
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(dof_translation) {
 BOOST_AUTO_TEST_CASE(dof_rotational) {
 
     typedef dcm::Kernel<double> Kernel;
-    typedef typename dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
+    typedef dcm::Dof<Kernel, int>::ConstraintVector::iterator iter;
     typedef dcm::Dof<Kernel, int>::Result Result;
     dcm::Dof<Kernel, int> d;
 
