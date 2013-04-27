@@ -22,6 +22,20 @@
 
 #include <assert.h>
 
+#include <boost/utility/enable_if.hpp>
+#include <boost/type_traits.hpp>
+#include <boost/mpl/is_sequence.hpp>
+#include <boost/mpl/and.hpp>
+#include <boost/mpl/not.hpp>
+#include <boost/fusion/include/vector.hpp>
+#include <boost/fusion/include/mpl.hpp>
+#include <boost/fusion/include/iterator_range.hpp>
+#include <boost/fusion/include/copy.hpp>
+
+namespace fusion = boost::fusion;
+
+#include "kernel.hpp"
+
 namespace dcm {
 
 struct no_option {};
@@ -44,18 +58,81 @@ struct PseudoScale {
     void setScale(typename Kernel::number_type scale) {};
 };
 
-struct Distance {
+//type to allow a metaprogramming check for a Equation
+struct EQ {};
 
-    typedef double option_type;
+template<typename Seq, typename T>
+struct pushed_seq {
+    typedef typename boost::mpl::if_<boost::mpl::is_sequence<Seq>, Seq, fusion::vector1<Seq> >::type S;
+    typedef typename fusion::result_of::as_vector< typename boost::mpl::push_back<S, T>::type >::type type;
+};
+
+template<typename Derived, typename Option>
+struct Equation : public EQ {
+
+    typedef Option option_type;
     option_type value;
-
-    Distance() : value(0) {};
-
-    Distance& operator=(const option_type val) {
+    
+    Equation(option_type val = option_type()) : value(val) {};
+    
+    Derived& operator()(const option_type val) {
         value = val;
-        return *this;
+        return *(static_cast<Derived*>(this));
+    };
+    Derived& operator=(const option_type val) {
+	return operator()(val);
+    };
+    
+    template<typename T>
+    typename boost::enable_if< boost::mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T val) {
+
+        typedef typename pushed_seq<T, Derived>::type Sequence;
+        typedef typename fusion::result_of::begin<Sequence>::type Begin;
+        typedef typename fusion::result_of::end<Sequence>::type End;
+        typedef typename fusion::result_of::prior<End>::type EndOld;
+
+        //create the new sequence
+        Sequence vec;
+
+        //copy the old values into the new sequence
+        Begin b(vec);
+        EndOld eo(vec);
+
+        fusion::iterator_range<Begin, EndOld> range(b, eo);
+        fusion::copy(val, range);
+
+        //insert this object at the end of the sequence
+        fusion::back(vec) = *(static_cast<Derived*>(this));
+
+        //and return our new extendet sequence
+        return vec;
     };
 
+    template<typename T>
+    typename boost::disable_if< boost::mpl::is_sequence<T>, fusion::vector2<T, Derived> >::type operator &(T val) {
+
+        fusion::vector2<T, Derived> vec;
+        fusion::at_c<0>(vec) = val;
+        fusion::at_c<1>(vec) = *(static_cast<Derived*>(this));
+        return vec;
+    };
+};
+}
+
+//freefloating overload to allow operator chaining, as we cannot overload fusion::vectors operators
+template<typename T1, typename T2>
+typename boost::enable_if<  boost::mpl::and_< boost::is_base_of<dcm::EQ, T2>, boost::mpl::is_sequence<T1> >, typename dcm::pushed_seq<T1, T2>::type >::type operator&(T1 seq, T2 val) {
+    return val & seq;
+};
+
+
+namespace dcm {
+
+struct Distance : public Equation<Distance, double> {
+
+    using Equation::operator=;
+    Distance() : Equation(0) {};
+  
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
 
@@ -73,15 +150,15 @@ struct Distance {
         };
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
             assert(false);
-			return 0;
+            return 0;
         };
         void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
             assert(false);
@@ -95,18 +172,11 @@ struct Distance {
 //the possible directions
 enum Direction { Same, Opposite, Both };
 
-struct Parallel {
+struct Parallel : public Equation<Parallel, Direction> {
 
-    typedef Direction option_type;
-    option_type value;
-
-    Parallel() : value(Both) {};
-
-    Parallel& operator=(const option_type val) {
-        value = val;
-        return *this;
-    };
-
+    using Equation::operator=;
+    Parallel() : Equation(Both) {};
+  
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
 
@@ -118,15 +188,15 @@ struct Parallel {
         //template definition
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
             assert(false);
-			return 0;
+            return 0;
         };
         void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
             assert(false);
@@ -137,17 +207,10 @@ struct Parallel {
     };
 };
 
-struct Angle {
+struct Angle : public Equation<Angle, double> {
 
-    typedef double option_type;
-    option_type value;
-
-    Angle() : value(0) {};
-
-    Angle& operator=(const option_type val) {
-        value = val;
-        return *this;
-    };
+    using Equation::operator=;
+    Angle() : Equation(0) {};
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {

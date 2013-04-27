@@ -273,16 +273,16 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     System sys;
     constraint_checker<point_t, point_t, dcm::Distance> checker(sys);
-    BOOST_REQUIRE(checker.check_normal(2));
-    BOOST_REQUIRE(checker.check_cluster(2));
+    BOOST_REQUIRE(checker.check_normal(2.));
+    BOOST_REQUIRE(checker.check_cluster(2.));
 
     constraint_checker<point_t, plane_t, dcm::Distance> checker2(sys);
-    BOOST_REQUIRE(checker2.check_normal(2));
-    BOOST_REQUIRE(checker2.check_cluster(2));
+    BOOST_REQUIRE(checker2.check_normal(2.));
+    BOOST_REQUIRE(checker2.check_cluster(2.));
 
     constraint_checker<point_t, line_t, dcm::Distance> checker3(sys);
-    BOOST_REQUIRE(checker3.check_normal(2));
-    BOOST_REQUIRE(checker3.check_cluster(2));
+    BOOST_REQUIRE(checker3.check_normal(2.));
+    BOOST_REQUIRE(checker3.check_cluster(2.));
 }
 
 

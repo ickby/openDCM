@@ -57,10 +57,8 @@ struct geometry_traits<line_t> {
 
 }
 
-//again, two vectors perpendicular, maybe the easiest constraints of them all
-struct test_constraint {
-
-    int value;
+//two vectors perpendicular, maybe the easiest constraints of them all
+struct test_constraint : public dcm::Equation<test_constraint, int> {
     
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public dcm::PseudoScale<Kernel> {
@@ -124,6 +122,10 @@ struct test_constraint {
             gradient(2) = param1(2);
         };
     };
+    
+    template<typename Kernel>
+    struct type<Kernel, dcm::tag::point3D, dcm::tag::point3D> : public type<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {};
+    
 };
 
 test_constraint test;
@@ -242,6 +244,39 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
     BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
 };
+
+BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
+  
+    SystemNOID sys;
+
+    Eigen::Vector3d p1,p2,p3;
+    p1 << 7, -0.5, 0.3;
+    p2 << 0.2, 0.5, -0.1;
+    p3 << -2,-1,-4;
+
+
+    geom_ptr g1 = sys.createGeometry3D(p1);
+    geom_ptr g2 = sys.createGeometry3D(p2);
+    geom_ptr g3 = sys.createGeometry3D(p3);
+
+    //multi constraint and fire
+    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3) );
+    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3) & test );
+    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3) & test );
+    sys.solve();
+
+    Eigen::Vector3d& v1 = get<Eigen::Vector3d>(g1);
+    Eigen::Vector3d& v2 = get<Eigen::Vector3d>(g2);
+    Eigen::Vector3d& v3 = get<Eigen::Vector3d>(g3);
+
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
+    BOOST_CHECK(Kernel::isSame((v1-v2).norm(),3));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
+    BOOST_CHECK(Kernel::isSame((v2-v3).norm(),3));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));  
+    BOOST_CHECK(Kernel::isSame((v1-v3).norm(),3));
+
+}
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
 
