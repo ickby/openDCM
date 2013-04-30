@@ -62,31 +62,15 @@ struct PseudoScale {
 struct EQ {};
 
 template<typename Seq, typename T>
-struct pushed_seq {
-    typedef typename boost::mpl::if_<boost::mpl::is_sequence<Seq>, Seq, fusion::vector1<Seq> >::type S;
-    typedef typename fusion::result_of::as_vector< typename boost::mpl::push_back<S, T>::type >::type type;
-};
+struct pushed_seq;
 
-template<typename Derived, typename Option>
-struct Equation : public EQ {
-
-    typedef Option option_type;
-    option_type value;
-    
-    Equation(option_type val = option_type()) : value(val) {};
-    
-    Derived& operator()(const option_type val) {
-        value = val;
-        return *(static_cast<Derived*>(this));
-    };
-    Derived& operator=(const option_type val) {
-	return operator()(val);
-    };
-    
+template<typename seq>
+struct op_seq : public seq {
+  
     template<typename T>
-    typename boost::enable_if< boost::mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T val) {
+    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T val) {
 
-        typedef typename pushed_seq<T, Derived>::type Sequence;
+        typedef typename pushed_seq<seq, T>::type Sequence;
         typedef typename fusion::result_of::begin<Sequence>::type Begin;
         typedef typename fusion::result_of::end<Sequence>::type End;
         typedef typename fusion::result_of::prior<End>::type EndOld;
@@ -99,19 +83,43 @@ struct Equation : public EQ {
         EndOld eo(vec);
 
         fusion::iterator_range<Begin, EndOld> range(b, eo);
-        fusion::copy(val, range);
+        fusion::copy(*this, range);
 
         //insert this object at the end of the sequence
-        fusion::back(vec) = *(static_cast<Derived*>(this));
+        fusion::back(vec) = val;
 
         //and return our new extendet sequence
         return vec;
     };
+};
+
+template<typename Seq, typename T>
+struct pushed_seq {
+    typedef typename boost::mpl::if_<boost::mpl::is_sequence<Seq>, Seq, fusion::vector1<Seq> >::type S;
+    typedef typename fusion::result_of::as_vector< typename boost::mpl::push_back<S, T>::type >::type vec;
+    typedef op_seq<vec> type;
+};
+
+template<typename Derived, typename Option>
+struct Equation : public EQ {
+
+    typedef Option option_type;
+    option_type value;
+
+    Equation(option_type val = option_type()) : value(val) {};
+
+    Derived& operator()(const option_type val) {
+        value = val;
+        return *(static_cast<Derived*>(this));
+    };
+    Derived& operator=(const option_type val) {
+        return operator()(val);
+    };
 
     template<typename T>
-    typename boost::disable_if< boost::mpl::is_sequence<T>, fusion::vector2<T, Derived> >::type operator &(T val) {
+    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<T, Derived>::type >::type operator &(T val) {
 
-        fusion::vector2<T, Derived> vec;
+        typename pushed_seq<T, Derived>::type vec;
         fusion::at_c<0>(vec) = val;
         fusion::at_c<1>(vec) = *(static_cast<Derived*>(this));
         return vec;
@@ -119,20 +127,13 @@ struct Equation : public EQ {
 };
 }
 
-//freefloating overload to allow operator chaining, as we cannot overload fusion::vectors operators
-template<typename T1, typename T2>
-typename boost::enable_if<  boost::mpl::and_< boost::is_base_of<dcm::EQ, T2>, boost::mpl::is_sequence<T1> >, typename dcm::pushed_seq<T1, T2>::type >::type operator&(T1 seq, T2 val) {
-    return val & seq;
-};
-
-
 namespace dcm {
 
 struct Distance : public Equation<Distance, double> {
 
     using Equation::operator=;
     Distance() : Equation(0) {};
-  
+
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
 
@@ -176,7 +177,7 @@ struct Parallel : public Equation<Parallel, Direction> {
 
     using Equation::operator=;
     Parallel() : Equation(Both) {};
-  
+
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
 
