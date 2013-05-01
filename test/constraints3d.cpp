@@ -26,6 +26,7 @@
 typedef Eigen::Matrix<double, 3,1> point_t;
 struct line_t : public Eigen::Matrix<double, 6,1> {};
 struct plane_t : public Eigen::Matrix<double, 6,1> {};
+struct cylinder_t : public Eigen::Matrix<double, 7,1> {};
 
 struct place {
     Eigen::Quaterniond quat;
@@ -115,6 +116,13 @@ struct geometry_traits<line_t> {
 };
 
 template<>
+struct geometry_traits<cylinder_t> {
+    typedef tag::cylinder3D  tag;
+    typedef modell::XYZ2P modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
+
+template<>
 struct geometry_traits< place > {
     typedef tag::part  tag;
     typedef modell::quaternion_wxyz_vec3 modell;
@@ -133,38 +141,42 @@ struct CheckSolver {
     template<typename Functor>
     int solve(typename Kernel::MappedEquationSystem& sys, Functor& f) {
 
-        int jcount = 1000;
-        sys.recalculate();
-        double val = sys.Residual(0);
-
+        int jcount = 100;
         double diffmax = 0;
         int fails = 0;
         for(int i=0; i<sys.Parameter.rows(); i++) {
 
             //varying parameter i
+            sys.Parameter(i) -= 0.1*double(jcount/2);
             for(int j=0; j<jcount; j++) {
 
-                //get new value
-                sys.Parameter(i) += 1e-3;
+                //get first new value
+                sys.Parameter(i) += 0.1 - 1e-5;
                 sys.recalculate();
+                double dleft = sys.Residual(0);
+
+                //get second new value
+                sys.Parameter(i) += 2e-5;
+                sys.recalculate();
+                double dright = sys.Residual(0);
 
                 //get the residual diff between the last two calculations
-                double rdiff = (sys.Residual(0) - val)/1e-3;
-
-                // if(sys.Jacobi(0,i) > 2.)
-                //     std::cout<<"huge differential: "<<sys.Residual(0)<<std::endl;
+                double rdiff = (dright - dleft)/2e-5;
 
                 diffmax = std::max(sys.Jacobi(0,i), diffmax);
 
                 //compare with the algeraic caclculated diff
-                if(std::abs(sys.Jacobi(0,i) - rdiff) > 1e-2) {
+                if(std::abs(sys.Jacobi(0,i) - rdiff) > 1e-3) {
                     std::cout<<"iter: "<<j<<", parameter: "<<i<<", calc: "<<sys.Jacobi(0,i)<<" vs real: "<<rdiff<<std::endl;
                     fails++;
                     if(fails>3)
                         throw(std::exception()); //and throw if the difference is too much
                 }
-                val = sys.Residual(0);
+                //set the parameter to the basic value to avoid drift
+                sys.Parameter(i) -= 1e-5;
             };
+            //set the initial value
+            sys.Parameter(i) -= 0.1*double(jcount/2);
         };
         return 1;
     }
@@ -177,7 +189,7 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(constraint3d_test_suit);
 
 typedef dcm::Kernel<double, CheckSolver> Kernel;
-typedef Module3D< mpl::vector3<point_t, line_t, plane_t > > Module;
+typedef Module3D< mpl::vector4<point_t, line_t, plane_t, cylinder_t > > Module;
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
 typedef System<Kernel, Module, ModulePart> System;
 
@@ -276,13 +288,41 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
     BOOST_REQUIRE(checker.check_normal(2.));
     BOOST_REQUIRE(checker.check_cluster(2.));
 
-    constraint_checker<point_t, plane_t, dcm::Distance> checker2(sys);
+    constraint_checker<point_t, line_t, dcm::Distance> checker2(sys);
     BOOST_REQUIRE(checker2.check_normal(2.));
     BOOST_REQUIRE(checker2.check_cluster(2.));
 
-    constraint_checker<point_t, line_t, dcm::Distance> checker3(sys);
+    constraint_checker<point_t, plane_t, dcm::Distance> checker3(sys);
     BOOST_REQUIRE(checker3.check_normal(2.));
     BOOST_REQUIRE(checker3.check_cluster(2.));
+
+    constraint_checker<point_t, cylinder_t, dcm::Distance> checker4(sys);
+    BOOST_REQUIRE(checker4.check_normal(2.));
+    BOOST_REQUIRE(checker4.check_cluster(2.));
+
+    constraint_checker<line_t, line_t, dcm::Distance> checker5(sys);
+    BOOST_REQUIRE(checker5.check_normal(2.));
+    BOOST_REQUIRE(checker5.check_cluster(2.));
+    
+    constraint_checker<line_t, plane_t, dcm::Distance> checker6(sys);
+    BOOST_REQUIRE(checker6.check_normal(2.));
+    BOOST_REQUIRE(checker6.check_cluster(2.));
+    
+    constraint_checker<line_t, cylinder_t, dcm::Distance> checker7(sys);
+    BOOST_REQUIRE(checker7.check_normal(2.));
+    BOOST_REQUIRE(checker7.check_cluster(2.));
+    
+    constraint_checker<plane_t, plane_t, dcm::Distance> checker8(sys);
+    BOOST_REQUIRE(checker8.check_normal(2.));
+    BOOST_REQUIRE(checker8.check_cluster(2.));
+    
+    constraint_checker<plane_t, cylinder_t, dcm::Distance> checker9(sys);
+    BOOST_REQUIRE(checker9.check_normal(2.));
+    BOOST_REQUIRE(checker9.check_cluster(2.));
+    
+    constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
+    BOOST_REQUIRE(checker10.check_normal(2.));
+    BOOST_REQUIRE(checker10.check_cluster(2.));
 }
 
 
