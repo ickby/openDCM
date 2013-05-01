@@ -327,4 +327,4 @@ struct Orientation::type< Kernel, tag::cylinder3D, tag::cylinder3D >  : public O
 };
 }
 
-#endif //GCM_ANGLE
+#endif 

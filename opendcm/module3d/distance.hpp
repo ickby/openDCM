@@ -249,7 +249,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
 
 #ifdef USE_LOGGING
     type() {
-        Distance::type< Kernel, tag::line3D, tag::line3D >::tag.set("Distance cylinder3D cylinder3D");
+        Distance::type< Kernel, tag::point3D, tag::line3D >::tag.set("Distance point3D cylinder3D");
     };
 #endif
     Scalar calculate(Vector& param1,  Vector& param2) {
@@ -280,21 +280,31 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     src::logger log;
     attrs::mutable_constant< std::string > tag;
 
-    type() : tag("Distance point3D line3D") {
+    type() : tag("Distance line3D line3D") {
         log.add_attribute("Tag", tag);
     };
 #endif
 
     //template definition
     void calculatePseudo(typename Kernel::Vector& line1, Vec& v1, typename Kernel::Vector& line2, Vec& v2) {
-        Vector3 pp1 = line1.head(3) + (line1.head(3)-line2.head(3)).norm()*line1.segment(3,3);
-        Vector3 pp2 = line2.head(3) + (line2.head(3)-line1.head(3)).norm()*line2.segment(3,3);
+
+        //add the line points of shortest distance as pseudopoints
+        const Vector3 c = line2.template head<3>() - line1.template head<3>();
+        const Vector3 n1 = line1.template segment<3>(3);
+        const Vector3 n2 = line2.template segment<3>(3);
+        const Vector3 nxn = n1.cross(n2);
+        const Vector3 r = c.cross(nxn)/nxn.squaredNorm();
+        Vector3 pp1 = line1.template head<3>() + r.dot(n2)*n1;
+        Vector3 pp2 = line2.template head<3>() + r.dot(n1)*n2;
+
 #ifdef USE_LOGGING
-        if(!boost::math::isnormal(pp1.norm()) || !boost::math::isnormal(pp2.norm()))
+        if(!boost::math::isfinite(pp1.norm()) || !boost::math::isfinite(pp2.norm()))
             BOOST_LOG(log) << "Unnormal pseudopoint detected";
 #endif
-        v2.push_back(pp1);
+
+        v1.push_back(pp1);
         v2.push_back(pp2);
+
     };
     void setScale(Scalar scale) {
         sc_value = value*scale;
@@ -310,7 +320,6 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 #ifdef USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG(log) << "Unnormal residual detected: "<<res;
-        .template segment<3>(3)
 #endif
         return res;
     };
@@ -354,7 +363,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
         if(!boost::math::isfinite(diff))
             BOOST_LOG(log) << "Unnormal first cluster gradient detected: "<<diff
                            <<" with line1: "<<line1.transpose()<<", line2: "<<line2.transpose()
-                           <<" and dline1: "<<dline1.transpose();
+                           <<" and dline2: "<<dline2.transpose();
 #endif
         return diff;
     };
@@ -411,19 +420,19 @@ struct Distance::type< Kernel, tag::line3D, tag::cylinder3D > : public Distance:
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
-    
+
 #ifdef USE_LOGGING
     type() : Distance::type< Kernel, tag::line3D, tag::line3D >() {
         Distance::type< Kernel, tag::line3D, tag::line3D >::tag.set("Distance line3D cylinder3D");
     };
 #endif
-    
+
     Scalar calculate(Vector& param1,  Vector& param2) {
         //(p1-p2)°n / |n| - distance
         const Scalar res = Distance::type< Kernel, tag::line3D, tag::line3D >::calculate(param1, param2);
         return res - param2(6);
     };
-    
+
     void calculateGradientSecondComplete(Vector& p1, Vector& p2, Vector& g) {
         Distance::type< Kernel, tag::line3D, tag::line3D >::calculateGradientSecondComplete(p1,p2,g);
         g(6) = -1;
@@ -452,13 +461,13 @@ struct Distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public Distance
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
-    
+
 #ifdef USE_LOGGING
     type() : Distance::type< Kernel, tag::point3D, tag::plane3D >() {
         Distance::type< Kernel, tag::point3D, tag::plane3D >::tag.set("Distance plane3D cylinder3D");
     };
 #endif
-    
+
     Scalar calculate(Vector& param1,  Vector& param2) {
         //(p1-p2)°n / |n| - distance
         const Scalar res = Distance::type< Kernel, tag::point3D, tag::plane3D >::calculate(param2, param1);
@@ -466,21 +475,21 @@ struct Distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public Distance
     };
 
     Scalar calculateGradientFirst(Vector& p1, Vector& p2, Vector& dp1) {
-	return Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientSecond(p2,p1,dp1);
+        return Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientSecond(p2,p1,dp1);
     };
-    
+
     Scalar calculateGradientSecond(Vector& p1, Vector& p2, Vector& dp2) {
-	return Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientFirst(p2,p1,dp2);
+        return Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientFirst(p2,p1,dp2);
     };
-    
+
     void calculateGradientFirstComplete(Vector& p1, Vector& p2, Vector& g) {
         Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientSecondComplete(p2,p1,g);
     };
-    
+
     void calculateGradientSecondComplete(Vector& p1, Vector& p2, Vector& g) {
-	Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientFirstComplete(p2,p1,g);
+        Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientFirstComplete(p2,p1,g);
         g.segment(3,3).setZero();
-	g(6) = -1;
+        g(6) = -1;
     };
 };
 
@@ -489,24 +498,24 @@ struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public Dista
 
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
-    
+
 #ifdef USE_LOGGING
     type() : Distance::type< Kernel, tag::line3D, tag::line3D >() {
         Distance::type< Kernel, tag::line3D, tag::line3D >::tag.set("Distance cylinder3D cylinder3D");
     };
 #endif
-    
+
     Scalar calculate(Vector& param1,  Vector& param2) {
         //(p1-p2)°n / |n| - distance
         const Scalar res = Distance::type< Kernel, tag::line3D, tag::line3D >::calculate(param1, param2);
         return res - param1(6) - param2(6);
     };
-    
+
     void calculateGradientFirstComplete(Vector& p1, Vector& p2, Vector& g) {
         Distance::type< Kernel, tag::line3D, tag::line3D >::calculateGradientFirstComplete(p1,p2,g);
         g(6) = -1;
     };
-    
+
     void calculateGradientSecondComplete(Vector& p1, Vector& p2, Vector& g) {
         Distance::type< Kernel, tag::line3D, tag::line3D >::calculateGradientSecondComplete(p1,p2,g);
         g(6) = -1;
