@@ -280,6 +280,36 @@ struct constraint_checker {
 
 };
 
+template<typename T1, typename T2>
+struct constraint_checker_orientation  {
+
+    System& sys;
+    constraint_checker_orientation(System& v) : sys(v) { };
+
+    bool check() {
+      
+      bool b1,b2,b3,b4,b5,b6,b7,b8;
+
+        constraint_checker<T1, T2, dcm::Orientation> checker(sys);
+        BOOST_CHECK(b1=checker.check_normal(dcm::equal));
+        BOOST_CHECK(b2=checker.check_cluster(dcm::equal));
+
+        constraint_checker<T1, T2, dcm::Orientation> checker1(sys);
+        BOOST_CHECK(b3=checker1.check_normal(dcm::opposite));
+        BOOST_CHECK(b4=checker1.check_cluster(dcm::opposite));
+
+        constraint_checker<T1, T2, dcm::Orientation> checker2(sys);
+        BOOST_CHECK(b5=checker2.check_normal(dcm::parallel));
+        BOOST_CHECK(b6=checker2.check_cluster(dcm::parallel));
+
+        constraint_checker<T1, T2, dcm::Orientation> checker3(sys);
+        BOOST_CHECK(b7=checker3.check_normal(dcm::perpendicular));
+        BOOST_CHECK(b8=checker3.check_cluster(dcm::perpendicular));
+	
+	return b1 && b2 && b3 && b4 && b5 && b6 && b7 && b8;
+    };
+};
+
 
 BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
@@ -303,27 +333,50 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
     constraint_checker<line_t, line_t, dcm::Distance> checker5(sys);
     BOOST_REQUIRE(checker5.check_normal(2.));
     BOOST_REQUIRE(checker5.check_cluster(2.));
-    
+
     constraint_checker<line_t, plane_t, dcm::Distance> checker6(sys);
     BOOST_REQUIRE(checker6.check_normal(2.));
     BOOST_REQUIRE(checker6.check_cluster(2.));
-    
+
     constraint_checker<line_t, cylinder_t, dcm::Distance> checker7(sys);
     BOOST_REQUIRE(checker7.check_normal(2.));
     BOOST_REQUIRE(checker7.check_cluster(2.));
-    
+
     constraint_checker<plane_t, plane_t, dcm::Distance> checker8(sys);
     BOOST_REQUIRE(checker8.check_normal(2.));
     BOOST_REQUIRE(checker8.check_cluster(2.));
-    
+
     constraint_checker<plane_t, cylinder_t, dcm::Distance> checker9(sys);
     BOOST_REQUIRE(checker9.check_normal(2.));
     BOOST_REQUIRE(checker9.check_cluster(2.));
-    
+
     constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
     BOOST_REQUIRE(checker10.check_normal(2.));
     BOOST_REQUIRE(checker10.check_cluster(2.));
 }
+
+BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
+
+    System sys;
+    constraint_checker_orientation<line_t, line_t> checker(sys);
+    BOOST_REQUIRE(checker.check());
+    
+    constraint_checker_orientation<line_t, plane_t> checker1(sys);
+    BOOST_REQUIRE(checker1.check());
+    
+    constraint_checker_orientation<line_t, cylinder_t> checker2(sys);
+    BOOST_REQUIRE(checker2.check());
+    
+    constraint_checker_orientation<plane_t, plane_t> checker3(sys);
+    BOOST_REQUIRE(checker3.check());
+    
+    constraint_checker_orientation<plane_t, cylinder_t> checker4(sys);
+    BOOST_REQUIRE(checker4.check());
+    
+    constraint_checker_orientation<cylinder_t, cylinder_t> checker5(sys);
+    BOOST_REQUIRE(checker5.check());
+}
+
 
 
 BOOST_AUTO_TEST_SUITE_END();

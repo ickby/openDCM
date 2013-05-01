@@ -125,9 +125,6 @@ struct Equation : public EQ {
         return vec;
     };
 };
-}
-
-namespace dcm {
 
 struct Distance : public Equation<Distance, double> {
 
@@ -171,12 +168,12 @@ struct Distance : public Equation<Distance, double> {
 };
 
 //the possible directions
-enum Direction { Same, Opposite, Both };
+enum Direction { equal, opposite, parallel, perpendicular };
 
-struct Parallel : public Equation<Parallel, Direction> {
+struct Orientation : public Equation<Orientation, Direction> {
 
     using Equation::operator=;
-    Parallel() : Equation(Both) {};
+    Orientation() : Equation(parallel) {};
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -244,7 +241,7 @@ struct Angle : public Equation<Angle, double> {
 //every compiled file including this header would define these as global and the linker would find
 //multiple definitions of the same objects
 static Distance distance;
-static Parallel parallel;
+static Orientation orientation;
 static Angle    angle;
 
 };
