@@ -377,6 +377,33 @@ BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
     BOOST_REQUIRE(checker5.check());
 }
 
+BOOST_AUTO_TEST_CASE(constraint3d_angle) {
+
+    System sys;
+    constraint_checker<line_t, line_t, dcm::Angle> checker(sys);
+    BOOST_REQUIRE(checker.check_normal(2.));
+    BOOST_REQUIRE(checker.check_cluster(2.));
+    
+    constraint_checker<line_t, plane_t, dcm::Angle> checker1(sys);
+    BOOST_REQUIRE(checker1.check_normal(2.));
+    BOOST_REQUIRE(checker1.check_cluster(2.));
+    
+    constraint_checker<line_t, cylinder_t, dcm::Angle> checker2(sys);
+    BOOST_REQUIRE(checker2.check_normal(2.));
+    BOOST_REQUIRE(checker2.check_cluster(2.));
+    
+    constraint_checker<plane_t, plane_t, dcm::Angle> checker3(sys);
+    BOOST_REQUIRE(checker3.check_normal(2.));
+    BOOST_REQUIRE(checker3.check_cluster(2.));
+    
+    constraint_checker<plane_t, cylinder_t, dcm::Angle> checker4(sys);
+    BOOST_REQUIRE(checker4.check_normal(2.));
+    BOOST_REQUIRE(checker4.check_cluster(2.));
+    
+    constraint_checker<cylinder_t, cylinder_t, dcm::Angle> checker5(sys);
+    BOOST_REQUIRE(checker5.check_normal(2.));
+    BOOST_REQUIRE(checker5.check_cluster(2.));
+}
 
 
 BOOST_AUTO_TEST_SUITE_END();

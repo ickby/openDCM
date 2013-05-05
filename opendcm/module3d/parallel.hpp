@@ -271,7 +271,16 @@ struct Orientation::type< Kernel, tag::line3D, tag::plane3D > : public Orientati
 };
 
 template< typename Kernel >
-struct Orientation::type< Kernel, tag::line3D, tag::cylinder3D > : public Orientation::type< Kernel, tag::line3D, tag::line3D > {};
+struct Orientation::type< Kernel, tag::line3D, tag::cylinder3D > : public Orientation::type< Kernel, tag::line3D, tag::line3D > {
+
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
+    void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+        Orientation::type<Kernel, tag::line3D, tag::line3D>::calculateGradientSecondComplete(param1, param2, gradient);
+        gradient(6)=0;
+    };
+};
 
 template< typename Kernel >
 struct Orientation::type< Kernel, tag::plane3D, tag::plane3D > : public Orientation::type< Kernel, tag::line3D, tag::line3D > {};
@@ -327,4 +336,4 @@ struct Orientation::type< Kernel, tag::cylinder3D, tag::cylinder3D >  : public O
 };
 }
 
-#endif 
+#endif
