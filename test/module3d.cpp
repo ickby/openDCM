@@ -59,26 +59,26 @@ struct geometry_traits<line_t> {
 
 //two vectors perpendicular, maybe the easiest constraints of them all
 struct test_constraint : public dcm::Equation<test_constraint, int> {
-    
+
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public dcm::PseudoScale<Kernel> {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
-	int value;
+        int value;
 
         Scalar calculate(Vector& param1,  Vector& param2)  {
             assert(false);
-			return 0;
+            return 0;
         };
 
         Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
             assert(false);
-			return 0;
+            return 0;
         };
 
         Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
             assert(false);
-			return 0;
+            return 0;
         };
 
         void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
@@ -96,7 +96,7 @@ struct test_constraint : public dcm::Equation<test_constraint, int> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
-	int value;
+        int value;
 
         Scalar calculate(Vector& param1,  Vector& param2) {
             return param1.dot(param2);
@@ -122,14 +122,25 @@ struct test_constraint : public dcm::Equation<test_constraint, int> {
             gradient(2) = param1(2);
         };
     };
-    
+
     template<typename Kernel>
     struct type<Kernel, dcm::tag::point3D, dcm::tag::point3D> : public type<Kernel, dcm::tag::direction3D, dcm::tag::direction3D> {};
-    
+
 };
 
 test_constraint test;
 
+//multi-equation constraint test
+typedef fusion::vector2<test_constraint, dcm::Distance> vector;
+struct comp_constraint : public dcm::constraint_sequence<vector> {
+    //allow to set the distance
+    comp_constraint& operator()(double val) {
+        fusion::at_c<1>(*this) = val;
+        return *this;
+    };
+};
+
+comp_constraint comp_test;
 
 using namespace dcm;
 
@@ -246,36 +257,44 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 };
 
 BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
-  
+
     SystemNOID sys;
 
-    Eigen::Vector3d p1,p2,p3;
+    Eigen::Vector3d p1,p2,p3, p4;
     p1 << 7, -0.5, 0.3;
     p2 << 0.2, 0.5, -0.1;
     p3 << -2,-1,-4;
+    p4 << 4, -3, -9;
 
 
     geom_ptr g1 = sys.createGeometry3D(p1);
     geom_ptr g2 = sys.createGeometry3D(p2);
     geom_ptr g3 = sys.createGeometry3D(p3);
+    geom_ptr g4 = sys.createGeometry3D(p4);
 
     //multi constraint and fire
-    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3) );
-    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3) & test );
-    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3) & test );
+    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3));
+    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3) & test);
+    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3) & test);
+    cons_ptr c4 = sys.createConstraint3D(g1, g4, comp_test(3));
+    cons_ptr c5 = sys.createConstraint3D(g2, g4, comp_test(3) & dcm::distance(3) & comp_test(3) & test);
     sys.solve();
 
     Eigen::Vector3d& v1 = get<Eigen::Vector3d>(g1);
     Eigen::Vector3d& v2 = get<Eigen::Vector3d>(g2);
     Eigen::Vector3d& v3 = get<Eigen::Vector3d>(g3);
+    Eigen::Vector3d& v4 = get<Eigen::Vector3d>(g4);
 
     BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
     BOOST_CHECK(Kernel::isSame((v1-v2).norm(),3));
     BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
     BOOST_CHECK(Kernel::isSame((v2-v3).norm(),3));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));  
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
     BOOST_CHECK(Kernel::isSame((v1-v3).norm(),3));
-
+    BOOST_CHECK(Kernel::isSame(v4.dot(v1),0));
+    BOOST_CHECK(Kernel::isSame((v1-v4).norm(),3));
+    BOOST_CHECK(Kernel::isSame(v4.dot(v2),0));
+    BOOST_CHECK(Kernel::isSame((v4-v2).norm(),3));
 }
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
@@ -287,8 +306,8 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
 
     geomid_ptr g1 = sys.createGeometry3D(p1, "g1");
     geomid_ptr g2 = sys.createGeometry3D(p2, "g2");
-    
-    consid_ptr c1 = sys.createConstraint3D("constraint", g1, g2, parallel=dcm::Same);
+
+    consid_ptr c1 = sys.createConstraint3D("constraint", g1, g2, orientation = dcm::equal);
 
     BOOST_CHECK(!g1->getIdentifier().compare("g1"));
     BOOST_CHECK(!g2->getIdentifier().compare("g2"));
@@ -329,7 +348,7 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     consid_ptr c1 = sys.createConstraint3D("c1", g1, g2, test);
     consid_ptr c2 = sys.createConstraint3D("c2", g2, g3, test);
     consid_ptr c3 = sys.createConstraint3D("c3", g3, g1, test);
-    
+
     //clone and change initial system
     SystemID* clone = sys.clone();
     p1.clear();
@@ -337,17 +356,17 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     p1.push_back(2);
     p1.push_back(3);
     g1->set(p1);
-    
+
     //check if the cloned system was affekted
     geomid_ptr cg1 = clone->getGeometry3D("g1");
     point& cp1 = get<point>(cg1);
-    BOOST_CHECK( cp1[0] == 7 );
-    BOOST_CHECK( cp1[1] == -0.5 );
-    BOOST_CHECK( cp1[2] == 0.3 );
-    
+    BOOST_CHECK(cp1[0] == 7);
+    BOOST_CHECK(cp1[1] == -0.5);
+    BOOST_CHECK(cp1[2] == 0.3);
+
     //solve and see what happens
     clone->solve();
-    
+
 
     Kernel::Vector3 v1,v2,v3;
     point& rp1 = get<point>(clone->getGeometry3D("g1"));
@@ -362,17 +381,17 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
     BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
     BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
-    
+
     //check if the original system is unchanged
-    BOOST_CHECK( p1[0] == get<point>(sys.getGeometry3D("g1"))[0] );
-    BOOST_CHECK( p1[1] == get<point>(sys.getGeometry3D("g1"))[1] );
-    BOOST_CHECK( p1[2] == get<point>(sys.getGeometry3D("g1"))[2] );
-    BOOST_CHECK( p2[0] == get<point>(sys.getGeometry3D("g2"))[0] );
-    BOOST_CHECK( p2[1] == get<point>(sys.getGeometry3D("g2"))[1] );
-    BOOST_CHECK( p2[2] == get<point>(sys.getGeometry3D("g2"))[2] );
-    BOOST_CHECK( p3[0] == get<point>(sys.getGeometry3D("g3"))[0] );
-    BOOST_CHECK( p3[1] == get<point>(sys.getGeometry3D("g3"))[1] );
-    BOOST_CHECK( p3[2] == get<point>(sys.getGeometry3D("g3"))[2] );
+    BOOST_CHECK(p1[0] == get<point>(sys.getGeometry3D("g1"))[0]);
+    BOOST_CHECK(p1[1] == get<point>(sys.getGeometry3D("g1"))[1]);
+    BOOST_CHECK(p1[2] == get<point>(sys.getGeometry3D("g1"))[2]);
+    BOOST_CHECK(p2[0] == get<point>(sys.getGeometry3D("g2"))[0]);
+    BOOST_CHECK(p2[1] == get<point>(sys.getGeometry3D("g2"))[1]);
+    BOOST_CHECK(p2[2] == get<point>(sys.getGeometry3D("g2"))[2]);
+    BOOST_CHECK(p3[0] == get<point>(sys.getGeometry3D("g3"))[0]);
+    BOOST_CHECK(p3[1] == get<point>(sys.getGeometry3D("g3"))[1]);
+    BOOST_CHECK(p3[2] == get<point>(sys.getGeometry3D("g3"))[2]);
 
 };
 
