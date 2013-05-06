@@ -17,6 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#ifdef _WIN32
+	//warning about to long decoraded names, won't affect the code correctness
+	#pragma warning( disable : 4503 )
+#endif
+
 #include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/property.hpp"
 
@@ -78,7 +83,7 @@ struct delete_functor {
 };
 	
 BOOST_AUTO_TEST_CASE(subclustering) {
-
+	
     boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
     BOOST_CHECK(g1->isRoot());
 
@@ -89,7 +94,7 @@ BOOST_AUTO_TEST_CASE(subclustering) {
     BOOST_CHECK(g1->numClusters() == 1);
     BOOST_CHECK(g2 == g1->getVertexCluster(sub.second));
     BOOST_CHECK(sub.second == g1->getClusterVertex(sub.first));
-
+	
     boost::shared_ptr<Graph> g3 = g2->createCluster().first;
     BOOST_CHECK(g1==g3->root());
     BOOST_CHECK(g3->numClusters() == 0);

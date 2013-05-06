@@ -323,7 +323,7 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
     BOOST_CHECK(sys.getConstraint3D("constraint") == c1);
 
 }
-
+/*
 BOOST_AUTO_TEST_CASE(module3d_cloning) {
 
     SystemID sys;
@@ -393,6 +393,6 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     BOOST_CHECK(p3[1] == get<point>(sys.getGeometry3D("g3"))[1]);
     BOOST_CHECK(p3[2] == get<point>(sys.getGeometry3D("g3"))[2]);
 
-};
+};*/
 
 BOOST_AUTO_TEST_SUITE_END();

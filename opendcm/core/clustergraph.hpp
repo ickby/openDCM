@@ -52,6 +52,8 @@
 #include <boost/variant/recursive_variant.hpp>
 #include <boost/bind.hpp>
 
+#include <Eigen/Core>
+
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -1509,6 +1511,10 @@ protected:
 
 
     };
+
+public:
+	//may hold cluster properties which have Eigen3 objects and therefore need alignment
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } //namespace solver
