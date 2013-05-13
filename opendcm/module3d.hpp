@@ -31,6 +31,7 @@
 #include "module3d/distance.hpp"
 #include "module3d/parallel.hpp"
 #include "module3d/angle.hpp"
+#include "module3d/coincident.hpp"
 #include "module3d/module.hpp"
 
 #endif //DCM_MODULE3D_H

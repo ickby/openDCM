@@ -28,7 +28,7 @@ namespace dcm {
 namespace details {
 
 //we need a custom orientation type to allow coincidents with points
-struct ci_orientation : public Equation<ci_orientation, Distance> {
+struct ci_orientation : public Equation<ci_orientation, Direction> {
 
     using Equation::operator=;
     ci_orientation() : Equation(parallel) {};
@@ -66,6 +66,9 @@ struct ci_orientation : public Equation<ci_orientation, Distance> {
 template< typename Kernel >
 struct ci_orientation::type< Kernel, tag::point3D, tag::point3D > : public dcm::PseudoScale<Kernel> {
 
+    typedef typename Kernel::number_type Scalar;
+    typedef typename Kernel::VectorMap   Vector;
+
     Scalar calculate(Vector& param1,  Vector& param2) {
         return 0;
     };
@@ -76,7 +79,7 @@ struct ci_orientation::type< Kernel, tag::point3D, tag::point3D > : public dcm::
         return 0;
     };
     void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
-         gradient.setZero();
+        gradient.setZero();
     };
     void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
         gradient.setZero();
@@ -114,41 +117,41 @@ struct ci_orientation::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public
 
 struct Coincidence : public dcm::constraint_sequence< fusion::vector2< Distance, details::ci_orientation > > {
     //allow to set the distance
-    Coincident& operator()(Direction val) {
+    Coincidence& operator()(Direction val) {
         fusion::at_c<1>(*this) = val;
         return *this;
     };
-    Coincident& operator=(Direction val) {
+    Coincidence& operator=(Direction val) {
         fusion::at_c<1>(*this) = val;
         return *this;
     };
 };
 
-struct Alignment : public dcm::constraint_sequence< fusion::vector2< Distance, Orientation > > {
+struct Alignment : public dcm::constraint_sequence< fusion::vector2< Distance, details::ci_orientation > > {
     //allow to set the distance
-    Coincident& operator()(Direction val) {
+    Alignment& operator()(Direction val) {
         fusion::at_c<1>(*this) = val;
         return *this;
     };
-    Coincident& operator()(double val) {
+    Alignment& operator()(double val) {
         fusion::at_c<0>(*this) = val;
         return *this;
     };
-    Coincident& operator()(double val1, Direction val2) {
+    Alignment& operator()(double val1, Direction val2) {
         fusion::at_c<0>(*this) = val1;
-	fusion::at_c<1>(*this) = val2;
+        fusion::at_c<1>(*this) = val2;
         return *this;
     };
-    Coincident& operator()(Direction val1, double val2) {
+    Alignment& operator()(Direction val1, double val2) {
         fusion::at_c<0>(*this) = val2;
-	fusion::at_c<1>(*this) = val1;
+        fusion::at_c<1>(*this) = val1;
         return *this;
     };
-    Coincident& operator=(Direction val) {
+    Alignment& operator=(Direction val) {
         fusion::at_c<1>(*this) = val;
         return *this;
     };
-    Coincident& operator=(double val) {
+    Alignment& operator=(double val) {
         fusion::at_c<0>(*this) = val;
         return *this;
     };
