@@ -69,6 +69,7 @@ struct ci_orientation::type< Kernel, tag::point3D, tag::point3D > : public dcm::
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
+    option_type value;
     Scalar calculate(Vector& param1,  Vector& param2) {
         return 0;
     };
@@ -159,6 +160,7 @@ struct Alignment : public dcm::constraint_sequence< fusion::vector2< Distance, d
 
 //no standart equation, create our own object
 static Coincidence coincidence;
+static Alignment alignment;
 
 }//dcm
 
