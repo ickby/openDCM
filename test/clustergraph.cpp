@@ -99,6 +99,8 @@ BOOST_AUTO_TEST_CASE(subclustering) {
     BOOST_CHECK(g1==g3->root());
     BOOST_CHECK(g3->numClusters() == 0);
     BOOST_CHECK(g3->clusters().first == g3->clusters().second);
+    
+    g2->addVertex();
 
     boost::shared_ptr<Graph> g4 = g2->createCluster().first;
     Graph::cluster_iterator it,end;
@@ -106,14 +108,14 @@ BOOST_AUTO_TEST_CASE(subclustering) {
     BOOST_CHECK(it != end);
     BOOST_CHECK(it->second->parent() == (it++)->second->parent());
     BOOST_CHECK(g2->numClusters() == 2);
-    BOOST_CHECK(boost::num_vertices(*g2)==2);
+    BOOST_CHECK(boost::num_vertices(*g2)==3);
     
     delete_functor f;
     g2->removeCluster(g3, f);
     boost::tie(it,end) = g2->clusters();
     BOOST_CHECK(it != end);
     BOOST_CHECK(g2->numClusters() == 1);
-    BOOST_CHECK(boost::num_vertices(*g2)==1);
+    BOOST_CHECK(boost::num_vertices(*g2)==2);
     BOOST_CHECK( !f.stream.str().compare("c") );
     
     delete_functor f2;

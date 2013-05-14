@@ -138,7 +138,6 @@ BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
     
     Transform trans3d_I = trans3d_2 * trans3d;
     trans3d_I.transform(vec);
-    std::cout<<vec<<std::endl;
     BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
 
     Transform trans3d_3(Transform::Rotation(4,9,1,2),

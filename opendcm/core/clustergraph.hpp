@@ -328,9 +328,14 @@ public:
     bool operator!=(const T& other) const {
         return !(this == &other);
     };
+    
+    void setCopyMode(bool on) {
+	copy_mode = on;
+    };
 
     void setChanged() {
-        setClusterProperty<changed_prop>(true);
+        if(!copy_mode)
+	  setClusterProperty<changed_prop>(true);
     };
 
     /* *******************************************************
@@ -804,6 +809,7 @@ private:
     void simpleRemoveEdge(LocalEdge e) {
         boost::remove_edge(e, *this);
     };
+    
 
 public:
     /**
@@ -1383,6 +1389,7 @@ public:
 protected:
     boost::weak_ptr<ClusterGraph> m_parent;
     details::IDpointer 	  m_id;
+    bool copy_mode; //no changing itself when copying
     
 
     /* Searches the global vertex in all local vertices of this graph, and returns the local
