@@ -273,8 +273,8 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     typedef typename Kernel::Vector3     Vector3;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-    Scalar value, sc_value, cdn;
-    Vector3 c, n1, n2, nxn, nxn_n;
+    Scalar value, sc_value, cdn, nxn_n;
+    Vector3 c, n1, n2, nxn;
 
 #ifdef USE_LOGGING
     src::logger log;
@@ -314,7 +314,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
         n1 = line1.template segment<3>(3);
         n2 = line2.template segment<3>(3);
         nxn = n1.cross(n2);
-	nxn_n = nxn.norm(
+	nxn_n = nxn.norm();
         c = line2.template head<3>() - line1.template head<3>();
         cdn = c.dot(nxn);
         const Scalar res = std::abs(cdn) / nxn.norm();
