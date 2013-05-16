@@ -22,6 +22,7 @@
 
 #include "object_parser.hpp"
 #include "property_parser_imp.hpp"
+#include "boost/phoenix/fusion/at.hpp"
 
 namespace dcm {
 namespace details {

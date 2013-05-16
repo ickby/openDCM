@@ -1,6 +1,10 @@
 #ifndef DCM_PROPERTY_GENERATOR_H
 #define DCM_PROPERTY_GENERATOR_H
 
+#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
+#define BOOST_SPIRIT_USE_PHOENIX_V3
+#endif
+
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/spirit/include/karma.hpp>
 

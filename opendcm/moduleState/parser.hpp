@@ -20,6 +20,10 @@
 #ifndef DCM_PARSER_H
 #define DCM_PARSER_H
 
+#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
+#define BOOST_SPIRIT_USE_PHOENIX_V3
+#endif
+
 #include <iosfwd>
 
 #include <boost/spirit/include/qi.hpp>
