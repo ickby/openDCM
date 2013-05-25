@@ -25,7 +25,7 @@ typedef std::ostream_iterator<char> Iterator;
 
 namespace details {
 
-//a grammar that does nothing exept failing
+//a grammar that does nothing returns true
 struct empty_grammar : public karma::grammar<Iterator> {
     karma::rule<Iterator> start;
     empty_grammar(): empty_grammar::base_type(start) {

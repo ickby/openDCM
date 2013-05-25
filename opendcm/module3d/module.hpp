@@ -85,6 +85,7 @@ struct Module3D {
         typedef mpl::map1< mpl::pair<remove, boost::function<void (Cons) > > >  ConsSignal;
 
         typedef ID Identifier;
+	typedef Typelist geometry_types;
 
         typedef details::MES<Sys> MES;
         typedef details::SystemSolver<Sys> SystemSolver;

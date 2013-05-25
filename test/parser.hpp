@@ -32,7 +32,7 @@
 
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
+#include <boost/spirit/include/phoenix.hpp>
 
 namespace karma = boost::spirit::karma;
 
@@ -184,5 +184,8 @@ struct parser_parser< typename TestModule1::type<System>::test_object1, System, 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector<Eigen::Vector3d>, int> Module3D;
 typedef dcm::System<Kernel, dcm::ModuleState, TestModule1, Module3D> System;
+
+typedef typename Module3D::type<System>::Geometry3D Geometry3D;
+typedef typename Module3D::type<System>::Constraint3D Constraint3D;
 
 #endif //DCM_PARSER_H

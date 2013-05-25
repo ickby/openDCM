@@ -44,7 +44,7 @@ void parse(std::istream& stream, T& output, G& par) {
 };
 
 BOOST_AUTO_TEST_SUITE(parser_suit);
-
+/*
 BOOST_AUTO_TEST_CASE(parser_seperate) {
 
     //test properties
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(parser_seperate) {
     //std::cout<<s2.str()<<std::endl;
     //std::cout<<"result: " << result<<std::endl;
 };
-
+*/
 BOOST_AUTO_TEST_CASE(parser_graph) {
 
     System sys;
@@ -134,16 +134,17 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     //load the state
     sys.loadState(s);
 
+    //check clusters
+    BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 5);
+    BOOST_CHECK(boost::num_edges(*sys.m_cluster) == 5);
+    BOOST_REQUIRE(sys.m_cluster->numClusters() == 2);
+    
     //access the two subcluster
     typedef System::Cluster::cluster_iterator cit;
     std::pair<cit, cit> it = sys.m_cluster->clusters();
     boost::shared_ptr<System::Cluster> nscl1 = (*(it.first)).second;
     boost::shared_ptr<System::Cluster> nscl2 = (*(++it.first)).second;
-
-    //check clusters
-    BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 5);
-    BOOST_CHECK(boost::num_edges(*sys.m_cluster) == 5);
-    BOOST_REQUIRE(sys.m_cluster->numClusters() == 2);
+    
     BOOST_CHECK(sys.m_cluster->getClusterProperty<dcm::type_prop>() == 5);
     BOOST_CHECK(!sys.m_cluster->getClusterProperty<dcm::changed_prop>());
     BOOST_CHECK(nscl1->getClusterProperty<dcm::type_prop>() == 2);
@@ -180,11 +181,39 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     BOOST_CHECK(nscl2->getProperty<TestModule1::type<System>::test_vertex1_prop>(v6.first) == 6);
     BOOST_CHECK(nscl1->getProperty<TestModule1::type<System>::test_edge1_prop>(nscl1->edge(v4.first, v5.first).first) == 7);
 
+
+    std::cout<<"done first"<<std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(parser_module3d) {
 
+  System sys, sys2;
+  
+  Eigen::Vector3d v1, v2;
+  v1 << 1,2,3;
+  v2 << 1.23456789, 2.34567891, 3.45678912;
+  
+  sys.createGeometry3D(v1, 1);
+  sys.createGeometry3D(v2, 2);
+  
+  std::stringstream s;
+  sys.saveState(s);
+  
+  std::cout<<s.str()<<std::endl;
+  
+  sys2.loadState(s);
+  
+  BOOST_REQUIRE( sys2.hasGeometry3D(1) );
+  BOOST_REQUIRE( sys2.hasGeometry3D(2) );
+  
+  boost::shared_ptr<Geometry3D> g1 = sys.getGeometry3D(1);
+  boost::shared_ptr<Geometry3D> g2 = sys.getGeometry3D(2);
 
+  Eigen::Vector3d nv1, nv2;
+  nv1 = get<Eigen::Vector3d>(g1);
+  nv2 = get<Eigen::Vector3d>(g2);
+  
+  
 }
 
 BOOST_AUTO_TEST_SUITE_END();
