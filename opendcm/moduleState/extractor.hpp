@@ -99,9 +99,13 @@ struct Injector {
     void setVertexProperty(typename Sys::Cluster* cluster, int value) {
 	cluster->template setClusterProperty<details::cluster_vertex_prop>(value);
     };
-    void addCluster(typename Sys::Cluster* cluster, typename Sys::Cluster* addcl) {
-        LocalVertex v = cluster->getLocalVertex(addcl->template getClusterProperty<details::cluster_vertex_prop>()).first;
-        cluster->m_clusters[v] = boost::shared_ptr<typename Sys::Cluster>(addcl);
+    void addClusters(std::vector<typename Sys::Cluster*>& clusters, typename Sys::Cluster* cluster) {
+      
+	typename std::vector<typename Sys::Cluster*>::iterator it;
+	for(it = clusters.begin(); it != clusters.end(); it++) {	        
+	    LocalVertex v = cluster->getLocalVertex((*it)->template getClusterProperty<details::cluster_vertex_prop>()).first;
+	    cluster->m_clusters[v] = boost::shared_ptr<typename Sys::Cluster>(*it);
+	};
     };
     void addVertex(typename Sys::Cluster* cluster, fusion::vector<LocalVertex, GlobalVertex>& vec) {
         vec = cluster->addVertex();

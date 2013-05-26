@@ -52,9 +52,11 @@ namespace dcm {
 template<typename Sys>
 generator<Sys>::generator() : generator<Sys>::base_type(start) {
            
-    cluster %= karma::omit[karma::int_] << cluster_prop  << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, &ex, karma::_val, karma::_1)]
-	       << -karma::buffer["\n" << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, &ex, karma::_val, karma::_1)]]
-               << -karma::buffer["\n" << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, &ex, karma::_val, karma::_1)]] << "-\n"
+    cluster %= karma::omit[karma::int_] << cluster_prop
+	       << -karma::buffer[karma::eol << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, &ex, karma::_val, karma::_1)]]
+	       << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, &ex, karma::_val, karma::_1)]
+	       << -karma::buffer[karma::eol << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, &ex, karma::_val, karma::_1)]]
+               << "-" << karma::eol
                << karma::lit("</Cluster>");
 
     cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">+" 

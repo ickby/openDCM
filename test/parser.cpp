@@ -181,8 +181,6 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     BOOST_CHECK(nscl2->getProperty<TestModule1::type<System>::test_vertex1_prop>(v6.first) == 6);
     BOOST_CHECK(nscl1->getProperty<TestModule1::type<System>::test_edge1_prop>(nscl1->edge(v4.first, v5.first).first) == 7);
 
-
-    std::cout<<"done first"<<std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(parser_module3d) {

@@ -59,13 +59,13 @@ static void print(std::string s) {
 };
 
 template<typename Sys>
-struct parser : qi::grammar<IIterator, typename Sys::Cluster*(Sys*), qi::locals<int>, qi::space_type> {
+struct parser : qi::grammar<IIterator, typename Sys::Cluster*(Sys*), qi::locals<int, std::vector<typename Sys::Cluster*> >, qi::space_type> {
 
     typedef typename Sys::Cluster graph;
   
     parser();
 
-    qi::rule<IIterator, graph*(Sys*), qi::locals<int>, qi::space_type> cluster;
+    qi::rule<IIterator, graph*(Sys*), qi::locals<int, std::vector<graph*> >, qi::space_type> cluster;
     details::cluster_prop_par<Sys> cluster_prop;
     
     details::obj_par<Sys> objects;
