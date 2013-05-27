@@ -191,8 +191,9 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   v1 << 1,2,3;
   v2 << 1.23456789, 2.34567891, 3.45678912;
   
-  sys.createGeometry3D(v1, 1);
-  sys.createGeometry3D(v2, 2);
+  boost::shared_ptr<Geometry3D> g1 = sys.createGeometry3D(v1, 1);
+  boost::shared_ptr<Geometry3D> g2 = sys.createGeometry3D(v2, 2);
+  sys.createConstraint3D(3, g1, g2, dcm::distance(3) & dcm::distance(3));
   
   std::stringstream s;
   sys.saveState(s);
@@ -203,13 +204,21 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   
   BOOST_REQUIRE( sys2.hasGeometry3D(1) );
   BOOST_REQUIRE( sys2.hasGeometry3D(2) );
+  BOOST_REQUIRE( sys2.hasConstraint3D(3) );
   
-  boost::shared_ptr<Geometry3D> g1 = sys.getGeometry3D(1);
-  boost::shared_ptr<Geometry3D> g2 = sys.getGeometry3D(2);
+  boost::shared_ptr<Geometry3D> ng1 = sys.getGeometry3D(1);
+  boost::shared_ptr<Geometry3D> ng2 = sys.getGeometry3D(2);
+  boost::shared_ptr<Constraint3D> nc1 = sys.getConstraint3D(2);
+  
+  BOOST_CHECK(nc1->first == ng1);
+  BOOST_CHECK(nc1->second== ng2);
 
   Eigen::Vector3d nv1, nv2;
-  nv1 = get<Eigen::Vector3d>(g1);
-  nv2 = get<Eigen::Vector3d>(g2);
+  nv1 = get<Eigen::Vector3d>(ng1);
+  nv2 = get<Eigen::Vector3d>(ng2);
+  
+  BOOST_CHECK( nv1.isApprox(v1) );
+  BOOST_CHECK( nv2.isApprox(v2) );
   
   
 }

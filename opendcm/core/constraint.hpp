@@ -70,7 +70,11 @@ public:
     ~Constraint();
 
     virtual boost::shared_ptr<Derived> clone(Sys& newSys);
-
+    std::vector<boost::any> getGenericEquations();
+    std::vector<boost::any> getGenericConstraints();
+    std::vector<const std::type_info*> getEquationTypes();
+    std::vector<const std::type_info*> getConstraintTypes();
+    
 protected:
 
     template<typename ConstraintVector>
@@ -93,11 +97,6 @@ protected:
 
     void collectPseudoPoints(Vec& vec1, Vec& vec2);
     
-    std::vector<boost::any> getGenericEquations();
-    std::vector<boost::any> getGenericConstraints();
-    std::vector<const std::type_info*> getEquationTypes();
-    std::vector<const std::type_info*> getConstraintTypes();
-
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
     struct EquationSet {
@@ -266,8 +265,9 @@ protected:
     };
 
     placeholder* content;
-    geom_ptr first, second;
     Connection cf, cs;
+public:
+    geom_ptr first, second;
 };
 
 

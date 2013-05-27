@@ -89,6 +89,31 @@ struct getWeightType {
   typedef typename mpl::deref<iter>::type type;
 };
 
+template<typename C>
+std::vector< fusion::vector2<std::string, std::string> > getConstraints(boost::shared_ptr<C> con) {
+    
+    std::vector< fusion::vector2<std::string, std::string> > vec;
+    std::vector<boost::any> cvec = con->getGenericConstraints();
+    
+    typename std::vector<boost::any>::iterator it;
+    for(it = cvec.begin(); it != cvec.end(); it++) {
+      
+      if((*it).type() == typeid(dcm::Distance)) {
+	std::string value = boost::lexical_cast<std::string>(boost::any_cast<dcm::Distance>(*it).value);
+	vec.push_back(fusion::make_vector(std::string("Distance"), value));
+      }
+      else if((*it).type() == typeid(dcm::Angle)) {
+	std::string value = boost::lexical_cast<std::string>(boost::any_cast<dcm::Angle>(*it).value);
+	vec.push_back(fusion::make_vector(std::string("Angle"), value));
+      }
+      else if((*it).type() == typeid(dcm::Orientation)) {
+	std::string value = boost::lexical_cast<std::string>(boost::any_cast<dcm::Orientation>(*it).value);
+	vec.push_back(fusion::make_vector(std::string("Orientation"), value));
+      };
+    };
+    return vec;   
+};
+
 template <typename Geom, typename Row, typename Value>
 bool VectorOutput(Geom &v, Row& r, Value& val) {
 	  
@@ -119,7 +144,7 @@ struct inject_set {
 	g->set(gt);
     };
 };
-//spezialisation if no type in the typelist hs the right weight
+//spezialisation if no type in the typelist has the right weight
 template<>
 struct inject_set<mpl_::void_> {
 
@@ -208,6 +233,38 @@ struct parser_generator< typename details::getModule3D<System>::type::vertex_pro
     };
 };
 
+template<typename System>
+struct parser_generate< typename details::getModule3D<System>::type::Constraint3D , System>
+  : public mpl::true_{};
+
+template<typename System, typename iterator>
+struct parser_generator< typename details::getModule3D<System>::type::Constraint3D , System, iterator > {
+
+    typedef typename details::getModule3D<System>::type::Geometry3D  Geometry3D;
+    typedef typename details::getModule3D<System>::type::Constraint3D  Constraint3D;
+    typedef typename details::getModule3D<System>::type::vertex_prop vertex_prop;
+    typedef karma::rule<iterator, boost::shared_ptr<Constraint3D>()> generator;
+    static void init(generator& r) {
+       r = karma::lit("<type>Constraint3D</type>") << karma::eol
+	   << "<connect first=" << karma::int_[karma::_1 = phx::bind(&Geometry3D::template getProperty<vertex_prop>, phx::bind(&Constraint3D::first, karma::_val))]
+	   << " second=" << karma::int_[karma::_1 = phx::bind(&Geometry3D::template getProperty<vertex_prop>, phx::bind(&Constraint3D::second, karma::_val))] << "></connect>"
+	   << (*(karma::eol<<"<constraint type="<<karma_ascii::string<<">"<<karma_ascii::string<<"</constraint>"))[karma::_1 = phx::bind(&details::getConstraints<Constraint3D>, karma::_val)];
+    };
+};
+
+template<typename System>
+struct parser_generate< typename details::getModule3D<System>::type::edge_prop , System>
+  : public mpl::true_{};
+
+template<typename System, typename iterator>
+struct parser_generator< typename details::getModule3D<System>::type::edge_prop , System, iterator > {
+
+    typedef karma::rule<iterator, GlobalEdge&()> generator;
+    static void init(generator& r) {
+        r = karma::lit("<type>Edge</type>")
+	    << karma::eol << "<value>" << karma::int_[karma::_1 = phx::bind(&GlobalEdge::ID, karma::_val)] << "</value>";
+    };
+};
 
 template<typename System>
 struct parser_generate<typename details::getModule3D<System>::type::fix_prop, System> : public mpl::true_ {};
@@ -255,6 +312,34 @@ struct parser_parser< typename details::getModule3D<System>::type::vertex_prop, 
         r = qi::lit("<type>Vertex</type>") >> "<value>" >> qi::int_ >> "</value>";
     };
 };
+
+
+template<typename System>
+struct parser_parse< typename details::getModule3D<System>::type::Constraint3D , System>
+  : public mpl::true_{};
+
+template<typename System, typename iterator>
+struct parser_parser< typename details::getModule3D<System>::type::Constraint3D, System, iterator > {
+
+    typedef typename details::getModule3D<System>::type::Geometry3D  Geometry3D;
+    typedef typename details::getModule3D<System>::type::Constraint3D  Constraint3D;
+    typedef typename System::Kernel Kernel;
+    
+    typedef qi::rule<iterator, boost::shared_ptr<Constraint3D>(System*), qi::space_type > parser;
+    static void init(parser& r) {
+        r = qi::lit("<type>Constraint3D</type>")
+	    >> ("<connect first=" >> qi::int_ >> "second=" >> qi::int_ >> "></connect>")[ 
+		  qi::_val =  phx::construct<boost::shared_ptr<Constraint3D> >( 	
+		      phx::new_<Constraint3D>(*qi::_r1, 
+					      phx::bind(&System::Cluster::template getObject<Geometry3D, GlobalVertex>, phx::bind(&System::m_cluster, qi::_r1), qi::_1),
+					      phx::bind(&System::Cluster::template getObject<Geometry3D, GlobalVertex>, phx::bind(&System::m_cluster, qi::_r1), qi::_2) ) )
+		];
+		 /* >> "<class>" >> (+qi::char_("a-zA-Z"))[qi::_a = phx::construct<std::string>(phx::begin(qi::_1), phx::end(qi::_1))] >> "</class>"
+		  >> "<value>" >> *qi::double_[ vector_in(qi::_b, qi::_c, qi::_1) ] >> "</value>"
+		  >> qi::eps[ create(qi::_r1, qi::_a, qi::_val, qi::_b) ];*/
+    };
+};
+
 
 template<typename System>
 struct parser_parse< typename details::getModule3D<System>::type::fix_prop, System>
