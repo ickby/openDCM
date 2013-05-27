@@ -185,7 +185,7 @@ typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector<Eigen::Vector3d>, int> Module3D;
 typedef dcm::System<Kernel, dcm::ModuleState, TestModule1, Module3D> System;
 
-typedef typename Module3D::type<System>::Geometry3D Geometry3D;
-typedef typename Module3D::type<System>::Constraint3D Constraint3D;
+typedef Module3D::type<System>::Geometry3D Geometry3D;
+typedef Module3D::type<System>::Constraint3D Constraint3D;
 
 #endif //DCM_PARSER_H

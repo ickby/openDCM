@@ -350,7 +350,7 @@ public:
     };
     template<typename P>
     typename P::type& getSubclusterProperty(LocalVertex v) {
-        return getVertexCluster(v)->getClusterProperty<P>();
+        return getVertexCluster(v)->template getClusterProperty<P>();
     };
 
     template<typename P>
@@ -1047,7 +1047,7 @@ public:
             cluster_iterator cit;
             for(cit=m_clusters.begin(); cit != m_clusters.end(); cit++) {
                 f((*cit).second);
-                (*cit).second->for_each<Obj>(f, recursive);
+                (*cit).second->template for_each<Obj>(f, recursive);
             }
         }
     };
@@ -1492,7 +1492,7 @@ protected:
             //TODO: Throw (propeties return reference, but cant init a reference temporarily)
         }
 
-        return fusion::at_c<1>(res)->apply_to_bundle<functor>(k, f);
+        return fusion::at_c<1>(res)->template apply_to_bundle<functor>(k, f);
     };
 
     template<typename functor>
