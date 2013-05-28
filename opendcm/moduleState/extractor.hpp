@@ -96,6 +96,10 @@ struct Injector {
                            typename details::pts<typename Sys::edge_properties>::type& prop) {
         fusion::at_c<0>(cluster->operator[](e)) = prop;
     };
+    void setEdgeBundles(typename Sys::Cluster* cluster, LocalEdge e,
+                        std::vector<typename Sys::Cluster::edge_bundle_single>& bundles) {
+        fusion::at_c<1>(cluster->operator[](e)) = bundles;
+    };
     void setVertexProperty(typename Sys::Cluster* cluster, int value) {
 	cluster->template setClusterProperty<details::cluster_vertex_prop>(value);
     };

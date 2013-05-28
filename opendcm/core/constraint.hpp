@@ -33,6 +33,7 @@
 #include <boost/mpl/less.hpp>
 #include <boost/mpl/if.hpp>
 #include <boost/mpl/size.hpp>
+#include <boost/mpl/for_each.hpp>
 
 #include <boost/any.hpp>
 
@@ -75,11 +76,10 @@ public:
     std::vector<const std::type_info*> getEquationTypes();
     std::vector<const std::type_info*> getConstraintTypes();
     
-protected:
-
     template<typename ConstraintVector>
     void initialize(ConstraintVector& obj);
-
+    
+protected:
     int equationCount();
 
     template< typename creator_type>

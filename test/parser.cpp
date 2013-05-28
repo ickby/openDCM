@@ -206,10 +206,14 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   BOOST_REQUIRE( sys2.hasGeometry3D(2) );
   BOOST_REQUIRE( sys2.hasConstraint3D(3) );
   
-  boost::shared_ptr<Geometry3D> ng1 = sys.getGeometry3D(1);
-  boost::shared_ptr<Geometry3D> ng2 = sys.getGeometry3D(2);
-  boost::shared_ptr<Constraint3D> nc1 = sys.getConstraint3D(2);
-  
+  boost::shared_ptr<Geometry3D> ng1 = sys2.getGeometry3D(1);
+  boost::shared_ptr<Geometry3D> ng2 = sys2.getGeometry3D(2);
+  boost::shared_ptr<Constraint3D> nc1 = sys2.getConstraint3D(3);
+   
+  BOOST_REQUIRE( ng1 );
+  BOOST_REQUIRE( ng2 );
+  BOOST_REQUIRE( nc1 );
+   
   BOOST_CHECK(nc1->first == ng1);
   BOOST_CHECK(nc1->second== ng2);
 
@@ -220,6 +224,12 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   BOOST_CHECK( nv1.isApprox(v1) );
   BOOST_CHECK( nv2.isApprox(v2) );
   
+  sys2.solve();
+  
+  nv1 = get<Eigen::Vector3d>(ng1);
+  nv2 = get<Eigen::Vector3d>(ng2);
+  
+  BOOST_CHECK( Kernel::isSame((nv1-nv2).norm(), 3) );
   
 }
 

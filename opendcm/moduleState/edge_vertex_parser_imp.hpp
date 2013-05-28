@@ -36,7 +36,7 @@ edge_parser<Sys>::edge_parser() : edge_parser<Sys>::base_type(edge) {
 
     edge   = (qi::lit("<Edge") >> "source=" >> qi::int_ >> "target=" >> qi::int_ >> '>')[qi::_val = phx::bind((&Sys::Cluster::addEdgeGlobal), qi::_r1, qi::_1, qi::_2)]
              >> edge_prop[phx::bind(&Injector<Sys>::setEdgeProperties, &in, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
-             >> *global_edge(qi::_r2)
+             >> (*global_edge(qi::_r2))[phx::bind(&Injector<Sys>::setEdgeBundles, &in, qi::_r1, phx::at_c<0>(qi::_val), qi::_1)]
              >> ("</Edge>");
 };
 
