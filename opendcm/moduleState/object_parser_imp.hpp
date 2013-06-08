@@ -51,7 +51,7 @@ obj_parser<Sys, ObjList, Object, Par>::obj_parser(): obj_parser::base_type(start
     
     Par::init(subrule);
     start = qi::lit("<Object>") >> subrule(qi::_r2)[phx::at_c<pos::value>(*qi::_r1) = qi::_1]
-            >> qi::eps(phx::at_c<pos::value>(*qi::_r1))[ phx::bind(&Sys::template push_back<Object>, qi::_r2, phx::at_c<pos::value>(*qi::_r1)m)]
+            >> qi::eps(phx::at_c<pos::value>(*qi::_r1))[ phx::bind(&Sys::template push_back<Object>, qi::_r2, phx::at_c<pos::value>(*qi::_r1))]
             >> prop[phx::bind(&obj_parser::setProperties, phx::at_c<pos::value>(*qi::_r1), qi::_1)]
             >> qi::lit("</Object>");
 };

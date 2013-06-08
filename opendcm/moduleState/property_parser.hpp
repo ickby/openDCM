@@ -74,20 +74,6 @@ struct prop_par : qi::grammar<IIterator, typename details::pts<PropertyList>::ty
     typename fusion::result_of::as_vector<sub_rules_sequence>::type sub_rules;
     typename fusion::result_of::as_vector<parent_rules_sequence>::type parent_rules;
     
-    
-  /*
-    //create a vector with the appropriate rules for all properties.
-    typedef typename prop_parser_fold<Sys, PropertyList, mpl::vector<> >::type init_rules_sequence;
-    //allow max 10 types as the following code expect this
-    BOOST_MPL_ASSERT((mpl::less_equal< mpl::size<init_rules_sequence>, mpl::int_<10> >));
-    //we want to process 10 elements, so create a vector with (10-prop.size()) empty rules
-    //and append it to our rules vector
-    typedef mpl::range_c<int,0, mpl::minus< mpl::int_<10>, mpl::size<init_rules_sequence> >::value > range;
-    typedef typename mpl::fold< range,
-				init_rules_sequence,
-				mpl::push_back<mpl::_1, empty_parser> >::type rules_sequence;*/
-
-    //typename fusion::result_of::as_vector<rules_sequence>::type rules;
     qi::rule<IIterator, typename details::pts<PropertyList>::type(), qi::space_type> prop;
 
     prop_par();

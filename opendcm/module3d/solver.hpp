@@ -158,8 +158,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
         //get the biggest scale factor
         details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
 
-        //math.m_pseudo.clear();
-        //collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
+        math.m_pseudo.clear();
+        collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
 
         const Scalar s = math.calculateClusterScale();
         sc = (s>sc) ? s : sc;
@@ -275,7 +275,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     if(params <= 0 || constraints <= 0) {
      //TODO:throw
 #ifdef USE_LOGGING
-      BOOST_LOG(log)<< "Error in system counting: params = " << params " and constraints = "<<constraints;
+      BOOST_LOG(log)<< "Error in system counting: params = " << params << " and constraints = "<<constraints;
 #endif
       return;
     }
