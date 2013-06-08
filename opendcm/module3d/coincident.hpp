@@ -180,7 +180,7 @@ template< typename Kernel >
 struct ci_distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public dcm::Distance::type< Kernel, tag::point3D, tag::cylinder3D > {};
 
 template< typename Kernel >
-struct ci_distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public dcm::Distance::type< Kernel, tag::point3D, tag::cylinder3D > {};
+struct ci_distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public dcm::Distance::type< Kernel, tag::point3D, tag::line3D > {};
 
 
 }//details
