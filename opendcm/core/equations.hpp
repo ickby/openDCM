@@ -35,12 +35,19 @@
 #include <boost/fusion/include/back.hpp>
 #include <boost/fusion/include/iterator_range.hpp>
 
+#include <boost/exception/exception.hpp>
+
 namespace fusion = boost::fusion;
 namespace mpl = boost::mpl;
 
 #include "kernel.hpp"
 
 namespace dcm {
+
+//a few exceptions to handle unsupported combinations
+struct constraint_error : virtual boost::exception { };
+typedef boost::error_info<struct first_geom, std::string> error_type_first_geometry;
+typedef boost::error_info<struct second_geom, std::string> error_type_second_geometry;
 
 struct no_option {};
 
@@ -204,6 +211,11 @@ struct Distance : public Equation<Distance, double> {
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
 
+        type() {
+            throw constraint_error() << boost::errinfo_errno(100) << error_message("unsupported geometry in distance constraint")
+                                     << error_type_first_geometry(typeid(Tag1).name()) << error_type_second_geometry(typeid(Tag2).name());
+        };
+
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
         typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
@@ -248,6 +260,11 @@ struct Orientation : public Equation<Orientation, Direction> {
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
 
+        type() {
+            throw constraint_error() << boost::errinfo_errno(101) << error_message("unsupported geometry in orientation constraint")
+                                     << error_type_first_geometry(typeid(Tag1).name()) << error_type_second_geometry(typeid(Tag2).name());
+        };
+
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
@@ -283,6 +300,11 @@ struct Angle : public Equation<Angle, double> {
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
 
+        type() {
+            throw constraint_error() << boost::errinfo_errno(102) << error_message("unsupported geometry in angle constraint")
+                                     << error_type_first_geometry(typeid(Tag1).name()) << error_type_second_geometry(typeid(Tag2).name());
+        };
+
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
@@ -291,15 +313,15 @@ struct Angle : public Equation<Angle, double> {
         //template definition
         Scalar calculate(Vector& param1,  Vector& param2) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
             assert(false);
-			return 0;
+            return 0;
         };
         Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
             assert(false);
-			return 0;
+            return 0;
         };
         void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
             assert(false);

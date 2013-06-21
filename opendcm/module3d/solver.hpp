@@ -21,11 +21,13 @@
 #define GCM_SOLVER_3D_H
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/exception/errinfo_errno.hpp>
 
 #include "defines.hpp"
 #include "clustermath.hpp"
 #include "opendcm/core/sheduler.hpp"
 #include "opendcm/core/traits.hpp"
+#include <opendcm/core/kernel.hpp>
 
 namespace dcm {
 namespace details {
@@ -233,6 +235,7 @@ void SystemSolver<Sys>::execute(Sys& sys) {
 template<typename Sys>
 void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sys) {
 
+  try {
     //set out and solve all relevant subclusters
     typedef typename Cluster::cluster_iterator citer;
     std::pair<citer, citer> cit = cluster->clusters();
@@ -365,6 +368,11 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     }
     //we have solved this cluster
     cluster->template setClusterProperty<changed_prop>(false);
+    
+  }
+  catch( boost::exception & x ) {
+      throw;
+  }
 };
 
 }//details

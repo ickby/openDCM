@@ -27,6 +27,9 @@
 #include <iostream>
 
 #include <boost/math/special_functions/fpclassify.hpp>
+#include <boost/exception/exception.hpp>
+#include <boost/exception/errinfo_errno.hpp>
+
 #include <time.h>
 
 #include "transformation.hpp"
@@ -40,6 +43,10 @@ namespace E = Eigen;
 struct nothing {
     void operator()() {};
 };
+
+//all solving related errors
+typedef boost::error_info<struct user_message,std::string> error_message;
+struct solving_error : virtual boost::exception { };
 
 template<typename Kernel>
 struct Dogleg {
@@ -59,7 +66,7 @@ struct Dogleg {
     };
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
-    int calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
+    void calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
                       const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                       const double delta) {
 
@@ -122,8 +129,6 @@ struct Dogleg {
             }
 #endif
         }
-
-        return 0;
     };
 
     int solve(typename Kernel::MappedEquationSystem& sys)  {
@@ -137,7 +142,9 @@ struct Dogleg {
         clock_t start = clock();
         clock_t inc_rec = clock();
 
-        if(!sys.isValid()) return 5;
+        if(!sys.isValid())	  
+	    throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
+	
 
         bool translate = true;
 
@@ -177,15 +184,15 @@ struct Dogleg {
             if(fx_inf <= tolf*sys.Scaling)  // Success
                 stop = 1;
             else if(g_inf <= tolg)
-                stop = 2;
+                throw solving_error() <<  boost::errinfo_errno(2) << error_message("g infinity norm smaller below limit");
             else if(delta <= tolx)
-                stop = 3;
+                throw solving_error() <<  boost::errinfo_errno(3) << error_message("step size below limit");
             else if(iter >= maxIterNumber)
-                stop = 4;
+                throw solving_error() <<  boost::errinfo_errno(4) << error_message("maximal iterations reached");
             else if(!boost::math::isfinite(err))
-                stop = 5;
+                throw solving_error() <<  boost::errinfo_errno(5) << error_message("error is inf or nan");
             else if(err > diverging_lim)
-                stop = 6;
+                throw solving_error() <<  boost::errinfo_errno(6) << error_message("error diverged");
 
 
             // see if we are already finished
