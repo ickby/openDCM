@@ -44,6 +44,12 @@ struct nothing {
     void operator()() {};
 };
 
+//the parameter types
+enum ParameterType {
+        general,
+        rotation
+};
+
 //all solving related errors
 typedef boost::error_info<struct user_message,std::string> error_message;
 struct solving_error : virtual boost::exception { };
@@ -67,8 +73,8 @@ struct Dogleg {
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
     void calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
-                      const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
-                      const double delta) {
+                       const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
+                       const double delta) {
 
         // get the steepest descent stepsize and direction
         const double alpha(g.squaredNorm()/(jacobi*g).squaredNorm());
@@ -142,9 +148,9 @@ struct Dogleg {
         clock_t start = clock();
         clock_t inc_rec = clock();
 
-        if(!sys.isValid())	  
-	    throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
-	
+        if(!sys.isValid())
+            throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
+
 
         bool translate = true;
 
@@ -250,7 +256,7 @@ struct Dogleg {
 #endif
                     rescale();
                     sys.recalculate();
-                } 
+                }
                 //it can also happen that the differentials get too small, however, we cant check for that
                 else if(iter>1 && (counter>50)) {
                     rescale();
@@ -346,7 +352,6 @@ struct Kernel {
         typedef E::Matrix<Scalar, Dim, 1> type;
     };
 
-
     struct MappedEquationSystem {
 
         Matrix Jacobi;
@@ -354,30 +359,43 @@ struct Kernel {
         Vector Residual;
         number_type Scaling;
         int m_params, m_eqns; //total amount
-        int m_param_offset, m_eqn_offset;   //current positions while creation
+        int m_param_rot_offset, m_param_trans_offset, m_eqn_offset;   //current positions while creation
 
         MappedEquationSystem(int params, int equations)
             : Jacobi(equations, params),
               Parameter(params), Residual(equations),
               m_params(params), m_eqns(equations), Scaling(1.) {
 
-            m_param_offset = 0;
+            m_param_rot_offset = 0;
+            m_param_trans_offset = params;
             m_eqn_offset = 0;
 
             Jacobi.setZero(); //important as some places are never written
         };
 
-        int setParameterMap(int number, VectorMap& map) {
+        int setParameterMap(int number, VectorMap& map, ParameterType t = general) {
 
-            new(&map) VectorMap(&Parameter(m_param_offset), number, DynStride(1,1));
-            m_param_offset += number;
-            return m_param_offset-number;
+            if(t == rotation) {
+                new(&map) VectorMap(&Parameter(m_param_rot_offset), number, DynStride(1,1));
+                m_param_rot_offset += number;
+                return m_param_rot_offset-number;
+            } else {
+                m_param_trans_offset -= number;
+                new(&map) VectorMap(&Parameter(m_param_trans_offset), number, DynStride(1,1));
+                return m_param_trans_offset;
+            }
         };
-        int setParameterMap(Vector3Map& map) {
+        int setParameterMap(Vector3Map& map, ParameterType t = general) {
 
-            new(&map) Vector3Map(&Parameter(m_param_offset));
-            m_param_offset += 3;
-            return m_param_offset-3;
+            if(t == rotation) {
+                new(&map) Vector3Map(&Parameter(m_param_rot_offset));
+                m_param_rot_offset += 3;
+                return m_param_rot_offset-3;
+            } else {
+                m_param_trans_offset -= 3;
+                new(&map) Vector3Map(&Parameter(m_param_trans_offset));
+                return m_param_trans_offset;
+            }
         };
         int setResidualMap(VectorMap& map) {
             new(&map) VectorMap(&Residual(m_eqn_offset), 1, DynStride(1,1));
@@ -428,5 +446,7 @@ struct Kernel {
 }
 
 #endif //GCM_KERNEL_H
+
+
 
 

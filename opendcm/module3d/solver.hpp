@@ -296,12 +296,13 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             //only get maps and propagate downstream if not fixed
             if(!c->template getClusterProperty<fix_prop>()) {
                 //set norm Quaternion as map to the parameter vector
-                int offset = mes.setParameterMap(cm.getNormQuaternionMap());
+                int offset_rot = mes.setParameterMap(cm.getNormQuaternionMap(), rotation);
                 //set translation as map to the parameter vector
-                mes.setParameterMap(cm.getTranslationMap());
+                int offset = mes.setParameterMap(cm.getTranslationMap(), general);
                 //write initail values to the parameter maps
                 //remember the parameter offset as all downstream geometry must use this offset
-                cm.setParameterOffset(offset);
+		cm.setParameterOffset(offset_rot, rotation);
+                cm.setParameterOffset(offset, general);
                 //wirte initial values
                 cm.initMaps();
             } else cm.initFixMaps();
