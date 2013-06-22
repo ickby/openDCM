@@ -150,13 +150,14 @@ struct pushed_seq {
     typedef constraint_sequence<vec> type;
 };
 
-template<typename Derived, typename Option>
+template<typename Derived, typename Option, bool rotation_only = false>
 struct Equation : public EQ {
 
     typedef Option option_type;
     option_type value;
+    bool pure_rotation;
 
-    Equation(option_type val = option_type()) : value(val) {};
+    Equation(option_type val = option_type()) : value(val), pure_rotation(rotation_only) {};
 
     Derived& operator()(const option_type val) {
         value = val;
@@ -252,7 +253,7 @@ struct Distance : public Equation<Distance, double> {
 //the possible directions
 enum Direction { parallel, equal, opposite, perpendicular };
 
-struct Orientation : public Equation<Orientation, Direction> {
+struct Orientation : public Equation<Orientation, Direction, true> {
 
     using Equation::operator=;
     Orientation() : Equation(parallel) {};
@@ -292,7 +293,7 @@ struct Orientation : public Equation<Orientation, Direction> {
     };
 };
 
-struct Angle : public Equation<Angle, double> {
+struct Angle : public Equation<Angle, double, true> {
 
     using Equation::operator=;
     Angle() : Equation(0) {};

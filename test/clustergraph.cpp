@@ -304,7 +304,7 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     BOOST_CHECK(g1->getProperty<test_edge_property2>(e1) == 2);
 
     //test property maps
-    property_map<test_edge_property2, Graph> pmap(*g1);
+    property_map<test_edge_property2, Graph> pmap(g1);
     BOOST_CHECK(get(pmap, e) == 2);
     put(pmap, e, 7);
     BOOST_CHECK(get(pmap, e) == 7);

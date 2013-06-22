@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK(M(1,2) == 2);
    
     //test if fixed size works without using strides
-    kernel::Vector3 v3;
+    kernel::Vector3 v3(1,2,3);
     kernel::Vector3Map v3m(&v3(0)); 
 
     BOOST_CHECK( v3(0) == v3m(0) );

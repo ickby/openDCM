@@ -29,6 +29,7 @@
 #include <boost/math/special_functions/fpclassify.hpp>
 #include <boost/exception/exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
+#include <boost/graph/graph_concepts.hpp>
 
 #include <time.h>
 
@@ -46,8 +47,9 @@ struct nothing {
 
 //the parameter types
 enum ParameterType {
-        general,
-        rotation
+    general,
+    rotation,
+    complete
 };
 
 //all solving related errors
@@ -64,7 +66,7 @@ struct Dogleg {
     typedef typename Kernel::number_type number_type;
     number_type tolg, tolx, tolf;
 
-    Dogleg() : tolg(1e-40), tolx(1e-20), tolf(1e-5) {
+    Dogleg() : tolg(1e-40), tolx(1e-20), tolf(1e-6) {
 
 #ifdef USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
@@ -154,11 +156,10 @@ struct Dogleg {
 
         bool translate = true;
 
-        typename Kernel::Vector h_dl, F_old(sys.m_eqns), g(sys.m_eqns);
-        typename Kernel::Matrix J_old(sys.m_eqns, sys.m_params);
+        typename Kernel::Vector h_dl, F_old(sys.equationCount()), g(sys.equationCount());
+        typename Kernel::Matrix J_old(sys.equationCount(), sys.parameterCount());
 
         sys.recalculate();
-
 #ifdef USE_LOGGING
         BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
                       << "residual: "<<sys.Residual.transpose()<<std::endl
@@ -354,46 +355,67 @@ struct Kernel {
 
     struct MappedEquationSystem {
 
-        Matrix Jacobi;
-        Vector Parameter;
-        Vector Residual;
-        number_type Scaling;
+    protected:
+        Matrix m_jacobi;
+        Vector m_parameter;
+
+        bool rot_only; //calculate only rotations?
         int m_params, m_eqns; //total amount
         int m_param_rot_offset, m_param_trans_offset, m_eqn_offset;   //current positions while creation
 
+    public:
+        MatrixMap Jacobi;
+        VectorMap Parameter;
+        Vector	  Residual;
+
+        number_type Scaling;
+
+        int parameterCount() {
+            return m_params;
+        };
+        int equationCount() {
+            return m_eqns;
+        };
+
+        bool rotationOnly() {
+            return rot_only;
+        };
+
         MappedEquationSystem(int params, int equations)
-            : Jacobi(equations, params),
-              Parameter(params), Residual(equations),
-              m_params(params), m_eqns(equations), Scaling(1.) {
+            : rot_only(false), m_jacobi(equations, params),
+              m_parameter(params), Residual(equations),
+              m_params(params), m_eqns(equations), Scaling(1.),
+              Jacobi(&m_jacobi(0,0),equations,params,DynStride(equations,1)),
+              Parameter(&m_parameter(0),params,DynStride(1,1)) {
 
             m_param_rot_offset = 0;
             m_param_trans_offset = params;
             m_eqn_offset = 0;
 
-            Jacobi.setZero(); //important as some places are never written
+            m_jacobi.setZero(); //important as some places are never written
         };
 
         int setParameterMap(int number, VectorMap& map, ParameterType t = general) {
 
             if(t == rotation) {
-                new(&map) VectorMap(&Parameter(m_param_rot_offset), number, DynStride(1,1));
+                new(&map) VectorMap(&m_parameter(m_param_rot_offset), number, DynStride(1,1));
                 m_param_rot_offset += number;
                 return m_param_rot_offset-number;
             } else {
                 m_param_trans_offset -= number;
-                new(&map) VectorMap(&Parameter(m_param_trans_offset), number, DynStride(1,1));
+                new(&map) VectorMap(&m_parameter(m_param_trans_offset), number, DynStride(1,1));
                 return m_param_trans_offset;
             }
         };
         int setParameterMap(Vector3Map& map, ParameterType t = general) {
 
             if(t == rotation) {
-                new(&map) Vector3Map(&Parameter(m_param_rot_offset));
+                new(&map) Vector3Map(&m_parameter(m_param_rot_offset));
                 m_param_rot_offset += 3;
                 return m_param_rot_offset-3;
             } else {
                 m_param_trans_offset -= 3;
-                new(&map) Vector3Map(&Parameter(m_param_trans_offset));
+                new(&map) Vector3Map(&m_parameter(m_param_trans_offset));
                 return m_param_trans_offset;
             }
         };
@@ -402,15 +424,45 @@ struct Kernel {
             return m_eqn_offset++;
         };
         void setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
-            new(&map) CVectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
+            new(&map) CVectorMap(&m_jacobi(eqn, offset), number, DynStride(0,m_eqns));
         };
         void setJacobiMap(int eqn, int offset, int number, VectorMap& map) {
-            new(&map) VectorMap(&Jacobi(eqn, offset), number, DynStride(0,m_eqns));
+            new(&map) VectorMap(&m_jacobi(eqn, offset), number, DynStride(0,m_eqns));
         };
 
         bool isValid() {
             if(!m_params || !m_eqns) return false;
             return true;
+        };
+
+        void setAccess(ParameterType t) {
+
+            if(t==complete) {
+                new(&Jacobi) VectorMap(&m_jacobi(0,0),m_eqns,m_params,DynStride(m_eqns,1));
+                new(&Parameter) VectorMap(&m_parameter(0),m_params,DynStride(1,1));
+            } else if(t==rotation) {
+                int num = m_param_trans_offset;
+                new(&Jacobi) VectorMap(&m_jacobi(0,0),m_eqns,num,DynStride(m_eqns,1));
+                new(&Parameter) VectorMap(&m_parameter(0),num,DynStride(1,1));
+            } else if(t==general) {
+                int num = m_params - m_param_trans_offset;
+                new(&Jacobi) VectorMap(&m_jacobi(0,m_param_trans_offset),m_eqns,num,DynStride(m_eqns,1));
+                new(&Parameter) VectorMap(&m_parameter(m_param_trans_offset),num,DynStride(1,1));
+            }
+        };
+
+        void setGeneralEquationAccess(bool general) {
+            rot_only = !general;
+        };
+
+        bool hasParameterType(ParameterType t) {
+
+            if(t==rotation)
+                return (m_param_rot_offset>0);
+            else if(t==general)
+                return (m_param_trans_offset<m_params);
+            else
+                return (m_params>0);
         };
 
         virtual void recalculate() = 0;
@@ -446,6 +498,7 @@ struct Kernel {
 }
 
 #endif //GCM_KERNEL_H
+
 
 
 

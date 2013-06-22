@@ -28,7 +28,7 @@ namespace dcm {
 namespace details {
 
 //we need a custom orientation type to allow coincidents with points
-struct ci_orientation : public Equation<ci_orientation, Direction> {
+struct ci_orientation : public Equation<ci_orientation, Direction, true> {
 
     using Equation::operator=;
     ci_orientation() : Equation(parallel) {};
