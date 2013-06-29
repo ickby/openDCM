@@ -27,5 +27,5 @@ if(GENERATE_DOCS)
 ENDIF(GENERATE_DOCS)
 
 
-add_subdirectory(test)
+#add_subdirectory(test)
 add_subdirectory(doc)

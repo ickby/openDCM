@@ -61,18 +61,51 @@ namespace dcm {
 
 namespace details {
 
+/** @addtogroup Core
+ * @{
+ * */
+
+/** @ingroup Metafunctions
+ *
+ * @brief Appends a mpl sequences to another
+ *
+ * Makes two sequence to one by appending all types of the first to the second sequence. The new
+ * mpl sequence can be accessed by the ::type typedef.
+ * Usage: @code vector_fold<Seq1, Seq2>::type @endcode
+ *
+ * @tparam state the mpl sequence which will be expanded
+ * @tparam seq the mpl sequence which will be appended
+ *
+ **/
 template<typename seq, typename state>
 struct vector_fold : mpl::fold< seq, state,
         mpl::push_back<mpl::_1,mpl::_2> > {};
-	
-//also add basic properties for graph algorithms like index and color
+
+//Define vertex and edge properties which are always added for use in the boost graph library algorithms
 typedef mpl::vector2<vertex_index_prop, vertex_color_prop> bgl_v_props;
 typedef mpl::vector2<edge_index_prop, edge_color_prop> bgl_e_props;
 
-	
+
 typedef boost::adjacency_list_traits<boost::listS, boost::listS, boost::undirectedS> list_traits;
+
+
+/**
+ * @brief A type to be used as identifier for vertices and edges
+ *
+ * Vertices and edges need to be identified in a stable(safe/load), unique(over multiple clusters) and
+ * comparable manner. The bgl vertex and edge discriptors don't fullfill this need as they have a direct
+ * relation to the graphs storage. Therefore they change value on moving entitiys to diffrent clusters or
+ * clone actions. This class is used to overcome this problem.
+ **/
 typedef int universalID;
 
+/**
+ * @brief Generator for unique identifiers
+ *
+ * The universalID used to identify vertices and edges globaly need to be unique and therefore can't be
+ * created at good will. This generator creates universalID's in a incremental manner and is intended to
+ * to be shared between all graphs of a system, so that all created ID's are unique.
+ **/
 struct IDgen {
     universalID* counter;
 
@@ -85,19 +118,50 @@ struct IDgen {
     ~IDgen() {
         delete counter;
     };
+    /**
+     * @brief Generates a new unique ID
+     *
+     * @return :details::universalID
+     **/
     universalID generate() {
         return ++(*counter);
     };
+    /**
+     * @brief Returns the amount if generated ID's
+     *
+     * As universalID's are integers the returned count is a ID and can therefore also be used as the last
+     * created ID.
+     *
+     * @return :details::universalID
+     **/
     universalID count() {
         return (*counter);
     };
+    /**
+     * @brief Set the current value for incremental creation
+     *
+     * ID's are created incrementaly and if a specific startingpoint is whised it can be set here by
+     * supplying the last created ID or the amount of totaly created ID's
+     *
+     * @param id The last created ID
+     * @return void
+     **/
     void setCount(universalID id) {
         *counter = id;
     };
 };
 
+/**
+ * @brief Pointer type to share a common ID generator @ref IDgen
+ **/
 typedef boost::shared_ptr<IDgen> IDpointer;
 
+/** @ingroup Functors
+ * @brief Functor to clear vertex or edge objects
+ *
+ * All objects are boost::shared_ptr, therefore they can be cleared by calling the reset() method. As
+ * objects are stored within fusion::sequences a functor is needed to clear all of them.
+ **/
 struct clear_ptr {
     template<typename T>
     void operator()(T& t) const {
@@ -105,17 +169,63 @@ struct clear_ptr {
     };
 };
 
-template<typename T>
+/** @ingroup Metafunctions
+ * @brief Creates a fusion::vector of boost shared_ptr's from the given types
+ *
+ * Creates a shared pointer sequence (sps) of the supplied types by converting them to
+ * boost::shared_ptr's first and creating a fusion::vector of all pointers afterwards which can be
+ * accessed by the type typedef. Usage: @code sps<types>::type @endcode
+ *
+ * @tparam seq the mpl::sequence with the types to convert to shared_ptr's
+ **/
+template<typename seq>
 struct sps { //shared_ptr sequence
-    typedef typename mpl::transform<T, boost::shared_ptr<mpl::_1> >::type spv;
+    typedef typename mpl::transform<seq, boost::shared_ptr<mpl::_1> >::type spv;
     typedef typename fusion::result_of::as_vector<spv>::type type;
 };
 
+/** @} */
+
 }
 
+/** @addtogroup Core
+ * @{
+ * */
+
+/** @name Descriptors */
+/**@{
+ * @brief Identifier for local vertices
+ *
+ * The boost graph library works with identifiers for vertices which directly relate to there storage.
+ * Therefore they can be used only in the relevant cluster, they are local. These are the descriptors
+ * which need to be used for all bgl algorithms.
+ **/
 typedef details::list_traits::vertex_descriptor 	LocalVertex;
+
+/**
+ * @brief Indentifier for local edge
+ *
+ * The boost graph library works with identifiers for edges which directly relate to there storage.
+ * Therefore they can be used only in the relevant cluster, they are local. These are the descriptors
+ * which need to be used for all bgl algorithms.
+ **/
 typedef details::list_traits::edge_descriptor 		LocalEdge;
+
+/**
+ * @brief Identifier for global vertex
+ *
+ * To overcome the locality of the bgl vertex descriptors a global alternative is introduced. This descriptor
+ * is unique over clusters and stable on moves and clones.
+ **/
 typedef details::universalID 				GlobalVertex;
+
+/**
+ * @brief Identifier for global edge
+ *
+ * To overcome the locality of the bgl edge discriptors a global alternative is introduced. This descriptor
+ * is unique over clusters and stable on moves and clones. It holds it's source and target also as global
+ * descriptors of type GlobalVertex and has a unique ID in form of a universalID assigned.
+ **/
 struct 	GlobalEdge {
     GlobalVertex source;
     GlobalVertex target;
@@ -131,33 +241,74 @@ struct 	GlobalEdge {
         return ID>9;
     };
 };
+/**@}*/
 
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
 class ClusterGraph : public boost::adjacency_list< boost::listS, boost::listS,
     boost::undirectedS,
-    fusion::vector< GlobalVertex, 
+    fusion::vector< GlobalVertex,
     typename details::pts<typename details::vector_fold<vertex_prop, details::bgl_v_props>::type>::type,
     typename details::sps<objects>::type>,
     fusion::vector< typename details::pts<typename details::vector_fold<edge_prop, details::bgl_e_props>::type>::type,
     std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > >,
-        public boost::noncopyable, 
-	public boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > {
+public boost::noncopyable,
+    public boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > {
 
 public:
+    /**
+     * @brief mpl::vector with all edge properties
+     *
+     * The edge properties supplied as template argument to the ClusterGraph are extended with graph
+     * specific properties, for example a edge_index_prop. These extra properties are intendet to be
+     * used with boost graph algorithms as property maps
+     **/
     typedef typename details::vector_fold<edge_prop, details::bgl_e_props>::type   edge_properties;
+    /**
+     * @brief mpl::vector with all vertex properties
+     *
+     * The vertex properties supplied as template argument to the ClusterGraph are extended with graph
+     * specific properties, for example a vertex_index_prop. These extra properties are intendet to be
+     * used with boost graph algorithms as property maps
+     **/
     typedef typename details::vector_fold<vertex_prop, details::bgl_v_props>::type vertex_properties;
-    
+
+    /**
+     * @brief The property bundle for GlobalEdges
+     * 
+     * A local edge in a cluster can hold multiple gloabal ones. Therefor we need an extra bundle for
+     * the GlobalEdges. This bundle holds the objects which are added to that global edge and it's identifier.
+     * Note that global edges don't have properties, these are only for local ones.  
+     **/
     typedef fusion::vector< typename details::sps<objects>::type, GlobalEdge > edge_bundle_single;
+    /**
+     * @brief The property bundle for local edges
+     * 
+     * Local edges can hold multiple global ones, we therefore need a std::vector of global edges. As
+     * they are fully described by a edge_bundle_single we store those. Also local edges can have properties,
+     * so store a fusion sequence of them too.
+     **/
     typedef fusion::vector< typename details::pts<edge_properties>::type, std::vector< edge_bundle_single > > edge_bundle;
+    /**
+     * @brief Iteator to access all edge_bundle_single stored in a edge_bundle
+     **/
     typedef typename std::vector< edge_bundle_single >::iterator edge_single_iterator;
+    /**
+     * @brief Property bundle for local vertices
+     * 
+     * This bundle is simpler than the edge one, as every vertex has on single bundle. We therefore
+     * store the global descriptor for identification, the fusion sequence with the properties and
+     * the objects all in one bundle.
+     **/
     typedef fusion::vector< GlobalVertex, typename details::pts<vertex_properties>::type,
             typename details::sps<objects>::type > vertex_bundle;
 
-
+    /**
+     * @brief The adjacency_list type ClusterGraph inherited from
+     **/
     typedef boost::adjacency_list< boost::listS, boost::listS,
             boost::undirectedS, vertex_bundle, edge_bundle > Graph;
-	    
+
     typedef boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > sp_base;
 
     //if changed_prop is not a property we have to add it now
@@ -167,7 +318,7 @@ public:
              typename mpl::end<cluster_prop>::type >,
              typename mpl::push_back<cluster_prop, changed_prop>::type,
              cluster_prop >::type cluster_properties;
-	     
+
     typedef typename details::pts<cluster_properties>::type cluster_bundle;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
@@ -221,7 +372,7 @@ private:
         typedef typename mpl::if_< is_edge_property<prop>, edge_properties, vertex_properties >::type sequence;
         typedef typename mpl::find<sequence, prop>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
-	typedef typename mpl::if_< is_edge_property<prop>, mpl::int_<0>, mpl::int_<1> >::type pos;
+        typedef typename mpl::if_< is_edge_property<prop>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
         template< typename seq>
         result_type operator()(seq& b) const {
@@ -253,20 +404,57 @@ private:
 
 public:
     //iterators
+    /**
+     * @brief Iterator for global edge descriptors \ref GlobalEdge
+     **/
     typedef boost::transform_iterator<global_extractor, edge_single_iterator> global_edge_iterator;
+
+    /**
+     * @brief Iterator for global vertex descriptor \ref GlobalVertex
+     **/
     typedef boost::transform_iterator<global_vertex_extractor, local_vertex_iterator> global_vertex_iterator;
 
+    /**
+     * @brief Iterator for objects of given type
+     *
+     * Allows to iterate over all objects of given type, dereferencing gives the boost::shared_ptr<Obj>
+     *
+     * @tparam Obj the object type to iterate over
+     **/
     template<typename Obj>
     struct object_iterator : public boost::transform_iterator<object_extractor<Obj>, edge_single_iterator> {
         object_iterator(edge_single_iterator it, object_extractor<Obj> f)
             : boost::transform_iterator<object_extractor<Obj>,edge_single_iterator>(it, f) {};
     };
 
+    /**
+     * @brief Iterator for clusters
+     *
+     * Allows to iterate over all subclusters.
+     **/
     typedef typename ClusterMap::iterator cluster_iterator;
+    /**
+     * @brief Const equivalent to \ref cluster_iterator
+     **/
     typedef typename ClusterMap::const_iterator const_cluster_iterator;
 
+    /**
+     * @brief Basic constructor
+     *
+     * This constructor creates a empty cluster with a new ID generator. This is to be used on initial
+     * clustergraph creation, so only for the very first cluster.
+     **/
     ClusterGraph() : m_id(new details::IDgen) {};
-	
+
+    /**
+     * @brief Dependent constructor
+     *
+     * This constructor creates a new cluster, but uses the given cluster as parent. It will therefore
+     * create a tree-like relationship. Be aware, that the new cluster is not added to the parents
+     * subcluster list, that has to be done manualy. The new cluster shares the parents ID generator.
+     *
+     * @param g the parent cluster graph
+     **/
     ClusterGraph(boost::shared_ptr<ClusterGraph> g) : m_parent(g), m_id(new details::IDgen) {
         if(g) m_id = g->m_id;
     };
@@ -287,8 +475,8 @@ public:
     template<typename Functor>
     void copyInto(boost::shared_ptr<ClusterGraph> into, Functor& functor) const {
 
-        //lists does not provide vertex index, so we have to build our own (cant use the internal 
-	//vertex_index_property as we would need to reset the indices and that's not possible in const graph)
+        //lists does not provide vertex index, so we have to build our own (cant use the internal
+        //vertex_index_property as we would need to reset the indices and that's not possible in const graph)
         typedef std::map<LocalVertex, int> IndexMap;
         IndexMap mapIndex;
         boost::associative_property_map<IndexMap> propmapIndex(mapIndex);
@@ -329,29 +517,62 @@ public:
         //lets see if the objects need special treatment
         into->for_each_object(functor, false);
     };
-   
+
+    /**
+     * @brief Compare by adress, not by content
+     * @param other the cluster to compare with
+     * @return bool if this is the same cluster in memory
+     **/
     template<typename T>
     bool operator==(const T& other) const {
         return this == &other;
     };
 
+    /**
+     * @brief Compare by adress, not by content
+     * @param other the cluster to compare with
+     * @return bool if this is the not same cluster in memory
+     **/
     template<typename T>
     bool operator!=(const T& other) const {
         return !(this == &other);
     };
-    
+
+    /**
+     * @brief Set diffrent behaviour for changed markers
+     *
+     * Some methods of the ClusterGraph set it's changed_prop to true. Thats sensible, as they change
+     * the graph. However, there are situations where you want to use the methods but don't want the change
+     * marked. For example recreations while cloning. This method can be used to disable the changed setting.
+     * @param on Turn change markers on or of
+     * @return void
+     **/
     void setCopyMode(bool on) {
-	copy_mode = on;
+        copy_mode = on;
     };
 
+    /**
+     * @brief Mark if the cluster was changed
+     *
+     * @return void
+     **/
     void setChanged() {
         if(!copy_mode)
-	  setClusterProperty<changed_prop>(true);
+            setClusterProperty<changed_prop>(true);
     };
 
     /* *******************************************************
      * Cluster Property
      * *******************************************************/
+    /**
+     * @brief Access a cluster property
+     *
+     * Clusters have a set of properties which are defined by the ClusterGraph template parameters.
+     * This function can be used to access it, and, if wanted, set it, as a reference is returned.
+     *
+     * @tparam P the property type which should be accessed
+     * @return P::type& the strored value of the property as reference
+     **/
     template<typename P>
     typename P::type& getClusterProperty() {
         typedef typename mpl::find<cluster_properties, P>::type iterator;
@@ -359,11 +580,24 @@ public:
         BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<cluster_properties>::type > >));
         return fusion::at<distance>(m_cluster_bundle);
     };
+
+    /**
+     * @brief Set the property of a owned cluster
+     *
+     * Makes it easy to set a property of a subcluster without retrieving it first
+     *
+     * @tparam P the property type which shall be set
+     * @param v the local vertex which describes the subcluster
+     **/
     template<typename P>
     typename P::type& getSubclusterProperty(LocalVertex v) {
         return getVertexCluster(v)->template getClusterProperty<P>();
     };
 
+    /**
+     * @brief Set a value for a specific property
+     * @tparam P the property type which shall be set
+     **/
     template<typename P>
     void setClusterProperty(typename P::type p) {
         getClusterProperty<P>() = p;
@@ -373,6 +607,17 @@ public:
     /* *******************************************************
      * Subclustering
      * *******************************************************/
+
+    /**
+     * @brief Creates a new subcluster
+     *
+     * As clusters can be stacked in a tree like manner, this function can be used to create new
+     * children. It automaticly adds it to the subcluster list and adds it to the graph. The new
+     * subcluster is fully defined by its object and the vertex descriptor which is it's position
+     * in the current cluster.
+     *
+     * @return :pair< boost::shared_ptr< ClusterGraph >, LocalVertex > Subcluster and its descriptor
+     **/
     std::pair<boost::shared_ptr<ClusterGraph>, LocalVertex> createCluster() {
         vertex_bundle vp;
         fusion::at_c<0>(vp) = m_id->generate();
@@ -380,40 +625,110 @@ public:
         return std::pair<boost::shared_ptr<ClusterGraph>, LocalVertex>(m_clusters[v] = boost::shared_ptr<ClusterGraph>(new ClusterGraph(sp_base::shared_from_this())), v);
     };
 
+    /**
+     * @brief Returns the parent cluster
+     *
+     * In the stacked cluster hirarchy most clusters have a parent whcih can be accessed with this function.
+     * However, the toplevel cluster dos nothave a parent and a empty shared_ptr is returned.
+     *
+     * @return :shared_ptr< ClusterGraph > the parent cluster or empty pointer
+     **/
     inline boost::shared_ptr<ClusterGraph> parent() 	{
         return boost::shared_ptr<ClusterGraph>(m_parent);
     };
 
+    /**
+     * @brief const version of \ref parent()
+     *
+     * @return :shared_ptr< ClusterGraph >
+     **/
     inline const boost::shared_ptr<ClusterGraph> parent() const 	{
         return boost::shared_ptr<ClusterGraph>(m_parent);
     };
+
+    /**
+     * @brief Is this the toplevel cluster?
+     *
+     * @return bool if it is
+     **/
     bool isRoot() const {
-		return m_parent.expired();
+        return m_parent.expired();
     };
 
+    /**
+     * @brief Returns the toplevel cluster
+     *
+     * @return :shared_ptr< ClusterGraph >
+     **/
     boost::shared_ptr<ClusterGraph>	 root()		{
         return isRoot() ? sp_base::shared_from_this() : parent()->root();
     };
 
+    /**
+     * @brief const equivalent of \ref root()
+     *
+     * @return :shared_ptr< ClusterGraph >
+     **/
     const boost::shared_ptr<ClusterGraph> root() const    {
         return isRoot() ? sp_base::shared_from_this() : parent()->root();
     };
 
+    /**
+     * @brief Iterators for all subclusters
+     *
+     * A pair with two \ref cluster_iterator is returned which point to the first cluster and
+     * to one after the last. #this allows full iteration over all subclusters
+     *
+     * @return :pair< cluster_iterator, cluster_iterator >
+     **/
     std::pair<cluster_iterator, cluster_iterator> clusters() {
         return std::make_pair(m_clusters.begin(), m_clusters.end());
     }
+
+    /**
+     * @brief const equivalent to \ref clusters()
+     *
+     * @return :pair< const_cluster_iterator, const_cluster_iterator >
+     **/
     std::pair<const_cluster_iterator, const_cluster_iterator> clusters() const {
         return std::make_pair(m_clusters.begin(), m_clusters.end());
     }
 
+    /**
+     * @brief The amount of all subclusters
+     *
+     * @return :size_t
+     **/
     std::size_t numClusters() const {
         return m_clusters.size();
     }
 
+    /**
+     * @brief Check if this vertex is a cluster
+     *
+     * A subcluster is added as normal vertex to the parent cluster. There is no way to distinguish
+     * between clusters and normal vertices with global or local descriptors only. Therefore this
+     * function can be used to get information about the type. If it is a cluster, it can be accessed
+     * with \ref getVertexCluster
+     *
+     * @param v The vertex to be checked
+     * @return bool is cluster or not
+     **/
     bool isCluster(LocalVertex v) {
         return (m_clusters.find(v) != m_clusters.end());
     };
 
+    /**
+     * @brief Get the cluster corresponding the discriptor
+     *
+     * A subcluster is added as normal vertex to the parent cluster. There is no way to access
+     * the clusters object with global or local descriptors only. Therefore this
+     * function can be used to get the object belonging to the descriptor. If the vertex is not
+     * a cluster an empty pointer is returned.
+     *
+     * @param v The vertex for which the cluster is wanted
+     * @return boost::shared_ptr<ClusterGraph> the coresponding cluster orempty pointer
+     **/
     boost::shared_ptr<ClusterGraph> getVertexCluster(LocalVertex v) {
         if(isCluster(v))
             return m_clusters[v];
@@ -421,6 +736,14 @@ public:
         return sp_base::shared_from_this();
     };
 
+    /**
+     * @brief Get the vertex descrptor which descripes the clusters position in the graph
+     *
+     * This function is the inverse to \ref getVertexCluster
+     *
+     * @param g the graph for which the vertex is searched
+     * @return :LocalVertex
+     **/
     LocalVertex	getClusterVertex(boost::shared_ptr<ClusterGraph> g) {
         std::pair<cluster_iterator, cluster_iterator> it = clusters();
         for(; it.first!=it.second; it.first++) {
@@ -430,14 +753,26 @@ public:
         return LocalVertex();
     };
 
+    /**
+     * @brief Convinience function for \ref removeCluster
+     **/
     template<typename Functor>
     void removeCluster(boost::shared_ptr<ClusterGraph> g, Functor& f) {
         removeCluster(getClusterVertex(g), f);
     };
+    /**
+     * @brief Convinience function for \ref removeCluster
+     **/
     void removeCluster(boost::shared_ptr<ClusterGraph> g) {
         placehoder p;
         removeCluster(getClusterVertex(g), p);
     };
+    /**
+     * @brief Delete all subcluster
+     *
+     * @return void
+     **/
+
     void clearClusters() {
         m_clusters.clear();
     };
@@ -513,7 +848,7 @@ public:
     /**
      * @brief Add a vertex to the local cluster
      *
-     * @return fusion:vector< LocalVertex, GlobalVertex > with the local and global vertex descriptor
+     * @return fusion::vector<LocalVertex, GlobalVertex> the local and global vertex descriptor
      **/
     fusion::vector<LocalVertex, GlobalVertex> addVertex() {
 
@@ -525,6 +860,14 @@ public:
         return fusion::make_vector(v, m_id->count());
     };
 
+    /**
+     * @brief Iterators of all global vertices in this cluster
+     *
+     * Returns the iterator for the first global vertex and the end() iterator as reference for
+     * iterating
+     *
+     * @return std::pair< global_vertex_iterator, global_vertex_iterator > global vertex iterators
+     **/
     std::pair<global_vertex_iterator, global_vertex_iterator> globalVertices() {
         std::pair<local_vertex_iterator, local_vertex_iterator> res = boost::vertices(*this);
         global_vertex_iterator begin = boost::make_transform_iterator(res.first, global_vertex_extractor(*this));
@@ -733,11 +1076,11 @@ public:
      * The GlobalVertex has to be in this cluster or any of it's subclusters. If its in a subcluster, the returned
      * LocalVertex will represent this cluster. If the GlobalVertex is not in this clusters scope the function fails.
      *
-     * @param GlobalVertex
+     * @param vertex GlobalVertex for which the local one shall be returned
      * @return std::pair< LocalVertex, bool > The LocalVertex containing the global one and an success indicator
      **/
-    std::pair<LocalVertex,bool> getLocalVertex(GlobalVertex e) {
-        return getContainingVertex(e);
+    std::pair<LocalVertex,bool> getLocalVertex(GlobalVertex vertex) {
+        return getContainingVertex(vertex);
     };
 
     /**
@@ -820,7 +1163,7 @@ private:
     void simpleRemoveEdge(LocalEdge e) {
         boost::remove_edge(e, *this);
     };
-    
+
 
 public:
     /**
@@ -832,6 +1175,7 @@ public:
     * need to make sure it's not, as removing a clustervertex will not delete the coresponding cluster.
     *
     * @param id Local Vertex which should be removed from the graph
+    * @param f functor whose operator(GlobalEdge) is called for every removed edge
     **/
     template<typename Functor>
     void removeVertex(LocalVertex id, Functor& f) {
@@ -851,6 +1195,7 @@ public:
     * needs to implement operato()(LocalEdge edge).
     *
     * @param id Global Vertex which should be removed from the graph
+    * @param f functor whose operator(LocalEdge) is called on every removed edge
     **/
     template<typename Functor>
     void removeVertex(GlobalVertex id, Functor& f) {
@@ -891,6 +1236,7 @@ public:
     * operator()(GlobalEdge). If no functor is needed just use boost::remove_edge.
     *
     * @param id Global Edge which should be removed from the graph
+    * @param f functor whoms operator(GlobalEdge) is called
     * @return bool indicates if the global id could be removed
     **/
     template<typename Functor>
@@ -979,7 +1325,8 @@ public:
     * case, as it can hold many global edges, each with it's own objetcs. Using a LocalEdge as key will
     * always return the object for the first GlobalEdge.
     *
-    * @param local or global Vertex/Edge descriptor for which the object is desired
+    * @tparam Obj the object type which shall be returned
+    * @param k local or global Vertex/Edge descriptor for which the object is desired
     * @return shared_ptr< Obj > the pointer to the desired object
     **/
     template<typename Obj, typename key>
@@ -995,6 +1342,7 @@ public:
      * case, as it can hold many global edges, each with it's own objects. Using a LocalEdge as key will
      * always set the object for the first GlobalEdge.
      *
+     * @tparam Obj the object type which shall be set
      * @param k local or global Vertex/Edge descriptor for which the object should be set
      * @param val the object which should be stored
      * @return void
@@ -1012,6 +1360,7 @@ public:
      * LocalEdge's can hold multiple global ones and the iterators can be used to access a specific object type in
      * all global edges hold by this local edge.
      *
+     * @tparam Obj the object type over which it shall be iterated
      * @param k the LocalEdge over which all Objects should be iterated.
      * @return pair< begin, end > the iterator rang from begin (first element) to end (first undefined element)
      **/
@@ -1032,6 +1381,7 @@ public:
      * search is specified, all subclusters are searched too, but the cluster is passt to the Functor
      * first. So make sure a function overload for clusters exist in this case.
      *
+     * @tparam Obj the object type for which the functor shall be used
      * @param f the functor to which all valid objects get passed to.
      * @param recursive specifies if the subclusters should be searched for objects too
      **/
@@ -1148,7 +1498,8 @@ public:
     * was set before, a default construced will be returned. Accessing the property at a global edge will return
     * the property of the holding local edge.
     *
-    * @param local or global Vertex/Edge descriptor for which the property is desired
+    * @tparam property the property type which shall be returned
+    * @param k local or global Vertex/Edge descriptor for which the property is desired
     * @return property::type& the reference to the desired property
     **/
     template<typename property, typename key>
@@ -1163,6 +1514,7 @@ public:
      * to objects. Setting the property at a local edge is a special case, as it can hold many global edges,
      * each with it's own propertys. Using a LocalEdge as key will always set the property for the first GlobalEdge.
      *
+     * @tparam property the property type which shall be set
      * @param k local or global Vertex/Edge descriptor for which the property should be set
      * @param val the property value which should be stored
      * @return void
@@ -1173,25 +1525,25 @@ public:
 
         setChanged();
     };
-    
+
     /**
      * @brief recreate the internal index maps for edges and vertices
      *
      * Quite many boost graph algorithms need the indices for vertices and edges which are provided by property
-     * maps. As we use list, and not vector, as underlaying storage we don't get that property for free and 
+     * maps. As we use list, and not vector, as underlaying storage we don't get that property for free and
      * need to create it ourself. To ease that procedure the internal property vertex_index_prop and edge_index_prop
      * can be used as property maps and can be initialized by calling this function.
      *
      * @return void
      **/
     void initIndexMaps() {
-      
-	//just iterate over all edges and vertices and give them all a unique index
+
+        //just iterate over all edges and vertices and give them all a unique index
         std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
         for(int c=0; vit.first != vit.second; vit.first++, c++)
             setProperty<vertex_index_prop>(*vit.first, c);
-	
-	std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(*this);
+
+        std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(*this);
         for(int c=0; eit.first != eit.second; eit.first++, c++)
             setProperty<edge_index_prop>(*eit.first, c);
     };
@@ -1424,7 +1776,7 @@ protected:
     boost::weak_ptr<ClusterGraph> m_parent;
     details::IDpointer 	  m_id;
     bool copy_mode; //no changing itself when copying
-    
+
 
     /* Searches the global vertex in all local vertices of this graph, and returns the local
      * one which holds the global vertex. If not successfull the local vertex returned will be
@@ -1466,7 +1818,7 @@ protected:
             return m_clusters[v]->getContainingVertexGraph(id);
         else return fusion::make_vector(v,sp_base::shared_from_this(),true);
     };
-    
+
     /* Searches the global edge in all local edges of this graph, and returns the local
      * one which holds the global edge. If not successfull the local edge returned will be
      * invalid and the bool parameter will be false.
@@ -1554,11 +1906,14 @@ protected:
     };
 
 public:
-	//may hold cluster properties which have Eigen3 objects and therefore need alignment
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    //may hold cluster properties which have Eigen3 objects and therefore need alignment
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-} //namespace solver
+/** @} */
+
+} //namespace dcm
+
 
 #endif // CLUSTERGRAPH_HPP
 

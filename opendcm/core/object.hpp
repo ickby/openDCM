@@ -164,7 +164,7 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     * disconnect the slot by the same boost:function it was connected with.
     *
     * @tparam S the signal type of interest
-    * @param function boost::function with which the slot was connected
+    * @param c connection with which the slot was initialy connected
     * @return void
     **/
     template<typename S>

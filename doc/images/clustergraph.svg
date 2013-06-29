@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="570.70996"
+   height="296.00073"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="clustergraph.svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.5556349"
+     inkscape:cx="279.75091"
+     inkscape:cy="153.57353"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1219"
+     inkscape:window-height="782"
+     inkscape:window-x="59"
+     inkscape:window-y="-3"
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-85.099546,-123.82536)">
+    <path
+       sodipodi:type="arc"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#ffffff;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2987"
+       sodipodi:cx="107.27273"
+       sodipodi:cy="144.18036"
+       sodipodi:rx="21.818182"
+       sodipodi:ry="19.09091"
+       d="m 129.09091,144.18036 c 0,10.54362 -9.76833,19.09091 -21.81818,19.09091 -12.049851,0 -21.818184,-8.54729 -21.818184,-19.09091 0,-10.54362 9.768333,-19.09091 21.818184,-19.09091 12.04985,0 21.81818,8.54729 21.81818,19.09091 z" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#ffffff;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2989"
+       sodipodi:cx="140.45454"
+       sodipodi:cy="153.27127"
+       sodipodi:rx="13.181818"
+       sodipodi:ry="6.3636365"
+       d="m 153.63636,153.27127 c 0,3.51454 -5.9017,6.36364 -13.18182,6.36364 -7.28011,0 -13.18181,-2.8491 -13.18181,-6.36364 0,-3.51454 5.9017,-6.36364 13.18181,-6.36364 7.28012,0 13.18182,2.8491 13.18182,6.36364 z" />
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#ffffff;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2993"
+       sodipodi:cx="163.63637"
+       sodipodi:cy="209.6349"
+       sodipodi:rx="26.363636"
+       sodipodi:ry="30"
+       d="m 190,209.6349 c 0,16.56855 -11.8034,30 -26.36363,30 -14.56024,0 -26.36364,-13.43145 -26.36364,-30 0,-16.56854 11.8034,-30 26.36364,-30 14.56023,0 26.36363,13.43146 26.36363,30 z"
+       transform="translate(42.727273,19.090909)" />
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#000000;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2997"
+       sodipodi:cx="582.27271"
+       sodipodi:cy="250.99855"
+       sodipodi:rx="59.545456"
+       sodipodi:ry="58.636364"
+       d="m 641.81816,250.99855 c 0,32.38397 -26.65941,58.63636 -59.54545,58.63636 -32.88605,0 -59.54546,-26.25239 -59.54546,-58.63636 0,-32.38397 26.65941,-58.63636 59.54546,-58.63636 32.88604,0 59.54545,26.25239 59.54545,58.63636 z"
+       transform="matrix(4.7411485,0,0,2.5031803,-2388.3687,-356.4689)" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3767"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"><flowRegion
+         id="flowRegion3769"><rect
+           id="rect3771"
+           width="208.18182"
+           height="30"
+           x="477.27274"
+           y="99.634911" /></flowRegion><flowPara
+         id="flowPara3773" /></flowRoot>    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="84.964577"
+       y="139.96967"
+       id="text4332"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="84.964577"
+         y="139.96967"
+         id="tspan4334"><tspan
+           x="84.964577"
+           y="139.96967"
+           id="tspan4336">ClusterGraph</tspan></tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 200.1524,207.58143 298.69976,-5.41154"
+       id="path4033"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 214.36698,227.26282 280.7631,-3.67215"
+       id="path4033-6"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;stroke:#20f742;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:2, 1;stroke-dashoffset:0"
+       d="M 206.08399,213.88171 495.96913,209.4155"
+       id="path4053"
+       inkscape:connector-curvature="0" />
+    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;stroke:#f0ba18;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:2, 1;stroke-dashoffset:0"
+       d="m 212.20355,221.16078 283.49084,-5.08227"
+       id="path4055"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#f51616;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:2, 1;stroke-dashoffset:0"
+       d="m 192.20447,288.04404 113.13708,59.13984"
+       id="path4232"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <g
+       id="g5033"
+       transform="matrix(0.99934377,-0.03622199,0.03622199,0.99934377,-37.372164,14.012961)"
+       inkscape:transform-center-x="67.98718"
+       inkscape:transform-center-y="-83.983004">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4228"
+         d="M 564.47534,277.97439 428.01781,361.27611"
+         style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         sodipodi:nodetypes="cc" />
+      <path
+         inkscape:connector-curvature="0"
+         id="path4230"
+         d="M 545.97076,269.30202 427.15337,342.86727"
+         style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         sodipodi:nodetypes="cc" />
+      <path
+         inkscape:connector-curvature="0"
+         id="path4234"
+         d="M 552.88056,273.81812 427.7454,352.09688"
+         style="fill:none;stroke:#1d15f1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:2, 1;stroke-dashoffset:0"
+         sodipodi:nodetypes="cc" />
+    </g>
+    <g
+       id="g4739"
+       transform="translate(1.2806759e-7,3.2141227)">
+      <path
+         transform="matrix(1.3377263,0,0,1.4492475,253.82079,-106.28974)"
+         d="m 254.54545,224.6349 c 0,18.82789 -16.68757,34.09091 -37.27273,34.09091 -20.58516,0 -37.27273,-15.26302 -37.27273,-34.09091 0,-18.82789 16.68757,-34.09091 37.27273,-34.09091 20.58516,0 37.27273,15.26302 37.27273,34.09091 z"
+         sodipodi:ry="34.090908"
+         sodipodi:rx="37.272728"
+         sodipodi:cy="224.6349"
+         sodipodi:cx="217.27272"
+         id="path3793-7"
+         style="fill:none;stroke:#000000;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4715"
+         y="205.58621"
+         x="514.63257"
+         style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4717"
+           y="205.58621"
+           x="514.63257"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 8.9140625"
+             id="tspan4719"
+             style="font-size:14px;text-align:start;text-anchor:start"
+             y="205.58621"
+             x="514.63257">Vertex 3</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4723"
+           y="219.09921"
+           x="500.30008"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4.1210938"
+             id="tspan4725"
+             style="font-size:10px;text-align:start;text-anchor:start"
+             x="500.30008">Global Descriptor</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4735"
+           y="231.59921"
+           x="514.63257"
+           sodipodi:role="line" /></text>
+    </g>
+    <g
+       transform="translate(-190.27601,137.5644)"
+       id="g4739-2">
+      <path
+         transform="matrix(1.3377263,0,0,1.4492475,253.82079,-106.28974)"
+         d="m 254.54545,224.6349 c 0,18.82789 -16.68757,34.09091 -37.27273,34.09091 -20.58516,0 -37.27273,-15.26302 -37.27273,-34.09091 0,-18.82789 16.68757,-34.09091 37.27273,-34.09091 20.58516,0 37.27273,15.26302 37.27273,34.09091 z"
+         sodipodi:ry="34.090908"
+         sodipodi:rx="37.272728"
+         sodipodi:cy="224.6349"
+         sodipodi:cx="217.27272"
+         id="path3793-7-3"
+         style="fill:none;stroke:#000000;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4715-5"
+         y="205.58621"
+         x="514.63257"
+         style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4717-0"
+           y="205.58621"
+           x="514.63257"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 8.9140625"
+             id="tspan4719-8"
+             style="font-size:14px;text-align:start;text-anchor:start"
+             y="205.58621"
+             x="514.63257">Vertex 2</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4723-2"
+           y="219.09921"
+           x="500.30008"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4.1210938"
+             id="tspan4725-3"
+             style="font-size:10px;text-align:start;text-anchor:start"
+             x="500.30008">Global Descriptor</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4735-3"
+           y="231.59921"
+           x="514.63257"
+           sodipodi:role="line" /></text>
+    </g>
+    <g
+       transform="translate(-375.40942,26.355796)"
+       id="g4739-3">
+      <path
+         transform="matrix(1.3377263,0,0,1.4492475,253.82079,-106.28974)"
+         d="m 254.54545,224.6349 c 0,18.82789 -16.68757,34.09091 -37.27273,34.09091 -20.58516,0 -37.27273,-15.26302 -37.27273,-34.09091 0,-18.82789 16.68757,-34.09091 37.27273,-34.09091 20.58516,0 37.27273,15.26302 37.27273,34.09091 z"
+         sodipodi:ry="34.090908"
+         sodipodi:rx="37.272728"
+         sodipodi:cy="224.6349"
+         sodipodi:cx="217.27272"
+         id="path3793-7-2"
+         style="fill:none;stroke:#000000;stroke-width:0.70999998;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4715-4"
+         y="205.58621"
+         x="514.63257"
+         style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4717-6"
+           y="205.58621"
+           x="514.63257"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 8.9140625"
+             id="tspan4719-4"
+             style="font-size:14px;text-align:start;text-anchor:start"
+             y="205.58621"
+             x="514.63257">Vertex 1</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4723-5"
+           y="219.09921"
+           x="500.30008"
+           sodipodi:role="line"><tspan
+             dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4.1210938"
+             id="tspan4725-6"
+             style="font-size:10px;text-align:start;text-anchor:start"
+             x="500.30008">Global Descriptor</tspan></tspan><tspan
+           style="text-align:start;text-anchor:start"
+           id="tspan4735-4"
+           y="231.59921"
+           x="514.63257"
+           sodipodi:role="line" /></text>
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="409.93448"
+       y="178.58133"
+       id="text4838"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="362.56143"
+         y="178.58133"
+         id="tspan4840"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="362.56143"
+           y="178.58133"
+           style="font-size:14px;text-align:center;text-anchor:middle"
+           id="tspan4842"
+           dx="0 0 0 0 0 0 8.9140625">Edge 1</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="362.56143"
+         y="192.09433"
+         id="tspan4852"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="362.56143"
+           style="font-size:10px;text-align:center;text-anchor:middle"
+           id="tspan4854">Global Edge Vector</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="555.57123"
+       y="326.24203"
+       id="text4838-2"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="508.19815"
+         y="326.24203"
+         id="tspan4840-2"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="508.19815"
+           y="326.24203"
+           style="font-size:14px;text-align:center;text-anchor:middle"
+           id="tspan4842-4"
+           dx="0 0 0 0 0 0 8.9140625">Edge 3</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="508.19815"
+         y="339.75504"
+         id="tspan4852-2"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="508.19815"
+           style="font-size:10px;text-align:center;text-anchor:middle"
+           id="tspan4854-0">Global Edge Vector</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#17e825;fill-opacity:1;stroke:none;font-family:Sans"
+       x="322.01105"
+       y="246.66216"
+       id="text4941"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="280.90955"
+         y="246.66216"
+         id="tspan4943"
+         style="text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"><tspan
+           x="280.90955"
+           y="246.66216"
+           style="font-size:12px;text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"
+           id="tspan4945"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 7.640625">Global Edge 1</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="280.90955"
+         y="257.67517"
+         id="tspan4949"
+         style="text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"><tspan
+           x="280.90955"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"
+           id="tspan4951"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.296875">Global Descriptor</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="280.90955"
+         y="257.67517"
+         id="tspan4955"
+         style="text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"><tspan
+           x="280.90955"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#17e825;fill-opacity:1"
+           id="tspan4957" /></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#f8af13;fill-opacity:1;stroke:none;font-family:Sans"
+       x="463.72842"
+       y="242.05179"
+       id="text4941-2"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="422.62686"
+         y="242.05179"
+         id="tspan4943-2"
+         style="text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"><tspan
+           x="422.62686"
+           y="242.05179"
+           style="font-size:12px;text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"
+           id="tspan4945-5"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 7.640625">Global Edge 2</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="422.62686"
+         y="253.06479"
+         id="tspan4949-8"
+         style="text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"><tspan
+           x="422.62686"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"
+           id="tspan4951-4"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.296875">Global Descriptor</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="422.62686"
+         y="253.06479"
+         id="tspan4955-9"
+         style="text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"><tspan
+           x="422.62686"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#f8af13;fill-opacity:1"
+           id="tspan4957-6" /></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#df1008;fill-opacity:1;stroke:none;font-family:Sans"
+       x="322.80685"
+       y="292.83496"
+       id="text4941-0"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="281.70529"
+         y="292.83496"
+         id="tspan4943-5"
+         style="text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"><tspan
+           x="281.70529"
+           y="292.83496"
+           style="font-size:12px;text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"
+           id="tspan4945-4"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 7.640625">Global Edge 3</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="281.70529"
+         y="303.84796"
+         id="tspan4949-0"
+         style="text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"><tspan
+           x="281.70529"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"
+           id="tspan4951-7"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.296875">Global Descriptor</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="281.70529"
+         y="303.84796"
+         id="tspan4955-8"
+         style="text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"><tspan
+           x="281.70529"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#df1008;fill-opacity:1"
+           id="tspan4957-61" /></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#0c17e7;fill-opacity:1;stroke:none;font-family:Sans"
+       x="459.15714"
+       y="289.62082"
+       id="text4941-02"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="418.05557"
+         y="289.62082"
+         id="tspan4943-27"
+         style="text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"><tspan
+           x="418.05557"
+           y="289.62082"
+           style="font-size:12px;text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"
+           id="tspan4945-44"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 7.640625">Global Edge 4</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="418.05557"
+         y="300.63382"
+         id="tspan4949-09"
+         style="text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"><tspan
+           x="418.05557"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"
+           id="tspan4951-6"
+           dx="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.296875">Global Descriptor</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="418.05557"
+         y="300.63382"
+         id="tspan4955-7"
+         style="text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"><tspan
+           x="418.05557"
+           style="font-size:8px;text-align:center;text-anchor:middle;fill:#0c17e7;fill-opacity:1"
+           id="tspan4957-9" /></tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 183.84777,292.5438 120.85097,63.63961"
+       id="path3173"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 200.5612,282.90143 107.99449,55.2829"
+       id="path3175"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:5px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="254.72948"
+       y="345.34851"
+       id="text4838-2-0"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="207.3564"
+         y="345.34851"
+         id="tspan4840-2-1"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="207.3564"
+           y="345.34851"
+           style="font-size:14px;text-align:center;text-anchor:middle"
+           id="tspan4842-4-3"
+           dx="0 0 0 0 0 0 8.9140625">Edge 2</tspan></tspan><tspan
+         sodipodi:role="line"
+         x="207.3564"
+         y="358.86151"
+         id="tspan4852-2-5"
+         style="text-align:center;text-anchor:middle"><tspan
+           x="207.3564"
+           style="font-size:10px;text-align:center;text-anchor:middle"
+           id="tspan4854-0-2">Global Edge Vector</tspan></tspan></text>
+  </g>
+</svg>
