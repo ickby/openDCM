@@ -34,7 +34,7 @@ set(test_SRC  define.cpp
 	      module3d.cpp
 	      dof.cpp
 	      modulepart.cpp
-	      ${state_SRC}	      
+	      #${state_SRC}	      
 )
 
 if(LOGGING)
@@ -43,6 +43,7 @@ set(log_LIB   boost_log
 	      ${Boost_SYSTEM_LIBRARY}
 	      ${Boost_FILESYSTEM_LIBRARY}
 	      ${Boost_THREAD_LIBRARY}
+	      pthread
 )
 endif(LOGGING)
 

@@ -59,13 +59,16 @@ namespace fusion = boost::fusion;
 
 namespace dcm {
 
-namespace details {
-
 /** @addtogroup Core
  * @{
  * */
 
-/** @ingroup Metafunctions
+/** @addtogroup ClusterGraph
+ * @{*/
+
+namespace details {
+
+/** @addtogroup Metafunctions
  *
  * @brief Appends a mpl sequences to another
  *
@@ -184,13 +187,7 @@ struct sps { //shared_ptr sequence
     typedef typename fusion::result_of::as_vector<spv>::type type;
 };
 
-/** @} */
-
 }
-
-/** @addtogroup Core
- * @{
- * */
 
 /** @name Descriptors */
 /**@{
@@ -244,6 +241,20 @@ struct 	GlobalEdge {
 /**@}*/
 
 
+/** 
+ * @brief A graph that can be stacked in a tree-like manner without loosing it connections
+ * 
+ * This is basicly a boost adjacency_list with single linked lists 'listS' as storage for vertices and 
+ * edges. The edges are undirected. This allows to use all boost graph algorithms and provides therefore
+ * an comprehensive way for analysing and manipulating its content. It further extends the class with the
+ * possibility to cluster its content and to add properties and objects to all entitys. For more 
+ * information, see the module ClusterGraph
+ * 
+ * @tparam edge_prop a mpl::vector with properties which are added to local edges
+ * @tparam vertex_prop a mpl::vector with properties which are added to vertices
+ * @tparam cluster_prop a mpl::vector with properties which are added to all clusters
+ * @tparam objects a mpl::vector with all object types which shall be stored at vertices and edges
+ **/
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
 class ClusterGraph : public boost::adjacency_list< boost::listS, boost::listS,
     boost::undirectedS,
@@ -1910,6 +1921,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+/** @} */
 /** @} */
 
 } //namespace dcm

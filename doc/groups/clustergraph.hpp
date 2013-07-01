@@ -1,18 +1,35 @@
+/*
+    openDCM, dimensional constraint manager
+    Copyright (C) 2013  Stefan Troeger <stefantroeger@gmx.net>
+
+    This library is free software; you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2.1 of the License, or
+    (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License along
+    with this library; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
+
 /** @addtogroup Core
- * @{
- * @class dcm::ClusterGraph
- * @brief A graph that can be stacked in a tree-like manner without loosing it connections
- * 
- * @tparam edge_prop a mpl::vector with properties which are added to local edges
- * @tparam vertex_prop a mpl::vector with properties which are added to vertices
- * @tparam cluster_prop a mpl::vector with properties which are added to all clusters
- * @tparam objects a mpl::vector with all object types which shall be stored at vertices and edges
+ * @{*/
+
+/** @defgroup ClusterGraph Custom Graph
  *
+ * @brief A custom graph class based on boost::adjacency_list with support for 'clustering' and property
+ * and object support.
+ * 
  * \section graph Intruducing the ClusterGraph
  * 
- * This is basicly a boost adjacency_list with single linked lists 'listS' as storage for vertices and 
- * edges. The edges are undirected. This allows to use all boost graph algorithms and provides therefore
- * an comprehensive way for analysing and manipulating it content. 
+ * To allow advanced processing of a given geometric constellation a modell is needed which holds all the
+ * information in a accessible manner and allows fast and complex interaction. A graph is perfectöy suited 
+ * for such a task and therefore used to represent the users geometric problem.
  * 
  * In the scope of this library vertices are used as geometry and edges as the constraint's between them.
  * This gives an abstract representation of the given dimensional constraint problem and alows further 
@@ -65,7 +82,7 @@
  * diffrent graphs? And if the new graph is a vertex in the original one now, how could the edges connect to the original
  * vertices? Simple: we have a local edge between vertex 1 and the new cluster vertex, so we can stack all global edges 
  * inside the local one! Not that obvious? Take a look here:
- * \image html suclustergraph.svg Clustergraph with vertex 1 and 2 in a subcluster
+ * \image html subclustergraph.svg Clustergraph with vertex 1 and 2 in a subcluster
  * Thats the single reason we introduced the stacked local edges in the first place, to allow a arbitrary number of
  * global ones be stored in such a way, that a local analysy only sees one local edge. So in the local point of view,
  * the shown graph has two vertices and one edge connecting it.Thats what the boost algorithms see. In the global 
@@ -77,8 +94,7 @@
  * \subsection properties Adding propeties and objects
  * 
  * 
- * 
- * @}
- **
- * /
+ *@}/
+
+/**@}*/
 
