@@ -51,7 +51,28 @@ namespace dcm {
  * no matter what or how much data is stored.
  * 
  * The connection of data type and identifier is achieved through the property structs, which all follow
- * the same concept: Identifier is the struct type, the stored data is exposed as 'type' typedef. 
+ * the same concept: Identifier is the struct type, the stored data is exposed as 'type' typedef. The data 
+ * type can be every c++ type (including classes and structs) which is default constructable. They don't need
+ * to be assignable or copyable by default, thats only nesseccary if you want to change the hole stored 
+ * object by assigning or set-methods. If not, the data object can be uncopyable and it should be used by 
+ * retrieving it's reference with get-methods.
+ * 
+ * Propertys are further designed to fit in the concept of compile-time modularisation. To allow the extension 
+ * of all data-holding entitys with new data types, propertys store their own purpose. Thats 
+ * done by extending the property struct with a second typedef which is named kind and which specifies of which
+ * kind the property is. That means, that this typedef defines when the property shall be used and for which 
+ * context it is designed for. Dependend on the propertys kind, it will be added to diffrent places inside the dcm.
+ * A property of kind @ref vertex_property will added to vertices, a property of kind @ref object_property to all
+ * objects and so on. A property implementation for storing integers at a graph edge with the identifier
+ * 'test'property' may look like that:
+ * @code 
+ * struct test_property {
+ * 	typedef int type;
+ * 	typedef edge_property kind;
+ * }
+ * @endcode
+ * 
+ * 
  * 
  * @{ */
 

@@ -69,7 +69,9 @@ namespace dcm {
 namespace details {
 
 /** @addtogroup Metafunctions
- *
+ * @{*/
+  
+/** 
  * @brief Appends a mpl sequences to another
  *
  * Makes two sequence to one by appending all types of the first to the second sequence. The new
@@ -78,11 +80,26 @@ namespace details {
  *
  * @tparam state the mpl sequence which will be expanded
  * @tparam seq the mpl sequence which will be appended
- *
  **/
 template<typename seq, typename state>
 struct vector_fold : mpl::fold< seq, state,
         mpl::push_back<mpl::_1,mpl::_2> > {};
+	
+/** 
+ * @brief Creates a fusion::vector of boost shared_ptr's from the given types
+ *
+ * Creates a shared pointer sequence (sps) of the supplied types by converting them to
+ * boost::shared_ptr's first and creating a fusion::vector of all pointers afterwards which can be
+ * accessed by the type typedef. Usage: @code sps<types>::type @endcode
+ *
+ * @tparam seq the mpl::sequence with the types to convert to shared_ptr's
+ **/
+template<typename seq>
+struct sps { //shared_ptr sequence
+    typedef typename mpl::transform<seq, boost::shared_ptr<mpl::_1> >::type spv;
+    typedef typename fusion::result_of::as_vector<spv>::type type;
+};
+/**@}*/
 
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 typedef mpl::vector2<vertex_index_prop, vertex_color_prop> bgl_v_props;
@@ -170,21 +187,6 @@ struct clear_ptr {
     void operator()(T& t) const {
         t.reset();
     };
-};
-
-/** @ingroup Metafunctions
- * @brief Creates a fusion::vector of boost shared_ptr's from the given types
- *
- * Creates a shared pointer sequence (sps) of the supplied types by converting them to
- * boost::shared_ptr's first and creating a fusion::vector of all pointers afterwards which can be
- * accessed by the type typedef. Usage: @code sps<types>::type @endcode
- *
- * @tparam seq the mpl::sequence with the types to convert to shared_ptr's
- **/
-template<typename seq>
-struct sps { //shared_ptr sequence
-    typedef typename mpl::transform<seq, boost::shared_ptr<mpl::_1> >::type spv;
-    typedef typename fusion::result_of::as_vector<spv>::type type;
 };
 
 }
