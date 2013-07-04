@@ -83,6 +83,13 @@ namespace fusion = boost::fusion;
     };
 
 namespace dcm {
+  
+  /** @defgroup Objects Objects
+   * 
+   * @brief Concept and functionality of the dcm objects
+   * 
+   * 
+   **/
 
 //few standart signal names
 struct remove {};

@@ -72,8 +72,6 @@ namespace dcm {
  * }
  * @endcode
  * 
- * 
- * 
  * @{ */
 
 /**

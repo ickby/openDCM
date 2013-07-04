@@ -93,6 +93,20 @@
  * 
  * \subsection properties Adding propeties and objects
  * 
+ * It is possible to at data to the ClusterGraph's entitys by attatching multiple \ref Property 's to them. This includes 
+ * local edges, local vertices and clusters. The vertex and edge properties are intended to be used in boost graph algorithms and 
+ * shall be used in combination with the \ref property_map interface. They allow to store algorithmic information  at a
+ * convienient place for later evaluation. Global edges don't have properties as they are not used in boost 
+ * algorithms. It's also possible to add properties to a hole clustergraph. This is needed to give the subclusters
+ * a meaning of some kind. With attached properties it's possible to differentiate diffrent use cases and distuingish
+ * the relevant cluster.
+ * 
+ * To add properties to the three possible places they need to be passed as mpl::vectors in the appropriate template
+ * parameter of the ClusterGraph. The Property kind is ignored by the graph and assignment to edges, vertices or cluster
+ * is only based on the template parameter order. However, it's important that the parameters are mpl::vector's and that
+ * every type in it is a property as describet in \ref Property .
+ * 
+ * 
  * 
  *@}/
 
