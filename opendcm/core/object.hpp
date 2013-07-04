@@ -63,7 +63,7 @@ namespace fusion = boost::fusion;
     void emitSignal( \
                      BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                    );
-    
+
 #define EMIT_CALL_DEC(z, n, data) \
     template<typename Sys, typename Derived, typename Sig> \
     template < \
@@ -71,8 +71,8 @@ namespace fusion = boost::fusion;
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
     void Object<Sys, Derived, Sig>::emitSignal( \
-                     BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
-                   ) \
+            BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
+                                              ) \
     { \
         typedef typename mpl::find<sig_name, S>::type iterator; \
         typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
@@ -83,13 +83,13 @@ namespace fusion = boost::fusion;
     };
 
 namespace dcm {
-  
-  /** @defgroup Objects Objects
-   * 
-   * @brief Concept and functionality of the dcm objects
-   * 
-   * 
-   **/
+
+/** @defgroup Objects Objects
+ *
+ * @brief Concept and functionality of the dcm objects
+ *
+ *
+ **/
 
 //few standart signal names
 struct remove {};
@@ -110,7 +110,8 @@ typedef boost::any Connection;
  * \tparam Sig a mpl::map specifing the object's signals by (type -  boost::function) pairs
  **/
 template<typename Sys, typename Derived, typename Sig>
-struct Object : public boost::enable_shared_from_this<Derived> {
+struct Object : public PropertyOwner<typename mpl::at<typename Sys::object_properties, Derived>::type>,
+        boost::enable_shared_from_this<Derived> {
 
     Object() {};
     Object(Sys& system);
@@ -126,29 +127,6 @@ struct Object : public boost::enable_shared_from_this<Derived> {
       * @return Prop::type& a reference to the properties actual value.
       **/
     virtual boost::shared_ptr<Derived> clone(Sys& newSys);
-
-    /**
-      * @brief Access properties
-      *
-      * Returns a reference to the propertys actual value. The property type has to be registerd to the
-      * System type which was given as template parameter to this object.
-      * @tparam Prop property type which should be accessed
-      * @return Prop::type& a reference to the properties actual value.
-      **/
-    template<typename Prop>
-    typename Prop::type& getProperty();
-
-    /**
-       * @brief Set properties
-       *
-       * Set'S the value of a specified property. The property type has to be registerd to the
-       * System type which was given as template parameter to this object. Note that setProperty(value)
-       * is equivalent to getProperty() = value.
-       * @tparam Prop property type which should be setProperty
-       * @param value value of type Prop::type which should be set in this object
-       **/
-    template<typename Prop>
-    void setProperty(typename Prop::type value);
 
     /**
      * @brief Connects a slot to a specified signal.
@@ -177,16 +155,6 @@ struct Object : public boost::enable_shared_from_this<Derived> {
     template<typename S>
     void disconnectSignal(Connection c);
 
-    /*properties
-     * search the property map of the system class and get the mpl::vector of properties for the
-     * derived type. It's imortant to not store the properties but their types. These types are
-     * stored and accessed as fusion vector.
-     * */
-    typedef typename mpl::at<typename Sys::object_properties, Derived>::type Mapped;
-    typedef typename mpl::if_< boost::is_same<Mapped, mpl::void_ >, mpl::vector0<>, Mapped>::type Sequence;
-    typedef typename details::pts<Sequence>::type Properties;
-
-    Properties m_properties;
     Sys* m_system;
 
 protected:
@@ -226,24 +194,6 @@ boost::shared_ptr<Derived> Object<Sys, Derived, Sig>::clone(Sys& newSys) {
     boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
     np->m_system = &newSys;
     return np;
-};
-
-template<typename Sys, typename Derived, typename Sig>
-template<typename Prop>
-typename Prop::type& Object<Sys, Derived, Sig>::getProperty() {
-    typedef typename mpl::find<Sequence, Prop>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<Sequence>::type, iterator>::type distance;
-    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<Sequence>::type > >));
-    return fusion::at<distance>(m_properties);
-};
-
-template<typename Sys, typename Derived, typename Sig>
-template<typename Prop>
-void Object<Sys, Derived, Sig>::setProperty(typename Prop::type value) {
-    typedef typename mpl::find<Sequence, Prop>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<Sequence>::type, iterator>::type distance;
-    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<Sequence>::type > >));
-    fusion::at<distance>(m_properties) = value;
 };
 
 template<typename Sys, typename Derived, typename Sig>

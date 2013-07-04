@@ -27,8 +27,11 @@
 #include <boost/fusion/container/vector.hpp>
 
 #include <boost/mpl/find.hpp>
+#include <boost/mpl/void.hpp>
+
 #include <boost/type_traits/is_same.hpp>
 #include <boost/property_map/property_map.hpp>
+#include "kernel.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -72,7 +75,18 @@ namespace dcm {
  * }
  * @endcode
  * 
+ * If you want to use properties in you class you should derive from PropertyOwner class, as it doas all the
+ * hanling needed and gives you get and set functions which work with the designed identifiers.
+ * 
  * @{ */
+
+/**
+ * @brief Exeption for property errors
+ * 
+ * This exception is thrown when a property related error is detected, for example if a objects is ask for a
+ * property which it does not own. This exceptions own the error-code range from 300-399.
+ **/
+struct property_error : virtual boost::exception { };
 
 /**
  * @brief Identifier for vertex properties
@@ -252,6 +266,87 @@ public:
     boost::shared_ptr<Graph> m_graph;
 };
 
+/**
+ * @brief Parent class for all property holding classes in the dcm
+ * 
+ * To ease the work with properties this class is provided. It receives all the properties, which shall be
+ * handled, in a mpl::vector typelist as its template argument. Than easy access to all properties by get
+ * and set functions is achieved.
+ * 
+ **/
+template<typename PropertyList>
+struct PropertyOwner {
+      /**
+      * @brief Access properties
+      *
+      * Returns a reference to the propertys actual value. The property type has to be owned by this class,
+      * which means it needs to be in the typelist that was given as template parameter to this class.
+      * @tparam Prop property type which should be accessed
+      * @return Prop::type& a reference to the properties actual value.
+      **/
+    template<typename Prop>
+    typename Prop::type& getProperty();
+
+    /**
+       * @brief Set properties
+       *
+       * Sets the value of a specified property. The property type has to be owned by this class,
+       * which means it needs to be in the typelist that was given as template parameter to this class. 
+       * Note that setProperty(value) is equivalent to getProperty() = value.
+       * @tparam Prop property type which should be setProperty
+       * @param value value of type Prop::type which should be set in this object
+       **/
+    template<typename Prop>
+    void setProperty(typename Prop::type value); 
+    
+protected:
+    /* It's imortant to not store the properties but their types. These types are
+     * stored and accessed as fusion vector.
+     * */
+    typedef typename details::pts<PropertyList>::type Properties;
+
+    Properties m_properties;
+};
+
+/**
+ * @brief Convienience spezialisation to ease interaction with system class
+ * 
+ * Normaly property lists are retrieved from the system class, however, there are no empty lists. If no
+ * property is supplied for a PropertyOwner derived class, a mpl::void_ type will be retrieved. To 
+ * remove the burdon of checking for that type in the class definition this spezialisation is supplied.
+ **/
+template<>
+struct PropertyOwner<mpl::void_> {
+    template<typename Prop>
+    typename Prop::type& getProperty() {
+	throw property_error() <<  boost::errinfo_errno(300) << error_message("unknown property type");
+    };
+    
+    template<typename Prop>
+    void setProperty(typename Prop::type value) {
+	throw property_error() <<  boost::errinfo_errno(300) << error_message("unknown property type");
+    };
+};
+
+template<typename PropertyList>
+template<typename Prop>
+typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    return fusion::at<distance>(m_properties);
+};
+
+template<typename PropertyList>
+template<typename Prop>
+void PropertyOwner<PropertyList>::setProperty(typename Prop::type value) {
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    fusion::at<distance>(m_properties) = value;
+};
+
+
 
 //now create some standart properties
 //***********************************
@@ -321,8 +416,8 @@ struct id_prop {
     typedef T type;
 };
 
-/**@}*/ 
-/**{*/
+/**@}*/ //Property
+/**@}*/ //Core
 }
 
 namespace boost {
