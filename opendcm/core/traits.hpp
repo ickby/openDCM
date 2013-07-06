@@ -46,7 +46,7 @@ struct system_traits {
         typedef typename mpl::if_< boost::is_base_of<M, test1>, test1, typename T::Type3 >::type test2;
         typedef typename mpl::if_< boost::is_base_of<M, test2>, test2, mpl::void_ >::type type;
 
-        typedef boost::is_same<type, mpl::void_> has_module;
+        typedef mpl::not_<boost::is_same<type, mpl::void_> > has_module;
     };
 };
 
