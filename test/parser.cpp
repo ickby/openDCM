@@ -65,12 +65,12 @@ BOOST_AUTO_TEST_CASE(parser_seperate) {
     //test property vector
     std::stringstream s2;
     dcm::details::cluster_prop_gen<System> gram2;
-    System::Cluster::cluster_bundle bundle;
+    System::Cluster::Properties bundle;
     fusion::at_c<0>(bundle) = false;
     fusion::at_c<1>(bundle) = 15;
     generate(s2, bundle, gram2);
 
-    System::Cluster::cluster_bundle bundle2;
+    System::Cluster::Properties bundle2;
     dcm::details::cluster_prop_par<System> pars2;
     parse(s2, bundle2, pars2);
 
@@ -117,19 +117,19 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     scl2->setProperty<TestModule1::type<System>::test_vertex1_prop>(fusion::at_c<0>(res6), 6);
     scl1->setProperty<TestModule1::type<System>::test_edge1_prop>(e4, 7);
 
-    sys.m_cluster->setClusterProperty<dcm::type_prop>(5);
-    sys.m_cluster->setClusterProperty<dcm::changed_prop>(false);
-    scl1->setClusterProperty<dcm::type_prop>(2);
-    scl1->setClusterProperty<dcm::changed_prop>(false);
-    scl2->setClusterProperty<dcm::type_prop>(7);
-    scl2->setClusterProperty<dcm::changed_prop>(true);
+    sys.m_cluster->setProperty<dcm::type_prop>(5);
+    sys.m_cluster->setProperty<dcm::changed_prop>(false);
+    scl1->setProperty<dcm::type_prop>(2);
+    scl1->setProperty<dcm::changed_prop>(false);
+    scl2->setProperty<dcm::type_prop>(7);
+    scl2->setProperty<dcm::changed_prop>(true);
 
     std::stringstream s;
     sys.saveState(s);
 
     //change main graphs property as this is not reset
-    sys.m_cluster->setClusterProperty<dcm::type_prop>(2);
-    sys.m_cluster->setClusterProperty<dcm::changed_prop>(false);
+    sys.m_cluster->setProperty<dcm::type_prop>(2);
+    sys.m_cluster->setProperty<dcm::changed_prop>(false);
 
     //load the state
     sys.loadState(s);
@@ -145,12 +145,12 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     boost::shared_ptr<System::Cluster> nscl1 = (*(it.first)).second;
     boost::shared_ptr<System::Cluster> nscl2 = (*(++it.first)).second;
     
-    BOOST_CHECK(sys.m_cluster->getClusterProperty<dcm::type_prop>() == 5);
-    BOOST_CHECK(!sys.m_cluster->getClusterProperty<dcm::changed_prop>());
-    BOOST_CHECK(nscl1->getClusterProperty<dcm::type_prop>() == 2);
-    BOOST_CHECK(!nscl1->getClusterProperty<dcm::changed_prop>());
-    BOOST_CHECK(nscl2->getClusterProperty<dcm::type_prop>() == 7);
-    BOOST_CHECK(nscl2->getClusterProperty<dcm::changed_prop>());
+    BOOST_CHECK(sys.m_cluster->getProperty<dcm::type_prop>() == 5);
+    BOOST_CHECK(!sys.m_cluster->getProperty<dcm::changed_prop>());
+    BOOST_CHECK(nscl1->getProperty<dcm::type_prop>() == 2);
+    BOOST_CHECK(!nscl1->getProperty<dcm::changed_prop>());
+    BOOST_CHECK(nscl2->getProperty<dcm::type_prop>() == 7);
+    BOOST_CHECK(nscl2->getProperty<dcm::changed_prop>());
 
     //check vertex and edge properties
     std::pair<dcm::LocalVertex, bool> v1 = sys.m_cluster->getLocalVertex(fusion::at_c<1>(res1));

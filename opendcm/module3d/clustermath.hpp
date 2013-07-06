@@ -437,7 +437,7 @@ void ClusterMath<Sys>::map_downstream::operator()(Geom g) {
 
 template<typename Sys>
 void ClusterMath<Sys>::map_downstream::operator()(boost::shared_ptr<Cluster> c) {
-    m_transform *= c->template getClusterProperty<math_prop>().getTransform();
+    m_transform *= c->template getProperty<math_prop>().getTransform();
 };
 
 
@@ -448,8 +448,8 @@ void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> c
     BOOST_LOG(log) << "Map downstream geometry";
 #endif
 
-    map_downstream down(cluster->template getClusterProperty<math_prop>(),
-                        cluster->template getClusterProperty<fix_prop>());
+    map_downstream down(cluster->template getProperty<math_prop>(),
+                        cluster->template getProperty<fix_prop>());
     cluster->template for_each<Geometry3D>(down, true);
     //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
     //	dof's remaining between parts and so nothing can be moved when one part is fixed.

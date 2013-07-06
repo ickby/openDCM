@@ -273,8 +273,8 @@ BOOST_AUTO_TEST_CASE(object_handling) {
 BOOST_AUTO_TEST_CASE(property_handling) {
 
     boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
-    g1->setClusterProperty<test_cluster_property>(5);
-    BOOST_CHECK(g1->getClusterProperty<test_cluster_property>() == 5);
+    g1->setProperty<test_cluster_property>(5);
+    BOOST_CHECK(g1->getProperty<test_cluster_property>() == 5);
 
 
     fusion::vector<LocalVertex, GlobalVertex> v1c = g1->addVertex();

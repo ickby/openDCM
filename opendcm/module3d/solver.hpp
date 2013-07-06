@@ -134,8 +134,8 @@ void MES<Sys>::recalculate() {
     std::pair<citer, citer> cit = m_cluster->clusters();
     for(; cit.first != cit.second; cit.first++) {
 
-        if(!(*cit.first).second->template getClusterProperty<fix_prop>())
-            (*cit.first).second->template getClusterProperty<math_prop>().recalculate();
+        if(!(*cit.first).second->template getProperty<fix_prop>())
+            (*cit.first).second->template getProperty<math_prop>().recalculate();
 
     };
 
@@ -174,10 +174,10 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
     Scalar sc = 0;
     for(cit = cluster->clusters(); cit.first != cit.second; cit.first++) {
         //fixed cluster are irrelevant for scaling
-        if((*cit.first).second->template getClusterProperty<fix_prop>()) continue;
+        if((*cit.first).second->template getProperty<fix_prop>()) continue;
 
         //get the biggest scale factor
-        details::ClusterMath<Sys>& math = (*cit.first).second->template getClusterProperty<math_prop>();
+        details::ClusterMath<Sys>& math = (*cit.first).second->template getProperty<math_prop>();
 
         math.m_pseudo.clear();
         collectPseudoPoints(cluster, (*cit.first).first, math.m_pseudo);
@@ -194,8 +194,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
 
         if(cluster->isCluster(*it.first)) {
             boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
-            c->template getClusterProperty<math_prop>().applyClusterScale(sc,
-                    c->template getClusterProperty<fix_prop>());
+            c->template getProperty<math_prop>().applyClusterScale(sc,
+                    c->template getProperty<fix_prop>());
         } else {
             Geom g = cluster->template getObject<Geometry3D>(*it.first);
             g->scale(sc*SKALEFAKTOR);
@@ -261,8 +261,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         for(; cit.first != cit.second; cit.first++) {
 
             boost::shared_ptr<Cluster> c = (*cit.first).second;
-            if(c->template getClusterProperty<changed_prop>() &&
-                    c->template getClusterProperty<type_prop>() == details::cluster3D)
+            if(c->template getProperty<changed_prop>() &&
+                    c->template getProperty<type_prop>() == details::cluster3D)
                 solveCluster(c, sys);
         }
 
@@ -311,9 +311,9 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
             if(cluster->isCluster(*it.first)) {
                 boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
-                details::ClusterMath<Sys>& cm =  c->template getClusterProperty<math_prop>();
+                details::ClusterMath<Sys>& cm =  c->template getProperty<math_prop>();
                 //only get maps and propagate downstream if not fixed
-                if(!c->template getClusterProperty<fix_prop>()) {
+                if(!c->template getProperty<fix_prop>()) {
                     //set norm Quaternion as map to the parameter vector
                     int offset_rot = mes.setParameterMap(cm.getNormQuaternionMap(), rotation);
                     //set translation as map to the parameter vector
@@ -430,11 +430,11 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             if(cluster->isCluster(*it.first)) {
                 boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
                 if(!cluster->template getSubclusterProperty<fix_prop>(*it.first))
-                    c->template getClusterProperty<math_prop>().finishCalculation();
+                    c->template getProperty<math_prop>().finishCalculation();
                 else
-                    c->template getClusterProperty<math_prop>().finishFixCalculation();
+                    c->template getProperty<math_prop>().finishFixCalculation();
 
-                std::vector<Geom>& vec = c->template getClusterProperty<math_prop>().getGeometry();
+                std::vector<Geom>& vec = c->template getProperty<math_prop>().getGeometry();
                 for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                     (*vit)->finishCalculation();
 
@@ -445,7 +445,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             }
         }
         //we have solved this cluster
-        cluster->template setClusterProperty<changed_prop>(false);
+        cluster->template setProperty<changed_prop>(false);
 
     } catch(boost::exception& ) {
         throw;

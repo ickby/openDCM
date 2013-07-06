@@ -155,10 +155,12 @@ public:
             mpl::vector<id_prop<Identifier> > >::type >::type>::type properties;
 
     //make the subcomponent lists of objects and properties
-    typedef typename details::edge_fold< properties, mpl::vector<> >::type 	edge_properties;
-    typedef typename details::vertex_fold< properties, mpl::vector<> >::type 	vertex_properties;
+    typedef typename details::edge_fold< properties, 
+	    mpl::vector1<edge_index_prop> >::type 	edge_properties;
+    typedef typename details::vertex_fold< properties, 
+	    mpl::vector1<vertex_index_prop> >::type 	vertex_properties;
     typedef typename details::cluster_fold< properties,
-            mpl::vector<changed_prop, type_prop>  >::type 			cluster_properties;
+            mpl::vector2<changed_prop, type_prop>  >::type 			cluster_properties;
 
     typedef typename details::property_map_fold<objects, properties>::type 	object_properties;
 
@@ -267,7 +269,7 @@ public:
       System* s = new System();
       s->m_cluster = m_cluster->createCluster().first;
       s->m_storage = m_storage;
-      s->m_cluster->template setClusterProperty<dcm::type_prop>(details::subcluster);
+      s->m_cluster->template setProperty<dcm::type_prop>(details::subcluster);
       return s;
     };
 
@@ -318,6 +320,11 @@ public:
 
 }
 #endif //GCM_SYSTEM_H
+
+
+
+
+
 
 
 
