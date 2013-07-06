@@ -35,6 +35,7 @@
 
 #include "transformation.hpp"
 #include "logging.hpp"
+#include "defines.hpp"
 
 
 namespace dcm {
@@ -51,10 +52,6 @@ enum ParameterType {
     rotation,
     complete
 };
-
-//all solving related errors
-typedef boost::error_info<struct user_message,std::string> error_message;
-struct solving_error : virtual boost::exception { };
 
 template<typename Kernel>
 struct Dogleg {

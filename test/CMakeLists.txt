@@ -31,9 +31,10 @@ set(test_SRC  define.cpp
 	      geometry.cpp
 	      clustermath.cpp
 	      constraints3d.cpp
-	      module3d.cpp
+	      #module3d.cpp
 	      dof.cpp
 	      modulepart.cpp
+	      modulehl3d.cpp
 	      ${state_SRC}	      
 )
 

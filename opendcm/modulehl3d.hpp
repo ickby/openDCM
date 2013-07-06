@@ -1,6 +1,6 @@
 /*
     openDCM, dimensional constraint manager
-    Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
+    Copyright (C) 2013  Stefan Troeger <stefantroeger@gmx.net>
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -17,17 +17,17 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_DEFINES_3D_H
-#define GCM_DEFINES_3D_H
+#ifndef DCM_MODULEHL3D_H
+#define DCM_MODULEHL3D_H
 
-namespace dcm {
-namespace details {
-  
-enum { cluster3D = 100};
+#define DCM_USE_MODULEHL3D
 
-struct m3d {}; 	//base of module3d::type to allow other modules check for it
-
-}
-}
-
+#ifdef _WIN32
+	//warning about to long decoraded names, won't affect the code correctness
+	#pragma warning( disable : 4503 )
 #endif
+
+#include "moduleHL3d/defines.hpp"
+#include "moduleHL3d/module.hpp"
+
+#endif //DCM_MODULEHL3D_H

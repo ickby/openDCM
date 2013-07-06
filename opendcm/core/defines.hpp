@@ -1,6 +1,6 @@
 /*
     openDCM, dimensional constraint manager
-    Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
+    Copyright (C) 2013  Stefan Troeger <stefantroeger@gmx.net>
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -17,17 +17,24 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_DEFINES_3D_H
-#define GCM_DEFINES_3D_H
+#ifndef GCM_DEFINES_CORE_H
+#define GCM_DEFINES_CORE_H
+
+
+#include <boost/exception/exception.hpp>
 
 namespace dcm {
-namespace details {
   
-enum { cluster3D = 100};
+//all solving related errors
+typedef boost::error_info<struct user_message,std::string> error_message;
+typedef boost::error_info<struct first_geom, std::string> error_type_first_geometry;
+typedef boost::error_info<struct second_geom, std::string> error_type_second_geometry;
 
-struct m3d {}; 	//base of module3d::type to allow other modules check for it
+//exception codes are needed by the user
+struct creation_error : virtual boost::exception {};
+struct solving_error : virtual boost::exception {};
+struct constraint_error : virtual boost::exception {};
 
-}
-}
+} //dcm
 
-#endif
+#endif //GCM_DEFINES_CORE_H
