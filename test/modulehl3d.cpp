@@ -39,10 +39,12 @@ typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d> > Module;
 typedef dcm::System<Kernel, Module, dcm::ModuleHL3D<> > System;
 typedef Module::type<System>::Geometry3D geom;
+typedef dcm::ModuleHL3D<>::type<System>::HLGeometry3D hlgeom;
 typedef boost::shared_ptr<geom> geom_ptr;
+typedef boost::shared_ptr<hlgeom> hlgeom_ptr;
 
 //test generator
-struct test_generator {
+struct test {
 
     template<typename Sys>
     struct type : public dcm::details::HLGeneratorBase<Sys> {
@@ -78,12 +80,14 @@ BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
       
   
       System sys;
-      sys.createHLGeometry3D<test_generator>(p1);
+      geom_ptr g1 = sys.createGeometry3D(p1);
+      hlgeom_ptr hlg1 = sys.createHLGeometry3D<test>(p2, g1);
       
   }
   catch(boost::exception& e) {
     std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
       << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
+      BOOST_FAIL("Exception not expected");
   };
   
 };

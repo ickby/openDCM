@@ -41,9 +41,9 @@
 
 
 #define APPEND_SINGLE(z, n, data) \
-    g_ptr = details::converter<BOOST_PP_CAT(Arg,n), Geometry3D, mpl::true_>::apply(BOOST_PP_CAT(arg,n), m_this); \
+    g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
     if(!g_ptr) { \
-      hlg_ptr = details::converter<BOOST_PP_CAT(Arg,n), HLGeometry3D, mpl::false_>::apply(BOOST_PP_CAT(arg,n), m_this); \
+      hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), HLGeometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
       if(!hlg_ptr) \
 	throw creation_error() <<  boost::errinfo_errno(216) << error_message("could not handle input"); \
       else \
@@ -93,32 +93,33 @@ namespace dcm {
 namespace details {
 
 //return always a geometry3d pointer struct, no matter whats the supplied type
-template<typename T, typename R, typename Create>
-struct converter {
-    template<typename Sys>
-    static boost::shared_ptr<R> apply(T const& t, Sys* sys) {
-      return boost::shared_ptr<R>();
-    };
-};
 template<typename T, typename R>
-struct converter< T, R, mpl::true_> {
+struct converter_g {
     template<typename Sys>
     static boost::shared_ptr<R> apply(T const& t, Sys* sys) {
-      return sys->createGeometry3D(t);
+        return sys->createGeometry3D(t);
     };
 };
-template<typename R, typename Create>
-struct converter< boost::shared_ptr<R>, R, Create > {
+
+template<typename R>
+struct converter_g< boost::shared_ptr<R>, R> {
     template<typename Sys>
     static boost::shared_ptr<R> apply(boost::shared_ptr<R> t, Sys* sys) {
         return t;
     };
 };
-template<typename T, typename R, typename Create>
-struct converter< boost::shared_ptr<T>, R, Create >  {
+template<typename T, typename R>
+struct converter_hlg  {
     template<typename Sys>
-    static boost::shared_ptr<R> apply(boost::shared_ptr<T> t, Sys* sys) {
+    static boost::shared_ptr<R> apply(T const& t, Sys* sys) {
         return  boost::shared_ptr<R>();
+    };
+};
+template<typename R>
+struct converter_hlg<boost::shared_ptr<R>, R>  {
+    template<typename Sys>
+    static boost::shared_ptr<R> apply(boost::shared_ptr<R> t, Sys* sys) {
+        return  t;
     };
 };
 
@@ -183,7 +184,7 @@ struct ModuleHL3D {
             };
 
             friend struct inheriter_base;
-	    friend struct Object<Sys, HLGeometry3D, mpl::map0<> >;
+            friend struct Object<Sys, HLGeometry3D, mpl::map0<> >;
         };
 
         //inheriter for own functions
