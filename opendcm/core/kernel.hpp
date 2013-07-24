@@ -36,6 +36,7 @@
 #include "transformation.hpp"
 #include "logging.hpp"
 #include "defines.hpp"
+#include "multimap.hpp"
 
 
 namespace dcm {

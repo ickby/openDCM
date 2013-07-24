@@ -116,6 +116,56 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK( v3(2) == v3m(2) );
 };
 
+BOOST_AUTO_TEST_CASE(kernel_multimap_constructor) {
+  
+    // test all constructors
+    // ********************* 
+    kernel::Vector3 vec(1,2,3);    
+    dcm::details::MultiMap<kernel::Vector3> map(vec); 
+    BOOST_REQUIRE(map.rows() == 3);
+    BOOST_REQUIRE(map.cols() == 1);
+    BOOST_CHECK(map==vec);
+    BOOST_CHECK(map+vec == 2*vec);
+    
+    kernel::Vector vec2(4,1);
+    vec2 << 1,2,3,4;
+    dcm::details::MultiMap<kernel::Vector> map2(vec2);    
+    BOOST_REQUIRE(map2.rows() == 4);
+    BOOST_REQUIRE(map2.cols() == 1);
+    BOOST_CHECK(map2==vec2);
+    BOOST_CHECK(map2+vec2 == 2*vec2);
+    
+    kernel::Matrix3 mat;
+    mat << 1,2,3,4,5,6,7,8,9;
+    dcm::details::MultiMap<kernel::Matrix3> map3(mat);    
+    BOOST_REQUIRE(map3.rows() == 3);
+    BOOST_REQUIRE(map3.cols() == 3);
+    BOOST_CHECK(map3==mat);
+    BOOST_CHECK(map3+mat == 2*mat);
+    
+    kernel::Matrix mat2(5,3);
+    mat2.setRandom();
+    dcm::details::MultiMap<kernel::Matrix> map4(mat2);    
+    BOOST_REQUIRE(map4.rows() == 5);
+    BOOST_REQUIRE(map4.cols() == 3);
+    BOOST_CHECK(map4==mat2);
+    BOOST_CHECK(map4+mat2 == 2*map4);
+    
+    kernel::Matrix39 mat3;
+    mat3.setRandom();
+    dcm::details::MultiMap<kernel::Matrix39> map5(mat3.data());    
+    BOOST_REQUIRE(map5.rows() == 3);
+    BOOST_REQUIRE(map5.cols() == 9);
+    BOOST_CHECK(map5==mat3);
+    BOOST_CHECK(map5+mat3 == 2*map5);
+    
+    dcm::details::MultiMap<kernel::Vector> map6(vec2.data(), vec2.rows());    
+    BOOST_REQUIRE(map6.rows() == 4);
+    BOOST_REQUIRE(map6.cols() == 1);
+    BOOST_CHECK(map6==vec2);
+    BOOST_CHECK(map6+vec2 == 2*map6);
+};
+
 template<class T>
 struct test1 {
 };
