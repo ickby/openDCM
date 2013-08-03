@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK( v3(2) == v3m(2) );
 };
 
-BOOST_AUTO_TEST_CASE(kernel_multimap_constructor) {
+BOOST_AUTO_TEST_CASE(kernel_multimap) {
   
     // test all constructors
     // ********************* 
@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(kernel_multimap_constructor) {
     BOOST_REQUIRE(map.rows() == 3);
     BOOST_REQUIRE(map.cols() == 1);
     BOOST_CHECK(map==vec);
-    BOOST_CHECK(map+vec == 2*vec);
+    BOOST_CHECK(map+vec == 2*map);    
     
     kernel::Vector vec2(4,1);
     vec2 << 1,2,3,4;
@@ -133,7 +133,24 @@ BOOST_AUTO_TEST_CASE(kernel_multimap_constructor) {
     BOOST_REQUIRE(map2.rows() == 4);
     BOOST_REQUIRE(map2.cols() == 1);
     BOOST_CHECK(map2==vec2);
-    BOOST_CHECK(map2+vec2 == 2*vec2);
+    BOOST_CHECK(map2+vec2 == 2*map2);
+    
+    kernel::Vector vec_comp(7);
+    vec_comp << 1,2,3,4,1,2,3;
+    map2.extend(vec.data(), 3);
+    BOOST_REQUIRE(map2.rows() == 7);
+    BOOST_REQUIRE(map2.cols() == 1);
+    BOOST_CHECK(map2==vec_comp);
+    BOOST_CHECK(map2+vec_comp == 2*map2);
+    
+    kernel::Vector vec_comp2(10);
+    vec_comp2 << 1,2,3,4,1,2,3,1,2,3;
+    map2.extend(vec);
+    std::cout<<map2<<std::endl;
+    BOOST_REQUIRE(map2.rows() == 10);
+    BOOST_REQUIRE(map2.cols() == 1);
+    BOOST_CHECK(map2==vec_comp2);
+    BOOST_CHECK(map2+vec_comp2 == 2*map2);
     
     kernel::Matrix3 mat;
     mat << 1,2,3,4,5,6,7,8,9;
@@ -164,6 +181,12 @@ BOOST_AUTO_TEST_CASE(kernel_multimap_constructor) {
     BOOST_REQUIRE(map6.cols() == 1);
     BOOST_CHECK(map6==vec2);
     BOOST_CHECK(map6+vec2 == 2*map6);
+    
+    dcm::details::MultiMap<kernel::Matrix> map7(mat3.data(), mat3.rows(), mat3.cols());    
+    BOOST_REQUIRE(map7.rows() == 3);
+    BOOST_REQUIRE(map7.cols() == 9);
+    BOOST_CHECK(map7==mat3);
+    BOOST_CHECK(map7+mat3 == 2*map7);
 };
 
 template<class T>

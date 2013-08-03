@@ -171,19 +171,35 @@ public:
         EIGEN_STATIC_ASSERT_INDEX_BASED_ACCESS(Derived)
         return coeff(index);
     }
-    /*
-        template<int LoadMode>
-        inline PacketScalar packet(Index row, Index col) const {
-            return internal::ploadt<PacketScalar, LoadMode>
-                   (m_data + (col * colStride() + row * rowStride()));
-        }
 
-        template<int LoadMode>
-        inline PacketScalar packet(Index index) const {
-            EIGEN_STATIC_ASSERT_INDEX_BASED_ACCESS(Derived)
-            return internal::ploadt<PacketScalar, LoadMode>(m_data + index * innerStride());
-        }
-    */
+    template<int LoadMode>
+    inline PacketScalar packet(Index row, Index col) const {
+
+        typedef typename std::vector<MapData>::const_iterator iter;
+
+        for(iter i = m_data.begin(); i != m_data.end(); i++) {
+            const MapData& data = *i;
+
+            if((fusion::at_c<1>(data) + fusion::at_c<3>(data)) > row && fusion::at_c<1>(data) <= row
+                    && (fusion::at_c<2>(data) + fusion::at_c<4>(data)) > col && fusion::at_c<2>(data) <= col)
+                return internal::ploadt<PacketScalar, LoadMode>
+                       (fusion::at_c<0>(data) + (col - fusion::at_c<2>(data)) * fusion::at_c<5>(data).outer() + (row - fusion::at_c<1>(data)) * fusion::at_c<5>(data).inner());
+        };
+    }
+
+    template<int LoadMode>
+    inline PacketScalar packet(Index index) const {
+        EIGEN_STATIC_ASSERT_INDEX_BASED_ACCESS(Derived)
+        typedef typename std::vector<MapData>::const_iterator iter;
+
+        for(iter i = m_data.begin(); i != m_data.end(); i++) {
+            const MapData& data = *i;
+
+            if((fusion::at_c<1>(data) + fusion::at_c<3>(data)) > index)
+                return internal::ploadt<PacketScalar, LoadMode>(fusion::at_c<0>(data) + (index - fusion::at_c<1>(data)) * fusion::at_c<5>(data).inner());
+        };
+    }
+
 
     // constructor for datapointer which resembles the fixed size derived type
     // this works only if this is the only maped data!
@@ -196,17 +212,16 @@ public:
     }
 
     // constructor for datapointer which resembles the derived dynamic size vector
-    // this works only if this vector is the only mapped data!
     inline MultiMapBase(PointerType data, Index size)
         : default_value(0),
           m_rows(RowsAtCompileTime == Dynamic ? size : Index(RowsAtCompileTime)),
-          m_cols(ColsAtCompileTime == Dynamic ? size : Index(ColsAtCompileTime))  {
+          m_cols(ColsAtCompileTime == Dynamic ? 1 : Index(ColsAtCompileTime))  {
 
         EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
         eigen_assert(size >= 0);
         eigen_assert(data == 0 || SizeAtCompileTime == Dynamic || SizeAtCompileTime == size);
 
-        m_data.push_back(fusion::make_vector(data, 0, 0, m_rows.value(), m_cols.value(), DynStride(Base::outerStride(), Base::innerStride())));
+        m_data.push_back(fusion::make_vector(data, 0, 0, size, 1, DynStride(Base::outerStride(), Base::innerStride())));
         checkSanity();
     }
 
@@ -270,8 +285,66 @@ public:
           m_rows(RowsAtCompileTime == Dynamic ? matrix.rows() : Index(RowsAtCompileTime)),
           m_cols(ColsAtCompileTime == Dynamic ? matrix.cols() : Index(ColsAtCompileTime)) {
 
-        m_data.push_back(fusion::make_vector(&matrix(0, 0), 0, 0, m_rows.value(), m_cols.value(), DynStride(matrix.outerStride(), matrix.innerStride())));
+        m_data.push_back(fusion::make_vector(&matrix(0, 0), 0, 0, matrix.rows(), matrix.cols(), DynStride(matrix.outerStride(), matrix.innerStride())));
         checkSanity();
+    };
+
+
+    //map extensions
+    //**************
+
+    //extend with data vector in derived type form
+    inline void extend(PointerType data, Index size) {
+
+        extend(data, size, DynStride(Base::outerStride(), Base::innerStride()));
+    };
+
+    //extend with data vector in arbitrary form
+    template<typename Stride>
+    inline void extend(PointerType data, Index size, const Stride& stride) {
+
+        EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
+        eigen_assert(size >= 0);
+        eigen_assert(data == 0 || SizeAtCompileTime == Dynamic || SizeAtCompileTime == size);
+
+        m_data.push_back(fusion::make_vector(data, m_rows.value(), 0, size, 1, DynStride(stride.outer(), stride.inner())));
+        m_rows.setValue(m_rows.value() + size);
+        checkSanity();
+    };
+
+    //extend with eigen vector
+    template<typename DerivedType>
+    inline void extend(MatrixBase<DerivedType>& matrix) {
+
+        //this only works for vectors, as we would not know where to add a matrix
+        EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
+        eigen_assert(matrix.cols() == 1);
+        extend(matrix.derived().data(), matrix.rows(), DynStride(matrix.outerStride(), matrix.innerStride()));
+    };
+
+    //extend with eigen matrix
+    template<typename DerivedType, typename Stride>
+    inline void extend(MatrixBase<DerivedType>& matrix, Index row, Index col, const Stride& stride) {
+
+        //this only works for vectors, as we would not know where to add a matrix
+        EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
+        eigen_assert(matrix.cols() == 1);
+        m_data.push_back(fusion::make_vector(&matrix(0, 0), row, col, matrix.rows(), matrix.cols(), DynStride(stride.outer(), stride.inner())));
+
+        if((row + matrix.rows()) > m_rows.value())
+            m_rows.setValue(row + matrix.rows());
+
+        if((col + matrix.cols()) > m_cols.value())
+            m_cols.setValue(col + matrix.cols());
+
+        checkSanity();
+    };
+    
+    //extend with eigen matrix
+    template<typename DerivedType>
+    inline void extend(MatrixBase<DerivedType>& matrix, Index row, Index col) {
+
+        extend(matrix, row, col, DynStride(Base::outerStride(), Base::innerStride()));
     };
 
 protected:
@@ -280,14 +353,14 @@ protected:
         EIGEN_STATIC_ASSERT(EIGEN_IMPLIES(internal::traits<Derived>::Flags & PacketAccessBit,
                                           internal::inner_stride_at_compile_time<Derived>::ret == 1),
                             PACKET_ACCESS_REQUIRES_TO_HAVE_INNER_STRIDE_FIXED_TO_1);
-        eigen_assert(EIGEN_IMPLIES(internal::traits<Derived>::Flags & AlignedBit, (size_t(fusion::at_c<0>(m_data[0])) % 16) == 0)
+        eigen_assert(EIGEN_IMPLIES(internal::traits<Derived>::Flags & AlignedBit, (size_t(fusion::at_c<0>(m_data.back())) % 16) == 0)
                      && "data is not aligned");
     }
 
     std::vector<MapData> m_data;
     Scalar default_value;
-    const internal::variable_if_dynamic<Index, RowsAtCompileTime> m_rows;
-    const internal::variable_if_dynamic<Index, ColsAtCompileTime> m_cols;
+    internal::variable_if_dynamic<Index, RowsAtCompileTime> m_rows;
+    internal::variable_if_dynamic<Index, ColsAtCompileTime> m_cols;
 };
 
 //this indirection is needed so that the map base coeff functions are called
@@ -298,9 +371,24 @@ public:
     typedef MultiMapBase< MultiMap<Derived> > Base;
     EIGEN_DENSE_PUBLIC_INTERFACE(MultiMap)
 
+    inline Index innerStride() const {
+        return 1;
+    }
+
+    inline Index outerStride() const {
+        if(Flags & RowMajorBit)
+            return Base::m_cols.value();
+        else // column-major
+            return Base::m_rows.value();
+    }
+
     inline MultiMap(typename Base::PointerType matrix) : Base(matrix) {};
     inline MultiMap(typename Base::PointerType matrix, typename Base::Index size) : Base(matrix, size) {};
-    
+    inline MultiMap(typename Base::PointerType matrix,
+                    typename Base::Index row,
+                    typename Base::Index col) : Base(matrix, row, col) {};
+
+
     template<typename DerivedType>
     inline MultiMap(MatrixBase<DerivedType>& matrix) : Base(matrix) {};
 };
