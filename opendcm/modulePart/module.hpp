@@ -98,6 +98,9 @@ struct ModulePart {
                 }
                 Transform& m_transform;
             };
+	    
+	    //collect all clustergraph upstream cluster transforms
+	    void transform_traverse(Transform& t, boost::shared_ptr<Cluster> c);
 
         public:
             using Object<Sys, Part, PartSignal >::m_system;
@@ -294,8 +297,13 @@ template<typename T>
 typename ModulePart<Typelist, ID>::template type<Sys>::Part_base::Geom
 ModulePart<Typelist, ID>::type<Sys>::Part_base::addGeometry3D(const T& geom, CoordinateFrame frame) {
     Geom g(new Geometry3D(geom, *m_system));
-    if(frame == Local)
-        g->transform(m_transform);
+    if(frame == Local) {
+	//we need to collect all transforms up to this part!
+	Transform t(m_transform);
+	transform_traverse(t, m_cluster); 
+      
+	g->transform(t);	
+    }
 
     fusion::vector<LocalVertex, GlobalVertex> res = m_cluster->addVertex();
     m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
@@ -304,6 +312,19 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::addGeometry3D(const T& geom, Coo
 
     return g;
 };
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+void ModulePart<Typelist, ID>::type<Sys>::Part_base::transform_traverse(ModulePart<Typelist, ID>::type<Sys>::Part_base::Transform& t,
+									boost::shared_ptr<ModulePart<Typelist, ID>::type<Sys>::Part_base::Cluster> c) {
+  
+    t *= c->template getClusterProperty<typename Part_base::module3d::math_prop>().m_transform;
+    
+    if(c->isRoot())
+      return;
+    
+    transform_traverse(t, c->parent());  
+}
 
 template<typename Typelist, typename ID>
 template<typename Sys>
