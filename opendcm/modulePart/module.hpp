@@ -117,6 +117,12 @@ struct ModulePart {
             template<typename T>
             void set(const T& geometry);
 
+            template<typename T>
+            T& get();
+
+            template<typename T>
+            T getGlobal();
+
             virtual boost::shared_ptr<Part> clone(Sys& newSys);
 
         public:
@@ -278,7 +284,7 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(const T& geometry, Sys
     typename geometry_traits<T>::accessor >(geometry, m_transform);
 
     cluster->template setProperty<typename module3d::fix_prop>(false);
-    
+
     //the the clustermath transform
     m_cluster->template getClusterProperty<typename module3d::math_prop>().getTransform() = m_transform;
 

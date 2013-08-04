@@ -484,7 +484,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
         m_points.push_back((*it)->getPoint());
 
     //start scale calculation
-    if(m_points.empty()) 1.;
+    if(m_points.empty()) return 1.;
     else if(m_points.size() == 1) {
         const typename Kernel::Vector3 p = m_points[0];
         return calcOnePoint(p);
