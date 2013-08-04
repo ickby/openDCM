@@ -22,6 +22,7 @@
 
 
 #include <boost/exception/exception.hpp>
+#include <string>
 
 namespace dcm {
   

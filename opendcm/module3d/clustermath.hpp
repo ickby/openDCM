@@ -436,7 +436,11 @@ void ClusterMath<Sys>::map_downstream::operator()(Geom g) {
 
 template<typename Sys>
 void ClusterMath<Sys>::map_downstream::operator()(boost::shared_ptr<Cluster> c) {
-    m_transform *= c->template getProperty<math_prop>().getTransform().inverse();
+    //we transform the GLOBAL geometries to local ones in the subcluster! therefore
+    //we are not interested in the successive transformations, we only transform the
+    //global geometries with the cluster transform we want them to be local in, and thats
+    //the one supplied in the constructor
+    //m_transform *= c->template getClusterProperty<math_prop>().getTransform().inverse();
 };
 
 
