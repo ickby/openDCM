@@ -286,7 +286,7 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(const T& geometry, Sys
     cluster->template setProperty<typename module3d::fix_prop>(false);
 
     //the the clustermath transform
-    m_cluster->template getClusterProperty<typename module3d::math_prop>().getTransform() = m_transform;
+    m_cluster->template getProperty<typename module3d::math_prop>().getTransform() = m_transform;
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Init: "<<m_transform;
@@ -327,7 +327,7 @@ template<typename Sys>
 void ModulePart<Typelist, ID>::type<Sys>::Part_base::transform_traverse(ModulePart<Typelist, ID>::type<Sys>::Part_base::Transform& t,
         boost::shared_ptr<ModulePart<Typelist, ID>::type<Sys>::Part_base::Cluster> c) {
 
-    t *= c->template getClusterProperty<typename Part_base::module3d::math_prop>().m_transform;
+    t *= c->template getProperty<typename Part_base::module3d::math_prop>().m_transform;
 
     if(c->isRoot())
         return;

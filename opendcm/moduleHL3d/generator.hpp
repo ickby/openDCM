@@ -32,10 +32,10 @@ struct HLGeneratorBase {
 
     BOOST_MPL_ASSERT((typename system_traits<Sys>::template getModule<details::m3d>::has_module));
     typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
-    typedef typename module3d::template type<Sys>::Geometry3D Geometry3D;
-    typedef typename module3d::template type<Sys>::Constraint3D Constraint3D;
+    typedef typename module3d::Geometry3D Geometry3D;
+    typedef typename module3d::Constraint3D Constraint3D;
     typedef typename system_traits<Sys>::template getModule<details::mhl3d>::type modulehl3d;
-    typedef typename modulehl3d::template type<Sys>::HLGeometry3D HLGeometry3D;
+    typedef typename modulehl3d::HLGeometry3D HLGeometry3D;
 
     std::vector<boost::shared_ptr<Geometry3D> >*   m_geometrys;
     std::vector<boost::shared_ptr<HLGeometry3D> >* m_hlgs;

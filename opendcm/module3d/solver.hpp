@@ -22,6 +22,7 @@
 
 #include "defines.hpp"
 #include "clustermath.hpp"
+#include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/sheduler.hpp"
 #include "opendcm/core/traits.hpp"
 #include <opendcm/core/kernel.hpp>
@@ -175,7 +176,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
     Scalar sc = 0;
     for(cit = cluster->clusters(); cit.first != cit.second; cit.first++) {
         //fixed cluster are irrelevant for scaling
-        if((*cit.first).second->template getProperty<fix_prop>()) continue;
+        if((*cit.first).second->template getProperty<fix_prop>())
+            continue;
 
         //get the biggest scale factor
         details::ClusterMath<Sys>& math = (*cit.first).second->template getProperty<math_prop>();
@@ -197,7 +199,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters() 
             boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
             c->template getProperty<math_prop>().applyClusterScale(sc,
                     c->template getProperty<fix_prop>());
-        } else {
+        }
+        else {
             Geom g = cluster->template getObject<Geometry3D>(*it.first);
             g->scale(sc*SKALEFAKTOR);
         }
@@ -280,7 +283,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                 if(!cluster->template getSubclusterProperty<fix_prop>(*it.first)) {
                     params += 6;
                 }
-            } else {
+            }
+            else {
                 params += cluster->template getObject<Geometry3D>(*it.first)->m_parameterCount;
             };
         }
@@ -325,14 +329,17 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                     cm.setParameterOffset(offset, general);
                     //wirte initial values
                     cm.initMaps();
-                } else cm.initFixMaps();
+                }
+                else
+                    cm.initFixMaps();
 
                 //map all geometrie within that cluster to it's rotation matrix
                 //for collecting all geometries which need updates
                 cm.clearGeometry();
                 cm.mapClusterDownstreamGeometry(c);
 
-            } else {
+            }
+            else {
                 Geom g = cluster->template getObject<Geometry3D>(*it.first);
                 int offset = mes.setParameterMap(g->m_parameterCount, g->getParameterMap());
                 g->m_offset = offset;
@@ -353,7 +360,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
                 //set the maps
                 Cons c = *oit.first;
-                if(c) c->setMaps(mes);
+                if(c)
+                    c->setMaps(mes);
                 //TODO: else throw (as every global edge was counted as one equation)
             }
         }
@@ -367,19 +375,25 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             DummyScaler re;
             Kernel::solve(mes, re);
 
-        } else {
+        }
+        else {
 
             // we have rotations, so let's check our options. first search for cycles, as systems with them
             // always need the full solver power
             bool has_cycle;
             cycle_dedector cd(has_cycle);
-            //create te needed property map, fill it and run the test
+            //create te needed property maps and fill it
             property_map<vertex_index_prop, Cluster> vi_map(cluster);
-	    property_map<vertex_color_prop, Cluster> vc_map(cluster);
-	    property_map<edge_color_prop, Cluster> ec_map(cluster);
             cluster->initIndexMaps();
-            boost::undirected_dfs(*cluster.get(), boost::visitor(cd).vertex_index_map(vi_map).vertex_color_map(vc_map).edge_color_map(ec_map));
-	
+            typedef std::map< LocalVertex, boost::default_color_type> vcmap;
+            typedef std::map< LocalEdge, boost::default_color_type> ecmap;
+            vcmap v_cm;
+            ecmap e_cm;
+            boost::associative_property_map< vcmap > v_cpm(v_cm);
+            boost::associative_property_map< ecmap > e_cpm(e_cm);
+
+            boost::undirected_dfs(*cluster.get(), boost::visitor(cd).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+
             bool done = false;
             if(!has_cycle) {
 #ifdef USE_LOGGING
@@ -405,7 +419,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                         DummyScaler re;
                         Kernel::solve(mes, re);
                         done=true;
-                    } catch(boost::exception& ) {
+                    }
+                    catch(boost::exception&) {
                         //not successful, so we need brute force
                         done = false;
                     }
@@ -441,7 +456,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                 for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)
                     (*vit)->finishCalculation();
 
-            } else {
+            }
+            else {
                 Geom g = cluster->template getObject<Geometry3D>(*it.first);
                 g->scale(mes.Scaling);
                 g->finishCalculation();
@@ -450,7 +466,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         //we have solved this cluster
         cluster->template setProperty<changed_prop>(false);
 
-    } catch(boost::exception& ) {
+    }
+    catch(boost::exception&) {
         throw;
     }
 };

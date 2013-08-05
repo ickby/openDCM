@@ -22,7 +22,7 @@
 
 namespace dcm {
 
-enum Identifier {
+enum Types {
   segment,
   arc,
   startpoint,

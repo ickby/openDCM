@@ -76,7 +76,7 @@
                                               ) \
     { \
       typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d; \
-      typedef typename module3d::template type<Sys>::Geometry3D Geometry3D; \
+      typedef typename module3d::Geometry3D Geometry3D; \
       boost::shared_ptr<Geometry3D> g_ptr; \
       boost::shared_ptr<HLGeometry3D> hlg_ptr; \
       boost::shared_ptr<HLGeometry3D> ptr = boost::shared_ptr<HLGeometry3D>(new HLGeometry3D(*m_this)); \
@@ -151,8 +151,8 @@ struct ModuleHL3D {
             //traits are only accessible in subclass scope
             BOOST_MPL_ASSERT((typename system_traits<Sys>::template getModule<details::m3d>::has_module));
             typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
-            typedef typename module3d::template type<Sys>::Geometry3D Geometry3D;
-            typedef typename module3d::template type<Sys>::Constraint3D Constraint3D;
+            typedef typename module3d::Geometry3D Geometry3D;
+            typedef typename module3d::Constraint3D Constraint3D;
 
 
             using Object<Sys, HLGeometry3D, mpl::map0<> >::m_system;
@@ -201,7 +201,7 @@ struct ModuleHL3D {
 
         };
         struct inheriter_id : public inheriter_base {};
-        struct inheriter : public mpl::if_<boost::is_same<Identifier, No_Identifier>, inheriter_base, inheriter_id>::type {};
+        struct inheriter : public mpl::if_<boost::is_same<ID, No_Identifier>, inheriter_base, inheriter_id>::type {};
 
         //needed typedefs
         typedef ID Identifier;
