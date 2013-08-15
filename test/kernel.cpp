@@ -153,8 +153,6 @@ BOOST_AUTO_TEST_CASE(kernel_multimap) {
     
     kernel::Vector vec_comp3(13);
     vec_comp3 << 1,2,3,4,1,2,3,1,2,3,1,2,3;
-    map2.extend(vec);
-    std::cout<<map2<<std::endl;
     BOOST_REQUIRE(map2.rows() == 13);
     BOOST_REQUIRE(map2.cols() == 1);
     BOOST_CHECK(map2==vec_comp3);
