@@ -48,7 +48,7 @@ struct traits<dcm::details::MultiMap<PlainObjectType> >
         HasNoInnerStride = InnerStrideAtCompileTime == 1,
         HasNoOuterStride = OuterStrideAtCompileTime == 1,
         HasNoStride = HasNoInnerStride && HasNoOuterStride,
-        IsAligned = bool(EIGEN_ALIGN),
+        IsAligned = false,//bool(EIGEN_ALIGN),
         IsDynamicSize = PlainObjectType::SizeAtCompileTime == Dynamic,
         KeepsPacketAccess = bool(HasNoInnerStride)
         && (bool(IsDynamicSize)
@@ -185,6 +185,7 @@ public:
                 return internal::ploadt<PacketScalar, LoadMode>
                        (fusion::at_c<0>(data) + (col - fusion::at_c<2>(data)) * fusion::at_c<5>(data).outer() + (row - fusion::at_c<1>(data)) * fusion::at_c<5>(data).inner());
         };
+	return internal::ploadt<PacketScalar, LoadMode>(&default_value);
     }
 
     template<int LoadMode>
@@ -198,6 +199,7 @@ public:
             if((fusion::at_c<1>(data) + fusion::at_c<3>(data)) > index)
                 return internal::ploadt<PacketScalar, LoadMode>(fusion::at_c<0>(data) + (index - fusion::at_c<1>(data)) * fusion::at_c<5>(data).inner());
         };
+	return internal::ploadt<PacketScalar, LoadMode>(&default_value);
     }
 
 
@@ -322,29 +324,32 @@ public:
         extend(matrix.derived().data(), matrix.rows(), DynStride(matrix.outerStride(), matrix.innerStride()));
     };
 
-    //extend with eigen matrix
-    template<typename DerivedType, typename Stride>
-    inline void extend(MatrixBase<DerivedType>& matrix, Index row, Index col, const Stride& stride) {
+    //extend with general pointer data
+    template<typename Stride>
+    inline void extend(PointerType matrix, Index row, Index col, Index rows, Index cols, const Stride& stride) {
 
-        //this only works for vectors, as we would not know where to add a matrix
-        EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
-        eigen_assert(matrix.cols() == 1);
-        m_data.push_back(fusion::make_vector(&matrix(0, 0), row, col, matrix.rows(), matrix.cols(), DynStride(stride.outer(), stride.inner())));
+        m_data.push_back(fusion::make_vector(matrix, row, col, rows, cols, DynStride(stride.outer(), stride.inner())));
 
-        if((row + matrix.rows()) > m_rows.value())
-            m_rows.setValue(row + matrix.rows());
+        if((row + rows) > m_rows.value())
+            m_rows.setValue(row + rows);
 
-        if((col + matrix.cols()) > m_cols.value())
-            m_cols.setValue(col + matrix.cols());
+        if((col + cols) > m_cols.value())
+            m_cols.setValue(col + cols);
 
         checkSanity();
+    };
+    
+    //extend with pointer data in derived type form
+    inline void extend(PointerType matrix, Index row, Index col, Index rows, Index cols) {
+
+        extend(matrix.derived().data(), row, col, rows, cols, DynStride(Base::outerStride(), Base::innerStride()));
     };
     
     //extend with eigen matrix
     template<typename DerivedType>
     inline void extend(MatrixBase<DerivedType>& matrix, Index row, Index col) {
 
-        extend(matrix, row, col, DynStride(Base::outerStride(), Base::innerStride()));
+        extend(matrix.derived().data(), row, col, matrix.rows(), matrix.cols(), DynStride(matrix.outerStride(), matrix.innerStride()));
     };
 
 protected:

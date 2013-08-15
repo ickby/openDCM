@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(kernel_multimap) {
     
     kernel::Vector vec_comp(7);
     vec_comp << 1,2,3,4,1,2,3;
-    map2.extend(vec.data(), 3);
+    map2.extend(vec.data(), 3, kernel::DynStride(3,1));
     BOOST_REQUIRE(map2.rows() == 7);
     BOOST_REQUIRE(map2.cols() == 1);
     BOOST_CHECK(map2==vec_comp);
@@ -145,12 +145,20 @@ BOOST_AUTO_TEST_CASE(kernel_multimap) {
     
     kernel::Vector vec_comp2(10);
     vec_comp2 << 1,2,3,4,1,2,3,1,2,3;
-    map2.extend(vec);
-    std::cout<<map2<<std::endl;
+    map2.extend(vec.data(), 3);
     BOOST_REQUIRE(map2.rows() == 10);
     BOOST_REQUIRE(map2.cols() == 1);
     BOOST_CHECK(map2==vec_comp2);
     BOOST_CHECK(map2+vec_comp2 == 2*map2);
+    
+    kernel::Vector vec_comp3(13);
+    vec_comp3 << 1,2,3,4,1,2,3,1,2,3,1,2,3;
+    map2.extend(vec);
+    std::cout<<map2<<std::endl;
+    BOOST_REQUIRE(map2.rows() == 13);
+    BOOST_REQUIRE(map2.cols() == 1);
+    BOOST_CHECK(map2==vec_comp3);
+    BOOST_CHECK(map2+vec_comp3 == 2*map2);
     
     kernel::Matrix3 mat;
     mat << 1,2,3,4,5,6,7,8,9;
