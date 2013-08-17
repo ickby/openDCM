@@ -23,6 +23,7 @@
 #include <boost/type_traits.hpp>
 #include <boost/mpl/if.hpp>
 #include <boost/mpl/void.hpp>
+#include <boost/mpl/vector.hpp>
 
 #include <boost/preprocessor/repetition/enum_shifted.hpp>
 #include <boost/preprocessor/repetition/repeat_from_to.hpp>

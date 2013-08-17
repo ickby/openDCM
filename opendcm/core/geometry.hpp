@@ -33,7 +33,6 @@
 #include <boost/mpl/or.hpp>
 #include <boost/mpl/not.hpp>
 #include <boost/mpl/bool.hpp>
-#include <boost/mpl/map.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
@@ -43,7 +42,6 @@
 
 #include <boost/variant.hpp>
 
-#include "object.hpp"
 #include "traits.hpp"
 #include "logging.hpp"
 #include "transformation.hpp"
@@ -124,40 +122,17 @@ struct geometry_clone_traits {
     };
 };
 
-struct reset {}; 	//signal namespace
+namespace details {
 
-namespace detail {
+template<typename Sys, int Dim>
+class Geometry {
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-class Geometry : public Object<Sys, Derived,
-    mpl::map3<  mpl::pair<reset, boost::function<void (boost::shared_ptr<Derived>) > >,
-        mpl::pair<remove, boost::function<void (boost::shared_ptr<Derived>) > > ,
-        mpl::pair<recalculated, boost::function<void (boost::shared_ptr<Derived>)> > > > {
-
-    typedef mpl::map3<  mpl::pair<reset, boost::function<void (boost::shared_ptr<Derived>) > >,
-            mpl::pair<remove, boost::function<void (boost::shared_ptr<Derived>) > >,
-            mpl::pair<recalculated, boost::function<void (boost::shared_ptr<Derived>)> > > Signals;
-
-    typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
-    typedef Object<Sys, Derived, Signals> 		Base;
     typedef typename system_traits<Sys>::Kernel 	Kernel;
     typedef typename system_traits<Sys>::Cluster 	Cluster;
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
     typedef typename Kernel::template transform_type<Dim>::type		Transform;
     typedef typename Kernel::template transform_type<Dim>::diff_type	DiffTransform;
-
-    struct cloner : boost::static_visitor<void> {
-        typedef typename boost::make_variant_over< GeometrieTypeList >::type Variant;
-
-        Variant variant;
-        cloner(Variant& v) : variant(v) {};
-
-        template<typename T>
-        void operator()(T& t) {
-            variant = geometry_clone_traits<T>()(t);
-        };
-    };
 
 #ifdef USE_LOGGING
 protected:
@@ -167,23 +142,10 @@ protected:
 public:
     typedef mpl::int_<Dim> Dimension;
 
-    Geometry(Sys& system);
+    Geometry();
     
-    template<typename T>
-    Geometry(const T& geometry, Sys& system);
-
-    template<typename T>
-    void set(const T& geometry);
-
-    template<typename Visitor>
-    typename Visitor::result_type apply(Visitor& vis) {
-        return boost::apply_visitor(vis, m_geometry);
-    };
-
     //basic ation
     void transform(const Transform& t);
-
-    virtual boost::shared_ptr<Derived> clone(Sys& newSys);
 
     //allow accessing the internal values in unittests without making them public,
     //so that access control of the internal classes is not changed and can be tested
@@ -217,7 +179,6 @@ public:
 //protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs
 //are declared friend
 //protected:
-    Variant m_geometry; //Variant holding the real geometry type
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
     int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
     int     m_offset, m_offset_rot; //the starting point of our parameters in the math system parameter vector
@@ -230,8 +191,11 @@ public:
     typename Kernel::Matrix      m_diffparam; //gradient vectors combined as matrix when in cluster
     typename Kernel::VectorMap   m_parameter; //map to the parameters in the solver
 
-    template<typename T>
-    void init(const T& t);
+    template<typename tag>
+    void init();
+    template<typename Derived>
+    void  setValue(const Eigen::MatrixBase<Derived>& t) {m_global = t;};
+    typename Kernel::Vector& getValue() {return m_global;};
 
     void normalize();
 
@@ -252,24 +216,17 @@ public:
         return m_toplocal.template segment<Dim>(0);
     };
 
-    //visitor to write the calculated value into the variant
-    struct apply_visitor : public boost::static_visitor<void> {
-
-        apply_visitor(typename Kernel::Vector& v) : value(v) {};
-        template <typename T>
-        void operator()(T& t) const  {
-            (typename geometry_traits<T>::modell()).template inject<typename Kernel::number_type,
-            typename geometry_traits<T>::accessor >(t, value);
-        }
-        typename Kernel::Vector& value;
-    };
-
     //use m_value or parametermap as new value, dependend on the solving mode
     void finishCalculation();
 
     template<typename VectorType>
     void transform(const Transform& t, VectorType& vec);
     void scale(Scalar value);
+    
+    //let the derived class decide what happens on significant events
+    virtual void reset() = 0;
+    virtual void recalculated() = 0;
+    virtual void removed() = 0;
 };
 
 
@@ -279,8 +236,8 @@ public:
 /*****************************************************************************************************************/
 /*****************************************************************************************************************/
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-Geometry<Sys, Derived, GeometrieTypeList, Dim>::Geometry(Sys& system)
+template< typename Sys, int Dim>
+Geometry<Sys, Dim>::Geometry()
     : m_isInCluster(false), m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
@@ -288,33 +245,10 @@ Geometry<Sys, Derived, GeometrieTypeList, Dim>::Geometry(Sys& system)
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
-    this->m_system = &system;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-template<typename T>
-Geometry<Sys, Derived, GeometrieTypeList, Dim>::Geometry(const T& geometry, Sys& system)
-    : m_isInCluster(false), m_geometry(geometry),  m_parameter(NULL,0,DS(0,0)),
-      m_clusterFixed(false), m_init(false) {
-
-#ifdef USE_LOGGING
-    log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
-#endif
-
-    this->m_system = &system;
-    init<T>(geometry);
-};
-
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-template<typename T>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::set(const T& geometry) {
-    m_geometry = geometry;
-    init<T>(geometry);
-    //Base::template emitSignal<reset>( ((Derived*)this)->shared_from_this() );
-};
-
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& t) {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
@@ -324,26 +258,14 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& 
         transform(t, m_global);
 };
 
-template<typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-boost::shared_ptr<Derived> Geometry<Sys, Derived, GeometrieTypeList, Dim>::clone(Sys& newSys) {
+template< typename Sys, int Dim>
+template<typename tag>
+void Geometry<Sys, Dim>::init() {
 
-    //copy the standart stuff
-    boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
-    np->m_system = &newSys;
-    //it's possible that the variant contains pointers, so we need to clone them
-    cloner clone_fnc(np->m_geometry);
-    boost::apply_visitor(clone_fnc, m_geometry);
-    return np;
-};
-
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-template<typename T>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::init(const T& t) {
-
-    m_BaseParameterCount = geometry_traits<T>::tag::parameters::value;
+    m_BaseParameterCount = tag::parameters::value;
     m_parameterCount = m_BaseParameterCount;
-    m_rotations = geometry_traits<T>::tag::rotations::value;
-    m_translations = geometry_traits<T>::tag::translations::value;
+    m_rotations = tag::rotations::value;
+    m_translations = tag::translations::value;
 
     m_toplocal.setZero(m_parameterCount);
     m_global.resize(m_parameterCount);
@@ -353,8 +275,6 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::init(const T& t) {
     m_diffparam.resize(m_parameterCount,6);
     m_diffparam.setZero();
 
-    (typename geometry_traits<T>::modell()).template extract<Scalar,
-    typename geometry_traits<T>::accessor >(t, m_global);
     normalize();
 
     //new value which is not set into parameter, so init is false
@@ -366,29 +286,29 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::init(const T& t) {
 
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::normalize() {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::normalize() {
     //directions are not nessessarily normalized, but we need to ensure this in cluster mode
     for(int i=m_translations; i!=m_rotations; i++)
         m_global.template segment<Dim>(i*Dim).normalize();
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-typename Sys::Kernel::VectorMap& Geometry<Sys, Derived, GeometrieTypeList, Dim>::getParameterMap() {
+template< typename Sys, int Dim>
+typename Sys::Kernel::VectorMap& Geometry<Sys, Dim>::getParameterMap() {
     m_isInCluster = false;
     m_parameterCount = m_BaseParameterCount;
     return m_parameter;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::initMap() {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::initMap() {
     //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
     m_parameter = m_global;
     m_init = true;
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::setClusterMode(bool iscluster, bool isFixed) {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::setClusterMode(bool iscluster, bool isFixed) {
 
     m_isInCluster = iscluster;
     m_clusterFixed = isFixed;
@@ -402,8 +322,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::setClusterMode(bool isclust
     } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::recalculate(DiffTransform& trans) {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::recalculate(DiffTransform& trans) {
     if(!m_isInCluster) return;
 
     for(int i=0; i!=m_rotations; i++) {
@@ -432,8 +352,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::recalculate(DiffTransform& 
 };
 
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::finishCalculation() {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::finishCalculation() {
     //if fixed nothing needs to be changed
     if(m_isInCluster) {
         //recalculate(1.); //remove scaling to get right global value
@@ -450,18 +370,16 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::finishCalculation() {
         BOOST_LOG(log) << "Finish calculation";
 #endif
     };
-    apply_visitor v(m_global);
-    apply(v);
+
     m_init = false;
     m_isInCluster = false;
-    
-    //emit the signal for recalculation
-    Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
+
+    recalculated();// Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
 };
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
+template< typename Sys, int Dim>
 template<typename VectorType>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& t, VectorType& vec) {
+void Geometry<Sys, Dim>::transform(const Transform& t, VectorType& vec) {
 
     //everything that needs to be translated needs to be fully transformed
     for(int i=0; i!=m_translations; i++) {
@@ -480,8 +398,8 @@ void Geometry<Sys, Derived, GeometrieTypeList, Dim>::transform(const Transform& 
 #endif
 }
 
-template< typename Sys, typename Derived, typename GeometrieTypeList, int Dim>
-void Geometry<Sys, Derived, GeometrieTypeList, Dim>::scale(Scalar value) {
+template< typename Sys, int Dim>
+void Geometry<Sys, Dim>::scale(Scalar value) {
 
     for(int i=0; i!=m_translations; i++)
         m_parameter.template segment<Dim>(i*Dim) *= 1./value;
