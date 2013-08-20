@@ -216,20 +216,20 @@ void SystemSolver<Sys>::Rescaler::collectPseudoPoints(
     Eigen::aligned_allocator<typename SystemSolver<Sys>::Kernel::Vector3> >& vec) {
 
     std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > vec2;
-    typedef typename Cluster::template object_iterator<Constraint3D> c_iter;
+    typedef typename Cluster::global_edge_iterator c_iter;
     typedef typename boost::graph_traits<Cluster>::out_edge_iterator e_iter;
     std::pair<e_iter, e_iter> it = boost::out_edges(cluster, *parent);
     for(; it.first != it.second; it.first++) {
 
-        std::pair< c_iter, c_iter > cit = parent->template getObjects<Constraint3D>(*it.first);
+        std::pair< c_iter, c_iter > cit = parent->template getGlobalEdges(*it.first);
         for(; cit.first != cit.second; cit.first++) {
-            Cons c = *(cit.first);
+            Cons c = parent->template getObject<Constraint3D>(*cit.first);
 
             if(!c)
                 continue;
 
             //get the first global vertex and see if we have it in the wanted cluster or not
-            GlobalVertex v  = c->first->template getProperty<vertex_prop>();
+            GlobalVertex v  = cit.first->source;
             std::pair<LocalVertex,bool> res = parent->getLocalVertex(v);
             if(!res.second)
                 return; //means the geometry is in non of the clusters which is not allowed
