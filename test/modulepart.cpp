@@ -188,12 +188,6 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
 
   BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
   BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
-  
-  //in local it's easyer to chekc if the transformations are set correctly
-  place pl1 = get<place>(part1);
-  place pl2 = get<place>(part2);
-  BOOST_CHECK( v1.isApprox(pl1.quat*p1 + pl1.trans,1e-10 ));
-  BOOST_CHECK( v3.isApprox(pl2.quat*p3 + pl2.trans,1e-10 ));
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_transformations) {
