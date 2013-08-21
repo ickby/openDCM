@@ -37,9 +37,9 @@ struct geometry_traits<Eigen::Vector3d> {
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d> > Module;
-typedef dcm::System<Kernel, Module, dcm::ModuleHL3D<> > System;
+typedef dcm::System<Kernel, Module, dcm::ModuleHL3D< mpl::vector0<> > > System;
 typedef Module::type<System>::Geometry3D geom;
-typedef dcm::ModuleHL3D<>::type<System>::HLGeometry3D hlgeom;
+typedef dcm::ModuleHL3D< mpl::vector0<> >::type<System>::HLGeometry3D hlgeom;
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<hlgeom> hlgeom_ptr;
 
