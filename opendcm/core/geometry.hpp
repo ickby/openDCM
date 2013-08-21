@@ -143,14 +143,21 @@ public:
     typedef mpl::int_<Dim> Dimension;
 
     Geometry();
-    
+
     //basic ations
-    template<typename Derived>
-    void  setValue(const Eigen::MatrixBase<Derived>& t) {m_global = t;};
-    typename Kernel::Vector& getValue() {return m_global;};
+    template<typename tag, typename Derived>
+    void  setValue(const Eigen::MatrixBase<Derived>& t) {
+        init<tag>();
+        m_global = t;
+    };
+    typename Kernel::Vector& getValue() {
+        return m_global;
+    };
     void transform(const Transform& t);
-    
-    int getType() { return m_type;};
+
+    int getType() {
+        return m_type;
+    };
 
     //allow accessing the internal values in unittests without making them public,
     //so that access control of the internal classes is not changed and can be tested
@@ -225,7 +232,7 @@ public:
     template<typename VectorType>
     void transform(const Transform& t, VectorType& vec);
     void scale(Scalar value);
-    
+
     //let the derived class decide what happens on significant events
     virtual void reset() = 0;
     virtual void recalculated() = 0;
@@ -255,10 +262,11 @@ void Geometry<Sys, Dim>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
-    else if(m_init)
-        transform(t, m_rotated);
     else
-        transform(t, m_global);
+        if(m_init)
+            transform(t, m_rotated);
+        else
+            transform(t, m_global);
 };
 
 template< typename Sys, int Dim>
@@ -277,7 +285,7 @@ void Geometry<Sys, Dim>::init() {
 
     m_diffparam.resize(m_parameterCount,6);
     m_diffparam.setZero();
-    
+
     m_type = tag::weight::value;
 
     normalize();
@@ -324,12 +332,15 @@ void Geometry<Sys, Dim>::setClusterMode(bool iscluster, bool isFixed) {
         //the local value is the global one as no transformation was applied  yet
         m_toplocal = m_global;
         m_rotated = m_global;
-    } else new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
+    }
+    else
+        new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 };
 
 template< typename Sys, int Dim>
 void Geometry<Sys, Dim>::recalculate(DiffTransform& trans) {
-    if(!m_isInCluster) return;
+    if(!m_isInCluster)
+        return;
 
     for(int i=0; i!=m_rotations; i++) {
         //first rotate the original to the transformed value

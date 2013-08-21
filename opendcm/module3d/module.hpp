@@ -113,18 +113,34 @@ struct Module3D {
             template<typename T>
             void set(const T& geometry);
 
+            bool holdsType() {
+                return m_geometry.which()!=0;
+            };
+            int whichType() {
+                return m_geometry.which()-1;
+            };
+
             template<typename Visitor>
             typename Visitor::result_type apply(Visitor& vis) {
                 return boost::apply_visitor(vis, m_geometry);
             };
 
+            template<typename T>
+            T convertTo() {
+		T t;
+                (typename geometry_traits<T>::modell()).template inject<typename Kernel::number_type,
+                typename geometry_traits<T>::accessor >(t, Base::m_global);
+		return t;
+            };
+
             virtual boost::shared_ptr<Derived> clone(Sys& newSys);
 
         protected:
-            typedef typename boost::make_variant_over< Typelist >::type Variant;
+            typedef typename mpl::push_front<Typelist, boost::blank>::type ExtTypeList;
+            typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
             struct cloner : boost::static_visitor<void> {
-                typedef typename boost::make_variant_over< Typelist >::type Variant;
+                typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
                 Variant variant;
                 cloner(Variant& v) : variant(v) {};

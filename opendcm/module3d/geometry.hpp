@@ -155,6 +155,27 @@ namespace modell {
   
 }
 
+//dummy accessor
+struct dummy_accessor {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        return 1;
+    };
+    template<typename Scalar, int ID, typename T>
+    void set(Scalar value, T& t) {
+        //TODO: throw
+    };
+};
+
+//dummy geometry traits for boost blank, wil bever be used
+template<>
+struct geometry_traits<boost::blank> {
+    typedef tag::direction3D tag;
+    typedef modell::XYZ modell;
+    typedef dummy_accessor accessor;
+};
+
 }
 
 #endif //GCM_GEOMETRY_3D_H
