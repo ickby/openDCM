@@ -210,7 +210,7 @@ public:
     void normalize();
 
     typename Sys::Kernel::VectorMap& getParameterMap();
-    void initMap();
+    void initMap(typename Kernel::MappedEquationSystem* mes);
 
     void setClusterMode(bool iscluster, bool isFixed);
     bool getClusterMode() {
@@ -314,8 +314,9 @@ typename Sys::Kernel::VectorMap& Geometry<Sys, Dim>::getParameterMap() {
 };
 
 template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::initMap() {
-    //when direct parameter solving the global value is wanted (as it's the initial rotation*toplocal)
+void Geometry<Sys, Dim>::initMap(typename Kernel::MappedEquationSystem* mes) {
+  
+    m_offset = mes->setParameterMap(m_parameterCount, getParameterMap());
     m_parameter = m_global;
     m_init = true;
 };

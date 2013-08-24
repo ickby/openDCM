@@ -341,10 +341,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             }
             else {
                 Geom g = cluster->template getObject<Geometry3D>(*it.first);
-                int offset = mes.setParameterMap(g->m_parameterCount, g->getParameterMap());
-                g->m_offset = offset;
-                //init the parametermap with initial values
-                g->initMap();
+                g->initMap(&mes);
             }
         }
 
