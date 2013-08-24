@@ -27,7 +27,7 @@
 	#pragma warning( disable : 4503 )
 #endif
 
-#include "moduleHL3d/defines.hpp"
-#include "moduleHL3d/module.hpp"
+#include "moduleShape3d/defines.hpp"
+#include "moduleShape3d/module.hpp"
 
 #endif //DCM_MODULEHL3D_H

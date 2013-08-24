@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_MODULE_HLG3D_H
-#define GCM_MODULE_HLG3D_H
+#ifndef GCM_MODULE_SHAPE3D_H
+#define GCM_MODULE_SHAPE3D_H
 
 #include <opendcm/core.hpp>
 #include <opendcm/core/geometry.hpp>
@@ -44,7 +44,7 @@
 #define APPEND_SINGLE(z, n, data) \
     g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
     if(!g_ptr) { \
-      hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), HLGeometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
+      hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), Shape3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
       if(!hlg_ptr) \
 	throw creation_error() <<  boost::errinfo_errno(216) << error_message("could not handle input"); \
       else \
@@ -60,7 +60,7 @@
     typename Generator  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    boost::shared_ptr<HLGeometry3D> createHLGeometry3D( \
+    boost::shared_ptr<Shape3D> createShape3D( \
                      BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                    );
 
@@ -71,16 +71,16 @@
     typename Generator \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg)\
     > \
-    boost::shared_ptr<typename ModuleHL3D<TypeList, ID>::template type<Sys>::HLGeometry3D> \
-    ModuleHL3D<TypeList, ID>::type<Sys>::inheriter_base::createHLGeometry3D( \
+    boost::shared_ptr<typename ModuleShape3D<TypeList, ID>::template type<Sys>::Shape3D> \
+    ModuleShape3D<TypeList, ID>::type<Sys>::inheriter_base::createShape3D( \
             BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                                               ) \
     { \
       typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d; \
       typedef typename module3d::Geometry3D Geometry3D; \
       boost::shared_ptr<Geometry3D> g_ptr; \
-      boost::shared_ptr<HLGeometry3D> hlg_ptr; \
-      boost::shared_ptr<HLGeometry3D> ptr = boost::shared_ptr<HLGeometry3D>(new HLGeometry3D(*m_this)); \
+      boost::shared_ptr<Shape3D> hlg_ptr; \
+      boost::shared_ptr<Shape3D> ptr = boost::shared_ptr<Shape3D>(new Shape3D(*m_this)); \
       BOOST_PP_REPEAT(n, APPEND_SINGLE, ptr) \
       ptr->template init<Generator>();\
       return ptr;\
@@ -128,26 +128,26 @@ struct converter_hlg<boost::shared_ptr<R>, R>  {
 
 
 template<typename TypeList, typename ID = No_Identifier>
-struct ModuleHL3D {
+struct ModuleShape3D {
 
     template<typename Sys>
-    struct type : details::mhl3d {
+    struct type : details::mshape3d {
 
         //forward declare
         struct inheriter_base;
 
-        typedef mpl::map0<> HLGeomSig;
+        typedef mpl::map0<> ShapeSig;
 
         template<typename Derived>
-        struct HLGeometry3D_base : public details::Geometry<Sys, 3>, public Object<Sys, Derived, HLGeomSig > {
+        struct Shape3D_base : public details::Geometry<Sys, 3>, public Object<Sys, Derived, ShapeSig > {
 
             typedef typename Sys::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
 
-            HLGeometry3D_base(Sys& system);
+            Shape3D_base(Sys& system);
 
             template<typename T>
-            HLGeometry3D_base(const T& geometry, Sys& system);
+            Shape3D_base(const T& geometry, Sys& system);
 
             template<typename T>
             void set(const T& geometry);
@@ -177,7 +177,7 @@ struct ModuleHL3D {
         protected:
 
             typedef details::Geometry<Sys, 3> Base;
-            typedef Object<Sys, Derived, HLGeomSig > ObjBase;
+            typedef Object<Sys, Derived, ShapeSig > ObjBase;
             typedef typename mpl::push_front<TypeList, boost::blank>::type ExtTypeList;
             typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
@@ -253,18 +253,18 @@ struct ModuleHL3D {
         };
 
         template<typename Derived>
-        class HLGeometry3D_id : public HLGeometry3D_base<Derived> {
+        class Shape3D_id : public Shape3D_base<Derived> {
 
-            typedef HLGeometry3D_base<Derived> Base;
+            typedef Shape3D_base<Derived> Base;
 
 #ifdef USE_LOGGING
             attrs::mutable_constant< std::string > log_id;
 #endif
         public:
-            HLGeometry3D_id(Sys& system);
+            Shape3D_id(Sys& system);
 
             template<typename T>
-            HLGeometry3D_id(const T& geometry, Sys& system);
+            Shape3D_id(const T& geometry, Sys& system);
 
             template<typename T>
             void set(const T& geometry, ID id);
@@ -276,13 +276,13 @@ struct ModuleHL3D {
             void setIdentifier(ID id);
         };
 
-        struct HLGeometry3D : public mpl::if_<boost::is_same<ID, No_Identifier>,
-                HLGeometry3D_base<HLGeometry3D>, HLGeometry3D_id<HLGeometry3D> >::type {
+        struct Shape3D : public mpl::if_<boost::is_same<ID, No_Identifier>,
+                Shape3D_base<Shape3D>, Shape3D_id<Shape3D> >::type {
 
-            HLGeometry3D(Sys& system);
+            Shape3D(Sys& system);
 
             template<typename T>
-            HLGeometry3D(const T& geometry, Sys& system);
+            Shape3D(const T& geometry, Sys& system);
 
             //allow accessing the internals by module3d classes but not by users
             friend struct details::ClusterMath<Sys>;
@@ -334,8 +334,8 @@ BOOST_PP_REPEAT(5, CREATE_DEC, ~)
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_base<Derived>::HLGeometry3D_base(Sys& system)
-    : Object<Sys, Derived, HLGeomSig>(system) {
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::Shape3D_base(Sys& system)
+    : Object<Sys, Derived, ShapeSig>(system) {
 
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
@@ -346,8 +346,8 @@ template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
 template<typename T>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_base<Derived>::HLGeometry3D_base(const T& geometry, Sys& system)
-    : Object<Sys, Derived, HLGeomSig>(system) {
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::Shape3D_base(const T& geometry, Sys& system)
+    : Object<Sys, Derived, ShapeSig>(system) {
 
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
@@ -365,7 +365,7 @@ template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
 template<typename T>
-void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_base<Derived>::set(const T& geometry) {
+void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::set(const T& geometry) {
 
     m_geometry = geometry;
     //first init, so that the geometry internal vector has the right size
@@ -380,7 +380,7 @@ void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_base<Derived>::set(const 
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
-boost::shared_ptr<Derived> ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_base<Derived>::clone(Sys& newSys) {
+boost::shared_ptr<Derived> ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::clone(Sys& newSys) {
 
     //copy the standart stuff
     boost::shared_ptr<Derived> np = boost::shared_ptr<Derived>(new Derived(*static_cast<Derived*>(this)));
@@ -394,8 +394,8 @@ boost::shared_ptr<Derived> ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_bas
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::HLGeometry3D_id(Sys& system)
-    : ModuleHL3D<Typelist, ID>::template type<Sys>::template HLGeometry3D_base<Derived>(system)
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::Shape3D_id(Sys& system)
+    : ModuleShape3D<Typelist, ID>::template type<Sys>::template Shape3D_base<Derived>(system)
 #ifdef USE_LOGGING
 , log_id("No ID")
 #endif
@@ -410,8 +410,8 @@ template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
 template<typename T>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::HLGeometry3D_id(const T& geometry, Sys& system)
-    : ModuleHL3D<Typelist, ID>::template type<Sys>::template HLGeometry3D_base<Derived>(geometry, system)
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::Shape3D_id(const T& geometry, Sys& system)
+    : ModuleShape3D<Typelist, ID>::template type<Sys>::template Shape3D_base<Derived>(geometry, system)
 #ifdef USE_LOGGING
 , log_id("No ID")
 #endif
@@ -426,7 +426,7 @@ template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
 template<typename T>
-void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::set(const T& geometry, Identifier id) {
+void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::set(const T& geometry, Identifier id) {
     this->template setProperty<id_prop<Identifier> >(id);
     Base::set(geometry);
 };
@@ -435,22 +435,22 @@ template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
 template<typename T>
-void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::set(const T& geometry) {
+void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::set(const T& geometry) {
     Base::set(geometry);
 };
 
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
-typename ModuleHL3D<Typelist, ID>::template type<Sys>::Identifier&
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::getIdentifier() {
+typename ModuleShape3D<Typelist, ID>::template type<Sys>::Identifier&
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::getIdentifier() {
     return  this->template getProperty<id_prop<Identifier> >();
 };
 
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename Derived>
-void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::setIdentifier(Identifier id) {
+void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::setIdentifier(Identifier id) {
     this->template setProperty<id_prop<Identifier> >(id);
 #ifdef USE_LOGGING
     std::stringstream str;
@@ -462,23 +462,23 @@ void ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D_id<Derived>::setIdentifie
 
 template<typename Typelist, typename ID>
 template<typename Sys>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D::HLGeometry3D(Sys& system)
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D::Shape3D(Sys& system)
     : mpl::if_<boost::is_same<Identifier, No_Identifier>,
-      HLGeometry3D_base<HLGeometry3D>,
-      HLGeometry3D_id<HLGeometry3D> >::type(system) {
+      Shape3D_base<Shape3D>,
+      Shape3D_id<Shape3D> >::type(system) {
 
 };
 
 template<typename Typelist, typename ID>
 template<typename Sys>
 template<typename T>
-ModuleHL3D<Typelist, ID>::type<Sys>::HLGeometry3D::HLGeometry3D(const T& geometry, Sys& system)
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D::Shape3D(const T& geometry, Sys& system)
     : mpl::if_<boost::is_same<Identifier, No_Identifier>,
-      HLGeometry3D_base<HLGeometry3D>,
-      HLGeometry3D_id<HLGeometry3D> >::type(geometry, system) {
+      Shape3D_base<Shape3D>,
+      Shape3D_id<Shape3D> >::type(geometry, system) {
 
 };
 
 }//dcm
 
-#endif //GCM_MODULE_HLG3D_H
+#endif //GCM_MODULE_SHAPE3D_H

@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_GENERATOR_HLG3D_H
-#define GCM_GENERATOR_HLG3D_H
+#ifndef GCM_GENERATOR_SHAPE3D_H
+#define GCM_GENERATOR_SHAPE3D_H
 
 #include <opendcm/core/defines.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -34,18 +34,18 @@ struct HLGeneratorBase {
     typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;
     typedef typename module3d::Constraint3D Constraint3D;
-    typedef typename system_traits<Sys>::template getModule<details::mhl3d>::type modulehl3d;
-    typedef typename modulehl3d::HLGeometry3D HLGeometry3D;
+    typedef typename system_traits<Sys>::template getModule<details::mshape3d>::type modulehl3d;
+    typedef typename modulehl3d::Shape3D Shape3D;
 
     std::vector<boost::shared_ptr<Geometry3D> >*   m_geometrys;
-    std::vector<boost::shared_ptr<HLGeometry3D> >* m_hlgs;
+    std::vector<boost::shared_ptr<Shape3D> >* m_hlgs;
     std::vector<boost::shared_ptr<Constraint3D> >* m_constraints;
 
     HLGeneratorBase() {};
     virtual ~HLGeneratorBase() {};
 
     void set(std::vector<boost::shared_ptr<Geometry3D> >*   geometrys,
-             std::vector<boost::shared_ptr<HLGeometry3D> >* hlgs,
+             std::vector<boost::shared_ptr<Shape3D> >* hlgs,
              std::vector<boost::shared_ptr<Constraint3D> >* constraints) {
 
         m_geometrys = geometrys;
@@ -60,7 +60,7 @@ struct HLGeneratorBase {
     //get geometry3d for optional types (e.g. midpoints)
     virtual boost::shared_ptr<Geometry3D> getOrCreateG3d(int type) = 0;
     //get hlgeometry3d for optional types
-    virtual boost::shared_ptr<HLGeometry3D> getOrCreateHLG3d(int type) = 0;
+    virtual boost::shared_ptr<Shape3D> getOrCreateHLG3d(int type) = 0;
 };
 
 } //details
@@ -84,7 +84,7 @@ struct dummy_generator {
             throw creation_error() <<  boost::errinfo_errno(212) << error_message("dummy generator has no geometry to access");
         };
         //get hlgeometry3d for optional types
-        virtual boost::shared_ptr<typename details::HLGeneratorBase<Sys>::HLGeometry3D> getOrCreateHLG3d(int type) {
+        virtual boost::shared_ptr<typename details::HLGeneratorBase<Sys>::Shape3D> getOrCreateHLG3d(int type) {
             throw creation_error() <<  boost::errinfo_errno(213) << error_message("dummy generator has no high level geometry to access");
         };
     };
@@ -93,4 +93,4 @@ struct dummy_generator {
 } //dcm
 
 
-#endif //GCM_GENERATOR_HLG3D_H
+#endif //GCM_GENERATOR_SHAPE3D_H

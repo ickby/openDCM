@@ -22,7 +22,7 @@
 
 #include "opendcm/core.hpp"
 #include "opendcm/module3d.hpp"
-#include "opendcm/modulehl3d.hpp"
+#include "opendcm/moduleshape3d.hpp"
 
 namespace dcm {
  
@@ -37,9 +37,9 @@ struct geometry_traits<Eigen::Vector3d> {
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d> > Module;
-typedef dcm::System<Kernel, Module, dcm::ModuleHL3D< mpl::vector0<> > > System;
+typedef dcm::System<Kernel, Module, dcm::ModuleShape3D< mpl::vector0<> > > System;
 typedef Module::type<System>::Geometry3D geom;
-typedef dcm::ModuleHL3D< mpl::vector0<> >::type<System>::HLGeometry3D hlgeom;
+typedef dcm::ModuleShape3D< mpl::vector0<> >::type<System>::Shape3D hlgeom;
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<hlgeom> hlgeom_ptr;
 
@@ -62,8 +62,8 @@ struct test {
 	  return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D>();
         };
         //get hlgeometry3d for optional types
-        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::HLGeometry3D> getOrCreateHLG3d(int type) {
-	  return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::HLGeometry3D>();
+        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D> getOrCreateHLG3d(int type) {
+	  return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D>();
 
 	  
 	};
@@ -71,7 +71,7 @@ struct test {
 };
 
 
-BOOST_AUTO_TEST_SUITE(ModuleHL3D_test_suit);
+BOOST_AUTO_TEST_SUITE(ModuleShape3D_test_suit);
 
 BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
   
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
   
       System sys;
       geom_ptr g1 = sys.createGeometry3D(p1);
-      hlgeom_ptr hlg1 = sys.createHLGeometry3D<test>(p2, g1);
+      hlgeom_ptr hlg1 = sys.createShape3D<test>(p2, g1);
       
   }
   catch(boost::exception& e) {
