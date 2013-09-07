@@ -33,6 +33,8 @@
 #include <boost/mpl/or.hpp>
 #include <boost/mpl/not.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/mpl/int.hpp>
+#include <boost/mpl/plus.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
@@ -60,13 +62,68 @@ struct undefined {
 
 //we need to order tags, this values make it easy for module tags
 namespace weight {
-struct direction : mpl::int_<0> {};
-struct point : mpl::int_<1> {};
-struct line  : mpl::int_<2> {};
-struct plane : mpl::int_<3> {};
-struct cylinder : mpl::int_<4> {};
+struct parameter : mpl::int_<0> {};
+struct direction : mpl::int_<1> {};
+struct point : mpl::int_<2> {};
+struct line  : mpl::int_<3> {};
+struct plane : mpl::int_<4> {};
+struct cylinder : mpl::int_<5> {};
 }
-}
+} // tag
+
+namespace details {
+
+struct bg {}; //struct to allow test for basic geometry
+
+template< typename weight_type, int params, bool rotatable, bool translatable>
+struct basic_geometry : public bg {
+
+    typedef mpl::int_<params> parameters;
+    typedef typename mpl::if_c<translatable, mpl::int_<1>, mpl::int_<0> >::type translations;
+    typedef typename mpl::if_c<rotatable, mpl::int_<1>, mpl::int_<0> >::type rotations;
+    typedef weight_type weight;
+    typedef mpl::vector0<> sub_stack;
+};
+
+//build up stacked geometry. these are geometrys which can be splitted into multiple basic geometries. For 
+//example lines can be splittet into a point and a direction. Make sure you order the basic geometry in a 
+//sensible rotation/translation manner. Remember: geometrie is first rotated, than translated. Therefore
+//everything that gets rotated and translated needs to be first, than the rotation only stuff, then the 
+//untransformed. For a line this would be <point, direction>
+template<typename weight_type, typename T1, typename T2>
+struct stacked2_geometry {
+  
+    //be sure we only stack base geometrys
+    BOOST_MPL_ASSERT((boost::is_base_of< bg, T1 >));
+    BOOST_MPL_ASSERT((boost::is_base_of< bg, T2 >));
+
+    typedef typename mpl::plus<typename T1::parameters, typename T2::parameters>::type parameters;
+    typedef typename mpl::plus<typename T1::rotations, typename T2::rotations>::type rotations;
+    typedef typename mpl::plus<typename T1::translations, typename T2::translations>::type translations;
+    typedef weight_type weight;
+    typedef mpl::vector2<T1, T2> sub_stack;
+};
+
+template<typename weight_type, typename T1, typename T2, typename T3>
+struct stacked3_geometry {
+  
+    //be sure we only stack base geometrys
+    BOOST_MPL_ASSERT((boost::is_base_of< bg, T1 >));
+    BOOST_MPL_ASSERT((boost::is_base_of< bg, T2 >));
+    BOOST_MPL_ASSERT((boost::is_base_of< bg, T3 >));
+
+    typedef typename mpl::plus<typename T1::parameters, typename T2::parameters, typename T3::parameters>::type parameters;
+    typedef typename mpl::plus<typename T1::rotations, typename T2::rotations, typename T3::rotations>::type rotations;
+    typedef typename mpl::plus<typename T1::translations, typename T2::translations, typename T3::translations>::type translations;
+    typedef weight_type weight;
+    typedef mpl::vector3<T1, T2, T3> sub_stack;
+};
+} //details
+
+namespace tag {
+//a parameter is universal, so let's define it here
+struct parameter : details::basic_geometry<weight::parameter, 1, false, false> {};
+} //tag
 
 struct orderd_bracket_accessor {
 

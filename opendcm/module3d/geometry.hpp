@@ -25,41 +25,13 @@
 namespace dcm {
 namespace tag {
 
-struct point3D  {
-    typedef mpl::int_<3>  parameters;
-    typedef mpl::int_<1>  rotations;
-    typedef mpl::int_<1>  translations;
-    typedef weight::point weight; 
-};
+struct point3D : details::basic_geometry<weight::point, 3, true, true> {};
+struct direction3D : details::basic_geometry<weight::direction, 3, true, false> {};
+struct line3D : details::stacked2_geometry<weight::line, point3D, direction3D> {};
+struct plane3D : details::stacked2_geometry<weight::plane, point3D, direction3D> {};
+struct cylinder3D : details::stacked3_geometry<weight::cylinder, point3D, direction3D, parameter> {};
 
-struct direction3D  {
-    typedef mpl::int_<3>  parameters;
-    typedef mpl::int_<1>  rotations;
-    typedef mpl::int_<0>  translations;
-    typedef weight::direction weight; 
-};
-
-struct line3D  {
-    typedef mpl::int_<6> parameters;
-    typedef mpl::int_<2> rotations;
-    typedef mpl::int_<1> translations;
-    typedef weight::line weight; 
-};
-
-struct plane3D  {
-    typedef mpl::int_<6>  parameters;
-    typedef mpl::int_<2>  rotations;
-    typedef mpl::int_<1>  translations;
-    typedef weight::plane weight; 
-};
-
-struct cylinder3D  {
-    typedef mpl::int_<7>  parameters;
-    typedef mpl::int_<2>  rotations;
-    typedef mpl::int_<1>  translations;
-    typedef weight::cylinder weight; 
-};
-}
+} //tag
 
 namespace modell {
   
