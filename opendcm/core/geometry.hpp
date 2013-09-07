@@ -124,11 +124,9 @@ struct geometry_clone_traits {
 
 namespace details {
 
-template<typename Sys, int Dim>
+template<typename Kernel, int Dim>
 class Geometry {
 
-    typedef typename system_traits<Sys>::Kernel 	Kernel;
-    typedef typename system_traits<Sys>::Cluster 	Cluster;
     typedef typename Kernel::number_type 		Scalar;
     typedef typename Kernel::DynStride 			DS;
     typedef typename Kernel::template transform_type<Dim>::type		Transform;
@@ -186,6 +184,12 @@ public:
     int parameterCount() {
         return  m_parameterCount;
     };
+    void test_linkTo(boost::shared_ptr< Geometry< Kernel, Dim > > geom, int offset) {
+        linkTo(geom, offset);
+    };
+    bool test_isLinked() {
+        return isLinked();
+    };
 #endif
 
 //protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs
@@ -209,8 +213,11 @@ public:
 
     void normalize();
 
-    typename Sys::Kernel::VectorMap& getParameterMap();
+    typename Kernel::VectorMap& getParameterMap();
     void initMap(typename Kernel::MappedEquationSystem* mes);
+    bool isInitialised() {
+        return m_init;
+    };
 
     void setClusterMode(bool iscluster, bool isFixed);
     bool getClusterMode() {
@@ -218,6 +225,15 @@ public:
     };
     bool isClusterFixed() {
         return m_clusterFixed;
+    };
+
+    int m_link_offset;
+    boost::shared_ptr<Geometry<Kernel, Dim> > m_link;
+
+    template<typename T>
+    void linkTo(boost::shared_ptr< Geometry< Kernel, Dim > > geom, int offset);
+    bool isLinked() {
+        return m_link!=0;
     };
 
     void recalculate(DiffTransform& trans);
@@ -246,19 +262,19 @@ public:
 /*****************************************************************************************************************/
 /*****************************************************************************************************************/
 
-template< typename Sys, int Dim>
-Geometry<Sys, Dim>::Geometry()
+template< typename Kernel, int Dim>
+Geometry<Kernel, Dim>::Geometry()
     : m_isInCluster(false), m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
 #ifdef USE_LOGGING
-    log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
+    log.add_attribute("Tag", attrs::constant< std::string >("Geometry"));
 #endif
 
 };
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::transform(const Transform& t) {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
@@ -269,9 +285,9 @@ void Geometry<Sys, Dim>::transform(const Transform& t) {
             transform(t, m_global);
 };
 
-template< typename Sys, int Dim>
+template< typename Kernel, int Dim>
 template<typename tag>
-void Geometry<Sys, Dim>::init() {
+void Geometry<Kernel, Dim>::init() {
 
     m_BaseParameterCount = tag::parameters::value;
     m_parameterCount = m_BaseParameterCount;
@@ -299,47 +315,71 @@ void Geometry<Sys, Dim>::init() {
 
 };
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::normalize() {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::normalize() {
     //directions are not nessessarily normalized, but we need to ensure this in cluster mode
     for(int i=m_translations; i!=m_rotations; i++)
         m_global.template segment<Dim>(i*Dim).normalize();
 };
 
-template< typename Sys, int Dim>
-typename Sys::Kernel::VectorMap& Geometry<Sys, Dim>::getParameterMap() {
+template< typename Kernel, int Dim>
+typename Kernel::VectorMap& Geometry<Kernel, Dim>::getParameterMap() {
     m_isInCluster = false;
     m_parameterCount = m_BaseParameterCount;
     return m_parameter;
 };
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::initMap(typename Kernel::MappedEquationSystem* mes) {
-  
-    m_offset = mes->setParameterMap(m_parameterCount, getParameterMap());
-    m_parameter = m_global;
-    m_init = true;
+template<typename Kernel, int Dim>
+template<typename T>
+void Geometry<Kernel, Dim>::linkTo(boost::shared_ptr<Geometry<Kernel, Dim> > geom, int offset) {
+
+    init<T>();
+    m_link = geom;
+    m_link_offset = offset;
+    m_global = geom->m_global.segment(offset, offset + m_BaseParameterCount);
 };
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::setClusterMode(bool iscluster, bool isFixed) {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::initMap(typename Kernel::MappedEquationSystem* mes) {
+
+    //check should not be needed, but how knows...
+    if(!m_init) {
+
+        if(!isLinked()) {
+            m_offset = mes->setParameterMap(m_parameterCount, getParameterMap());
+            m_parameter = m_global;
+            m_init = true;
+        }
+        else {
+            //it's important that the linked geometry is initialised, as we going to access its parameter map
+            if(!m_link->isInitialised())
+                m_link->initMap(mes);
+
+            m_offset = m_link->m_offset + m_link_offset;
+            new(&getParameterMap()) typename Kernel::VectorMap(&m_link->getParameterMap()(m_link_offset), m_parameterCount, typename Kernel::DynStride(1,1));
+        }
+    }
+};
+
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::setClusterMode(bool iscluster, bool isFixed) {
 
     m_isInCluster = iscluster;
     m_clusterFixed = isFixed;
     if(iscluster) {
         //we are in cluster, therfore the parameter map should not point to a solver value but to
         //the rotated original value;
-        new(&m_parameter) typename Sys::Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
+        new(&m_parameter) typename Kernel::VectorMap(&m_rotated(0), m_parameterCount, DS(1,1));
         //the local value is the global one as no transformation was applied  yet
         m_toplocal = m_global;
         m_rotated = m_global;
     }
     else
-        new(&m_parameter) typename Sys::Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
+        new(&m_parameter) typename Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 };
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::recalculate(DiffTransform& trans) {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::recalculate(DiffTransform& trans) {
     if(!m_isInCluster)
         return;
 
@@ -369,8 +409,8 @@ void Geometry<Sys, Dim>::recalculate(DiffTransform& trans) {
 };
 
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::finishCalculation() {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::finishCalculation() {
     //if fixed nothing needs to be changed
     if(m_isInCluster) {
         //recalculate(1.); //remove scaling to get right global value
@@ -394,9 +434,9 @@ void Geometry<Sys, Dim>::finishCalculation() {
     recalculated();// Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
 };
 
-template< typename Sys, int Dim>
+template< typename Kernel, int Dim>
 template<typename VectorType>
-void Geometry<Sys, Dim>::transform(const Transform& t, VectorType& vec) {
+void Geometry<Kernel, Dim>::transform(const Transform& t, VectorType& vec) {
 
     //everything that needs to be translated needs to be fully transformed
     for(int i=0; i!=m_translations; i++) {
@@ -415,8 +455,8 @@ void Geometry<Sys, Dim>::transform(const Transform& t, VectorType& vec) {
 #endif
 }
 
-template< typename Sys, int Dim>
-void Geometry<Sys, Dim>::scale(Scalar value) {
+template< typename Kernel, int Dim>
+void Geometry<Kernel, Dim>::scale(Scalar value) {
 
     for(int i=0; i!=m_translations; i++)
         m_parameter.template segment<Dim>(i*Dim) *= 1./value;

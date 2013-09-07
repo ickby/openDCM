@@ -139,7 +139,7 @@ struct ModuleShape3D {
         typedef mpl::map0<> ShapeSig;
 
         template<typename Derived>
-        struct Shape3D_base : public details::Geometry<Sys, 3>, public Object<Sys, Derived, ShapeSig > {
+        struct Shape3D_base : public details::Geometry<typename Sys::Kernel, 3>, public Object<Sys, Derived, ShapeSig > {
 
             typedef typename Sys::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
@@ -176,7 +176,7 @@ struct ModuleShape3D {
 
         protected:
 
-            typedef details::Geometry<Sys, 3> Base;
+            typedef details::Geometry<typename Sys::Kernel, 3> Base;
             typedef Object<Sys, Derived, ShapeSig > ObjBase;
             typedef typename mpl::push_front<TypeList, boost::blank>::type ExtTypeList;
             typedef typename boost::make_variant_over< ExtTypeList >::type Variant;

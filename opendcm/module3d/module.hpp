@@ -97,9 +97,9 @@ struct Module3D {
         typedef details::SystemSolver<Sys> SystemSolver;
 
         template<typename Derived>
-        class Geometry3D_base : public details::Geometry<Sys, 3>, public Object<Sys, Derived, GeomSig> {
+        class Geometry3D_base : public details::Geometry<typename Sys::Kernel, 3>, public Object<Sys, Derived, GeomSig> {
 
-            typedef details::Geometry<Sys, 3> Base;
+            typedef details::Geometry<typename Sys::Kernel, 3> Base;
             typedef Object<Sys, Derived, GeomSig> ObjBase;
             typedef typename Sys::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
