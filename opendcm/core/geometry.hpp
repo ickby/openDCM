@@ -180,6 +180,16 @@ struct geometry_clone_traits {
 };
 
 namespace details {
+  
+// the parameter a geometr needs in a mapped equation system need to be managed seperate, as
+// we may want to access the same parameter space from different geometries (if they are linked)
+// this is done by the parameter space class
+template<typename Kernel>
+struct parameter_space {
+  
+  void init(typename Kernel::MappedEquationSystem* mes);
+  
+};
 
 template<typename Kernel, int Dim>
 class Geometry {

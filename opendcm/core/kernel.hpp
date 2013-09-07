@@ -49,9 +49,9 @@ struct nothing {
 
 //the parameter types
 enum ParameterType {
-    general,
-    rotation,
-    complete
+    general,  //every non-rotation parameter, therefore every translation and non transformed parameter
+    rotation, //all rotation parameters
+    complete  //all parameter
 };
 
 template<typename Kernel>
