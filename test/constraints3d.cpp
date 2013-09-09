@@ -20,12 +20,14 @@
 #include "opendcm/core.hpp"
 #include "opendcm/module3d.hpp"
 #include "opendcm/modulepart.hpp"
+#include "opendcm/moduleshape3d.hpp"
 
 #include <boost/test/unit_test.hpp>
 
 typedef Eigen::Matrix<double, 3,1> point_t;
 struct line_t : public Eigen::Matrix<double, 6,1> {};
 struct plane_t : public Eigen::Matrix<double, 6,1> {};
+struct segment_t : public Eigen::Matrix<double, 6,1> {};
 struct cylinder_t : public Eigen::Matrix<double, 7,1> {};
 
 struct place {
@@ -116,6 +118,13 @@ struct geometry_traits<line_t> {
 };
 
 template<>
+struct geometry_traits<segment_t> {
+    typedef tag::segment3D  tag;
+    typedef modell::XYZ2 modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
+
+template<>
 struct geometry_traits<cylinder_t> {
     typedef tag::cylinder3D  tag;
     typedef modell::XYZ2P modell;
@@ -189,7 +198,7 @@ using namespace dcm;
 BOOST_AUTO_TEST_SUITE(constraint3d_test_suit);
 
 typedef dcm::Kernel<double, CheckSolver> Kernel;
-typedef Module3D< mpl::vector4<point_t, line_t, plane_t, cylinder_t > > Module;
+typedef Module3D< mpl::vector5<point_t, line_t, plane_t, cylinder_t, segment_t > > Module;
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
 typedef System<Kernel, Module, ModulePart> System;
 
@@ -228,7 +237,7 @@ struct constraint_checker {
         //create the constraint and set the wanted value
         CT type;
         type = val;
-        cons_ptr c = system.createConstraint3D(g1, g2, type);
+        cons_ptr c = system.createConstraint3D(g2, g1, type);
 
         try {
             system.solve();
@@ -310,11 +319,11 @@ struct constraint_checker_orientation  {
     };
 };
 
-
+/*
 BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     System sys;
-/*    constraint_checker<point_t, point_t, dcm::Distance> checker(sys);
+    constraint_checker<point_t, point_t, dcm::Distance> checker(sys);
     BOOST_REQUIRE(checker.check_normal(2.));
     BOOST_REQUIRE(checker.check_cluster(2.));
 
@@ -352,9 +361,9 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
     BOOST_REQUIRE(checker10.check_normal(2.));
-    BOOST_REQUIRE(checker10.check_cluster(2.));*/
+    BOOST_REQUIRE(checker10.check_cluster(2.));
 }
-/*
+
 BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
 
     System sys;
@@ -405,5 +414,12 @@ BOOST_AUTO_TEST_CASE(constraint3d_angle) {
     BOOST_REQUIRE(checker5.check_cluster(2.));
 }*/
 
+BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
+  
+    System sys;
+    constraint_checker<point_t, segment_t, dcm::Distance> checker(sys);
+    BOOST_REQUIRE(checker.check_normal(2.));
+    BOOST_REQUIRE(checker.check_cluster(2.));
+}
 
 BOOST_AUTO_TEST_SUITE_END();

@@ -25,7 +25,7 @@
 #include "opendcm/moduleshape3d.hpp"
 
 namespace dcm {
- 
+
 template<>
 struct geometry_traits<Eigen::Vector3d> {
     typedef tag::point3D tag;
@@ -43,53 +43,26 @@ typedef dcm::ModuleShape3D< mpl::vector0<> >::type<System>::Shape3D hlgeom;
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<hlgeom> hlgeom_ptr;
 
-//test generator
-struct test {
-
-    template<typename Sys>
-    struct type : public dcm::details::HLGeneratorBase<Sys> {
-
-        //check if all needed parts are supplied
-        virtual bool check() {
-            
-	  return true;
-        };
-        //initialise all relations between the geometrys, throw on error
-        virtual void init() {
-        };
-        //get geometry3d for optional types (e.g. midpoints)
-        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D> getOrCreateG3d(int type) {
-	  return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D>();
-        };
-        //get hlgeometry3d for optional types
-        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D> getOrCreateHLG3d(int type) {
-	  return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D>();
-
-	  
-	};
-    };
-};
-
 
 BOOST_AUTO_TEST_SUITE(ModuleShape3D_test_suit);
 
 BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
-  
-  try {
-      Eigen::Vector3d p1(1,2,3), p2(4,5,6);
-      
-  
-      System sys;
-      geom_ptr g1 = sys.createGeometry3D(p1);
-      hlgeom_ptr hlg1 = sys.createShape3D<test>(p2, g1);
-      
-  }
-  catch(boost::exception& e) {
-    std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
-      << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
-      BOOST_FAIL("Exception not expected");
-  };
-  
+
+    try {
+        Eigen::Vector3d p1(1,2,3), p2(4,5,6);
+
+
+        System sys;
+        geom_ptr g1 = sys.createGeometry3D(p1);
+        hlgeom_ptr hlg1 = sys.createShape3D<dcm::segment3D>(p2, g1);
+
+    }
+    catch(boost::exception& e) {
+        std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
+                  << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
+        BOOST_FAIL("Exception not expected");
+    };
+
 };
 
 BOOST_AUTO_TEST_SUITE_END();

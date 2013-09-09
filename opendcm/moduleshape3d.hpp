@@ -29,5 +29,7 @@
 
 #include "moduleShape3d/defines.hpp"
 #include "moduleShape3d/module.hpp"
+#include "moduleShape3d/geometry.hpp"
+#include "moduleShape3d/distance.hpp"
 
 #endif //DCM_MODULEHL3D_H

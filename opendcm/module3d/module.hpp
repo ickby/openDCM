@@ -295,6 +295,7 @@ struct Module3D {
 
             template<typename T>
             Geom createGeometry3D(T geom);
+            Geom createGeometry3D();
             void removeGeometry3D(Geom g);
 
             template<typename T1>
@@ -314,6 +315,7 @@ struct Module3D {
         public:
             template<typename T>
             Geom createGeometry3D(T geom, Identifier id);
+	    Geom createGeometry3D(Identifier id);
             template<typename T>
             Cons createConstraint3D(Identifier id, Geom first, Geom second, T constraint1);
 
@@ -639,6 +641,19 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::inheriter_base() {
 
 template<typename Typelist, typename ID>
 template<typename Sys>
+typename Module3D<Typelist, ID>::template type<Sys>::Geom
+Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D() {
+
+    Geom g(new Geometry3D(* ((Sys*) this)));
+    fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster->addVertex();
+    m_this->m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
+    g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
+    m_this->push_back(g);
+    return g;
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
 template<typename T>
 typename Module3D<Typelist, ID>::template type<Sys>::Geom
 Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D(T geom) {
@@ -731,6 +746,15 @@ template<typename T>
 typename Module3D<Typelist, ID>::template type<Sys>::Geom
 Module3D<Typelist, ID>::type<Sys>::inheriter_id::createGeometry3D(T geom, Identifier id) {
     Geom g = inheriter_base::createGeometry3D(geom);
+    g->setIdentifier(id);
+    return g;
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+typename Module3D<Typelist, ID>::template type<Sys>::Geom
+Module3D<Typelist, ID>::type<Sys>::inheriter_id::createGeometry3D(Identifier id) {
+    Geom g = inheriter_base::createGeometry3D();
     g->setIdentifier(id);
     return g;
 };

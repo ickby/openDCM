@@ -21,6 +21,7 @@
 #define GCM_GEOMETRY_HL3D_H
 
 #include "opendcm/core/geometry.hpp"
+#include "opendcm/module3d/geometry.hpp"
 
 namespace dcm {
 namespace details {
@@ -33,6 +34,12 @@ struct tag_traits {
 };
 
 } //details
+
+namespace tag {
+  
+struct segment3D : details::stacked2_geometry<weight::line, point3D, point3D> {};  
+  
+} //tag
 } //dcm
 
 #endif

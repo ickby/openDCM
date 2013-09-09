@@ -223,11 +223,11 @@ struct ModuleShape3D {
 
             template<typename generator>
             void init() {
-                m_generator = boost::shared_ptr<details::HLGeneratorBase<Sys> >(new typename generator::template type<Sys>);
-                m_generator->set(&m_geometrys, &m_hlgs, &m_constraints);
+                m_generator = boost::shared_ptr<details::HLGeneratorBase<Sys> >(new typename generator::template type<Sys>(m_system));
+                m_generator->set(ObjBase::shared_from_this(), &m_geometrys, &m_hlgs, &m_constraints);
 
                 if(!m_generator->check())
-                    throw creation_error() <<  boost::errinfo_errno(210) << error_message("not all needd types for high level geometry present");
+                    throw creation_error() <<  boost::errinfo_errno(210) << error_message("not all needd geometry for shape present");
 
                 m_generator->init();
             };

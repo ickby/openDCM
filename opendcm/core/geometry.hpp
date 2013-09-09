@@ -62,12 +62,17 @@ struct undefined {
 
 //we need to order tags, this values make it easy for module tags
 namespace weight {
-struct parameter : mpl::int_<0> {};
-struct direction : mpl::int_<1> {};
-struct point : mpl::int_<2> {};
-struct line  : mpl::int_<3> {};
-struct plane : mpl::int_<4> {};
-struct cylinder : mpl::int_<5> {};
+struct parameter 	: mpl::int_<0> {};
+struct direction 	: mpl::int_<1> {};
+struct point 		: mpl::int_<2> {};
+struct line  		: mpl::int_<3> {};
+struct segment  	: mpl::int_<4> {};
+struct circle 		: mpl::int_<5> {};
+struct arc  		: mpl::int_<6> {};
+struct ellipse  	: mpl::int_<7> {};
+struct elliptical_arc  	: mpl::int_<8> {};
+struct plane 		: mpl::int_<9> {};
+struct cylinder 	: mpl::int_<10> {};
 }
 } // tag
 
@@ -85,14 +90,14 @@ struct basic_geometry : public bg {
     typedef mpl::vector0<> sub_stack;
 };
 
-//build up stacked geometry. these are geometrys which can be splitted into multiple basic geometries. For 
-//example lines can be splittet into a point and a direction. Make sure you order the basic geometry in a 
+//build up stacked geometry. these are geometrys which can be splitted into multiple basic geometries. For
+//example lines can be splittet into a point and a direction. Make sure you order the basic geometry in a
 //sensible rotation/translation manner. Remember: geometrie is first rotated, than translated. Therefore
-//everything that gets rotated and translated needs to be first, than the rotation only stuff, then the 
+//everything that gets rotated and translated needs to be first, than the rotation only stuff, then the
 //untransformed. For a line this would be <point, direction>
 template<typename weight_type, typename T1, typename T2>
 struct stacked2_geometry {
-  
+
     //be sure we only stack base geometrys
     BOOST_MPL_ASSERT((boost::is_base_of< bg, T1 >));
     BOOST_MPL_ASSERT((boost::is_base_of< bg, T2 >));
@@ -106,7 +111,7 @@ struct stacked2_geometry {
 
 template<typename weight_type, typename T1, typename T2, typename T3>
 struct stacked3_geometry {
-  
+
     //be sure we only stack base geometrys
     BOOST_MPL_ASSERT((boost::is_base_of< bg, T1 >));
     BOOST_MPL_ASSERT((boost::is_base_of< bg, T2 >));
@@ -180,15 +185,15 @@ struct geometry_clone_traits {
 };
 
 namespace details {
-  
+
 // the parameter a geometr needs in a mapped equation system need to be managed seperate, as
 // we may want to access the same parameter space from different geometries (if they are linked)
 // this is done by the parameter space class
 template<typename Kernel>
 struct parameter_space {
-  
-  void init(typename Kernel::MappedEquationSystem* mes);
-  
+
+    void init(typename Kernel::MappedEquationSystem* mes);
+
 };
 
 template<typename Kernel, int Dim>

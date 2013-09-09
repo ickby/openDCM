@@ -21,6 +21,9 @@
 #define GCM_GENERATOR_SHAPE3D_H
 
 #include <opendcm/core/defines.hpp>
+#include <opendcm/core/geometry.hpp>
+#include <opendcm/module3d/defines.hpp>
+#include "geometry.hpp"
 #include <boost/exception/errinfo_errno.hpp>
 
 namespace dcm {
@@ -37,17 +40,21 @@ struct HLGeneratorBase {
     typedef typename system_traits<Sys>::template getModule<details::mshape3d>::type modulehl3d;
     typedef typename modulehl3d::Shape3D Shape3D;
 
+    Sys* m_system;
+    boost::shared_ptr<Shape3D> m_shape;
     std::vector<boost::shared_ptr<Geometry3D> >*   m_geometrys;
     std::vector<boost::shared_ptr<Shape3D> >* m_hlgs;
     std::vector<boost::shared_ptr<Constraint3D> >* m_constraints;
 
-    HLGeneratorBase() {};
+    HLGeneratorBase(Sys* system) : m_system(system) {};
     virtual ~HLGeneratorBase() {};
 
-    void set(std::vector<boost::shared_ptr<Geometry3D> >*   geometrys,
+    void set(boost::shared_ptr<Shape3D> shape,
+             std::vector<boost::shared_ptr<Geometry3D> >*   geometrys,
              std::vector<boost::shared_ptr<Shape3D> >* hlgs,
              std::vector<boost::shared_ptr<Constraint3D> >* constraints) {
 
+        m_shape = shape;
         m_geometrys = geometrys;
         m_hlgs = hlgs;
         m_constraints = constraints;
@@ -71,6 +78,8 @@ struct dummy_generator {
     template<typename Sys>
     struct type : public details::HLGeneratorBase<Sys> {
 
+        type(Sys* system) : details::HLGeneratorBase<Sys>(system) {};
+
         //check if all needed parts are supplied
         virtual bool check() {
             throw creation_error() <<  boost::errinfo_errno(210) << error_message("not all needd types for high level geometry present");
@@ -86,6 +95,80 @@ struct dummy_generator {
         //get hlgeometry3d for optional types
         virtual boost::shared_ptr<typename details::HLGeneratorBase<Sys>::Shape3D> getOrCreateHLG3d(int type) {
             throw creation_error() <<  boost::errinfo_errno(213) << error_message("dummy generator has no high level geometry to access");
+        };
+    };
+};
+
+//test generator
+struct segment3D {
+
+    template<typename Sys>
+    struct type : public dcm::details::HLGeneratorBase<Sys> {
+
+        typedef dcm::details::HLGeneratorBase<Sys> base;
+        typedef typename Sys::Kernel Kernel;
+        using typename base::Geometry3D;
+
+        type(Sys* system) : details::HLGeneratorBase<Sys>(system) {};
+
+        //check if all needed parts are supplied, a segment needs 2 points
+        virtual bool check() {
+
+            //even we have a real geometry segment
+            if(base::m_shape->getType() == tag::weight::segment::value)
+                return true;
+
+            //or two point geometries
+            if(base::m_geometrys->size() == 2)
+                return true;
+
+            return false;
+        };
+        //initialise all relations between the geometrys
+        virtual void init() {
+
+            if(base::m_shape->getType() == dcm::tag::weight::segment::value) {
+                //we have a segment, lets link the two points to it
+
+
+            }
+
+            if(base::m_geometrys->size() == 2) {
+                //we have two points, lets get them
+                boost::shared_ptr<Geometry3D> g1 = base::m_geometrys->operator[](0);
+                boost::shared_ptr<Geometry3D> g2 = base::m_geometrys->operator[](1);
+
+                //possibility 1: two points. we add a segment line an link the point in
+                if(g1->getType() == tag::weight::point::value || g2->getType() == tag::weight::point::value) {
+
+                    //construct our segment value
+                    typename Kernel::Vector val(6);
+                    val.head(3) = g1->getValue();
+                    val.tail(3) = g2->getValue();
+
+                    //and create a segment geometry we use as line
+                    boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
+                    g3->setValue<tag::segment3D>(val);
+
+                    //link the points to our new segment
+                    g1->linkTo(g3, 0);
+                    g2->linkTo(g3, 3);
+
+                    //add the fix constraints to show our relation
+		    
+
+                }
+                else
+                    throw creation_error() <<  boost::errinfo_errno(501) << error_message("Wrong geometries for segment construction");
+            };
+        };
+        //get geometry3d for optional types (e.g. midpoints)
+        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D> getOrCreateG3d(int type) {
+            return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D>();
+        };
+        //get hlgeometry3d for optional types
+        virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D> getOrCreateHLG3d(int type) {
+            return boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Shape3D>();
         };
     };
 };
