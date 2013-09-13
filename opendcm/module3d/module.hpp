@@ -663,6 +663,7 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D(T geom) {
     fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster->addVertex();
     m_this->m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
     g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
+    g->setExactType(mpl::find<typename Sys::geometries, T>::type::pos::value);
     m_this->push_back(g);
     return g;
 };
@@ -702,9 +703,8 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::createConstraint3D(Geom first
 
     //now create the constraint
     Cons c(new Constraint3D(*m_this, first, second));
-    //set the type and values
-    initalizer<covec> init_vis(c, cv);
-    boost::apply_visitor(init_vis, first->m_geometry, second->m_geometry);
+    //initialize constraint
+    c->initialize(cv);
 
     //add it to the clustergraph
     fusion::vector<LocalEdge, GlobalEdge, bool, bool> res;

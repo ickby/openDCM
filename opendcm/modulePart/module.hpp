@@ -318,6 +318,7 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::addGeometry3D(const T& geom, Coo
     fusion::vector<LocalVertex, GlobalVertex> res = m_cluster->addVertex();
     m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
     g->template setProperty<typename module3d::vertex_prop>(fusion::at_c<1>(res));
+    g->setExactType(mpl::find<typename Sys::geometries, T>::type::pos::value);
     m_system->template objectVector<Geometry3D>().push_back(g);
 
     return g;

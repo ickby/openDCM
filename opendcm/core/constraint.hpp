@@ -44,6 +44,8 @@
 #include <boost/fusion/sequence/intrinsic/size.hpp>
 #include <boost/fusion/include/size.hpp>
 
+#include <boost/preprocessor.hpp>
+
 #include "traits.hpp"
 #include "object.hpp"
 #include "equations.hpp"
@@ -84,9 +86,26 @@ public:
     std::vector<const std::type_info*> getConstraintTypes();
 
     template<typename Tag1, typename Tag2, typename ConstraintVector>
+    void initializeFromTags(ConstraintVector& obj);
+    template<typename ConstraintVector>
     void initialize(ConstraintVector& obj);
 
 protected:
+    //initialising from geometry functions
+    template<typename WhichType, typename ConstraintVector>
+    void initializeFirstGeometry(ConstraintVector& cv, boost::mpl::false_);
+    template<typename WhichType, typename ConstraintVector>
+    void initializeFirstGeometry(ConstraintVector& cv, boost::mpl::true_);
+    template<typename WhichType, typename FirstType, typename ConstraintVector>
+    void initializeSecondGeometry(ConstraintVector& cv, boost::mpl::false_);
+    template<typename WhichType, typename FirstType, typename ConstraintVector>
+    void initializeSecondGeometry(ConstraintVector& cv, boost::mpl::true_);
+    template<typename FirstType, typename SecondType, typename ConstraintVector>
+    inline void intitalizeFinalize(ConstraintVector& cv, boost::mpl::false_);
+    template<typename FirstType, typename SecondType, typename ConstraintVector>
+    inline void intitalizeFinalize(ConstraintVector& cv, boost::mpl::true_);
+
+  
     int equationCount();
 
     template< typename creator_type>
@@ -136,6 +155,7 @@ protected:
         virtual std::vector<const std::type_info*> getEquationTypes() = 0;
         virtual std::vector<const std::type_info*> getConstraintTypes() = 0;
     };
+    int value;
 
 public:
     template< typename ConstraintVector, typename EquationVector>
@@ -284,7 +304,7 @@ Constraint<Sys, Dim>::~Constraint()  {
 
 template<typename Sys, int Dim>
 template<typename tag1, typename tag2, typename ConstraintVector>
-void Constraint<Sys, Dim>::initialize(ConstraintVector& v) {
+void Constraint<Sys, Dim>::initializeFromTags(ConstraintVector& v) {
 
     typedef tag_order< tag1, tag2 > order;
 
@@ -299,6 +319,14 @@ void Constraint<Sys, Dim>::initialize(ConstraintVector& v) {
     //geometry order needs to be the one needed by equations
     if(order::swapt::value)
         first.swap(second);
+};
+
+template<typename Sys, int Dim>
+template<typename ConstraintVector>
+void Constraint<Sys, Dim>::initialize(ConstraintVector& cv) {
+  
+    //use the compile time unrolling to retrieve the geometry tags
+    initializeFirstGeometry<mpl::int_<0>, ConstraintVector>(cv, mpl::true_());
 };
 
 template<typename Sys, int Dim>
@@ -650,6 +678,91 @@ Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::getConstraintTyp
     mpl::for_each< ConstraintVector >(Types(vec));
     return vec;
 };
+
+/****************************************************************/
+/**	compiletime unrolled geometry initialising		*/
+/****************************************************************/
+
+template<typename Sys, int Dim>
+template<typename WhichType, typename ConstraintVector>
+void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::false_ /*unrolled*/) {
+      //this function is only for breaking the compilation loop, it should never be called
+      BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
+};
+
+template<typename Sys, int Dim>
+template<typename WhichType, typename ConstraintVector>
+void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
+      
+  typedef typename Sys::geometries geometries;
+  switch(first->getExactType()) {
+    
+#ifdef BOOST_PP_LOCAL_ITERATE
+#define BOOST_PP_LOCAL_MACRO(n) \
+      case (WhichType::value + n): \
+        return initializeSecondGeometry<boost::mpl::int_<WhichType::value + n>,\
+					typename mpl::at_c<geometries, WhichType::value + n >::type,\
+					ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, typename boost::mpl::size<geometries>::type>::type()); \
+        break;
+#define BOOST_PP_LOCAL_LIMITS (0, 10)
+#include BOOST_PP_LOCAL_ITERATE()
+#endif //BOOST_PP_LOCAL_ITERATE
+      default:
+        typedef typename mpl::int_<WhichType::value + 10> next_which_t;
+        return initializeFirstGeometry<next_which_t, ConstraintVector> ( cv,
+	  typename mpl::less< next_which_t, typename mpl::size<geometries>::type >::type() );
+   }
+};
+
+template<typename Sys, int Dim>
+template<typename WhichType, typename FirstType, typename ConstraintVector>
+void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost::mpl::false_ /*unrolled*/) {
+      //this function is only for breaking the compilation loop, it should never be called
+      BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
+};
+
+template<typename Sys, int Dim>
+template<typename WhichType, typename FirstType, typename ConstraintVector>
+void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
+      
+  typedef typename Sys::geometries geometries;
+  switch(second->getExactType()) {
+    
+#ifdef BOOST_PP_LOCAL_ITERATE
+#define BOOST_PP_LOCAL_MACRO(n) \
+      case (WhichType::value + n): \
+        return intitalizeFinalize<FirstType, \
+				  typename mpl::at_c<geometries, WhichType::value + n >::type,\
+				  ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, typename boost::mpl::size<geometries>::type>::type()); \
+        break;
+#define BOOST_PP_LOCAL_LIMITS (0, 10)
+#include BOOST_PP_LOCAL_ITERATE()
+#endif //BOOST_PP_LOCAL_ITERATE
+      default:
+        typedef typename mpl::int_<WhichType::value + 10> next_which_t;
+        return initializeSecondGeometry<next_which_t, FirstType, ConstraintVector>
+         ( cv, typename mpl::less
+           < next_which_t
+           , typename mpl::size<geometries>::type
+           >::type()
+         );
+   }
+};
+
+template<typename Sys, int Dim>
+template<typename FirstType, typename SecondType, typename ConstraintVector>
+inline void Constraint<Sys, Dim>::intitalizeFinalize(ConstraintVector& cv, boost::mpl::true_ /*is_unrolled_t*/) {
+      
+      initializeFromTags<typename geometry_traits<FirstType>::tag, typename geometry_traits<SecondType>::tag>(cv);
+};
+
+template<typename Sys, int Dim>
+template<typename FirstType, typename SecondType, typename ConstraintVector>
+inline void Constraint<Sys, Dim>::intitalizeFinalize(ConstraintVector& cv, boost::mpl::false_ /*is_unrolled_t*/) {
+      //Should never be here at runtime; only required to block code generation that deref's the sequence out of bounds
+      BOOST_ASSERT(false);
+}
+
 
 
 };//detail

@@ -115,7 +115,7 @@ struct segment3D {
         virtual bool check() {
 
             //even we have a real geometry segment
-            if(base::m_shape->getType() == tag::weight::segment::value)
+            if(base::m_shape->getGeneralType() == tag::weight::segment::value)
                 return true;
 
             //or two point geometries
@@ -127,7 +127,7 @@ struct segment3D {
         //initialise all relations between the geometrys
         virtual void init() {
 
-            if(base::m_shape->getType() == dcm::tag::weight::segment::value) {
+            if(base::m_shape->getGeneralType() == dcm::tag::weight::segment::value) {
                 //we have a segment, lets link the two points to it
 
 
@@ -139,7 +139,7 @@ struct segment3D {
                 boost::shared_ptr<Geometry3D> g2 = base::m_geometrys->operator[](1);
 
                 //possibility 1: two points. we add a segment line an link the point in
-                if(g1->getType() == tag::weight::point::value || g2->getType() == tag::weight::point::value) {
+                if(g1->getGeneralType() == tag::weight::point::value || g2->getGeneralType() == tag::weight::point::value) {
 
                     //construct our segment value
                     typename Kernel::Vector val(6);

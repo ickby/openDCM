@@ -225,8 +225,12 @@ public:
     };
     void transform(const Transform& t);
 
-    int getType() {
-        return m_type;
+    int getGeneralType() {
+        return m_general_type;
+    };
+    
+    int getExactType() {
+	return m_exact_type;
     };
 
     //allow accessing the internal values in unittests without making them public,
@@ -256,8 +260,9 @@ public:
     int parameterCount() {
         return  m_parameterCount;
     };
+    template<typename T>
     void test_linkTo(boost::shared_ptr< Geometry< Kernel, Dim > > geom, int offset) {
-        linkTo(geom, offset);
+        linkTo<T>(geom, offset);
     };
     bool test_isLinked() {
         return isLinked();
@@ -267,7 +272,7 @@ public:
 //protected would be the right way, however, visual studio 10 does not find a way to access them even when constraint::holder structs
 //are declared friend
 //protected:
-    int     m_type; //holds the type number for easy identification
+    int     m_general_type, m_exact_type; //hold the type numbers for easy identification
     int     m_BaseParameterCount; //count of the parameters the variant geometry type needs
     int     m_parameterCount; //count of the used parameters (when in cluster:6, else m_BaseParameterCount)
     int     m_offset, m_offset_rot; //the starting point of our parameters in the math system parameter vector
@@ -282,6 +287,10 @@ public:
 
     template<typename tag>
     void init();
+    
+    void setExactType(int type) {
+	m_exact_type = type;
+    };
 
     void normalize();
 
@@ -374,7 +383,8 @@ void Geometry<Kernel, Dim>::init() {
     m_diffparam.resize(m_parameterCount,6);
     m_diffparam.setZero();
 
-    m_type = tag::weight::value;
+    m_general_type = tag::weight::value;
+    m_exact_type = -1;
 
     normalize();
 
@@ -408,7 +418,7 @@ void Geometry<Kernel, Dim>::linkTo(boost::shared_ptr<Geometry<Kernel, Dim> > geo
     init<T>();
     m_link = geom;
     m_link_offset = offset;
-    m_global = geom->m_global.segment(offset, offset + m_BaseParameterCount);
+    m_global = geom->m_global.segment(offset, m_BaseParameterCount);
 };
 
 template< typename Kernel, int Dim>
