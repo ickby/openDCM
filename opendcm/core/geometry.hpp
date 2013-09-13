@@ -232,6 +232,9 @@ public:
     int getExactType() {
 	return m_exact_type;
     };
+    void setExactType(int type) {
+	m_exact_type = type;
+    };
 
     //allow accessing the internal values in unittests without making them public,
     //so that access control of the internal classes is not changed and can be tested
@@ -287,10 +290,6 @@ public:
 
     template<typename tag>
     void init();
-    
-    void setExactType(int type) {
-	m_exact_type = type;
-    };
 
     void normalize();
 

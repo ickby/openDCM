@@ -350,8 +350,8 @@ struct Module3D {
         };
 
         typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
-        typedef mpl::vector<Geometry3D, Constraint3D> objects;
-	typedef Typelist geometries;
+        typedef mpl::vector2<Geometry3D, Constraint3D> objects;
+	typedef mpl::vector5<tag::point3D, tag::direction3D, tag::line3D, tag::plane3D, tag::cylinder3D> geometries;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
@@ -663,7 +663,7 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D(T geom) {
     fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster->addVertex();
     m_this->m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
     g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
-    g->setExactType(mpl::find<typename Sys::geometries, T>::type::pos::value);
+    g->setExactType(mpl::find<typename Sys::geometries, typename geometry_traits<T>::tag>::type::pos::value);
     m_this->push_back(g);
     return g;
 };

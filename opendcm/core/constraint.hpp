@@ -80,6 +80,12 @@ public:
     Constraint(geom_ptr f, geom_ptr s);
     ~Constraint();
 
+    //workaround until better analysing class is created
+    // TODO: remove diasable once analyser is available
+    void disable() {
+	content->disable();
+    };
+    
     std::vector<boost::any> getGenericEquations();
     std::vector<boost::any> getGenericConstraints();
     std::vector<const std::type_info*> getEquationTypes();
@@ -105,7 +111,7 @@ protected:
     template<typename FirstType, typename SecondType, typename ConstraintVector>
     inline void intitalizeFinalize(ConstraintVector& cv, boost::mpl::true_);
 
-  
+
     int equationCount();
 
     template< typename creator_type>
@@ -128,14 +134,14 @@ protected:
     struct EquationSet {
         EquationSet() : m_diff_first(NULL,0,DS(0,0)), m_diff_first_rot(NULL,0,DS(0,0)),
             m_diff_second(NULL,0,DS(0,0)), m_diff_second_rot(NULL,0,DS(0,0)),
-            m_residual(NULL,0,DS(0,0)) {};
+            m_residual(NULL,0,DS(0,0)), enabled(true) {};
 
         Equation m_eq;
         typename Kernel::VectorMap m_diff_first, m_diff_first_rot; //first geometry diff
         typename Kernel::VectorMap m_diff_second, m_diff_second_rot; //second geometry diff
         typename Kernel::VectorMap m_residual;
 
-        bool pure_rotation;
+        bool pure_rotation, enabled;
 
         typedef Equation eq_type;
     };
@@ -147,6 +153,7 @@ protected:
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
         virtual void collectPseudoPoints(geom_ptr first, geom_ptr second, Vec& vec1, Vec& vec2) = 0;
+	virtual void disable() = 0;
         virtual placeholder* clone() = 0;
 
         //some runtime type infos are needed, as we cant access the contents with arbitrary functors
@@ -229,6 +236,26 @@ public:
             void operator()(T& val) const;
         };
 
+        struct EquationCounter {
+            int& count;
+
+            EquationCounter(int& c) : count(c) {};
+
+            template< typename T >
+            void operator()(T& val) const {
+                if(val.enabled)
+                    count++;
+            };
+        };
+
+        //workaround until we have a better analyser class
+        struct disabler {
+            template<typename T>
+            void operator()(T& val) const {
+                val.enabled = false;
+            };
+        };
+
         struct GenericEquations {
             std::vector<boost::any>& vec;
             GenericEquations(std::vector<boost::any>& v);
@@ -261,8 +288,9 @@ public:
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
         virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
         virtual placeholder* clone();
-        virtual int equationCount() {
-            return mpl::size<EquationVector>::value;
+        virtual int equationCount();
+        virtual void disable() {
+            fusion::for_each(m_sets, disabler());
         };
 
         virtual std::vector<boost::any> getGenericEquations();
@@ -272,6 +300,8 @@ public:
 
         EquationSets m_sets;
         Objects m_objects;
+    protected:
+        void for_each(EquationSets m_sets, Calculater Calculater);
     };
 
     placeholder* content;
@@ -324,7 +354,7 @@ void Constraint<Sys, Dim>::initializeFromTags(ConstraintVector& v) {
 template<typename Sys, int Dim>
 template<typename ConstraintVector>
 void Constraint<Sys, Dim>::initialize(ConstraintVector& cv) {
-  
+
     //use the compile time unrolling to retrieve the geometry tags
     initializeFirstGeometry<mpl::int_<0>, ConstraintVector>(cv, mpl::true_());
 };
@@ -415,6 +445,10 @@ template<typename Sys, int Dim>
 template<typename ConstraintVector, typename EquationVector>
 template< typename T >
 void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::Calculater::operator()(T& val) const {
+
+    //if the equation is disabled we don't have anything mapped so avoid accessing it
+    if(!val.enabled)
+        return;
 
     //if we only need pure rotational functions and we are not such a nice thing, everything becomes 0
     if(rot_only && !val.pure_rotation) {
@@ -509,6 +543,9 @@ template<typename ConstraintVector, typename EquationVector>
 template< typename T >
 void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::MapSetter::operator()(T& val) const {
 
+    if(!val.enabled)
+        return;
+
     //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
     //for every parameter in the geometry;
     int equation = mes.setResidualMap(val.m_residual);
@@ -543,6 +580,10 @@ template<typename Sys, int Dim>
 template<typename ConstraintVector, typename EquationVector>
 template< typename T >
 void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::PseudoCollector::operator()(T& val) const {
+
+    if(!val.enabled)
+        return;
+
     if(first->m_isInCluster && second->m_isInCluster) {
         val.m_eq.calculatePseudo(first->m_rotated, points1, second->m_rotated, points2);
     }
@@ -645,6 +686,15 @@ Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::clone() {
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename EquationVector>
+int Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::equationCount() {
+    int count = 0;
+    EquationCounter counter(count);
+    fusion::for_each(m_sets, counter);
+    return count;
+};
+
+template<typename Sys, int Dim>
+template<typename ConstraintVector, typename EquationVector>
 std::vector<boost::any>
 Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::getGenericEquations() {
     std::vector<boost::any> vec;
@@ -686,17 +736,17 @@ Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::getConstraintTyp
 template<typename Sys, int Dim>
 template<typename WhichType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::false_ /*unrolled*/) {
-      //this function is only for breaking the compilation loop, it should never be called
-      BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
+    //this function is only for breaking the compilation loop, it should never be called
+    BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
 };
 
 template<typename Sys, int Dim>
 template<typename WhichType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
-      
-  typedef typename Sys::geometries geometries;
-  switch(first->getExactType()) {
-    
+
+    typedef typename Sys::geometries geometries;
+    switch(first->getExactType()) {
+
 #ifdef BOOST_PP_LOCAL_ITERATE
 #define BOOST_PP_LOCAL_MACRO(n) \
       case (WhichType::value + n): \
@@ -707,27 +757,27 @@ void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::
 #define BOOST_PP_LOCAL_LIMITS (0, 10)
 #include BOOST_PP_LOCAL_ITERATE()
 #endif //BOOST_PP_LOCAL_ITERATE
-      default:
+    default:
         typedef typename mpl::int_<WhichType::value + 10> next_which_t;
-        return initializeFirstGeometry<next_which_t, ConstraintVector> ( cv,
-	  typename mpl::less< next_which_t, typename mpl::size<geometries>::type >::type() );
-   }
+        return initializeFirstGeometry<next_which_t, ConstraintVector> (cv,
+                typename mpl::less< next_which_t, typename mpl::size<geometries>::type >::type());
+    }
 };
 
 template<typename Sys, int Dim>
 template<typename WhichType, typename FirstType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost::mpl::false_ /*unrolled*/) {
-      //this function is only for breaking the compilation loop, it should never be called
-      BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
+    //this function is only for breaking the compilation loop, it should never be called
+    BOOST_ASSERT(false); //Should never assert here; only meant to stop recursion at the end of the typelist
 };
 
 template<typename Sys, int Dim>
 template<typename WhichType, typename FirstType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
-      
-  typedef typename Sys::geometries geometries;
-  switch(second->getExactType()) {
-    
+
+    typedef typename Sys::geometries geometries;
+    switch(second->getExactType()) {
+
 #ifdef BOOST_PP_LOCAL_ITERATE
 #define BOOST_PP_LOCAL_MACRO(n) \
       case (WhichType::value + n): \
@@ -738,29 +788,29 @@ void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost:
 #define BOOST_PP_LOCAL_LIMITS (0, 10)
 #include BOOST_PP_LOCAL_ITERATE()
 #endif //BOOST_PP_LOCAL_ITERATE
-      default:
+    default:
         typedef typename mpl::int_<WhichType::value + 10> next_which_t;
         return initializeSecondGeometry<next_which_t, FirstType, ConstraintVector>
-         ( cv, typename mpl::less
-           < next_which_t
-           , typename mpl::size<geometries>::type
-           >::type()
-         );
-   }
+               (cv, typename mpl::less
+                < next_which_t
+                , typename mpl::size<geometries>::type
+                >::type()
+               );
+    }
 };
 
 template<typename Sys, int Dim>
 template<typename FirstType, typename SecondType, typename ConstraintVector>
 inline void Constraint<Sys, Dim>::intitalizeFinalize(ConstraintVector& cv, boost::mpl::true_ /*is_unrolled_t*/) {
-      
-      initializeFromTags<typename geometry_traits<FirstType>::tag, typename geometry_traits<SecondType>::tag>(cv);
+
+    initializeFromTags<FirstType, SecondType>(cv);
 };
 
 template<typename Sys, int Dim>
 template<typename FirstType, typename SecondType, typename ConstraintVector>
 inline void Constraint<Sys, Dim>::intitalizeFinalize(ConstraintVector& cv, boost::mpl::false_ /*is_unrolled_t*/) {
-      //Should never be here at runtime; only required to block code generation that deref's the sequence out of bounds
-      BOOST_ASSERT(false);
+    //Should never be here at runtime; only required to block code generation that deref's the sequence out of bounds
+    BOOST_ASSERT(false);
 }
 
 

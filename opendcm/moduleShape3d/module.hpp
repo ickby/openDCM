@@ -316,7 +316,7 @@ struct ModuleShape3D {
         typedef ID Identifier;
         typedef mpl::vector0<> properties;
         typedef mpl::vector0<> objects;
-	typedef TypeList geometries;
+	typedef mpl::vector1<tag::segment3D> geometries;
 
         //needed static functions
         static void system_init(Sys& sys) {};

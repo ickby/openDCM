@@ -24,6 +24,8 @@
 #include <opendcm/core/geometry.hpp>
 #include <opendcm/module3d/defines.hpp>
 #include "geometry.hpp"
+#include "fixed.hpp"
+
 #include <boost/exception/errinfo_errno.hpp>
 
 namespace dcm {
@@ -108,6 +110,7 @@ struct segment3D {
         typedef dcm::details::HLGeneratorBase<Sys> base;
         typedef typename Sys::Kernel Kernel;
         using typename base::Geometry3D;
+	using typename base::Constraint3D;
 
         type(Sys* system) : details::HLGeneratorBase<Sys>(system) {};
 
@@ -149,13 +152,19 @@ struct segment3D {
                     //and create a segment geometry we use as line
                     boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
                     g3->template setValue<tag::segment3D>(val);
+		    g3->setExactType( mpl::find<typename Sys::geometries, tag::segment3D>::type::pos::value );
 
                     //link the points to our new segment
                     g1->template linkTo<tag::point3D>(g3, 0);
+		    g1->setExactType( mpl::find<typename Sys::geometries, tag::point3D>::type::pos::value );
                     g2->template linkTo<tag::point3D>(g3, 3);
+		    g2->setExactType( mpl::find<typename Sys::geometries, tag::point3D>::type::pos::value );
 
                     //add the fix constraints to show our relation
-
+		    boost::shared_ptr<Constraint3D> c1 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+		    boost::shared_ptr<Constraint3D> c2 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+		    c1->disable(); //required by fixed constraint
+		    c2->disable(); //requiered by fixed constraint
 
                 }
                 else
