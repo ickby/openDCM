@@ -87,6 +87,7 @@ struct TestModule1 {
             typedef test_object1 kind;
         };
 
+	typedef mpl::vector0<> geometries;
         typedef mpl::vector1<test_object1> objects;
         typedef mpl::vector3<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
 

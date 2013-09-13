@@ -100,6 +100,7 @@ struct EmptyModule {
         struct inheriter {};
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>   objects;
+	typedef mpl::vector<>   geometries;
         typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
@@ -153,6 +154,12 @@ public:
             typename details::vector_fold<typename Type2::properties,
             typename details::vector_fold<typename Type1::properties,
             mpl::vector<id_prop<Identifier> > >::type >::type>::type properties;
+	    
+    //get all geometries we support
+    typedef typename details::vector_fold<typename Type3::geometries,
+            typename details::vector_fold<typename Type2::geometries,
+            typename details::vector_fold<typename Type1::geometries,
+            mpl::vector<> >::type >::type>::type geometries;
 
     //make the subcomponent lists of objects and properties
     typedef typename details::edge_fold< properties, 

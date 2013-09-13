@@ -148,14 +148,14 @@ struct segment3D {
 
                     //and create a segment geometry we use as line
                     boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
-                    g3->setValue<tag::segment3D>(val);
+                    g3->template setValue<tag::segment3D>(val);
 
                     //link the points to our new segment
-                    g1->linkTo(g3, 0);
-                    g2->linkTo(g3, 3);
+                    g1->template linkTo<tag::point3D>(g3, 0);
+                    g2->template linkTo<tag::point3D>(g3, 3);
 
                     //add the fix constraints to show our relation
-		    
+
 
                 }
                 else

@@ -241,6 +241,7 @@ struct ModulePart {
 
         typedef mpl::vector0<>  properties;
         typedef mpl::vector1<Part>  objects;
+	typedef mpl::vector0<>  geometries;
 
         struct PrepareCluster : public Job<Sys> {
 

@@ -351,6 +351,7 @@ struct Module3D {
 
         typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
         typedef mpl::vector<Geometry3D, Constraint3D> objects;
+	typedef Typelist geometries;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
