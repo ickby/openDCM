@@ -35,6 +35,7 @@
 #include <boost/mpl/bool.hpp>
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/plus.hpp>
+#include <boost/mpl/find.hpp>
 
 #include <boost/fusion/include/as_vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
@@ -196,7 +197,7 @@ struct parameter_space {
 
 };
 
-template<typename Kernel, int Dim>
+template<typename Kernel, int Dim, typename TagList = mpl::vector0<> >
 class Geometry {
 
     typedef typename Kernel::number_type 		Scalar;
@@ -231,9 +232,6 @@ public:
     
     int getExactType() {
 	return m_exact_type;
-    };
-    void setExactType(int type) {
-	m_exact_type = type;
     };
 
     //allow accessing the internal values in unittests without making them public,
@@ -308,10 +306,10 @@ public:
     };
 
     int m_link_offset;
-    boost::shared_ptr<Geometry<Kernel, Dim> > m_link;
+    boost::shared_ptr<Geometry<Kernel, Dim, TagList> > m_link;
 
     template<typename T>
-    void linkTo(boost::shared_ptr< Geometry< Kernel, Dim > > geom, int offset);
+    void linkTo(boost::shared_ptr< Geometry< Kernel, Dim, TagList > > geom, int offset);
     bool isLinked() {
         return m_link!=0;
     };
@@ -342,8 +340,8 @@ public:
 /*****************************************************************************************************************/
 /*****************************************************************************************************************/
 
-template< typename Kernel, int Dim>
-Geometry<Kernel, Dim>::Geometry()
+template< typename Kernel, int Dim, typename TagList>
+Geometry<Kernel, Dim, TagList>::Geometry()
     : m_isInCluster(false), m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
@@ -353,8 +351,8 @@ Geometry<Kernel, Dim>::Geometry()
 
 };
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::transform(const Transform& t) {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
@@ -365,9 +363,9 @@ void Geometry<Kernel, Dim>::transform(const Transform& t) {
             transform(t, m_global);
 };
 
-template< typename Kernel, int Dim>
+template< typename Kernel, int Dim, typename TagList>
 template<typename tag>
-void Geometry<Kernel, Dim>::init() {
+void Geometry<Kernel, Dim, TagList>::init() {
 
     m_BaseParameterCount = tag::parameters::value;
     m_parameterCount = m_BaseParameterCount;
@@ -383,7 +381,7 @@ void Geometry<Kernel, Dim>::init() {
     m_diffparam.setZero();
 
     m_general_type = tag::weight::value;
-    m_exact_type = -1;
+    m_exact_type = mpl::find<TagList, tag>::type::pos::value;
 
     normalize();
 
@@ -396,23 +394,23 @@ void Geometry<Kernel, Dim>::init() {
 
 };
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::normalize() {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::normalize() {
     //directions are not nessessarily normalized, but we need to ensure this in cluster mode
     for(int i=m_translations; i!=m_rotations; i++)
         m_global.template segment<Dim>(i*Dim).normalize();
 };
 
-template< typename Kernel, int Dim>
-typename Kernel::VectorMap& Geometry<Kernel, Dim>::getParameterMap() {
+template< typename Kernel, int Dim, typename TagList>
+typename Kernel::VectorMap& Geometry<Kernel, Dim, TagList>::getParameterMap() {
     m_isInCluster = false;
     m_parameterCount = m_BaseParameterCount;
     return m_parameter;
 };
 
-template<typename Kernel, int Dim>
+template< typename Kernel, int Dim, typename TagList>
 template<typename T>
-void Geometry<Kernel, Dim>::linkTo(boost::shared_ptr<Geometry<Kernel, Dim> > geom, int offset) {
+void Geometry<Kernel, Dim, TagList>::linkTo(boost::shared_ptr<Geometry<Kernel, Dim, TagList> > geom, int offset) {
 
     init<T>();
     m_link = geom;
@@ -420,8 +418,8 @@ void Geometry<Kernel, Dim>::linkTo(boost::shared_ptr<Geometry<Kernel, Dim> > geo
     m_global = geom->m_global.segment(offset, m_BaseParameterCount);
 };
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::initMap(typename Kernel::MappedEquationSystem* mes) {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::initMap(typename Kernel::MappedEquationSystem* mes) {
 
     //check should not be needed, but how knows...
     if(!m_init) {
@@ -442,8 +440,8 @@ void Geometry<Kernel, Dim>::initMap(typename Kernel::MappedEquationSystem* mes) 
     }
 };
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::setClusterMode(bool iscluster, bool isFixed) {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::setClusterMode(bool iscluster, bool isFixed) {
 
     m_isInCluster = iscluster;
     m_clusterFixed = isFixed;
@@ -459,8 +457,8 @@ void Geometry<Kernel, Dim>::setClusterMode(bool iscluster, bool isFixed) {
         new(&m_parameter) typename Kernel::VectorMap(&m_global(0), m_parameterCount, DS(1,1));
 };
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::recalculate(DiffTransform& trans) {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
     if(!m_isInCluster)
         return;
 
@@ -490,8 +488,8 @@ void Geometry<Kernel, Dim>::recalculate(DiffTransform& trans) {
 };
 
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::finishCalculation() {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::finishCalculation() {
     //if fixed nothing needs to be changed
     if(m_isInCluster) {
         //recalculate(1.); //remove scaling to get right global value
@@ -515,9 +513,9 @@ void Geometry<Kernel, Dim>::finishCalculation() {
     recalculated();// Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
 };
 
-template< typename Kernel, int Dim>
+template< typename Kernel, int Dim, typename TagList>
 template<typename VectorType>
-void Geometry<Kernel, Dim>::transform(const Transform& t, VectorType& vec) {
+void Geometry<Kernel, Dim, TagList>::transform(const Transform& t, VectorType& vec) {
 
     //everything that needs to be translated needs to be fully transformed
     for(int i=0; i!=m_translations; i++) {
@@ -536,8 +534,8 @@ void Geometry<Kernel, Dim>::transform(const Transform& t, VectorType& vec) {
 #endif
 }
 
-template< typename Kernel, int Dim>
-void Geometry<Kernel, Dim>::scale(Scalar value) {
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::scale(Scalar value) {
 
     for(int i=0; i!=m_translations; i++)
         m_parameter.template segment<Dim>(i*Dim) *= 1./value;

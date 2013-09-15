@@ -97,9 +97,10 @@ struct Module3D {
         typedef details::SystemSolver<Sys> SystemSolver;
 
         template<typename Derived>
-        class Geometry3D_base : public details::Geometry<typename Sys::Kernel, 3>, public Object<Sys, Derived, GeomSig> {
+        class Geometry3D_base : public details::Geometry<typename Sys::Kernel, 3, typename Sys::geometries>,
+            public Object<Sys, Derived, GeomSig> {
 
-            typedef details::Geometry<typename Sys::Kernel, 3> Base;
+            typedef details::Geometry<typename Sys::Kernel, 3, typename Sys::geometries> Base;
             typedef Object<Sys, Derived, GeomSig> ObjBase;
             typedef typename Sys::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
@@ -127,10 +128,10 @@ struct Module3D {
 
             template<typename T>
             T convertTo() {
-		T t;
+                T t;
                 (typename geometry_traits<T>::modell()).template inject<typename Kernel::number_type,
                 typename geometry_traits<T>::accessor >(t, Base::m_global);
-		return t;
+                return t;
             };
 
             virtual boost::shared_ptr<Derived> clone(Sys& newSys);
@@ -315,7 +316,7 @@ struct Module3D {
         public:
             template<typename T>
             Geom createGeometry3D(T geom, Identifier id);
-	    Geom createGeometry3D(Identifier id);
+            Geom createGeometry3D(Identifier id);
             template<typename T>
             Cons createConstraint3D(Identifier id, Geom first, Geom second, T constraint1);
 
@@ -351,7 +352,7 @@ struct Module3D {
 
         typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
         typedef mpl::vector2<Geometry3D, Constraint3D> objects;
-	typedef mpl::vector5<tag::point3D, tag::direction3D, tag::line3D, tag::plane3D, tag::cylinder3D> geometries;
+        typedef mpl::vector5<tag::point3D, tag::direction3D, tag::line3D, tag::plane3D, tag::cylinder3D> geometries;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());
@@ -663,7 +664,6 @@ Module3D<Typelist, ID>::type<Sys>::inheriter_base::createGeometry3D(T geom) {
     fusion::vector<LocalVertex, GlobalVertex> res = m_this->m_cluster->addVertex();
     m_this->m_cluster->template setObject<Geometry3D> (fusion::at_c<0> (res), g);
     g->template setProperty<vertex_prop>(fusion::at_c<1>(res));
-    g->setExactType(mpl::find<typename Sys::geometries, typename geometry_traits<T>::tag>::type::pos::value);
     m_this->push_back(g);
     return g;
 };
