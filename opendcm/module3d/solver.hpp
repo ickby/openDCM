@@ -37,10 +37,10 @@ namespace dcm {
 namespace details {
 
 template<typename Sys>
-struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
+struct MES  : public Sys::Kernel::MappedEquationSystem {
 
-    typedef typename system_traits<Sys>::Kernel Kernel;
-    typedef typename system_traits<Sys>::Cluster Cluster;
+    typedef typename Sys::Kernel Kernel;
+    typedef typename Sys::Cluster Cluster;
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;
     typedef boost::shared_ptr<Geometry3D> Geom;
@@ -49,7 +49,7 @@ struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
     typedef typename module3d::math_prop math_prop;
     typedef typename module3d::fix_prop fix_prop;
     typedef typename Kernel::number_type Scalar;
-    typedef typename system_traits<Sys>::Kernel::MappedEquationSystem Base;
+    typedef typename Sys::Kernel::MappedEquationSystem Base;
 
     boost::shared_ptr<Cluster> m_cluster;
 
@@ -60,8 +60,8 @@ struct MES  : public system_traits<Sys>::Kernel::MappedEquationSystem {
 template<typename Sys>
 struct SystemSolver : public Job<Sys> {
 
-    typedef typename system_traits<Sys>::Cluster Cluster;
-    typedef typename system_traits<Sys>::Kernel Kernel;
+    typedef typename Sys::Cluster Cluster;
+    typedef typename Sys::Kernel Kernel;
     typedef typename Kernel::number_type Scalar;
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;

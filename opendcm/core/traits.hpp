@@ -37,8 +37,8 @@ namespace dcm {
 
 template< typename T >
 struct system_traits {
-    typedef typename T::Kernel  Kernel;
-    typedef typename T::Cluster Cluster;
+    //typedef typename T::Kernel  Kernel;
+    //typedef typename T::Cluster Cluster;
 
     template<typename M>
     struct getModule {

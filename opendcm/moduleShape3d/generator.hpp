@@ -25,6 +25,7 @@
 #include <opendcm/module3d/defines.hpp>
 #include "geometry.hpp"
 #include "fixed.hpp"
+#include "defines.hpp"
 
 #include <boost/exception/errinfo_errno.hpp>
 
@@ -39,32 +40,36 @@ struct HLGeneratorBase {
     typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;
     typedef typename module3d::Constraint3D Constraint3D;
-    typedef typename system_traits<Sys>::template getModule<details::mshape3d>::type modulehl3d;
-    typedef typename modulehl3d::Shape3D Shape3D;
+    typedef typename system_traits<Sys>::template getModule<details::mshape3d>::type moduleShape3d;
+    typedef typename moduleShape3d::Shape3D Shape3D;
+    
+    typedef typename moduleShape3d::shape_purpose_prop shape_purpose_prop;
+    typedef typename moduleShape3d::shape_geometry_prop shape_geometry_prop;
+    typedef typename moduleShape3d::shape_constraint_prop shape_constraint_prop;
 
     Sys* m_system;
     boost::shared_ptr<Shape3D> m_shape;
-    std::vector<boost::shared_ptr<Geometry3D> >*   m_geometrys;
-    std::vector<boost::shared_ptr<Shape3D> >* m_hlgs;
+    std::vector<boost::shared_ptr<Geometry3D> >*   m_geometries;
+    std::vector<boost::shared_ptr<Shape3D> >* m_shapes;
     std::vector<boost::shared_ptr<Constraint3D> >* m_constraints;
 
     HLGeneratorBase(Sys* system) : m_system(system) {};
     virtual ~HLGeneratorBase() {};
 
     void set(boost::shared_ptr<Shape3D> shape,
-             std::vector<boost::shared_ptr<Geometry3D> >*   geometrys,
-             std::vector<boost::shared_ptr<Shape3D> >* hlgs,
+             std::vector<boost::shared_ptr<Geometry3D> >*   geometries,
+             std::vector<boost::shared_ptr<Shape3D> >* shapes,
              std::vector<boost::shared_ptr<Constraint3D> >* constraints) {
 
         m_shape = shape;
-        m_geometrys = geometrys;
-        m_hlgs = hlgs;
+        m_geometries = geometries;
+        m_shapes = shapes;
         m_constraints = constraints;
     };
 
     //check if all needed parts are supplied
     virtual bool check() = 0;
-    //initialise all relations between the geometrys
+    //initialise all relations between the geometries
     virtual void init() = 0;
     //get geometry3d for optional types (e.g. midpoints)
     virtual boost::shared_ptr<Geometry3D> getOrCreateG3d(int type) = 0;
@@ -86,7 +91,7 @@ struct dummy_generator {
         virtual bool check() {
             throw creation_error() <<  boost::errinfo_errno(210) << error_message("not all needd types for high level geometry present");
         };
-        //initialise all relations between the geometrys, throw on error
+        //initialise all relations between the geometries, throw on error
         virtual void init() {
             throw creation_error() <<  boost::errinfo_errno(211) << error_message("dummy generator can't create high level geometry");
         };
@@ -110,7 +115,7 @@ struct segment3D {
         typedef dcm::details::HLGeneratorBase<Sys> base;
         typedef typename Sys::Kernel Kernel;
         using typename base::Geometry3D;
-	using typename base::Constraint3D;
+        using typename base::Constraint3D;
 
         type(Sys* system) : details::HLGeneratorBase<Sys>(system) {};
 
@@ -122,51 +127,77 @@ struct segment3D {
                 return true;
 
             //or two point geometries
-            if(base::m_geometrys->size() == 2)
+            if(base::m_geometries->size() == 2)
                 return true;
 
             return false;
         };
-        //initialise all relations between the geometrys
+        //initialise all relations between the geometries
         virtual void init() {
 
             if(base::m_shape->getGeneralType() == dcm::tag::weight::segment::value) {
+
+                //link the line geometrie to our shape
+                boost::shared_ptr<Geometry3D> g1 = base::m_system->createGeometry3D();
+		base::m_geometries->push_back(g1);
+                g1->template linkTo<tag::segment3D>(base::m_shape,0);
+		g1->template setProperty<typename base::shape_purpose_prop>(line);
+
                 //we have a segment, lets link the two points to it
+                boost::shared_ptr<Geometry3D> g2 = base::m_system->createGeometry3D();
+		base::m_geometries->push_back(g2);
+		g2->template setProperty<typename base::shape_purpose_prop>(startpoint);
+                boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
+		base::m_geometries->push_back(g3);
+		g3->template setProperty<typename base::shape_purpose_prop>(endpoint);
 
+                //link the points to our new segment
+                g2->template linkTo<tag::point3D>(base::m_shape, 0);
+                g3->template linkTo<tag::point3D>(base::m_shape, 3);
 
+                //add the fix constraints
+                boost::shared_ptr<Constraint3D> c1 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+                boost::shared_ptr<Constraint3D> c2 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+                c1->disable(); //required by fixed constraint
+                c2->disable(); //requiered by fixed constraint
             }
+            else
+                if(base::m_geometries->size() == 2) {
+                    //we have two points, lets get them
+                    boost::shared_ptr<Geometry3D> g1 = base::m_geometries->operator[](0);
+                    boost::shared_ptr<Geometry3D> g2 = base::m_geometries->operator[](1);
 
-            if(base::m_geometrys->size() == 2) {
-                //we have two points, lets get them
-                boost::shared_ptr<Geometry3D> g1 = base::m_geometrys->operator[](0);
-                boost::shared_ptr<Geometry3D> g2 = base::m_geometrys->operator[](1);
+                    //possibility 1: two points. we add a segment line an link the point in
+                    if(g1->getGeneralType() == tag::weight::point::value || g2->getGeneralType() == tag::weight::point::value) {
 
-                //possibility 1: two points. we add a segment line an link the point in
-                if(g1->getGeneralType() == tag::weight::point::value || g2->getGeneralType() == tag::weight::point::value) {
+			g1->template setProperty<typename base::shape_purpose_prop>(startpoint);
+			g2->template setProperty<typename base::shape_purpose_prop>(endpoint);
+			
+                        //construct our segment value
+                        typename Kernel::Vector val(6);
+                        val.head(3) = g1->getValue();
+                        val.tail(3) = g2->getValue();
 
-                    //construct our segment value
-                    typename Kernel::Vector val(6);
-                    val.head(3) = g1->getValue();
-                    val.tail(3) = g2->getValue();
+                        //and create a segment geometry we use as line
+                        boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
+			base::m_geometries->push_back(g3);
+                        g3->template setValue<tag::segment3D>(val);
+			g3->template setProperty<typename base::shape_purpose_prop>(line);
 
-                    //and create a segment geometry we use as line
-                    boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
-                    g3->template setValue<tag::segment3D>(val);
+                        //link the points to our new segment
+                        g1->template linkTo<tag::point3D>(g3, 0);
+                        g2->template linkTo<tag::point3D>(g3, 3);
 
-                    //link the points to our new segment
-                    g1->template linkTo<tag::point3D>(g3, 0);
-		    g2->template linkTo<tag::point3D>(g3, 3);
+                        //add the fix constraints to show our relation
+                        boost::shared_ptr<Constraint3D> c1 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+                        boost::shared_ptr<Constraint3D> c2 = base::m_system->createConstraint3D(g1,g3, details::fixed);
+                        c1->disable(); //required by fixed constraint
+                        c2->disable(); //requiered by fixed constraint
 
-                    //add the fix constraints to show our relation
-		    boost::shared_ptr<Constraint3D> c1 = base::m_system->createConstraint3D(g1,g3, details::fixed);
-		    boost::shared_ptr<Constraint3D> c2 = base::m_system->createConstraint3D(g1,g3, details::fixed);
-		    c1->disable(); //required by fixed constraint
-		    c2->disable(); //requiered by fixed constraint
-
-                }
-                else
-                    throw creation_error() <<  boost::errinfo_errno(501) << error_message("Wrong geometries for segment construction");
-            };
+                    }
+                    else
+                        throw creation_error() <<  boost::errinfo_errno(501) << error_message("Wrong geometries for segment construction");
+                };
         };
         //get geometry3d for optional types (e.g. midpoints)
         virtual boost::shared_ptr<typename dcm::details::HLGeneratorBase<Sys>::Geometry3D> getOrCreateG3d(int type) {

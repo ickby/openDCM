@@ -22,15 +22,14 @@
 
 namespace dcm {
 
-enum Types {
-  segment,
-  arc,
-  startpoint,
+enum purpose {
+  startpoint = 1,
   midpoint,
-  endpoint,
+  endpoint,  
   line,
   circle
 };
+
 namespace details {
 
 struct mshape3d {}; 	//base of modulehlg3d::type to allow other modules check for it

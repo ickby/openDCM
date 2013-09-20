@@ -39,14 +39,14 @@ typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d> > Module;
 typedef dcm::System<Kernel, Module, dcm::ModuleShape3D< mpl::vector0<> > > System;
 typedef Module::type<System>::Geometry3D geom;
-typedef dcm::ModuleShape3D< mpl::vector0<> >::type<System>::Shape3D hlgeom;
+typedef dcm::ModuleShape3D< mpl::vector0<> >::type<System>::Shape3D shape;
 typedef boost::shared_ptr<geom> geom_ptr;
-typedef boost::shared_ptr<hlgeom> hlgeom_ptr;
+typedef boost::shared_ptr<shape> shape_ptr;
 
 
 BOOST_AUTO_TEST_SUITE(ModuleShape3D_test_suit);
 
-BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
+BOOST_AUTO_TEST_CASE(moduleShape3D_creation) {
 
     try {
         Eigen::Vector3d p1(1,2,3), p2(4,5,6);
@@ -54,7 +54,15 @@ BOOST_AUTO_TEST_CASE(moduleHL3D_creation) {
 
         System sys;
         geom_ptr g1 = sys.createGeometry3D(p1);
-        hlgeom_ptr hlg1 = sys.createShape3D<dcm::segment3D>(p2, g1);
+        shape_ptr shape1 = sys.createShape3D<dcm::segment3D>(p2, g1);
+	
+	geom_ptr l = shape1->geometry(dcm::line);
+	geom_ptr sp = shape1->geometry(dcm::startpoint);
+	geom_ptr ep = shape1->geometry(dcm::endpoint);
+	
+	BOOST_CHECK( g1==sp || g1==ep );
+	BOOST_CHECK( l->getValue().head(3).isApprox(sp->getValue(), 1e-10) );
+	BOOST_CHECK( l->getValue().tail(3).isApprox(ep->getValue(),1e-10) );
 
     }
     catch(boost::exception& e) {

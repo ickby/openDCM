@@ -62,7 +62,7 @@ namespace detail {
 template<typename Sys, int Dim>
 class Constraint {
 
-    typedef typename system_traits<Sys>::Kernel Kernel;
+    typedef typename Sys::Kernel Kernel;
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::DynStride DS;
     typedef typename Kernel::MappedEquationSystem MES;

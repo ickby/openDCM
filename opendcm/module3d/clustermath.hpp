@@ -50,8 +50,8 @@ template<typename Sys>
 struct ClusterMath {
 
 public:
-    typedef typename system_traits<Sys>::Kernel Kernel;
-    typedef typename system_traits<Sys>::Cluster Cluster;
+    typedef typename Sys::Kernel Kernel;
+    typedef typename Sys::Cluster Cluster;
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
     typedef typename module3d::Geometry3D Geometry3D;
     typedef boost::shared_ptr<Geometry3D> Geom;

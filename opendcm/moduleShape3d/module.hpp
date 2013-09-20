@@ -83,6 +83,7 @@
       boost::shared_ptr<Shape3D> ptr = boost::shared_ptr<Shape3D>(new Shape3D(*m_this)); \
       BOOST_PP_REPEAT(n, APPEND_SINGLE, ptr) \
       ptr->template init<Generator>();\
+      m_this->push_back(ptr);\
       return ptr;\
     };
 
@@ -135,14 +136,21 @@ struct ModuleShape3D {
 
         //forward declare
         struct inheriter_base;
+        struct Shape3D;
 
         typedef mpl::map0<> ShapeSig;
 
         template<typename Derived>
-        struct Shape3D_base : public details::Geometry<typename Sys::Kernel, 3>, public Object<Sys, Derived, ShapeSig > {
+        struct Shape3D_base : public details::Geometry<typename Sys::Kernel, 3, typename Sys::geometries>, public Object<Sys, Derived, ShapeSig > {
 
             typedef typename Sys::Kernel Kernel;
             typedef typename Kernel::number_type Scalar;
+
+            //traits are only accessible in subclass scope
+            BOOST_MPL_ASSERT((typename system_traits<Sys>::template getModule<details::m3d>::has_module));
+            typedef typename  system_traits<Sys>::template getModule<details::m3d>::type module3d;
+            typedef typename module3d::Geometry3D Geometry3D;
+            typedef typename module3d::Constraint3D Constraint3D;
 
             Shape3D_base(Sys& system);
 
@@ -173,6 +181,26 @@ struct ModuleShape3D {
             };
 
             virtual boost::shared_ptr<Derived> clone(Sys& newSys);
+
+            /*shape access functions*/
+            typedef typename std::vector<boost::shared_ptr<Geometry3D> >::const_iterator geometry3d_iterator;
+            typedef typename std::vector<boost::shared_ptr<Shape3D> >::const_iterator 	 shape3d_iterator;
+            shape3d_iterator beginShape3D() 		{
+                return m_shapes.begin();
+            };
+            shape3d_iterator endShape3D() 		{
+                return m_shapes.end();
+            };
+            geometry3d_iterator beginGeometry3D()	{
+                return m_geometries.begin();
+            };
+            geometry3d_iterator endGeometry3D()		{
+                return m_geometries.end();
+            };
+
+            boost::shared_ptr<Geometry3D> geometry(purpose f);
+            template<typename T>
+            boost::shared_ptr<Shape3D> subshape();
 
         protected:
 
@@ -208,23 +236,16 @@ struct ModuleShape3D {
             Variant m_geometry; //Variant holding the real geometry type
             boost::shared_ptr< details::HLGeneratorBase<Sys> > m_generator;
 
-            //traits are only accessible in subclass scope
-            BOOST_MPL_ASSERT((typename system_traits<Sys>::template getModule<details::m3d>::has_module));
-            typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
-            typedef typename module3d::Geometry3D Geometry3D;
-            typedef typename module3d::Constraint3D Constraint3D;
-
-
             using Object<Sys, Derived, mpl::map0<> >::m_system;
 
-            std::vector<boost::shared_ptr<Geometry3D> > m_geometrys;
-            std::vector<boost::shared_ptr<Derived> > m_hlgs;
+            std::vector<boost::shared_ptr<Geometry3D> > m_geometries;
+            std::vector<boost::shared_ptr<Derived> > m_shapes;
             std::vector<boost::shared_ptr<Constraint3D> > m_constraints;
 
             template<typename generator>
             void init() {
                 m_generator = boost::shared_ptr<details::HLGeneratorBase<Sys> >(new typename generator::template type<Sys>(m_system));
-                m_generator->set(ObjBase::shared_from_this(), &m_geometrys, &m_hlgs, &m_constraints);
+                m_generator->set(ObjBase::shared_from_this(), &m_geometries, &m_shapes, &m_constraints);
 
                 if(!m_generator->check())
                     throw creation_error() <<  boost::errinfo_errno(210) << error_message("not all needd geometry for shape present");
@@ -233,14 +254,8 @@ struct ModuleShape3D {
             };
 
 
-            boost::shared_ptr<Derived> append(boost::shared_ptr<Geometry3D> g) {
-                m_geometrys.push_back(g);
-                return ObjBase::shared_from_this();
-            };
-            boost::shared_ptr<Derived> append(boost::shared_ptr<Derived> g) {
-                m_hlgs.push_back(g);
-                return ObjBase::shared_from_this();
-            };
+            boost::shared_ptr<Derived> append(boost::shared_ptr<Geometry3D> g);
+            boost::shared_ptr<Derived> append(boost::shared_ptr<Derived> g);
 
             //override protected event functions to emit signals
             void reset() {};
@@ -312,11 +327,25 @@ struct ModuleShape3D {
         struct inheriter_id : public inheriter_base {};
         struct inheriter : public mpl::if_<boost::is_same<ID, No_Identifier>, inheriter_base, inheriter_id>::type {};
 
+        //add properties to geometry and constraint to evaluate their shape partipance
+        struct shape_purpose_prop {
+            typedef purpose type;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type::Geometry3D kind;
+        };
+        struct shape_geometry_prop {
+            typedef bool type;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type::Geometry3D kind;
+        };
+        struct shape_constraint_prop {
+            typedef bool type;
+            typedef typename system_traits<Sys>::template getModule<details::m3d>::type::Constraint3D kind;
+        };
+
         //needed typedefs
         typedef ID Identifier;
-        typedef mpl::vector0<> properties;
-        typedef mpl::vector0<> objects;
-	typedef mpl::vector1<tag::segment3D> geometries;
+        typedef mpl::vector3<shape_purpose_prop, shape_constraint_prop, shape_geometry_prop> properties;
+        typedef mpl::vector1<Shape3D> objects;
+        typedef mpl::vector1<tag::segment3D> geometries;
 
         //needed static functions
         static void system_init(Sys& sys) {};
@@ -390,6 +419,40 @@ boost::shared_ptr<Derived> ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<
     cloner clone_fnc(np->m_geometry);
     boost::apply_visitor(clone_fnc, m_geometry);
     return np;
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+template<typename Derived>
+boost::shared_ptr<typename system_traits<Sys>::template getModule<details::m3d>::type::Geometry3D>
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::geometry(purpose f) {
+
+    for(geometry3d_iterator it = m_geometries.begin(); it != m_geometries.end(); it++) {
+
+        if((*it)->template getProperty<shape_purpose_prop>() == f)
+            return *it;
+    };
+    return boost::shared_ptr<Geometry3D>();
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+template<typename Derived>
+boost::shared_ptr<Derived>
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::append(boost::shared_ptr<Geometry3D> g) {
+    m_geometries.push_back(g);
+    g->template setProperty<shape_geometry_prop>(true);
+    return ObjBase::shared_from_this();
+};
+
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+template<typename Derived>
+boost::shared_ptr<Derived>
+ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::append(boost::shared_ptr<Derived> g) {
+    m_shapes.push_back(g);
+    return ObjBase::shared_from_this();
 };
 
 template<typename Typelist, typename ID>
