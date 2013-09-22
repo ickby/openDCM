@@ -28,6 +28,8 @@
 
 #include <boost/mpl/find.hpp>
 #include <boost/mpl/void.hpp>
+#include <boost/mpl/filter_view.hpp>
+#include <boost/mpl/for_each.hpp>
 
 #include <boost/type_traits/is_same.hpp>
 #include <boost/property_map/property_map.hpp>
@@ -57,7 +59,7 @@ namespace dcm {
  * the same concept: Identifier is the struct type, the stored data is exposed as 'type' typedef. The data
  * type can be every c++ type (including classes and structs) which is default constructable. They don't need
  * to be assignable or copyable by default, thats only nesseccary if you want to change the hole stored
- * object by assigning or set-methods. If not, the data object can be uncopyable and it should be used by
+ * object by assigning. If not, the data object can be uncopyable and it should be used by
  * retrieving it's reference with get-methods.
  *
  * Propertys are further designed to fit in the concept of compile-time modularisation. To allow the extension
@@ -66,7 +68,16 @@ namespace dcm {
  * kind the property is. That means, that this typedef defines when the property shall be used and for which
  * context it is designed for. Dependend on the propertys kind, it will be added to diffrent places inside the dcm.
  * A property of kind @ref vertex_property will added to vertices, a property of kind @ref object_property to all
- * objects and so on. A property implementation for storing integers at a graph edge with the identifier
+ * objects and so on.
+ *
+ * If the property type is a standart c++ type like int or bool, the defualt value can't be set by using its
+ * constructor. Therefore a interface for setting default values is added to the property. If you want
+ * to assign a default value you just need to add a struct default_value which returns the wanted default
+ * value with the operator(). If you don't want a default value, just don't add the struct. The implementation
+ * assignes the default value to the property, therefore it should only be used with assignalble types.
+ *
+ *
+ * A property implementation for storing integers at a graph edge with the identifier
  * 'test'property' may look like that:
  * @code
  * struct test_property {
@@ -75,7 +86,21 @@ namespace dcm {
  * }
  * @endcode
  *
- * If you want to use properties in you class you should derive from PropertyOwner class, as it doas all the
+ * The same property with a default value would be implemented like this:
+ * @code
+ * struct test_property {
+ * 	typedef int type;
+ * 	typedef edge_property kind;
+ * 	struct default_value {
+ *           int operator()() {
+ *               return 3;
+ *           };
+ *      };
+ * }
+ * @endcode
+ *
+ *
+ * If you want to use properties in your class you should derive from PropertyOwner class, as it doas all the
  * hanling needed and gives you get and set functions which work with the designed identifiers.
  *
  * @{ */
@@ -234,7 +259,33 @@ struct pts { //property type sequence
     typedef typename mpl::transform<T, details::property_type<mpl::_1> >::type ptv;
     typedef typename fusion::result_of::as_vector< ptv >::type type;
 };
+
+/**
+ * @brief Type traits to detect if the property has a default value
+ *
+ * If the user want to provide a default value for a property than he adds a default_value static function.
+ * To check if the this function is available we add a type traits which searches for this special function.
+ */
+BOOST_MPL_HAS_XXX_TRAIT_DEF(default_value)
+
 /**@}*/
+
+/**
+ * @brief Functor to assign default values to property
+ *
+ * This functor holds a pointer to the PropertyOwner in question. The operator() get the properties which
+ * hold a default value and assigns this value to the property the owner holds.
+ */
+template<typename PropertyOwner>
+struct apply_default {
+
+    PropertyOwner* owner;
+    apply_default(PropertyOwner* o) : owner(o) {};
+    template<typename T>
+    void operator()(const T& t) {
+        owner->template getProperty<T>() = typename T::default_value()();
+    };
+};
 }
 
 /** @addtogroup Metafunctions
@@ -312,6 +363,15 @@ public:
  **/
 template<typename PropertyList>
 struct PropertyOwner {
+
+    /**
+    * @brief Constructor assigning default values
+    *
+    * It's important to initialise the property fusion sequences with this constructor
+    * as much handling has to be done to ensure the users default values are added correctly
+    **/
+    PropertyOwner();
+
     /**
     * @brief Access properties
     *
@@ -344,6 +404,25 @@ struct PropertyOwner {
     Properties m_properties;
 };
 
+template<typename T>
+void pretty(T t) {
+    std::cout<<__PRETTY_FUNCTION__<<std::endl;
+};
+
+template<typename PropertyList>
+PropertyOwner<PropertyList>::PropertyOwner() {
+
+    //get a vies of all types which have a default value
+    typedef typename mpl::filter_view<PropertyList, details::has_default_value<mpl::_> >::type view;
+    //set the default value
+    details::apply_default<PropertyOwner> func(this);
+    mpl::for_each<view>(func);
+    
+#if defined(BOOST_MPL_CFG_NO_HAS_XXX)
+    throw property_error() <<  boost::errinfo_errno(301) << error_message("no default values supported");
+#endif
+};
+
 /**
  * @brief Convienience spezialisation to ease interaction with system class
  *
@@ -366,8 +445,8 @@ struct PropertyOwner<mpl::void_> {
 
 template<typename PropertyList>
 template<typename Prop>
-typename Prop::type& PropertyOwner<PropertyList>::getProperty()
-{
+typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
+
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
     BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
@@ -376,8 +455,8 @@ typename Prop::type& PropertyOwner<PropertyList>::getProperty()
 
 template<typename PropertyList>
 template<typename Prop>
-void PropertyOwner<PropertyList>::setProperty(typename Prop::type value)
-{
+void PropertyOwner<PropertyList>::setProperty(typename Prop::type value) {
+
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
     BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));

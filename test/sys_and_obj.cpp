@@ -54,9 +54,9 @@ struct TestModule1 {
         typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
                 mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
 
-		typedef dcm::Unspecified_Identifier Identifier;
+        typedef dcm::Unspecified_Identifier Identifier;
 
-		template<typename Syst, typename Derived>
+        template<typename Syst, typename Derived>
         struct test_object1_base : public dcm::Object<Syst, Derived, signal_map > {
             test_object1_base(Syst& system) : dcm::Object<Syst, Derived, signal_map >(system) { };
             int value;
@@ -69,9 +69,9 @@ struct TestModule1 {
             };
         };
 
-		struct test_object1 : public test_object1_base<Sys, test_object1> {
-			test_object1(Sys& system) : test_object1_base<Sys, test_object1>(system) { };
-		};
+        struct test_object1 : public test_object1_base<Sys, test_object1> {
+            test_object1(Sys& system) : test_object1_base<Sys, test_object1>(system) { };
+        };
 
         struct inheriter {
             int test_inherit1() {
@@ -85,9 +85,14 @@ struct TestModule1 {
         struct test_object1_prop {
             typedef int type;
             typedef test_object1 kind;
+            struct default_value {
+                int operator()() {
+                    return 3;
+                };
+            };
         };
 
-	typedef mpl::vector0<> geometries;
+        typedef mpl::vector0<> geometries;
         typedef mpl::vector1<test_object1> objects;
         typedef mpl::vector3<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
 
@@ -100,7 +105,7 @@ struct TestModule2 {
 
     template<typename Sys>
     struct type {
-		typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
+        typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
                 mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
 
         struct test_object2 : public dcm::Object<Sys, test_object2, signal_map > {
@@ -125,9 +130,10 @@ struct TestModule2 {
         };
 
         typedef mpl::vector1<test_object2>  	objects;
+        typedef mpl::vector0<> geometries;
         typedef mpl::vector4<test_edge_property2, test_vertex_property2,
                 test_object2_prop, test_object1_external_prop> properties;
-		typedef dcm::Unspecified_Identifier Identifier;
+        typedef dcm::Unspecified_Identifier Identifier;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -173,6 +179,9 @@ BOOST_AUTO_TEST_CASE(object_properties) {
 
     to1 o1(sys);
     to2 o2(sys);
+
+    //check defualt value
+    BOOST_CHECK(o1.getProperty<Module1::test_object1_prop>() == 3);
 
     o1.setProperty<Module1::test_object1_prop>(5);
     BOOST_CHECK(o1.getProperty<Module1::test_object1_prop>() == 5);
@@ -237,3 +246,4 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 };
 
 BOOST_AUTO_TEST_SUITE_END();
+
