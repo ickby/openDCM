@@ -44,7 +44,7 @@
 #define APPEND_SINGLE(z, n, data) \
     g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
     if(!g_ptr) { \
-      hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), Shape3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
+      hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), Shape3D>::template apply<Sys>(BOOST_PP_CAT(arg,n), data); \
       if(!hlg_ptr) \
 	throw creation_error() <<  boost::errinfo_errno(216) << error_message("could not handle input"); \
       else \
@@ -82,7 +82,7 @@
       boost::shared_ptr<Shape3D> hlg_ptr; \
       boost::shared_ptr<Shape3D> ptr = boost::shared_ptr<Shape3D>(new Shape3D(*m_this)); \
       BOOST_PP_REPEAT(n, APPEND_SINGLE, ptr) \
-      ptr->template init<Generator>();\
+      ptr->template initShape<Generator>();\
       m_this->push_back(ptr);\
       return ptr;\
     };
@@ -97,9 +97,24 @@ namespace details {
 //return always a geometry3d pointer struct, no matter whats the supplied type
 template<typename T, typename R>
 struct converter_g {
+    //check if the type T is usable from within module3d, as it could also be a shape type
     template<typename Sys>
-    static boost::shared_ptr<R> apply(T const& t, Sys* sys) {
+    static typename boost::enable_if<
+    mpl::not_< boost::is_same<
+    typename mpl::find<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types, T>::type,
+             typename mpl::end<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types>::type> >,
+    boost::shared_ptr<R>  >::type apply(T const& t, Sys* sys) {
         return sys->createGeometry3D(t);
+    };
+
+    //seems to be a shape type, return an empty geometry
+    template<typename Sys>
+    static typename boost::enable_if<
+    boost::is_same<
+    typename mpl::find<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types, T>::type,
+             typename mpl::end<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types>::type>,
+    boost::shared_ptr<R>  >::type apply(T const& t, Sys* sys) {
+        return boost::shared_ptr<R>();
     };
 };
 
@@ -110,17 +125,33 @@ struct converter_g< boost::shared_ptr<R>, R> {
         return t;
     };
 };
+
 template<typename T, typename R>
 struct converter_hlg  {
     template<typename Sys>
-    static boost::shared_ptr<R> apply(T const& t, Sys* sys) {
+    static typename boost::enable_if<
+    boost::is_same<
+    typename mpl::find<typename system_traits<Sys>::template getModule<details::mshape3d>::type::geometry_types, T>::type,
+             typename mpl::end<typename system_traits<Sys>::template getModule<details::mshape3d>::type::geometry_types>::type>,
+    boost::shared_ptr<R>  >::type apply(T const& t, boost::shared_ptr<R> self) {
         return  boost::shared_ptr<R>();
     };
+
+    template<typename Sys>
+    static typename boost::enable_if<
+    mpl::not_< boost::is_same<
+    typename mpl::find<typename system_traits<Sys>::template getModule<details::mshape3d>::type::geometry_types, T>::type,
+             typename mpl::end<typename system_traits<Sys>::template getModule<details::mshape3d>::type::geometry_types>::type> >,
+    boost::shared_ptr<R>  >::type apply(T const& t, boost::shared_ptr<R> self) {
+        self->set(t);
+        return  self;
+    };
 };
+
 template<typename R>
 struct converter_hlg<boost::shared_ptr<R>, R>  {
     template<typename Sys>
-    static boost::shared_ptr<R> apply(boost::shared_ptr<R> t, Sys* sys) {
+    static boost::shared_ptr<R> apply(boost::shared_ptr<R> t, boost::shared_ptr<R> self) {
         return  t;
     };
 };
@@ -134,6 +165,7 @@ struct ModuleShape3D {
     template<typename Sys>
     struct type : details::mshape3d {
 
+	typedef TypeList geometry_types;
         //forward declare
         struct inheriter_base;
         struct Shape3D;
@@ -234,7 +266,7 @@ struct ModuleShape3D {
             };
 
             Variant m_geometry; //Variant holding the real geometry type
-            boost::shared_ptr< details::HLGeneratorBase<Sys> > m_generator;
+            boost::shared_ptr< details::ShapeGeneratorBase<Sys> > m_generator;
 
             using Object<Sys, Derived, mpl::map0<> >::m_system;
 
@@ -243,8 +275,8 @@ struct ModuleShape3D {
             std::vector<boost::shared_ptr<Constraint3D> > m_constraints;
 
             template<typename generator>
-            void init() {
-                m_generator = boost::shared_ptr<details::HLGeneratorBase<Sys> >(new typename generator::template type<Sys>(m_system));
+            void initShape() {
+                m_generator = boost::shared_ptr<details::ShapeGeneratorBase<Sys> >(new typename generator::template type<Sys>(m_system));
                 m_generator->set(ObjBase::shared_from_this(), &m_geometries, &m_shapes, &m_constraints);
 
                 if(!m_generator->check())
@@ -399,10 +431,10 @@ void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::set(const T&
 
     m_geometry = geometry;
     //first init, so that the geometry internal vector has the right size
-    Base::template init< typename geometry_traits<T>::tag >();
+    this->template init< typename geometry_traits<T>::tag >();
     //now write the value;
     (typename geometry_traits<T>::modell()).template extract<Scalar,
-    typename geometry_traits<T>::accessor >(geometry, Base::getValue());
+    typename geometry_traits<T>::accessor >(geometry, this->getValue());
 
     reset();
 };

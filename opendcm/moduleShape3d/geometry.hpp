@@ -37,7 +37,7 @@ struct tag_traits {
 
 namespace tag {
   
-struct segment3D : details::stacked2_geometry<weight::line, point3D, point3D> {};  
+struct segment3D : details::stacked2_geometry<weight::segment, point3D, point3D> {};  
   
 } //tag
 } //dcm

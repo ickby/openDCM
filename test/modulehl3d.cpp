@@ -33,24 +33,30 @@ struct geometry_traits<Eigen::Vector3d> {
     typedef orderd_roundbracket_accessor accessor;
 };
 
+template<>
+struct geometry_traits<Eigen::Matrix<double,6,1> > {
+    typedef tag::segment3D tag;
+    typedef modell::XYZ2 modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
+
 }
 
 typedef dcm::Kernel<double> Kernel;
 typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d> > Module;
-typedef dcm::System<Kernel, Module, dcm::ModuleShape3D< mpl::vector0<> > > System;
+typedef dcm::System<Kernel, Module, dcm::ModuleShape3D< mpl::vector1< Eigen::Matrix<double,6,1> > > > System;
 typedef Module::type<System>::Geometry3D geom;
-typedef dcm::ModuleShape3D< mpl::vector0<> >::type<System>::Shape3D shape;
+typedef dcm::ModuleShape3D< mpl::vector1<Eigen::Matrix<double,6,1> > >::type<System>::Shape3D shape;
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<shape> shape_ptr;
 
 
 BOOST_AUTO_TEST_SUITE(ModuleShape3D_test_suit);
 
-BOOST_AUTO_TEST_CASE(moduleShape3D_creation) {
+BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
 
     try {
         Eigen::Vector3d p1(1,2,3), p2(4,5,6);
-
 
         System sys;
         geom_ptr g1 = sys.createGeometry3D(p1);
@@ -63,6 +69,19 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_creation) {
 	BOOST_CHECK( g1==sp || g1==ep );
 	BOOST_CHECK( l->getValue().head(3).isApprox(sp->getValue(), 1e-10) );
 	BOOST_CHECK( l->getValue().tail(3).isApprox(ep->getValue(),1e-10) );
+	
+	Eigen::Matrix<double,6,1> s1;
+	s1 << 1,2,3,4,5,6;
+	
+	shape_ptr shape2 = sys.createShape3D<dcm::segment3D>(s1);
+	
+	geom_ptr l2 = shape2->geometry(dcm::line);
+	geom_ptr sp2 = shape2->geometry(dcm::startpoint);
+	geom_ptr ep2 = shape2->geometry(dcm::endpoint);
+	
+	BOOST_CHECK( l2->getValue().isApprox(s1, 1e-10) );
+	BOOST_CHECK( s1.head(3).isApprox(sp2->getValue(), 1e-10) );
+	BOOST_CHECK( s1.tail(3).isApprox(ep2->getValue(),1e-10) );
 
     }
     catch(boost::exception& e) {

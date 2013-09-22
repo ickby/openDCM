@@ -750,7 +750,7 @@ void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::
 #ifdef BOOST_PP_LOCAL_ITERATE
 #define BOOST_PP_LOCAL_MACRO(n) \
       case (WhichType::value + n): \
-        return initializeSecondGeometry<boost::mpl::int_<WhichType::value + n>,\
+        return initializeSecondGeometry<boost::mpl::int_<0>,\
 					typename mpl::at_c<geometries, WhichType::value + n >::type,\
 					ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, typename boost::mpl::size<geometries>::type>::type()); \
         break;
@@ -793,8 +793,7 @@ void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost:
         return initializeSecondGeometry<next_which_t, FirstType, ConstraintVector>
                (cv, typename mpl::less
                 < next_which_t
-                , typename mpl::size<geometries>::type
-                >::type()
+                , typename mpl::size<geometries>::type>::type()
                );
     }
 };
