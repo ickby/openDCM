@@ -234,9 +234,10 @@ struct ModuleShape3D {
             template<typename T>
             boost::shared_ptr<Shape3D> subshape();
 
+	    void recalc(boost::shared_ptr<Geometry3D> g);
         protected:
 
-            typedef details::Geometry<typename Sys::Kernel, 3> Base;
+            typedef details::Geometry<typename Sys::Kernel, 3, typename Sys::geometries> Base;
             typedef Object<Sys, Derived, ShapeSig > ObjBase;
             typedef typename mpl::push_front<TypeList, boost::blank>::type ExtTypeList;
             typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
@@ -485,6 +486,15 @@ boost::shared_ptr<Derived>
 ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::append(boost::shared_ptr<Derived> g) {
     m_shapes.push_back(g);
     return ObjBase::shared_from_this();
+};
+
+template<typename Typelist, typename ID>
+template<typename Sys>
+template<typename Derived>
+void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::recalc(boost::shared_ptr<Geometry3D> g) {
+    
+    //we recalculated thebase line, that means we have our new value. use it.
+    Base::finishCalculation();
 };
 
 template<typename Typelist, typename ID>

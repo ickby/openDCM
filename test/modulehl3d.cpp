@@ -61,27 +61,43 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         System sys;
         geom_ptr g1 = sys.createGeometry3D(p1);
         shape_ptr shape1 = sys.createShape3D<dcm::segment3D>(p2, g1);
-	
-	geom_ptr l = shape1->geometry(dcm::line);
-	geom_ptr sp = shape1->geometry(dcm::startpoint);
-	geom_ptr ep = shape1->geometry(dcm::endpoint);
-	
-	BOOST_CHECK( g1==sp || g1==ep );
-	BOOST_CHECK( l->getValue().head(3).isApprox(sp->getValue(), 1e-10) );
-	BOOST_CHECK( l->getValue().tail(3).isApprox(ep->getValue(),1e-10) );
-	
-	Eigen::Matrix<double,6,1> s1;
-	s1 << 1,2,3,4,5,6;
-	
-	shape_ptr shape2 = sys.createShape3D<dcm::segment3D>(s1);
-	
-	geom_ptr l2 = shape2->geometry(dcm::line);
-	geom_ptr sp2 = shape2->geometry(dcm::startpoint);
-	geom_ptr ep2 = shape2->geometry(dcm::endpoint);
-	
-	BOOST_CHECK( l2->getValue().isApprox(s1, 1e-10) );
-	BOOST_CHECK( s1.head(3).isApprox(sp2->getValue(), 1e-10) );
-	BOOST_CHECK( s1.tail(3).isApprox(ep2->getValue(),1e-10) );
+
+        geom_ptr l = shape1->geometry(dcm::line);
+        geom_ptr sp = shape1->geometry(dcm::startpoint);
+        geom_ptr ep = shape1->geometry(dcm::endpoint);
+
+        BOOST_CHECK(g1==sp || g1==ep);
+        BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
+
+        Eigen::Matrix<double,6,1> s1;
+        s1 << 7,8,9,10,11,12;
+
+        shape_ptr shape2 = sys.createShape3D<dcm::segment3D>(s1);
+
+        geom_ptr l2 = shape2->geometry(dcm::line);
+        geom_ptr sp2 = shape2->geometry(dcm::startpoint);
+        geom_ptr ep2 = shape2->geometry(dcm::endpoint);
+
+	BOOST_CHECK(shape2->getValue().isApprox(s1, 1e-10));
+        BOOST_CHECK(l2->getValue().isApprox(s1, 1e-10));
+        BOOST_CHECK(s1.head(3).isApprox(sp2->getValue(), 1e-10));
+        BOOST_CHECK(s1.tail(3).isApprox(ep2->getValue(),1e-10));
+
+        //test the solving
+        sys.createConstraint3D(sp, sp2, dcm::coincidence);
+        //sys.createConstraint3D(l, l2, dcm::orientation = dcm::perpendicular );
+        sys.createConstraint3D(sp, ep, dcm::distance = 5);
+        sys.createConstraint3D(ep2, sp2, dcm::distance = 5);
+        sys.solve();
+
+        BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));
+	//BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
+        BOOST_CHECK(l2->getValue().isApprox(shape2->getValue(), 1e-10));
+        BOOST_CHECK(shape2->getValue().head(3).isApprox(sp2->getValue(), 1e-10));
+        BOOST_CHECK(shape2->getValue().tail(3).isApprox(ep2->getValue(),1e-10));
 
     }
     catch(boost::exception& e) {

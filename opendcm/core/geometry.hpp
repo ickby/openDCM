@@ -54,6 +54,9 @@ namespace fusion = boost::fusion;
 
 namespace dcm {
 
+//signal we use for recalculation
+struct recalculated {};
+  
 namespace tag {
 
 struct undefined {
@@ -510,7 +513,7 @@ void Geometry<Kernel, Dim, TagList>::finishCalculation() {
     m_init = false;
     m_isInCluster = false;
 
-    recalculated();// Base::template emitSignal<recalculated>( ((Derived*)this)->shared_from_this() );
+    recalculated();
 };
 
 template< typename Kernel, int Dim, typename TagList>

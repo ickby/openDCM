@@ -28,6 +28,7 @@
 #include "defines.hpp"
 
 #include <boost/exception/errinfo_errno.hpp>
+#include <boost/bind.hpp>
 
 namespace dcm {
 
@@ -116,6 +117,7 @@ struct segment3D {
         typedef typename Sys::Kernel Kernel;
         using typename base::Geometry3D;
         using typename base::Constraint3D;
+	using typename base::Shape3D;
 
         type(Sys* system) : details::ShapeGeneratorBase<Sys>(system) {};
 
@@ -142,6 +144,7 @@ struct segment3D {
                 base::m_geometries->push_back(g1);
                 g1->template linkTo<tag::segment3D>(base::m_shape,0);
                 g1->template setProperty<typename base::shape_purpose_prop>(line);
+		g1->template connectSignal<recalculated>(boost::bind(&Shape3D::recalc, base::m_shape, _1));
 
                 //we have a segment, lets link the two points to it
                 boost::shared_ptr<Geometry3D> g2 = base::m_system->createGeometry3D();
@@ -178,15 +181,19 @@ struct segment3D {
                         val.head(3) = g1->getValue();
                         val.tail(3) = g2->getValue();
 
+                        //the shape is a segment
+                        base::m_shape->template setValue<tag::segment3D>(val);
+
                         //and create a segment geometry we use as line
                         boost::shared_ptr<Geometry3D> g3 = base::m_system->createGeometry3D();
                         base::m_geometries->push_back(g3);
-                        g3->template setValue<tag::segment3D>(val);
+                        g3->template linkTo<tag::segment3D>(base::m_shape,0);
                         g3->template setProperty<typename base::shape_purpose_prop>(line);
+			g3->template connectSignal<recalculated>(boost::bind(&Shape3D::recalc, base::m_shape, _1));
 
                         //link the points to our new segment
-                        g1->template linkTo<tag::point3D>(g3, 0);
-                        g2->template linkTo<tag::point3D>(g3, 3);
+                        g1->template linkTo<tag::point3D>(base::m_shape, 0);
+                        g2->template linkTo<tag::point3D>(base::m_shape, 3);
 
                         //add the fix constraints to show our relation
                         boost::shared_ptr<Constraint3D> c1 = base::m_system->createConstraint3D(g1,g3, details::fixed);
