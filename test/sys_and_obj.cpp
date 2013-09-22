@@ -91,10 +91,20 @@ struct TestModule1 {
                 };
             };
         };
+	
+	struct setting1_prop {
+            typedef bool type;
+            typedef dcm::setting_property kind;
+            struct default_value {
+                int operator()() {
+                    return true;
+                };
+            };
+        };
 
         typedef mpl::vector0<> geometries;
         typedef mpl::vector1<test_object1> objects;
-        typedef mpl::vector3<test_edge_property1, test_vertex_property1, test_object1_prop>   properties;
+        typedef mpl::vector4<test_edge_property1, test_vertex_property1, test_object1_prop, setting1_prop>   properties;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -193,6 +203,18 @@ BOOST_AUTO_TEST_CASE(object_properties) {
     o2.getProperty<Module2::test_object2_prop>() = o1.getProperty<Module2::test_object1_external_prop>();
     BOOST_CHECK(o2.getProperty<Module2::test_object2_prop>() == 7);
 
+};
+
+BOOST_AUTO_TEST_CASE(settings_properties) {
+  
+    System sys;
+    typedef TestModule1::type<System> Module1;
+    
+    BOOST_CHECK(sys.getSetting<Module1::setting1_prop>());
+    sys.setSetting<Module1::setting1_prop>(false);
+    BOOST_CHECK(!sys.getSetting<Module1::setting1_prop>());
+    sys.getSetting<Module1::setting1_prop>() = true;
+    BOOST_CHECK(sys.getSetting<Module1::setting1_prop>());
 };
 
 struct test_functor_void {

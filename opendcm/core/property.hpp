@@ -152,6 +152,14 @@ struct cluster_property {};
  **/
 struct object_property {};
 
+/**
+ *@brief Identifier for system setting properties
+ *
+ * Aproperty with this struct as 'kind' type will be added to the system class. Use this for user settings,
+ * which are just properties which are accessed horugh "setting" functions.
+ **/
+struct setting_property {};
+
 namespace details {
 
 /** @addtogroup Metafunctions
@@ -208,6 +216,21 @@ struct property_type {
 template<typename T>
 struct property_kind {
     typedef typename T::kind type;
+};
+
+/**
+ * @brief Metafunction to get all properties for a given kind from a property sequence
+ **/
+template<typename Sequence, typename Kind>
+struct properties_by_kind {
+
+    typedef typename mpl::fold<Sequence, mpl::vector<>,
+            mpl::if_<
+            boost::is_same<Kind, property_kind<mpl::_2> >,
+            mpl::push_back<mpl::_1, mpl::_2>,
+            mpl::_1
+            >
+            >::type type;
 };
 
 /**
@@ -417,7 +440,7 @@ PropertyOwner<PropertyList>::PropertyOwner() {
     //set the default value
     details::apply_default<PropertyOwner> func(this);
     mpl::for_each<view>(func);
-    
+
 #if defined(BOOST_MPL_CFG_NO_HAS_XXX)
     throw property_error() <<  boost::errinfo_errno(301) << error_message("no default values supported");
 #endif

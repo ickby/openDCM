@@ -76,12 +76,6 @@ struct obj_fold : mpl::fold< seq, state,
         boost::is_same< details::property_kind<mpl::_2>, obj>, is_object_property<mpl::_2> >,
         mpl::push_back<mpl::_1,mpl::_2>, mpl::_1 > > {};
 
-template<typename objects, typename properties>
-struct property_map_fold {
-    typedef typename mpl::fold<
-    objects, mpl::map<>, mpl::insert< mpl::_1, mpl::pair<
-    mpl::_2, details::obj_fold<properties, mpl::vector<>, mpl::_2 > > > >::type type;
-};
 template<typename T>
 struct get_identifier {
     typedef typename T::Identifier type;
@@ -169,8 +163,6 @@ public:
     typedef typename details::cluster_fold< properties,
             mpl::vector2<changed_prop, type_prop>  >::type 			cluster_properties;
 
-    typedef typename details::property_map_fold<objects, properties>::type 	object_properties;
-
 protected:
     //object storage
     typedef typename mpl::transform<objects, boost::shared_ptr<mpl::_1> >::type sp_objects;
@@ -187,6 +179,11 @@ protected:
             vector.clear();
         };
     };
+    
+    //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user 
+    //should not access the settings via the proeprty getter and setter functions.
+    typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> SettingOwner;
+    SettingOwner m_settings;
 
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
@@ -279,6 +276,16 @@ public:
       s->m_cluster->template setProperty<dcm::type_prop>(details::subcluster);
       return s;
     };
+    
+    template<typename Setting>
+    typename Setting::type& getSetting() {
+	return m_settings.template getProperty<Setting>();
+    };
+    
+    template<typename Setting>
+    void setSetting(typename Setting::type value){
+	m_settings.template setProperty<Setting>(value);
+    };
 
 private:
     struct cloner {
@@ -327,6 +334,8 @@ public:
 
 }
 #endif //GCM_SYSTEM_H
+
+
 
 
 
