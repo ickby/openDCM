@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         sys.solve();
 
         BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));
-	//BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
+	BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
         BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
         BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
         BOOST_CHECK(l2->getValue().isApprox(shape2->getValue(), 1e-10));
