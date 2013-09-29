@@ -199,8 +199,9 @@ BOOST_AUTO_TEST_SUITE(constraint3d_test_suit);
 
 typedef dcm::Kernel<double, CheckSolver> Kernel;
 typedef Module3D< mpl::vector5<point_t, line_t, plane_t, cylinder_t, segment_t > > Module;
+typedef ModuleShape3D< mpl::vector0<> > ModuleShape; //need that to allow shapes
 typedef dcm::ModulePart< mpl::vector1< place > > ModulePart;
-typedef System<Kernel, Module, ModulePart> System;
+typedef System<Kernel, Module, ModuleShape, ModulePart> System;
 
 typedef Module::type<System>::Geometry3D geom;
 typedef boost::shared_ptr<geom> geom_ptr;

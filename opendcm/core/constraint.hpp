@@ -51,6 +51,7 @@
 #include "equations.hpp"
 #include "geometry.hpp"
 
+class T;
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -629,6 +630,9 @@ template<typename ConstraintVector, typename EquationVector>
 template< typename T >
 void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::LGZ::operator()(T& val) const {
 
+    if(!val.enabled)
+        return;
+  
     //to treat local gradient zeros we calculate a approximate second derivative of the equations
     //only do that if neseccary: residual is not zero
     if(val.m_residual(0) > 1e-7) { //TODO: use exact precission and scale value
@@ -841,6 +845,7 @@ template<typename WhichType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
 
     typedef typename Sys::geometries geometries;
+    
     switch(first->getExactType()) {
 
 #ifdef BOOST_PP_LOCAL_ITERATE
@@ -848,7 +853,7 @@ void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::
       case (WhichType::value + n): \
         return initializeSecondGeometry<boost::mpl::int_<0>,\
 					typename mpl::at_c<geometries, WhichType::value + n >::type,\
-					ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, typename boost::mpl::size<geometries>::type>::type()); \
+					ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, boost::mpl::size<geometries> >::type()); \
         break;
 #define BOOST_PP_LOCAL_LIMITS (0, 10)
 #include BOOST_PP_LOCAL_ITERATE()
@@ -879,7 +884,7 @@ void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost:
       case (WhichType::value + n): \
         return intitalizeFinalize<FirstType, \
 				  typename mpl::at_c<geometries, WhichType::value + n >::type,\
-				  ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, typename boost::mpl::size<geometries>::type>::type()); \
+				  ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, boost::mpl::size<geometries> >::type()); \
         break;
 #define BOOST_PP_LOCAL_LIMITS (0, 10)
 #include BOOST_PP_LOCAL_ITERATE()
