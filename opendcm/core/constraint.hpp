@@ -83,9 +83,9 @@ public:
     //workaround until better analysing class is created
     // TODO: remove diasable once analyser is available
     void disable() {
-	content->disable();
+        content->disable();
     };
-    
+
     std::vector<boost::any> getGenericEquations();
     std::vector<boost::any> getGenericConstraints();
     std::vector<const std::type_info*> getEquationTypes();
@@ -118,6 +118,7 @@ protected:
     void resetType(creator_type& c);
 
     void calculate(Scalar scale, bool rotation_only = false);
+    void treatLGZ();
 
     void setMaps(MES& mes);
 
@@ -150,10 +151,11 @@ protected:
         virtual ~placeholder() {}
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const = 0;
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, bool rotation_only = false) = 0;
+	virtual void treatLGZ(geom_ptr first, geom_ptr second) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
         virtual void collectPseudoPoints(geom_ptr first, geom_ptr second, Vec& vec1, Vec& vec2) = 0;
-	virtual void disable() = 0;
+        virtual void disable() = 0;
         virtual placeholder* clone() = 0;
 
         //some runtime type infos are needed, as we cant access the contents with arbitrary functors
@@ -236,6 +238,16 @@ public:
             void operator()(T& val) const;
         };
 
+        struct LGZ {
+            geom_ptr first,second;
+
+            LGZ(geom_ptr f, geom_ptr s);
+
+            template< typename T >
+            void operator()(T& val) const;
+        };
+
+
         struct EquationCounter {
             int& count;
 
@@ -284,6 +296,7 @@ public:
         holder(Objects& obj);
 
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, bool rotation_only = false);
+	virtual void treatLGZ(geom_ptr first, geom_ptr second);
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
         virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
@@ -376,6 +389,11 @@ void Constraint<Sys, Dim>::resetType(creator_type& c) {
 template<typename Sys, int Dim>
 void Constraint<Sys, Dim>::calculate(Scalar scale, bool rotation_only) {
     content->calculate(first, second, scale, rotation_only);
+};
+
+template<typename Sys, int Dim>
+void Constraint<Sys, Dim>::treatLGZ() {
+    content->treatLGZ(first, second);
 };
 
 template<typename Sys, int Dim>
@@ -599,6 +617,78 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::PseudoColle
             }
 };
 
+template<typename Sys, int Dim>
+template<typename ConstraintVector, typename EquationVector>
+Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::LGZ::LGZ(geom_ptr f, geom_ptr s)
+    : first(f), second(s) {
+
+};
+
+template<typename Sys, int Dim>
+template<typename ConstraintVector, typename EquationVector>
+template< typename T >
+void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::LGZ::operator()(T& val) const {
+
+    //to treat local gradient zeros we calculate a approximate second derivative of the equations
+    //only do that if neseccary: residual is not zero
+    if(val.m_residual(0) > 1e-7) { //TODO: use exact precission and scale value
+
+        //rotations exist only in cluster
+        if(first->getClusterMode() && !first->isClusterFixed()) {
+            //LGZ exists for rotations only
+            for(int i=0; i<3; i++) {
+
+                //only treat if the gradient realy is zero
+                if(std::abs(val.m_diff_first_rot(i)) < 1e-7) {
+
+                    //to get the approximated second derivative we need the slightly moved geometrie
+                    const typename Kernel::Vector  p_old =  first->m_parameter;
+                    first->m_parameter += first->m_diffparam.col(i)*1e-3;
+                    first->normalize();
+                    //with this changed geometrie we test if a gradient exist now
+                    typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
+                    typename Kernel::number_type res = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                       second->m_parameter, block);
+                    first->m_parameter = p_old;
+
+                    //let's see if the initial LGZ was a real one
+                    if(std::abs(res) > 1e-7) {
+
+                        //is a fake zero, let's correct it
+                        val.m_diff_first_rot(i) = res;
+                    };
+                };
+            };
+        }
+        //and the same for the second one too
+        if(second->getClusterMode() && !second->isClusterFixed()) {
+
+            for(int i=0; i<3; i++) {
+
+                //only treat if the gradient realy is zero
+                if(std::abs(val.m_diff_second_rot(i)) < 1e-7) {
+
+                    //to get the approximated second derivative we need the slightly moved geometrie
+                    const typename Kernel::Vector  p_old =  second->m_parameter;
+                    second->m_parameter += second->m_diffparam.col(i)*1e-3;
+                    second->normalize();
+                    //with this changed geometrie we test if a gradient exist now
+                    typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
+                    typename Kernel::number_type res = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                       second->m_parameter, block);
+                    second->m_parameter = p_old;
+
+                    //let's see if the initial LGZ was a real one
+                    if(std::abs(res) > 1e-7) {
+
+                        //is a fake zero, let's correct it
+                        val.m_diff_second_rot(i) = res;
+                    };
+                };
+            };
+        };
+    };
+};
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename EquationVector>
@@ -654,6 +744,12 @@ template<typename ConstraintVector, typename EquationVector>
 void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::calculate(geom_ptr first, geom_ptr second,
         Scalar scale, bool rotation_only) {
     fusion::for_each(m_sets, Calculater(first, second, scale, rotation_only));
+};
+
+template<typename Sys, int Dim>
+template<typename ConstraintVector, typename EquationVector>
+void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::treatLGZ(geom_ptr first, geom_ptr second) {
+    fusion::for_each(m_sets, LGZ(first, second));
 };
 
 template<typename Sys, int Dim>

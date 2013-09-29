@@ -152,7 +152,7 @@ public:
 template<typename Sys>
 ClusterMath<Sys>::ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
 
-    m_resetTransform = typename Kernel::Quaternion(1,1,1,1);
+    m_resetTransform = Eigen::AngleAxisd(M_PI*2./3., Eigen::Vector3d(1,1,1).normalized());
     m_shift.setZero();
 
 #ifdef USE_LOGGING

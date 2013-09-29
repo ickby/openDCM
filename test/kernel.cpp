@@ -72,6 +72,7 @@ struct EqnSystem : public kernel::MappedEquationSystem {
         e3_dv1 = v3;
     };
 
+    virtual void removeLocalGradientZeros() {};
 
 };
 

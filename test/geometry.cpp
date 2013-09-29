@@ -30,6 +30,7 @@ struct MES  : public K::MappedEquationSystem {
     virtual void recalculate() {
         Parameter.setRandom();
     };
+    virtual void removeLocalGradientZeros(){};
 };
 
 struct Geometry : public dcm::details::Geometry<K, 3> {

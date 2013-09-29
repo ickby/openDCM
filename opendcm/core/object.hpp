@@ -163,7 +163,7 @@ protected:
  * \tparam Sig a mpl::map specifing the object's signals by (type -  boost::function) pairs
  **/
 template<typename Sys, typename Derived, typename Sig>
-struct Object : public PropertyOwner<typename details::properties_by_kind<typename Sys::properties, Derived>::type>,
+struct Object : public PropertyOwner<typename details::properties_by_object<typename Sys::properties, Derived>::type>,
 	public SignalOwner<Sig>,
         boost::enable_shared_from_this<Derived> {
 

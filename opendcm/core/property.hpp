@@ -234,6 +234,18 @@ struct properties_by_kind {
 };
 
 /**
+ * @brief Metafunction to get all properties for a given object from a property sequence. This includes
+ * 	  the properties with the object types and all general object properties
+ **/
+template<typename Sequence, typename object>
+struct properties_by_object {
+
+    typedef typename properties_by_kind<Sequence, object>::type object_props;
+    typedef typename properties_by_kind<Sequence, object_property>::type general_props;
+    typedef typename mpl::fold< object_props, general_props, mpl::push_back<mpl::_1,mpl::_2> >::type type;
+};
+
+/**
  * @brief Metafunction to ensures that a property is in a lists
  *
  * Checks for the existence of a given Property in the mpl::vector supplied and adds the property if it is not found.

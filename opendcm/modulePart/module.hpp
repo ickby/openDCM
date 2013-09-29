@@ -70,8 +70,8 @@ struct ModulePart {
 
             typedef typename boost::make_variant_over< Typelist >::type Variant;
             typedef Object<Sys, Part, PartSignal> base;
-            typedef typename system_traits<Sys>::Kernel Kernel;
-            typedef typename system_traits<Sys>::Cluster Cluster;
+            typedef typename Sys::Kernel Kernel;
+            typedef typename Sys::Cluster Cluster;
             typedef typename Kernel::number_type Scalar;
             typedef typename Kernel::Transform3D Transform;
 
@@ -212,7 +212,7 @@ struct ModulePart {
 
             //function object to emit remove signal too al geometry which is deleted by part deletion
             struct remover {
-                typedef typename system_traits<Sys>::Cluster Cluster;
+                typedef typename Sys::Cluster Cluster;
                 typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
                 typedef typename module3d::Geometry3D Geometry3D;
                 typedef boost::shared_ptr<Geometry3D> Geom;
@@ -245,8 +245,8 @@ struct ModulePart {
 
         struct PrepareCluster : public Job<Sys> {
 
-            typedef typename system_traits<Sys>::Cluster Cluster;
-            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename Sys::Cluster Cluster;
+            typedef typename Sys::Kernel Kernel;
             typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
 
             PrepareCluster();
@@ -255,8 +255,8 @@ struct ModulePart {
 
         struct EvaljuateCluster : public Job<Sys> {
 
-            typedef typename system_traits<Sys>::Cluster Cluster;
-            typedef typename system_traits<Sys>::Kernel Kernel;
+            typedef typename Sys::Cluster Cluster;
+            typedef typename Sys::Kernel Kernel;
             typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
 
             EvaljuateCluster();
@@ -500,7 +500,7 @@ template<typename T>
 typename ModulePart<Typelist, ID>::template type<Sys>::Partptr
 ModulePart<Typelist, ID>::type<Sys>::inheriter_base::createPart(const T& geometry) {
 
-    typedef typename system_traits<Sys>::Cluster Cluster;
+    typedef typename Sys::Cluster Cluster;
     std::pair<boost::shared_ptr<Cluster>, LocalVertex>  res = m_this->m_cluster->createCluster();
     Partptr p(new Part(geometry, * ((Sys*) this), res.first));
 

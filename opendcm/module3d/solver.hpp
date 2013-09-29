@@ -55,6 +55,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
 
     MES(boost::shared_ptr<Cluster> cl, int par, int eqn);
     virtual void recalculate();
+    virtual void removeLocalGradientZeros();
 };
 
 template<typename Sys>
@@ -155,6 +156,25 @@ void MES<Sys>::recalculate() {
         }
     }
 };
+
+template<typename Sys>
+void MES<Sys>::removeLocalGradientZeros() {
+
+    //let the constraints treat the local zeros
+    typedef typename Cluster::template object_iterator<Constraint3D> oiter;
+    typedef typename boost::graph_traits<Cluster>::edge_iterator eiter;
+    std::pair<eiter, eiter>  eit = boost::edges(*m_cluster);
+    for(; eit.first != eit.second; eit.first++) {
+        //as always: every local edge can hold multiple global ones, so iterate over all constraints
+        //hold by the individual edge
+        std::pair< oiter, oiter > oit = m_cluster->template getObjects<Constraint3D>(*eit.first);
+        for(; oit.first != oit.second; oit.first++) {
+            if(*oit.first)
+                (*oit.first)->treatLGZ();
+        }
+    }
+};
+
 
 template<typename Sys>
 SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr<Cluster> c, Mes& m) : cluster(c), mes(m), rescales(0) {

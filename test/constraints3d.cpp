@@ -319,7 +319,7 @@ struct constraint_checker_orientation  {
     };
 };
 
-/*
+
 BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     System sys;
@@ -412,7 +412,7 @@ BOOST_AUTO_TEST_CASE(constraint3d_angle) {
     constraint_checker<cylinder_t, cylinder_t, dcm::Angle> checker5(sys);
     BOOST_REQUIRE(checker5.check_normal(2.));
     BOOST_REQUIRE(checker5.check_cluster(2.));
-}*/
+}
 
 BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
   
