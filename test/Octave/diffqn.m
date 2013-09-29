@@ -3,7 +3,7 @@ function [m_rot, m_diffrot] = diffqn(m_normQ)
 
 	nor = norm(m_normQ);
         Q = [m_normQ(1)/nor, m_normQ(2)/nor, m_normQ(3)/nor, nor];
-	Q = Q./norm(Q)
+	Q = Q./norm(Q);
 
  %       /* now calculate the gradient quaternions and calculate the diff rotation matrices
  %        * normQ = (a,b,c)
