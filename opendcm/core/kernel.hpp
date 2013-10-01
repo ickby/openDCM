@@ -30,6 +30,7 @@
 #include <boost/exception/exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/graph/graph_concepts.hpp>
+#include <boost/mpl/vector.hpp>
 
 #include <time.h>
 
@@ -37,11 +38,12 @@
 #include "logging.hpp"
 #include "defines.hpp"
 #include "multimap.hpp"
-
-
-namespace dcm {
+#include "property.hpp"
 
 namespace E = Eigen;
+namespace mpl= boost::mpl;
+
+namespace dcm {
 
 struct nothing {
     void operator()() {};
@@ -52,6 +54,18 @@ enum ParameterType {
     general,  //every non-rotation parameter, therefore every translation and non transformed parameter
     rotation, //all rotation parameters
     complete  //all parameter
+};
+
+//solver settings
+struct precision {
+
+    typedef double type;
+    typedef setting_property kind;
+    struct default_value {
+        double operator()() {
+            return 1e-6;
+        };
+    };
 };
 
 template<typename Kernel>
@@ -318,7 +332,7 @@ struct Dogleg {
 };
 
 template<typename Scalar, template<class> class Nonlinear = Dogleg>
-struct Kernel {
+struct Kernel : public PropertyOwner< mpl::vector<precision> > {
 
     //basics
     typedef Scalar number_type;
@@ -489,7 +503,7 @@ struct Kernel {
         };
 
         virtual void recalculate() = 0;
-	virtual void removeLocalGradientZeros() = 0;
+        virtual void removeLocalGradientZeros() = 0;
 
     };
 
@@ -516,7 +530,8 @@ struct Kernel {
     static int solve(MappedEquationSystem& mes, Functor& f) {
         return Nonlinear< Kernel<Scalar, Nonlinear> >().solve(mes, f);
     };
-
+    
+    typedef mpl::vector1<precision> properties;
 };
 
 }
