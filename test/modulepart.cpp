@@ -157,8 +157,8 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   v3 = get<Eigen::Vector3d>(g3);
   v4 = get<Eigen::Vector3d>(g4);
 
-  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
-  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5., 1e-6) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5., 1e-6) );
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_local) {
@@ -186,8 +186,8 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
   v3 = get<Eigen::Vector3d>(g3);
   v4 = get<Eigen::Vector3d>(g4);
 
-  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
-  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5., 1e-6) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5., 1e-6) );
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_transformations) {
@@ -270,9 +270,9 @@ BOOST_AUTO_TEST_CASE(modulepart_combined) {
   v3 = get<Eigen::Vector3d>(g3);
   v4 = get<Eigen::Vector3d>(g4);
 
-  BOOST_CHECK(Kernel::isSame((v1-v3).norm(), 5.));
-  BOOST_CHECK(Kernel::isSame((v2-v4).norm(), 5.));
-  BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 7.));
+  BOOST_CHECK(Kernel::isSame((v1-v3).norm(), 5., 1e-6));
+  BOOST_CHECK(Kernel::isSame((v2-v4).norm(), 5., 1e-6));
+  BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 7., 1e-6));
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
@@ -309,15 +309,15 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
   
   place pl1 = get<place>(part1);
   
-  BOOST_CHECK(Kernel::isSame((v1-p1).norm(),0));
-  BOOST_CHECK(Kernel::isSame((v2-p2).norm(),0));
+  BOOST_CHECK(Kernel::isSame((v1-p1).norm(),0, 1e-6));
+  BOOST_CHECK(Kernel::isSame((v2-p2).norm(),0, 1e-6));
   BOOST_CHECK(place().quat.isApprox(pl1.quat, 1e-10));
   BOOST_CHECK(place().trans.isApprox(pl1.trans, 1e-10));
   
-  BOOST_CHECK(Kernel::isSame((v1.tail(3)-v3.tail(3)).norm(),0));
-  BOOST_CHECK(Kernel::isSame((v2.tail(3)-v4.tail(3)).norm(),0));
-  BOOST_CHECK(Kernel::isSame((v1.head(3)-v3.head(3)).dot(v3.tail(3)) / v3.tail(3).norm(), 0.));
-  BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0.));
+  BOOST_CHECK(Kernel::isSame((v1.tail(3)-v3.tail(3)).norm(),0, 1e-6));
+  BOOST_CHECK(Kernel::isSame((v2.tail(3)-v4.tail(3)).norm(),0, 1e-6));
+  BOOST_CHECK(Kernel::isSame((v1.head(3)-v3.head(3)).dot(v3.tail(3)) / v3.tail(3).norm(), 0., 1e-6));
+  BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0., 1e-6));
   
 }
 
@@ -363,8 +363,8 @@ BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
   v3 = get<Eigen::Vector3d>(g3);
   v4 = get<Eigen::Vector3d>(g4);
 
-  BOOST_CHECK( Kernel::isSame((v1.tail<3>()-v2.tail<3>()).norm(),0.) );
-  BOOST_CHECK( Kernel::isSame((v3-v4).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1.tail<3>()-v2.tail<3>()).norm(),0., 1e-6) );
+  BOOST_CHECK( Kernel::isSame((v3-v4).norm(),5., 1e-6) );
 
 }
 
@@ -397,13 +397,13 @@ BOOST_AUTO_TEST_CASE(modulepart_clone) {
   v3 = get<Eigen::Vector3d>(clone->getGeometry3D("g3"));
   v4 = get<Eigen::Vector3d>(clone->getGeometry3D("g4"));
 
-  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5.) );
-  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5.) );
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5., 1e-6) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5., 1e-6) );
   
   //check if the original is unchanged
-  BOOST_CHECK( p1.isApprox(get<Eigen::Vector3d>(g1), 1e-10) );
-  BOOST_CHECK( p3.isApprox(get<Eigen::Vector3d>(g3), 1e-10) );
-  BOOST_CHECK( p4.isApprox(get<Eigen::Vector3d>(g4), 1e-10) );
+  BOOST_CHECK( Kernel::isSame(p1, get<Eigen::Vector3d>(g1), 1e-10) );
+  BOOST_CHECK( Kernel::isSame(p3, get<Eigen::Vector3d>(g3), 1e-10) );
+  BOOST_CHECK( Kernel::isSame(p4, get<Eigen::Vector3d>(g4), 1e-10) );
   
   delete clone;
 }

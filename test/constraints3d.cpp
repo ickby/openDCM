@@ -22,7 +22,10 @@
 #include "opendcm/modulepart.hpp"
 #include "opendcm/moduleshape3d.hpp"
 
+#include <boost/mpl/vector.hpp>
 #include <boost/test/unit_test.hpp>
+
+namespace mpl = boost::mpl;
 
 typedef Eigen::Matrix<double, 3,1> point_t;
 struct line_t : public Eigen::Matrix<double, 6,1> {};
@@ -145,7 +148,7 @@ template<typename Kernel>
 struct CheckSolver {
 
     typedef typename Kernel::number_type Scalar;
-    CheckSolver() {};
+    CheckSolver(Kernel* k) {};
 
     template<typename Functor>
     int solve(typename Kernel::MappedEquationSystem& sys, Functor& f) {

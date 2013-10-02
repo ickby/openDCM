@@ -307,6 +307,11 @@ public:
     typename Setting::type& setting() {
 	return getSetting<Setting>();
     };
+    
+    //let evryone access and use our math kernel
+    Kernel& kernel() {
+	return m_kernel;
+    };
 
 private:
     struct cloner {

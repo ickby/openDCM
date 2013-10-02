@@ -203,9 +203,10 @@ struct test1 {
 BOOST_AUTO_TEST_CASE(kernel_dogleg) {
 
     EqnSystem s;
+    kernel k;
 
     s.Parameter.setRandom();
-    kernel::solve(s);
+    k.solve(s);
     BOOST_CHECK(s.Residual.norm() < 1e-5);
 
 }

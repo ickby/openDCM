@@ -207,9 +207,9 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     v2<<rp2[0],rp2[1],rp2[2];
     v3<<rp3[0],rp3[1],rp3[2];
 
-    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
-    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
   }
   catch (boost::exception& x) {
     BOOST_FAIL( *boost::get_error_info<error_message>(x) );
@@ -259,9 +259,9 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     v2<<rp2[0],rp2[1],rp2[2];
     v3<<rp3[0],rp3[1],rp3[2];
 
-    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
-    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
 };
 
 BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
@@ -293,16 +293,16 @@ BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
     Eigen::Vector3d& v3 = get<Eigen::Vector3d>(g3);
     Eigen::Vector3d& v4 = get<Eigen::Vector3d>(g4);
 
-    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
-    BOOST_CHECK(Kernel::isSame((v1-v2).norm(),3));
-    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
-    BOOST_CHECK(Kernel::isSame((v2-v3).norm(),3));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
-    BOOST_CHECK(Kernel::isSame((v1-v3).norm(),3));
-    BOOST_CHECK(Kernel::isSame(v4.dot(v1),0));
-    BOOST_CHECK(Kernel::isSame((v1-v4).norm(),3));
-    BOOST_CHECK(Kernel::isSame(v4.dot(v2),0));
-    BOOST_CHECK(Kernel::isSame((v4-v2).norm(),3));
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame((v1-v2).norm(),3, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame((v2-v3).norm(),3, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame((v1-v3).norm(),3, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v4.dot(v1),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame((v1-v4).norm(),3, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v4.dot(v2),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame((v4-v2).norm(),3, 1e-6));
 }
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
@@ -386,9 +386,9 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     v3<<rp3[0],rp3[1],rp3[2];
 
     //check if the system was solved correctly
-    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0));
-    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0));
+    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
+    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
 
     //check if the original system is unchanged
     BOOST_CHECK(p1[0] == get<point>(sys.getGeometry3D("g1"))[0]);
