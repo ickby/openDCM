@@ -68,26 +68,39 @@ struct test_constraint : public dcm::Equation<test_constraint, int> {
         typedef typename Kernel::VectorMap   Vector;
         int value;
 
-        Scalar calculate(Vector& param1,  Vector& param2)  {
+        template <typename DerivedA,typename DerivedB>
+        Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2)  {
             assert(false);
             return 0;
         };
 
-        Scalar calculateGradientFirst(Vector& param1,  Vector& param2, Vector& dparam1) {
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        Scalar calculateGradientFirst(const E::MatrixBase<DerivedA>& param1,
+                                      const E::MatrixBase<DerivedB>& param2,
+                                      const E::MatrixBase<DerivedC>& dparam1) {
             assert(false);
             return 0;
         };
 
-        Scalar calculateGradientSecond(Vector& param1,  Vector& param2, Vector& dparam2)  {
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        Scalar calculateGradientSecond(const E::MatrixBase<DerivedA>& param1,
+                                       const E::MatrixBase<DerivedB>& param2,
+                                       const E::MatrixBase<DerivedC>& dparam2)  {
             assert(false);
             return 0;
         };
 
-        void calculateGradientFirstComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        void calculateGradientFirstComplete(const E::MatrixBase<DerivedA>& param1,
+                                            const E::MatrixBase<DerivedB>& param2,
+                                            E::MatrixBase<DerivedC>& gradient) {
             assert(false);
         };
 
-        void calculateGradientSecondComplete(Vector& param1,  Vector& param2, Vector& gradient) {
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        void calculateGradientSecondComplete(const E::MatrixBase<DerivedA>& param1,
+                                             const E::MatrixBase<DerivedB>& param2,
+                                             E::MatrixBase<DerivedC>& gradient) {
             assert(false);
         };
     };
@@ -100,24 +113,41 @@ struct test_constraint : public dcm::Equation<test_constraint, int> {
         typedef typename Kernel::VectorMap   Vector;
         int value;
 
-        Scalar calculate(Vector& param1,  Vector& param2) {
+        template <typename DerivedA,typename DerivedB>
+        Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
             return param1.dot(param2);
         };
-        Scalar calculateGradientFirst(Vector& param1, Vector& param2, Vector& dparam1) {
+
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        Scalar calculateGradientFirst(const E::MatrixBase<DerivedA>& param1,
+                                      const E::MatrixBase<DerivedB>& param2,
+                                      const E::MatrixBase<DerivedC>& dparam1) {
 
             return dparam1.dot(param2);
         };
-        Scalar calculateGradientSecond(Vector& param1, Vector& param2, Vector& dparam2) {
+
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        Scalar calculateGradientSecond(const E::MatrixBase<DerivedA>& param1,
+                                       const E::MatrixBase<DerivedB>& param2,
+                                       const E::MatrixBase<DerivedC>& dparam2) {
 
             return param1.dot(dparam2);
         };
-        void calculateGradientFirstComplete(Vector& param1, Vector& param2, Vector& gradient) {
+
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        void calculateGradientFirstComplete(const E::MatrixBase<DerivedA>& param1,
+                                            const E::MatrixBase<DerivedB>& param2,
+                                            E::MatrixBase<DerivedC>& gradient) {
 
             gradient(0) = param2(0);
             gradient(1) = param2(1);
             gradient(2) = param2(2);
         };
-        void calculateGradientSecondComplete(Vector& param1, Vector& param2, Vector& gradient) {
+
+        template <typename DerivedA,typename DerivedB, typename DerivedC>
+        void calculateGradientSecondComplete(const E::MatrixBase<DerivedA>& param1,
+                                             const E::MatrixBase<DerivedB>& param2,
+                                             E::MatrixBase<DerivedC>& gradient) {
 
             gradient(0) = param1(0);
             gradient(1) = param1(1);
@@ -169,51 +199,51 @@ typedef Module::type<SystemNOID>::vertex_prop vertex_prop;
 
 BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
 
-  try {
-    
-    SystemNOID sys;
+    try {
 
-    point p1,p2,p3;
-    p1.push_back(7);
-    p1.push_back(-0.5);
-    p1.push_back(0.3);
-    p2.push_back(0.2);
-    p2.push_back(0.5);
-    p2.push_back(-0.1);
-    p3.push_back(1.2);
-    p3.push_back(5.9);
-    p3.push_back(0.43);
+        SystemNOID sys;
+
+        point p1,p2,p3;
+        p1.push_back(7);
+        p1.push_back(-0.5);
+        p1.push_back(0.3);
+        p2.push_back(0.2);
+        p2.push_back(0.5);
+        p2.push_back(-0.1);
+        p3.push_back(1.2);
+        p3.push_back(5.9);
+        p3.push_back(0.43);
 
 
-    geom_ptr g1 = sys.createGeometry3D(p1);
-    geom_ptr g2 = sys.createGeometry3D(p2);
-    geom_ptr g3 = sys.createGeometry3D(p3);
+        geom_ptr g1 = sys.createGeometry3D(p1);
+        geom_ptr g2 = sys.createGeometry3D(p2);
+        geom_ptr g3 = sys.createGeometry3D(p3);
 
-    //check empty solving
-    sys.solve();
+        //check empty solving
+        sys.solve();
 
-    //simple constraint and fire
-    cons_ptr c1 = sys.createConstraint3D(g1, g2, test);
-    cons_ptr c2 = sys.createConstraint3D(g2, g3, test);
-    cons_ptr c3 = sys.createConstraint3D(g3, g1, test);
-    sys.solve();
+        //simple constraint and fire
+        cons_ptr c1 = sys.createConstraint3D(g1, g2, test);
+        cons_ptr c2 = sys.createConstraint3D(g2, g3, test);
+        cons_ptr c3 = sys.createConstraint3D(g3, g1, test);
+        sys.solve();
 
-    Kernel::Vector3 v1,v2,v3;
-    point& rp1 = get<point>(g1);
-    point& rp2 = get<point>(g2);
-    point& rp3 = get<point>(g3);
+        Kernel::Vector3 v1,v2,v3;
+        point& rp1 = get<point>(g1);
+        point& rp2 = get<point>(g2);
+        point& rp3 = get<point>(g3);
 
-    v1<<rp1[0],rp1[1],rp1[2];
-    v2<<rp2[0],rp2[1],rp2[2];
-    v3<<rp3[0],rp3[1],rp3[2];
+        v1<<rp1[0],rp1[1],rp1[2];
+        v2<<rp2[0],rp2[1],rp2[2];
+        v3<<rp3[0],rp3[1],rp3[2];
 
-    BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
-    BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
-    BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
-  }
-  catch (boost::exception& x) {
-    BOOST_FAIL( *boost::get_error_info<error_message>(x) );
-  };
+        BOOST_CHECK(Kernel::isSame(v1.dot(v2),0, 1e-6));
+        BOOST_CHECK(Kernel::isSame(v2.dot(v3),0, 1e-6));
+        BOOST_CHECK(Kernel::isSame(v3.dot(v1),0, 1e-6));
+    }
+    catch(boost::exception& x) {
+        BOOST_FAIL(*boost::get_error_info<error_message>(x));
+    };
 
 };
 
@@ -306,7 +336,7 @@ BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
 }
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
-    
+
     SystemID sys;
     Eigen::Vector3d p1,p2;
     p1 << 7, -0.5, 0.3;
@@ -329,8 +359,8 @@ BOOST_AUTO_TEST_CASE(module3d_id) {
     BOOST_CHECK(sys.getGeometry3D("g1") == g1);
     BOOST_CHECK(sys.getGeometry3D("g2") == g2);
     BOOST_CHECK(sys.getConstraint3D("constraint") == c1);
-  
-    BOOST_REQUIRE_THROW(sys.createConstraint3D("constraint2", g1, g2, orientation), constraint_error);  
+
+    BOOST_REQUIRE_THROW(sys.createConstraint3D("constraint2", g1, g2, orientation), constraint_error);
 }
 
 BOOST_AUTO_TEST_CASE(module3d_cloning) {
@@ -400,7 +430,7 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
     BOOST_CHECK(p3[0] == get<point>(sys.getGeometry3D("g3"))[0]);
     BOOST_CHECK(p3[1] == get<point>(sys.getGeometry3D("g3"))[1]);
     BOOST_CHECK(p3[2] == get<point>(sys.getGeometry3D("g3"))[2]);
-    
+
     delete clone;
 
 };

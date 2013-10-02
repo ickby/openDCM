@@ -51,7 +51,7 @@ struct Distance::type< Kernel, tag::point3D, tag::segment3D > {
     //template definition
     void calculatePseudo(typename Kernel::Vector& point, Vec& v1, typename Kernel::Vector& segment, Vec& v2) {
         Vector3 dir = (segment.template head<3>() - segment.template tail<3>()).normalized();
-	Vector3 pp = segment.head(3) + (segment.head(3)-point.head(3)).norm()*dir;
+        Vector3 pp = segment.head(3) + (segment.head(3)-point.head(3)).norm()*dir;
 #ifdef USE_LOGGING
         if(!boost::math::isnormal(pp.norm()))
             BOOST_LOG(log) << "Unnormal pseudopoint detected";
@@ -61,16 +61,18 @@ struct Distance::type< Kernel, tag::point3D, tag::segment3D > {
     void setScale(Scalar scale) {
         sc_value = value*scale;
     };
-    Scalar calculate(Vector& point, Vector& segment) {
+
+    template <typename DerivedA,typename DerivedB>
+    Scalar calculate(const E::MatrixBase<DerivedA>& point, const E::MatrixBase<DerivedB>& segment) {
         //diff = point1 - point2
-	v01 = point-segment.template head<3>();
-	v02 = point-segment.template tail<3>();
-	v12 = segment.template head<3>() - segment.template tail<3>();	
-	cross = v01.cross(v02);
-	v12_n = v12.norm();
-	cross_n = cross.norm();
-	cross_v12_n = cross_n/std::pow(v12_n,3);
-	
+        v01 = point-segment.template head<3>();
+        v02 = point-segment.template tail<3>();
+        v12 = segment.template head<3>() - segment.template tail<3>();
+        cross = v01.cross(v02);
+        v12_n = v12.norm();
+        cross_n = cross.norm();
+        cross_v12_n = cross_n/std::pow(v12_n,3);
+
         const Scalar res = cross.norm()/v12_n - sc_value;
 #ifdef USE_LOGGING
         if(!boost::math::isfinite(res))
@@ -79,9 +81,12 @@ struct Distance::type< Kernel, tag::point3D, tag::segment3D > {
         return res;
     };
 
-    Scalar calculateGradientFirst(Vector& point, Vector& segment, Vector& dpoint) {
+    template <typename DerivedA,typename DerivedB, typename DerivedC>
+    Scalar calculateGradientFirst(const E::MatrixBase<DerivedA>& point,
+                                  const E::MatrixBase<DerivedB>& segment,
+                                  const E::MatrixBase<DerivedC>& dpoint) {
 
-	const Vector3 d_point = dpoint; //eigen only acceppts vector3 for cross product
+        const Vector3 d_point = dpoint; //eigen only acceppts vector3 for cross product
         const Vector3 d_cross = d_point.cross(v02) + v01.cross(d_point);
         const Scalar res = cross.dot(d_cross)/(cross_n*v12_n);
 #ifdef USE_LOGGING
@@ -93,10 +98,13 @@ struct Distance::type< Kernel, tag::point3D, tag::segment3D > {
         return res;
     };
 
-    Scalar calculateGradientSecond(Vector& point, Vector& segment, Vector& dsegment) {
+    template <typename DerivedA,typename DerivedB, typename DerivedC>
+    Scalar calculateGradientSecond(const E::MatrixBase<DerivedA>& point,
+                                   const E::MatrixBase<DerivedB>& segment,
+                                   const E::MatrixBase<DerivedC>& dsegment) {
 
         const Vector3 d_cross = - (dsegment.template head<3>().cross(v02) + v01.cross(dsegment.template tail<3>()));
-	const Vector3 d_v12   = dsegment.template head<3>() - dsegment.template tail<3>();
+        const Vector3 d_v12   = dsegment.template head<3>() - dsegment.template tail<3>();
         const Scalar res = cross.dot(d_cross)/(cross_n*v12_n) - v12.dot(d_v12)*cross_v12_n;
 #ifdef USE_LOGGING
         if(!boost::math::isfinite(res))
@@ -107,13 +115,20 @@ struct Distance::type< Kernel, tag::point3D, tag::segment3D > {
         return res;
     };
 
-    void calculateGradientFirstComplete(Vector& point, Vector& segment, Vector& gradient) {
+    template <typename DerivedA,typename DerivedB, typename DerivedC>
+    void calculateGradientFirstComplete(const E::MatrixBase<DerivedA>& point,
+                                        const E::MatrixBase<DerivedB>& segment,
+                                        E::MatrixBase<DerivedC>& gradient) {
         //gradient = (v02.cross(cross)+cross.cross(v01))/(cross.norm()*v12_n);
-	gradient = (v02-v01).cross(cross)/(cross_n*v12_n);
+        gradient = (v02-v01).cross(cross)/(cross_n*v12_n);
     };
-    void calculateGradientSecondComplete(Vector& point, Vector& segment, Vector& gradient) {
+
+    template <typename DerivedA,typename DerivedB, typename DerivedC>
+    void calculateGradientSecondComplete(const E::MatrixBase<DerivedA>& point,
+                                         const E::MatrixBase<DerivedB>& segment,
+                                         E::MatrixBase<DerivedC>& gradient) {
         gradient.template head<3>() = cross.cross(v02)/(cross_n*v12_n) - v12*cross_v12_n;
-	gradient.template tail<3>() = v01.cross(cross)/(cross_n*v12_n) + v12*cross_v12_n;
+        gradient.template tail<3>() = v01.cross(cross)/(cross_n*v12_n) + v12*cross_v12_n;
     };
 };
 

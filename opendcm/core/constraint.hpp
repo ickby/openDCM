@@ -152,7 +152,7 @@ protected:
         virtual ~placeholder() {}
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const = 0;
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, bool rotation_only = false) = 0;
-	virtual void treatLGZ(geom_ptr first, geom_ptr second) = 0;
+        virtual void treatLGZ(geom_ptr first, geom_ptr second) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
         virtual void collectPseudoPoints(geom_ptr first, geom_ptr second, Vec& vec1, Vec& vec2) = 0;
@@ -297,7 +297,7 @@ public:
         holder(Objects& obj);
 
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, bool rotation_only = false);
-	virtual void treatLGZ(geom_ptr first, geom_ptr second);
+        virtual void treatLGZ(geom_ptr first, geom_ptr second);
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
         virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
@@ -507,15 +507,13 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::Calculater:
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
                         val.m_diff_first_rot(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                  second->m_parameter, block);
+                                                  second->m_parameter, first->m_diffparam.col(i));
                     }
                     //and now with the translations
                     for(int i=0; i<3; i++) {
-                        typename Kernel::VectorMap block(&first->m_diffparam(0,i+3),first->m_parameterCount,1, DS(1,1));
                         val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                              second->m_parameter, block);
+                                              second->m_parameter, first->m_diffparam.col(i+3));
                     }
                 }
             }
@@ -530,15 +528,13 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::Calculater:
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
                         val.m_diff_second_rot(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                   second->m_parameter, block);
+                                                   second->m_parameter, second->m_diffparam.col(i));
                     }
                     //and the translation seperated
                     for(int i=0; i<3; i++) {
-                        typename Kernel::VectorMap block(&second->m_diffparam(0,i+3),second->m_parameterCount,1, DS(1,1));
                         val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                               second->m_parameter, block);
+                                               second->m_parameter, second->m_diffparam.col(i+3));
                     }
                 }
             }
@@ -632,7 +628,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, EquationVector>::LGZ::operat
 
     if(!val.enabled)
         return;
-  
+
     //to treat local gradient zeros we calculate a approximate second derivative of the equations
     //only do that if neseccary: residual is not zero
     if(val.m_residual(0) > 1e-7) { //TODO: use exact precission and scale value
@@ -845,7 +841,7 @@ template<typename WhichType, typename ConstraintVector>
 void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::mpl::true_ /*unrolled*/) {
 
     typedef typename Sys::geometries geometries;
-    
+
     switch(first->getExactType()) {
 
 #ifdef BOOST_PP_LOCAL_ITERATE
