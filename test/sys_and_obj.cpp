@@ -96,7 +96,7 @@ struct TestModule1 {
             typedef bool type;
             typedef dcm::setting_property kind;
             struct default_value {
-                int operator()() {
+                bool operator()() {
                     return true;
                 };
             };

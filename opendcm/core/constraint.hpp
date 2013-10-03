@@ -51,13 +51,19 @@
 #include "equations.hpp"
 #include "geometry.hpp"
 
-class T;
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
 namespace dcm {
 
 namespace detail {
+
+//metafunction to avoid ot-of-range access of mpl sequences
+template<typename Sequence, int Value>
+struct in_range_value {
+	typedef typename mpl::prior<mpl::size<Sequence> >::type last_id;
+	typedef typename mpl::min< mpl::int_<Value>, last_id>::type type;
+};
 
 //type erasure container for constraints
 template<typename Sys, int Dim>
@@ -370,7 +376,7 @@ template<typename ConstraintVector>
 void Constraint<Sys, Dim>::initialize(ConstraintVector& cv) {
 
     //use the compile time unrolling to retrieve the geometry tags
-    initializeFirstGeometry<mpl::int_<0>, ConstraintVector>(cv, mpl::true_());
+    initializeFirstGeometry<mpl::int_<0> >(cv, mpl::true_());
 };
 
 template<typename Sys, int Dim>
@@ -848,7 +854,7 @@ void Constraint<Sys, Dim>::initializeFirstGeometry(ConstraintVector& cv, boost::
 #define BOOST_PP_LOCAL_MACRO(n) \
       case (WhichType::value + n): \
         return initializeSecondGeometry<boost::mpl::int_<0>,\
-					typename mpl::at_c<geometries, WhichType::value + n >::type,\
+		typename mpl::at<geometries, typename in_range_value<geometries, WhichType::value + n>::type >::type,\
 					ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, boost::mpl::size<geometries> >::type()); \
         break;
 #define BOOST_PP_LOCAL_LIMITS (0, 10)
@@ -879,7 +885,7 @@ void Constraint<Sys, Dim>::initializeSecondGeometry(ConstraintVector& cv, boost:
 #define BOOST_PP_LOCAL_MACRO(n) \
       case (WhichType::value + n): \
         return intitalizeFinalize<FirstType, \
-				  typename mpl::at_c<geometries, WhichType::value + n >::type,\
+		typename mpl::at<geometries, typename in_range_value<geometries, WhichType::value + n>::type >::type,\
 				  ConstraintVector>(cv, typename boost::mpl::less<boost::mpl::int_<WhichType::value + n>, boost::mpl::size<geometries> >::type()); \
         break;
 #define BOOST_PP_LOCAL_LIMITS (0, 10)

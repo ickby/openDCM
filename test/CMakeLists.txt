@@ -51,5 +51,11 @@ endif(LOGGING)
 add_library(framework ${framework_SRC})
 
 add_executable(solvertest ${test_SRC})
+
+# visual studio has problems which huge cpp files
+IF (MSVC)
+SET_TARGET_PROPERTIES(solvertest PROPERTIES COMPILE_FLAGS "/bigobj")
+ENDIF (MSVC)
+
 target_link_libraries(solvertest framework ${log_LIB})
 

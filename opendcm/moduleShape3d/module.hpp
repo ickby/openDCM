@@ -42,7 +42,8 @@
 
 
 #define APPEND_SINGLE(z, n, data) \
-    g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply(BOOST_PP_CAT(arg,n), m_this); \
+	typedef typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types gtypes; \
+    g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply<gtypes, Sys>(BOOST_PP_CAT(arg,n), m_this); \
     if(!g_ptr) { \
       hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), Shape3D>::template apply<Sys>(BOOST_PP_CAT(arg,n), data); \
       if(!hlg_ptr) \
@@ -98,21 +99,19 @@ namespace details {
 template<typename T, typename R>
 struct converter_g {
     //check if the type T is usable from within module3d, as it could also be a shape type
-    template<typename Sys>
+    template<typename gtypes, typename Sys>
     static typename boost::enable_if<
     mpl::not_< boost::is_same<
-    typename mpl::find<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types, T>::type,
-             typename mpl::end<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types>::type> >,
+    typename mpl::find<gtypes, T>::type,typename mpl::end<gtypes>::type> >,
     boost::shared_ptr<R>  >::type apply(T const& t, Sys* sys) {
         return sys->createGeometry3D(t);
     };
 
     //seems to be a shape type, return an empty geometry
-    template<typename Sys>
+    template<typename gtypes, typename Sys>
     static typename boost::enable_if<
     boost::is_same<
-    typename mpl::find<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types, T>::type,
-             typename mpl::end<typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types>::type>,
+    typename mpl::find<gtypes, T>::type, typename mpl::end<gtypes>::type>,
     boost::shared_ptr<R>  >::type apply(T const& t, Sys* sys) {
         return boost::shared_ptr<R>();
     };
@@ -120,7 +119,7 @@ struct converter_g {
 
 template<typename R>
 struct converter_g< boost::shared_ptr<R>, R> {
-    template<typename Sys>
+    template<typename gtypes, typename Sys>
     static boost::shared_ptr<R> apply(boost::shared_ptr<R> t, Sys* sys) {
         return t;
     };
@@ -337,7 +336,7 @@ struct ModuleShape3D {
             friend struct details::ClusterMath<Sys>::map_downstream;
             friend struct details::SystemSolver<Sys>;
             friend struct details::SystemSolver<Sys>::Rescaler;
-            friend class inheriter_base;
+            friend struct inheriter_base;
 
         public:
             //the geometry class itself does not hold an aligned eigen object, but maybe the variant
@@ -347,7 +346,9 @@ struct ModuleShape3D {
         //inheriter for own functions
         struct inheriter_base {
 
-            inheriter_base() : m_this((Sys*)this) {};
+            inheriter_base(){
+				m_this = (Sys*)this;
+			};
 
         private:
             Sys* m_this;

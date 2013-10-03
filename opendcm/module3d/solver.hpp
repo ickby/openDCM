@@ -241,7 +241,7 @@ void SystemSolver<Sys>::Rescaler::collectPseudoPoints(
     std::pair<e_iter, e_iter> it = boost::out_edges(cluster, *parent);
     for(; it.first != it.second; it.first++) {
 
-        std::pair< c_iter, c_iter > cit = parent->template getGlobalEdges(*it.first);
+        std::pair< c_iter, c_iter > cit = parent->getGlobalEdges(*it.first);
         for(; cit.first != cit.second; cit.first++) {
             Cons c = parent->template getObject<Constraint3D>(*cit.first);
 
