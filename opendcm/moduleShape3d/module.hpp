@@ -43,7 +43,7 @@
 
 #define APPEND_SINGLE(z, n, data) \
 	typedef typename system_traits<Sys>::template getModule<details::m3d>::type::geometry_types gtypes; \
-    g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::apply<gtypes, Sys>(BOOST_PP_CAT(arg,n), m_this); \
+    g_ptr = details::converter_g<BOOST_PP_CAT(Arg,n), Geometry3D>::template apply<gtypes, Sys>(BOOST_PP_CAT(arg,n), m_this); \
     if(!g_ptr) { \
       hlg_ptr = details::converter_hlg<BOOST_PP_CAT(Arg,n), Shape3D>::template apply<Sys>(BOOST_PP_CAT(arg,n), data); \
       if(!hlg_ptr) \
