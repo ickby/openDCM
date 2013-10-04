@@ -50,6 +50,13 @@ typedef dcm::ModuleShape3D< mpl::vector1<Eigen::Matrix<double,6,1> > >::type<Sys
 typedef boost::shared_ptr<geom> geom_ptr;
 typedef boost::shared_ptr<shape> shape_ptr;
 
+typedef dcm::Module3D< mpl::vector1<Eigen::Vector3d>, int > ModuleID;
+typedef dcm::System<Kernel, ModuleID, dcm::ModuleShape3D< mpl::vector1< Eigen::Matrix<double,6,1> >, int > > SystemID;
+typedef ModuleID::type<SystemID>::Geometry3D geomID;
+typedef dcm::ModuleShape3D< mpl::vector1<Eigen::Matrix<double,6,1> >, int >::type<SystemID>::Shape3D shapeID;
+typedef boost::shared_ptr<geomID> geomID_ptr;
+typedef boost::shared_ptr<shapeID> shapeID_ptr;
+
 
 BOOST_AUTO_TEST_SUITE(ModuleShape3D_test_suit);
 
@@ -61,7 +68,7 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         System sys;
         geom_ptr g1 = sys.createGeometry3D(p1);
         shape_ptr shape1 = sys.createShape3D<dcm::segment3D>(p2, g1);
-/*
+
         geom_ptr l = shape1->geometry(dcm::line);
         geom_ptr sp = shape1->geometry(dcm::startpoint);
         geom_ptr ep = shape1->geometry(dcm::endpoint);
@@ -79,7 +86,7 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         geom_ptr sp2 = shape2->geometry(dcm::startpoint);
         geom_ptr ep2 = shape2->geometry(dcm::endpoint);
 
-		BOOST_CHECK(shape2->getValue().isApprox(s1, 1e-10));
+        BOOST_CHECK(shape2->getValue().isApprox(s1, 1e-10));
         BOOST_CHECK(l2->getValue().isApprox(s1, 1e-10));
         BOOST_CHECK(s1.head(3).isApprox(sp2->getValue(), 1e-10));
         BOOST_CHECK(s1.tail(3).isApprox(ep2->getValue(),1e-10));
@@ -92,12 +99,12 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         sys.solve();
 
         BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));
-		BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
+        BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
         BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
         BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
         BOOST_CHECK(l2->getValue().isApprox(shape2->getValue(), 1e-10));
         BOOST_CHECK(shape2->getValue().head(3).isApprox(sp2->getValue(), 1e-10));
-        BOOST_CHECK(shape2->getValue().tail(3).isApprox(ep2->getValue(),1e-10));*/
+        BOOST_CHECK(shape2->getValue().tail(3).isApprox(ep2->getValue(),1e-10));
 
     }
     catch(boost::exception& e) {
@@ -107,5 +114,65 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
     };
 
 };
+
+BOOST_AUTO_TEST_CASE(moduleShape3D_id) {
+
+    try {
+        Eigen::Vector3d p1(1,2,3), p2(4,5,6);
+
+        SystemID sys;
+        geomID_ptr g1 = sys.createGeometry3D(p1, 1);
+        shapeID_ptr shape1 = sys.createShape3D<dcm::segment3D>(p2, 1);
+        shape1->setIdentifier(2);
+
+        geomID_ptr l = shape1->geometry(dcm::line);
+        geomID_ptr sp = shape1->geometry(dcm::startpoint);
+        geomID_ptr ep = shape1->geometry(dcm::endpoint);
+
+        BOOST_CHECK(sys.hasShape3D(2));
+        BOOST_CHECK(g1==sp || g1==ep);
+        BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
+
+        Eigen::Matrix<double,6,1> s1;
+        s1 << 7,8,9,10,11,12;
+
+        shapeID_ptr shape2 = sys.createShape3D<dcm::segment3D>(s1);
+        shape2->setIdentifier(3);
+
+        geomID_ptr l2 = shape2->geometry(dcm::line);
+        geomID_ptr sp2 = shape2->geometry(dcm::startpoint);
+        geomID_ptr ep2 = shape2->geometry(dcm::endpoint);
+
+        BOOST_CHECK(sys.hasShape3D(3));
+        BOOST_CHECK(shape2->getValue().isApprox(s1, 1e-10));
+        BOOST_CHECK(l2->getValue().isApprox(s1, 1e-10));
+        BOOST_CHECK(s1.head(3).isApprox(sp2->getValue(), 1e-10));
+        BOOST_CHECK(s1.tail(3).isApprox(ep2->getValue(),1e-10));
+
+        //test the solving
+        sys.createConstraint3D(10, sp, sp2, dcm::coincidence);
+        //sys.createConstraint3D(l, l2, dcm::orientation = dcm::perpendicular );
+        sys.createConstraint3D(11, sp, ep, dcm::distance = 5);
+        sys.createConstraint3D(12, ep2, sp2, dcm::distance = 5);
+        sys.solve();
+
+        BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));
+        BOOST_CHECK(shape1->getValue().isApprox(l->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().head(3).isApprox(sp->getValue(), 1e-10));
+        BOOST_CHECK(l->getValue().tail(3).isApprox(ep->getValue(), 1e-10));
+        BOOST_CHECK(l2->getValue().isApprox(shape2->getValue(), 1e-10));
+        BOOST_CHECK(shape2->getValue().head(3).isApprox(sp2->getValue(), 1e-10));
+        BOOST_CHECK(shape2->getValue().tail(3).isApprox(ep2->getValue(),1e-10));
+
+
+
+    }
+    catch(boost::exception& e) {
+        std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
+                  << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
+        BOOST_FAIL("Exception not expected");
+    };
+}
 
 BOOST_AUTO_TEST_SUITE_END();
