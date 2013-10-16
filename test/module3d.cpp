@@ -62,11 +62,13 @@ struct geometry_traits<line_t> {
 //two vectors perpendicular, maybe the easiest constraints of them all
 struct test_constraint : public dcm::Equation<test_constraint, int> {
 
+     using Equation::options;
+    
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public dcm::PseudoScale<Kernel> {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
-        int value;
+        typename test_constraint::options values;
 
         template <typename DerivedA,typename DerivedB>
         Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2)  {
@@ -111,7 +113,7 @@ struct test_constraint : public dcm::Equation<test_constraint, int> {
 
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
-        int value;
+        typename test_constraint::options values;
 
         template <typename DerivedA,typename DerivedB>
         Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
@@ -311,11 +313,11 @@ BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
     geom_ptr g4 = sys.createGeometry3D(p4);
 
     //multi constraint and fire
-    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3));
-    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3) & test);
-    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3) & test);
-    cons_ptr c4 = sys.createConstraint3D(g1, g4, comp_test(3));
-    cons_ptr c5 = sys.createConstraint3D(g2, g4, comp_test(3) & dcm::distance(3) & comp_test(3) & test);
+    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3.));
+    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3.) & test);
+    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3.) & test);
+    cons_ptr c4 = sys.createConstraint3D(g1, g4, comp_test(3.));
+    cons_ptr c5 = sys.createConstraint3D(g2, g4, comp_test(3.) & dcm::distance(3.) & comp_test(3.) & test);
     sys.solve();
 
     Eigen::Vector3d& v1 = get<Eigen::Vector3d>(g1);

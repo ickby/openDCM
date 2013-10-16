@@ -35,6 +35,9 @@
 #include <boost/fusion/include/back.hpp>
 #include <boost/fusion/include/iterator_range.hpp>
 #include <boost/fusion/include/nview.hpp>
+#include <boost/fusion/include/for_each.hpp>
+#include <boost/fusion/include/map.hpp>
+#include <boost/fusion/include/as_map.hpp>
 
 #include <boost/exception/exception.hpp>
 
@@ -161,18 +164,46 @@ struct pushed_seq {
 template<typename Derived, typename Option, bool rotation_only = false>
 struct Equation : public EQ {
 
-    typedef Option option_type;
-    option_type value;
+    typedef typename mpl::if_<mpl::is_sequence<Option>, Option, mpl::vector<Option> >::type option_sequence;
+    typedef typename mpl::fold<option_sequence, fusion::map<>, fusion::result_of::push_back<mpl::_1, fusion::pair<mpl::_2, std::pair<bool, mpl::_2> > > > ::type option_set_map;
+    typedef typename fusion::result_of::as_map<option_set_map>::type options;
+
+    options values;
     bool pure_rotation;
 
-    Equation(option_type val = option_type()) : value(val), pure_rotation(rotation_only) {};
+    struct option_copy {
 
-    Derived& operator()(const option_type val) {
-        value = val;
+        options& values;
+        option_copy(options& op) : values(op) {};
+
+        template<typename T>
+        void operator()(const T& val) {
+            if(val.first)
+                fusion::at_key<T>(values) = val;
+        };
+    };
+
+    Equation() : pure_rotation(rotation_only) {};
+
+    template<typename T>
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val) {
+        fusion::at_key<T>(values).second = val;
+        fusion::at_key<T>(values).first  = true;
         return *(static_cast<Derived*>(this));
     };
-    Derived& operator=(const option_type val) {
+    //assign option
+    template<typename T>
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator=(const T& val) {
         return operator()(val);
+    };
+    //assign complete equation
+    template<typename T>
+    typename boost::enable_if<boost::is_base_of<EQ, T>, Derived& >::type
+    operator=(const T& eq) {
+
+        //we only copy the values which were set and are therefore valid
+	option_copy oc(values);
+	fusion::for_each(eq.values, oc);
     };
 
     //an equation gets added to this equation
@@ -214,7 +245,8 @@ struct Equation : public EQ {
 struct Distance : public Equation<Distance, double> {
 
     using Equation::operator=;
-    Distance() : Equation(0) {};
+    using Equation::options;
+    Distance() : Equation() {};
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
@@ -228,7 +260,7 @@ struct Distance : public Equation<Distance, double> {
         typedef typename Kernel::VectorMap   Vector;
         typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-        Scalar value;
+        options values;
         //template definition
         template <typename DerivedA,typename DerivedB>
         void calculatePseudo(const E::MatrixBase<DerivedA>& param1, Vec& v1, const E::MatrixBase<DerivedB>& param2, Vec& v2) {
@@ -277,7 +309,8 @@ enum Direction { parallel, equal, opposite, perpendicular };
 struct Orientation : public Equation<Orientation, Direction, true> {
 
     using Equation::operator=;
-    Orientation() : Equation(parallel) {};
+    using Equation::options;
+    Orientation() : Equation() {};
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -290,7 +323,7 @@ struct Orientation : public Equation<Orientation, Direction, true> {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
-        option_type value;
+        options values;
 
         //template definition
         template <typename DerivedA,typename DerivedB>
@@ -330,7 +363,7 @@ struct Orientation : public Equation<Orientation, Direction, true> {
 struct Angle : public Equation<Angle, double, true> {
 
     using Equation::operator=;
-    Angle() : Equation(0) {};
+    Angle() : Equation() {};
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -343,7 +376,7 @@ struct Angle : public Equation<Angle, double, true> {
         typedef typename Kernel::number_type Scalar;
         typedef typename Kernel::VectorMap   Vector;
 
-        option_type value;
+        options values;
 
         //template definition
         template <typename DerivedA,typename DerivedB>

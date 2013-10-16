@@ -32,12 +32,13 @@ struct Distance::type< Kernel, tag::point3D, tag::point3D > {
     typedef typename Kernel::VectorMap   Vector;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-    Scalar value, sc_value;
+    Scalar sc_value;
+    typename Distance::options values;
 
     //template definition
     void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {};
     void setScale(Scalar scale) {
-        sc_value = value*scale;
+        sc_value = fusion::at_key<double>(values).second*scale;
     };
     template <typename DerivedA,typename DerivedB>
     Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
@@ -77,7 +78,8 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
     typedef typename Kernel::Vector3     Vector3;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-    Scalar value, sc_value;
+    Scalar sc_value;
+    typename Distance::options values;
     Vector3 diff, n, dist;
 
 #ifdef USE_LOGGING
@@ -99,7 +101,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
         v2.push_back(pp);
     };
     void setScale(Scalar scale) {
-        sc_value = value*scale;
+        sc_value = fusion::at_key<double>(values).second*scale;
     };
     template <typename DerivedA,typename DerivedB>
     Scalar calculate(const E::MatrixBase<DerivedA>& point,  const E::MatrixBase<DerivedB>& line) {
@@ -190,7 +192,8 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
     typedef typename Kernel::VectorMap   Vector;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-    Scalar value, sc_value;
+    Scalar sc_value;
+    typename Distance::options values;
 
 #ifdef USE_LOGGING
     src::logger log;
@@ -215,7 +218,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
 #endif
     };
     void setScale(Scalar scale) {
-        sc_value = value*scale;
+        sc_value = fusion::at_key<double>(values).second*scale;
     };
     template <typename DerivedA,typename DerivedB>
     Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
@@ -315,7 +318,8 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     typedef typename Kernel::Vector3     Vector3;
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
 
-    Scalar value, sc_value, cdn, nxn_n;
+    Scalar sc_value, cdn, nxn_n;
+    typename Distance::options values;
     Vector3 c, n1, n2, nxn;
 
     //if the lines are parallel we need to fall back to point-line distance
@@ -360,8 +364,8 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 
     };
     void setScale(Scalar scale) {
-        sc_value = value*scale;
-        pl_eqn.value = value;
+        sc_value = fusion::at_key<double>(values).second*scale;
+        fusion::copy(values, pl_eqn.values);
         pl_eqn.setScale(scale);
     };
     template <typename DerivedA,typename DerivedB>

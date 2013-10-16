@@ -94,8 +94,8 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_segment) {
         //test the solving
         sys.createConstraint3D(sp, sp2, dcm::coincidence);
         //sys.createConstraint3D(l, l2, dcm::orientation = dcm::perpendicular );
-        sys.createConstraint3D(sp, ep, dcm::distance = 5);
-        sys.createConstraint3D(ep2, sp2, dcm::distance = 5);
+        sys.createConstraint3D(sp, ep, dcm::distance = 5.);
+        sys.createConstraint3D(ep2, sp2, dcm::distance = 5.);
         sys.solve();
 
         BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));
@@ -153,8 +153,8 @@ BOOST_AUTO_TEST_CASE(moduleShape3D_id) {
         //test the solving
         sys.createConstraint3D(10, sp, sp2, dcm::coincidence);
         //sys.createConstraint3D(l, l2, dcm::orientation = dcm::perpendicular );
-        sys.createConstraint3D(11, sp, ep, dcm::distance = 5);
-        sys.createConstraint3D(12, ep2, sp2, dcm::distance = 5);
+        sys.createConstraint3D(11, sp, ep, dcm::distance = 5.);
+        sys.createConstraint3D(12, ep2, sp2, dcm::distance = 5.);
         sys.solve();
 
         BOOST_CHECK(sp->getValue().isApprox(sp2->getValue(), 1e-6));

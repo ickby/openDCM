@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(modulepart_basics) {
   Geom g3 = part2->addGeometry3D( p3 );
   Geom g4 = part2->addGeometry3D( p4 );
   
-  sys.createConstraint3D(g1,g3,dcm::distance=5);
-  sys.createConstraint3D(g1,g4,dcm::distance=5);
+  sys.createConstraint3D(g1,g3,dcm::distance=5.);
+  sys.createConstraint3D(g1,g4,dcm::distance=5.);
 
   sys.solve();
   
@@ -176,8 +176,8 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
   Geom g3 = part2->addGeometry3D( p3, dcm::Local );
   Geom g4 = part2->addGeometry3D( p4, dcm::Local );
   
-  sys.createConstraint3D(g1,g3,dcm::distance=5);
-  sys.createConstraint3D(g1,g4,dcm::distance=5);
+  sys.createConstraint3D(g1,g3,dcm::distance=5.);
+  sys.createConstraint3D(g1,g4,dcm::distance=5.);
 
   sys.solve();
   
@@ -224,8 +224,8 @@ BOOST_AUTO_TEST_CASE(modulepart_identifier) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=5);
-  ConsID c2 = sys.createConstraint3D("c2",g2,g4,dcm::distance=5);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=5.);
+  ConsID c2 = sys.createConstraint3D("c2",g2,g4,dcm::distance=5.);
   
   BOOST_CHECK( !part1->getIdentifier().compare("part1") );
   BOOST_CHECK( !part2->getIdentifier().compare("part2") );
@@ -259,9 +259,9 @@ BOOST_AUTO_TEST_CASE(modulepart_combined) {
   GeomID g3 = sys.createGeometry3D( p3 , "g3" );
   GeomID g4 = sys.createGeometry3D( p4 , "g4" );
   
-  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=5);
-  ConsID c2 =  sys.createConstraint3D("c2",g2,g4,dcm::distance=5);
-  ConsID c3 =  sys.createConstraint3D("c3",g3,g4,dcm::distance=7);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=5.);
+  ConsID c2 =  sys.createConstraint3D("c2",g2,g4,dcm::distance=5.);
+  ConsID c3 =  sys.createConstraint3D("c3",g3,g4,dcm::distance=7.);
   
   sys.solve();
   
@@ -295,9 +295,9 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3" );
   GeomID g4 = part2->addGeometry3D( p4 , "g4" );
 
-  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=0);
+  ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=0.);
   ConsID c2 =  sys.createConstraint3D("c2",g1,g3,dcm::orientation=dcm::equal);
-  ConsID c3 =  sys.createConstraint3D("c3",g2,g4,dcm::distance=0);
+  ConsID c3 =  sys.createConstraint3D("c3",g2,g4,dcm::distance=0.);
   ConsID c4 =  sys.createConstraint3D("c4",g2,g4,dcm::orientation=dcm::equal);
   
   sys.solve();
@@ -351,7 +351,7 @@ BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
   Geom g4 = part2->addGeometry3D( p4 );
   
   sys.createConstraint3D(g1,g2,dcm::orientation=dcm::equal);
-  sys.createConstraint3D(g3,g4,dcm::distance = 5);
+  sys.createConstraint3D(g3,g4,dcm::distance = 5.);
 
   sys.solve();
   
@@ -383,8 +383,8 @@ BOOST_AUTO_TEST_CASE(modulepart_clone) {
   GeomID g3 = part2->addGeometry3D( p3 , "g3");
   GeomID g4 = part2->addGeometry3D( p4 , "g4");
   
-  sys.createConstraint3D("c1", g1,g3,dcm::distance=5);
-  sys.createConstraint3D("c2", g1,g4,dcm::distance=5);
+  sys.createConstraint3D("c1", g1,g3,dcm::distance=5.);
+  sys.createConstraint3D("c2", g1,g4,dcm::distance=5.);
   
   //clone
   SystemID* clone = sys.clone();
