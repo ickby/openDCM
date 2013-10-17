@@ -48,6 +48,12 @@ namespace mpl = boost::mpl;
 
 namespace dcm {
 
+//the possible directions
+enum Direction { parallel, equal, opposite, perpendicular };
+
+//the possible solution spaces
+enum SolutionSpace {unidirectional, positiv_directional, negative_directional};
+
 struct no_option {};
 
 template<typename Kernel>
@@ -173,18 +179,19 @@ struct Equation : public EQ {
 
     struct option_copy {
 
-        options& values;
-        option_copy(options& op) : values(op) {};
+        options* values;
+        option_copy(options& op) : values(&op) {};
 
         template<typename T>
-        void operator()(const T& val) {
-            if(val.first)
-                fusion::at_key<T>(values) = val;
+        void operator()(const T& val) const {
+            if(val.second.first)
+                fusion::at_key<typename T::first_type>(*values) = val.second;
         };
     };
 
     Equation() : pure_rotation(rotation_only) {};
 
+    //assign option
     template<typename T>
     typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val) {
         fusion::at_key<T>(values).second = val;
@@ -199,16 +206,21 @@ struct Equation : public EQ {
     //assign complete equation
     template<typename T>
     typename boost::enable_if<boost::is_base_of<EQ, T>, Derived& >::type
-    operator=(const T& eq) {
+    operator=(T& eq) {
 
         //we only copy the values which were set and are therefore valid
-	option_copy oc(values);
-	fusion::for_each(eq.values, oc);
+        option_copy oc(values);
+        fusion::for_each(eq.values, oc);
+
+        //the assigned eqution can be set back to default for convinience in further usage
+        eq.setDefault();
+
+        return *static_cast<Derived*>(this);
     };
 
     //an equation gets added to this equation
     template<typename T>
-    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<T, Derived>::type >::type operator &(T val) {
+    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<T, Derived>::type >::type operator &(const T& val) {
 
         typename pushed_seq<T, Derived>::type vec;
         *fusion::find<T>(vec) = val;
@@ -218,7 +230,7 @@ struct Equation : public EQ {
 
     //an sequence gets added to this equation (happens only if sequenced equations like coincident are used)
     template<typename T>
-    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T val) {
+    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(const T& val) {
 
         typedef typename pushed_seq<T, Derived>::type Sequence;
         typedef typename fusion::result_of::begin<Sequence>::type Begin;
@@ -240,13 +252,23 @@ struct Equation : public EQ {
         //and return our new extendet sequence
         return vec;
     };
+
+    //set default option values, neeeded for repedability and to prevent unexpected behaviour
+    virtual void setDefault() = 0;
 };
 
-struct Distance : public Equation<Distance, double> {
+struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace> > {
 
     using Equation::operator=;
     using Equation::options;
-    Distance() : Equation() {};
+    Distance() : Equation() {
+        setDefault();
+    };
+
+    void setDefault() {
+        fusion::at_key<double>(values) = std::make_pair(false, 0.);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+    };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
@@ -303,14 +325,17 @@ struct Distance : public Equation<Distance, double> {
     };
 };
 
-//the possible directions
-enum Direction { parallel, equal, opposite, perpendicular };
-
 struct Orientation : public Equation<Orientation, Direction, true> {
 
     using Equation::operator=;
     using Equation::options;
-    Orientation() : Equation() {};
+    Orientation() : Equation() {
+        setDefault();
+    };
+
+    void setDefault() {
+        fusion::at_key<Direction>(values) = std::make_pair(false, parallel);
+    };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -360,10 +385,17 @@ struct Orientation : public Equation<Orientation, Direction, true> {
     };
 };
 
-struct Angle : public Equation<Angle, double, true> {
+struct Angle : public Equation<Angle, mpl::vector2<double, SolutionSpace>, true> {
 
     using Equation::operator=;
-    Angle() : Equation() {};
+    Angle() : Equation() {
+        setDefault();
+    };
+
+    void setDefault() {
+        fusion::at_key<double>(values) = std::make_pair(false, 0.);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+    };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {

@@ -32,8 +32,13 @@ struct ci_orientation : public Equation<ci_orientation, Direction, true> {
 
     using Equation::operator=;
     using Equation::options;
-    ci_orientation() : Equation() {};
+    ci_orientation() : Equation() {
+        setDefault();
+    };
 
+    void setDefault() {
+        fusion::at_key<Direction>(values) = std::make_pair(false, parallel);
+    };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -146,12 +151,18 @@ struct ci_orientation::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public
 
 
 //we need a custom distance type to use point-distance functions instead of real geometry distance
-struct ci_distance : public Equation<ci_distance, double> {
+struct ci_distance : public Equation<ci_distance, mpl::vector2<double, SolutionSpace> > {
 
     using Equation::operator=;
     using Equation::options;
-    ci_distance() : Equation() {};
+    ci_distance() : Equation() {
+        setDefault();
+    };
 
+    void setDefault() {
+        fusion::at_key<double>(values) = std::make_pair(false, 0.);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+    };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
