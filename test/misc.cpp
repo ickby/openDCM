@@ -95,6 +95,7 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
      
     //test default value after assignment
     Distance d2;
+    (d = 2.) & (d=positiv_directional);
     d2 = d;
     BOOST_CHECK( fusion::at_key<double>(d.values).second == 0. );
     BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == unidirectional );
