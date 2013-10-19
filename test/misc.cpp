@@ -106,6 +106,17 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     
     BOOST_CHECK( fusion::at_key<double>(fusion::front(v).values).second == 5. );
     BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == positiv_directional );
+    
+    //test multi-equation constraint value assigment
+    Alignment a;    
+    fusion::vector<Distance, Orientation> v2 = (a=positiv_directional) & (a=perpendicular) & (a=-2.);
+    
+    BOOST_CHECK( fusion::at_key<double>(fusion::front(v2).values).second == -2. ); 
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v2).values).second == positiv_directional ); 
+    BOOST_CHECK( fusion::at_key<Direction>(fusion::back(v2).values).second == perpendicular ); 
+    BOOST_CHECK( fusion::at_key<double>(fusion::front(a).values).second == 0 ); 
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(a).values).second == unidirectional ); 
+    BOOST_CHECK( fusion::at_key<Direction>(fusion::back(a).values).second == parallel ); 
 };
 
 BOOST_AUTO_TEST_SUITE_END();
