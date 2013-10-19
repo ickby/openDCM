@@ -230,10 +230,10 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         if(sspace == bidirectional)
             return std::abs(result) - sc_value;
 
-        if(sspace==positiv_directional)
+        if(sspace == positiv_directional)
             return result - sc_value;
 
-        if(sspace ==negative_directional)
+        if(sspace == negative_directional)
             return result + sc_value;
 #ifdef USE_LOGGING
         if(!boost::math::isfinite(res))

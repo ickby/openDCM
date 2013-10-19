@@ -35,6 +35,8 @@ set(test_SRC  define.cpp
 	      dof.cpp
 	      modulepart.cpp
 	      modulehl3d.cpp
+	      misc.cpp
+	      userbugs.cpp
 	      #${state_SRC}	      
 )
 
