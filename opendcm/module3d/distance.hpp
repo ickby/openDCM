@@ -227,7 +227,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         //(p1-p2)°n / |n| - distance
         result = (param1.head(3)-param2.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
 
-        if(sspace == unidirectional)
+        if(sspace == bidirectional)
             return std::abs(result) - sc_value;
 
         if(sspace==positiv_directional)
@@ -257,7 +257,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         //r' = 1/2(x^2)^(-1/2) * (x^2)'
         //r' = 1/sqrt(x^2) * x * x'
         //r' = sign(x)*x'
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             return -res;
 
         return res;
@@ -279,7 +279,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         if(!boost::math::isfinite(res))
             BOOST_LOG(log) << "Unnormal second cluster gradient detected: "<<res;
 #endif
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             return -res;
 
         return res;
@@ -291,7 +291,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
                                         E::MatrixBase<DerivedC>& gradient) {
         gradient = param2.tail(3) / param2.tail(3).norm();
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             gradient *= -1.;
     };
 
@@ -305,7 +305,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         gradient.head(3) = -n / n.norm();
         gradient.tail(3) = (p1m2)/n.norm() - (p1m2).dot(n)*n/std::pow(n.norm(),3);
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             gradient *= -1.;
     };
 };
@@ -335,7 +335,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
         //(p1-p2)°n / |n| - distance
         result = Distance::type< Kernel, tag::point3D, tag::line3D >::calculate(param1, param2);
 
-        if(sspace == unidirectional)
+        if(sspace == bidirectional)
             return std::abs(result) - param2(6);
 
         if(sspace==positiv_directional)
@@ -351,7 +351,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
 
         const Scalar res = Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirst(param1,param2,dparam1);
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             return -res;
 
         return res;
@@ -364,7 +364,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
 
         const Scalar res = Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientSecond(param1,param2,dparam2);
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             return -res;
 
         return res;
@@ -376,7 +376,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
                                         E::MatrixBase<DerivedC>& gradient) {
         Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirstComplete(param1,param2,gradient);
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             gradient *= -1;
     };
 
@@ -390,7 +390,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
         else
             g(6) = -1;
 
-        if(sspace == unidirectional && result<0.)
+        if(sspace == bidirectional && result<0.)
             g *= -1;
     };
 };

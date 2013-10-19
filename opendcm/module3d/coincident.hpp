@@ -161,7 +161,7 @@ struct ci_distance : public Equation<ci_distance, mpl::vector2<double, SolutionS
 
     void setDefault() {
         fusion::at_key<double>(values) = std::make_pair(false, 0.);
-        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, bidirectional);
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >

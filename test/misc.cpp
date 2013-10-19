@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     
     //check default values
     BOOST_CHECK( fusion::at_key<double>(fusion::front(v).values).second == 0. );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == unidirectional );
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == bidirectional );
     
     //only unique equations are allowed, therefore the sequence should hold only one type
     v = (d=2.) & (d=positiv_directional);
@@ -91,14 +91,14 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     
     //the basic distance eqution should be set to default values after copy or assignment
     BOOST_CHECK( fusion::at_key<double>(d.values).second == 0 );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == unidirectional );
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == bidirectional );
      
     //test default value after assignment
     Distance d2;
     (d = 2.) & (d=positiv_directional);
     d2 = d;
     BOOST_CHECK( fusion::at_key<double>(d.values).second == 0. );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == unidirectional );
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == bidirectional );
 
     
     //test partial value overriding
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v2).values).second == positiv_directional ); 
     BOOST_CHECK( fusion::at_key<Direction>(fusion::back(v2).values).second == perpendicular ); 
     BOOST_CHECK( fusion::at_key<double>(fusion::front(a).values).second == 0 ); 
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(a).values).second == unidirectional ); 
+    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(a).values).second == bidirectional ); 
     BOOST_CHECK( fusion::at_key<Direction>(fusion::back(a).values).second == parallel ); 
 };
 

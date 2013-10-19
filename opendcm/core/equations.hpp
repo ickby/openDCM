@@ -53,7 +53,7 @@ namespace dcm {
 enum Direction { parallel, equal, opposite, perpendicular };
 
 //the possible solution spaces
-enum SolutionSpace {unidirectional, positiv_directional, negative_directional};
+enum SolutionSpace {bidirectional, positiv_directional, negative_directional};
 
 struct no_option {};
 
@@ -328,7 +328,7 @@ struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace> 
 
     void setDefault() {
         fusion::at_key<double>(values) = std::make_pair(false, 0.);
-        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, bidirectional);
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
@@ -467,7 +467,7 @@ struct Angle : public Equation<Angle, mpl::vector2<double, SolutionSpace>, true>
 
     void setDefault() {
         fusion::at_key<double>(values) = std::make_pair(false, 0.);
-        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, unidirectional);
+        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, bidirectional);
     };
 
     template< typename Kernel, typename Tag1, typename Tag2 >
