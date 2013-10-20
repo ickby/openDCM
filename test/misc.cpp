@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     
     //test multi-equation constraint value assigment
     Alignment a;    
-    fusion::vector<Distance, Orientation> v2 = (a=positiv_directional) & (a=perpendicular) & (a=-2.);
+    fusion::vector<Distance, details::al_orientation> v2 = (a=positiv_directional) & (a=perpendicular) & (a=-2.);
     
     BOOST_CHECK( fusion::at_key<double>(fusion::front(v2).values).second == -2. ); 
     BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v2).values).second == positiv_directional ); 
