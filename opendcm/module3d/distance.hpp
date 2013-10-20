@@ -632,6 +632,10 @@ struct Distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public Distance
     Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
         //(p1-p2)°n / |n| - distance
         const Scalar res = Distance::type< Kernel, tag::point3D, tag::plane3D >::calculate(param2, param1);
+
+        if(Distance::type< Kernel, tag::point3D, tag::plane3D >::sspace == negative_directional)
+            return res + param2(6);
+
         return res - param2(6);
     };
 
@@ -663,7 +667,11 @@ struct Distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public Distance
         typename Kernel::VectorMap grad(&g(0), 3, typename Kernel::DynStride(1,1));
         Distance::type< Kernel, tag::point3D, tag::plane3D >::calculateGradientFirstComplete(p2,p1,grad);
         g.segment(3,3).setZero();
-        g(6) = -1;
+
+        if(Distance::type< Kernel, tag::point3D, tag::plane3D >::sspace == negative_directional)
+            g(6) = 1;
+        else
+            g(6) = -1;
     };
 };
 
