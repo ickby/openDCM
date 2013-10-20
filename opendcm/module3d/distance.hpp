@@ -318,6 +318,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
 
     Scalar result;
     SolutionSpace sspace;
+    using Distance::template type<Kernel, tag::point3D, tag::line3D>::sc_value;
     using Distance::template type<Kernel, tag::point3D, tag::line3D>::values;
 #ifdef USE_LOGGING
     type() {
@@ -333,15 +334,12 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
     template <typename DerivedA,typename DerivedB>
     Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
         //(p1-p2)°n / |n| - distance
-        result = Distance::type< Kernel, tag::point3D, tag::line3D >::calculate(param1, param2);
+        result = Distance::type< Kernel, tag::point3D, tag::line3D >::calculate(param1, param2) - param2(6);
 
-        if(sspace == bidirectional)
-            return std::abs(result) - param2(6);
+        if(sspace==negative_directional || (sspace == bidirectional && (result+sc_value)<0.))
+            return result+2*sc_value;
 
-        if(sspace==positiv_directional)
-            return result - param2(6);
-
-        return result + param2(6);
+        return result;
     };
 
     template <typename DerivedA,typename DerivedB, typename DerivedC>
@@ -349,12 +347,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
                                   const E::MatrixBase<DerivedB>& param2,
                                   const E::MatrixBase<DerivedC>& dparam1) {
 
-        const Scalar res = Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirst(param1,param2,dparam1);
-
-        if(sspace == bidirectional && result<0.)
-            return -res;
-
-        return res;
+        return Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirst(param1,param2,dparam1);
     };
 
     template <typename DerivedA,typename DerivedB, typename DerivedC>
@@ -362,12 +355,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
                                    const E::MatrixBase<DerivedB>& param2,
                                    const E::MatrixBase<DerivedC>& dparam2) {
 
-        const Scalar res = Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientSecond(param1,param2,dparam2);
-
-        if(sspace == bidirectional && result<0.)
-            return -res;
-
-        return res;
+        return Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientSecond(param1,param2,dparam2) - dparam2(6);
     };
 
     template <typename DerivedA,typename DerivedB, typename DerivedC>
@@ -375,9 +363,6 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
                                         const E::MatrixBase<DerivedB>& param2,
                                         E::MatrixBase<DerivedC>& gradient) {
         Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientFirstComplete(param1,param2,gradient);
-
-        if(sspace == bidirectional && result<0.)
-            gradient *= -1;
     };
 
     template <typename DerivedA,typename DerivedB, typename DerivedC>
@@ -385,13 +370,8 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
                                          const E::MatrixBase<DerivedB>& p2,
                                          E::MatrixBase<DerivedC>& g) {
         Distance::type< Kernel, tag::point3D, tag::line3D >::calculateGradientSecondComplete(p1,p2,g);
-        if(sspace == negative_directional)
-            g(6) = 1;
-        else
-            g(6) = -1;
+        g(6) = -1;
 
-        if(sspace == bidirectional && result<0.)
-            g *= -1;
     };
 };
 //TODO: this won't work for parallel lines. switch to point-line distance when lines are parallel

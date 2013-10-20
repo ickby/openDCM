@@ -19,6 +19,7 @@
 
 #include <opendcm/core.hpp>
 #include <opendcm/module3d.hpp>
+#include <opendcm/modulepart.hpp>
 
 #include <boost/mpl/vector.hpp>
 
@@ -28,6 +29,73 @@
 struct point : public Eigen::Matrix<double, 3,1> {};
 struct line : public Eigen::Matrix<double, 6,1> {};
 struct plane : public Eigen::Matrix<double, 6,1> {};
+struct cylinder : public Eigen::Matrix<double, 7,1> {};
+struct place {
+    Eigen::Quaterniond quat;
+    Eigen::Vector3d trans;
+
+    place():quat(1,2,3,4) {
+        quat.normalize();
+        trans<<1,2,3;
+    };
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct place_accessor {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        switch(ID) {
+        case 0:
+            return t.quat.w();
+        case 1:
+            return t.quat.x();
+        case 2:
+            return t.quat.y();
+        case 3:
+            return t.quat.z();
+        case 4:
+            return t.trans(0);
+        case 5:
+            return t.trans(1);
+        case 6:
+            return t.trans(2);
+        default
+                :
+            return 0;
+        };
+    };
+    template<typename Scalar, int ID, typename T>
+    void set(Scalar value, T& t) {
+        switch(ID) {
+        case 0:
+            t.quat.w() = value;
+            break;
+        case 1:
+            t.quat.x() = value;
+            break;
+        case 2:
+            t.quat.y() = value;
+            break;
+        case 3:
+            t.quat.z() = value;
+            break;
+        case 4:
+            t.trans(0) = value;
+            break;
+        case 5:
+            t.trans(1) = value;
+            break;
+        case 6:
+            t.trans(2) = value;
+            break;
+        };
+    };
+    template<typename T>
+    void finalize(T& t) {};
+};
 
 namespace dcm {
 
@@ -52,17 +120,35 @@ struct geometry_traits<plane> {
     typedef orderd_roundbracket_accessor accessor;
 };
 
+template<>
+struct geometry_traits<cylinder> {
+    typedef tag::cylinder3D  tag;
+    typedef modell::XYZ2P modell;
+    typedef orderd_roundbracket_accessor accessor;
+};
+
+template<>
+struct geometry_traits< place > {
+    typedef tag::part  tag;
+    typedef modell::quaternion_wxyz_vec3 modell;
+    typedef place_accessor accessor;
+};
+
 }
 
 
 typedef dcm::Kernel<double> Kernel_t;
-typedef dcm::Module3D< mpl::vector3<point, line, plane > > Module;
-typedef dcm::System<Kernel_t, Module> System;
+typedef dcm::Module3D< mpl::vector4<point, line, plane, cylinder > > Module;
+typedef dcm::ModulePart< mpl::vector1<place> > ModulePart;
+typedef dcm::System<Kernel_t, Module, ModulePart> System;
 typedef Module::type<System>::Geometry3D geom;
 typedef boost::shared_ptr<geom> geom_ptr;
 
 typedef Module::type<System>::Constraint3D cons;
 typedef boost::shared_ptr<cons> cons_ptr;
+
+typedef ModulePart::type<System>::Part part;
+typedef boost::shared_ptr<part> part_ptr;
 
 typedef System::Cluster::vertex_iterator viter;
 typedef Module::type<System>::vertex_prop vertex_prop;
@@ -76,26 +162,70 @@ BOOST_AUTO_TEST_CASE(userbug_neg_solutionspace) {
         System sys;
 
         point p; //point in positive x direction;
-        p << 1,0,0;
-        plane pl;
-        pl << 0,0,0,1,0,0; //plane in x direction;
+        p << 1,4,0;
+        cylinder cy;
+        cy << 0,0,0,1,0,0,2; //cylinder in x direction;
 
         geom_ptr g1 = sys.createGeometry3D(p);
-        geom_ptr g2 = sys.createGeometry3D(pl);
+        geom_ptr g2 = sys.createGeometry3D(cy);
 
         cons_ptr c = sys.createConstraint3D(g1,g2, (dcm::distance=1.) & (dcm::distance=dcm::positiv_directional));
 
         sys.solve();
-        dcm::Distance::type<Kernel_t, dcm::tag::point3D, dcm::tag::plane3D> d;
-	d.calculate(g1->getValue(), g2->getValue());
-        BOOST_CHECK(d.result == 1);
+        dcm::Distance::type<Kernel_t, dcm::tag::point3D, dcm::tag::cylinder3D> d;
+        d.sc_value = 1;
+        d.sspace = dcm::positiv_directional;
+        BOOST_CHECK(d.calculate(g1->getValue(), g2->getValue())==0);
+        BOOST_CHECK(d.result == 0);
 
         sys.removeConstraint3D(c);
         c = sys.createConstraint3D(g1,g2, (dcm::distance=1.) & (dcm::distance=dcm::negative_directional));
-	sys.solve();
-	
-        d.calculate(g1->getValue(), g2->getValue());
-        BOOST_CHECK(d.result == -1);
+        sys.solve();
+
+        d.sspace = dcm::negative_directional;
+        BOOST_CHECK(d.calculate(g1->getValue(), g2->getValue())==0);
+        BOOST_CHECK(d.result == -2);
+
+        sys.removeConstraint3D(c);
+        sys.removeGeometry3D(g1);
+        sys.removeGeometry3D(g2);
+
+        place pl;
+        pl.trans << 3,-1,5;
+        pl.quat = Eigen::Quaterniond(1,9,2,0);
+        pl.quat.normalize();
+
+        part_ptr p1 = sys.createPart(place());
+        part_ptr p2 = sys.createPart(pl);
+
+        g1 = p1->addGeometry3D(p);
+        g2 = p2->addGeometry3D(cy);
+
+        c = sys.createConstraint3D(g1,g2, (dcm::distance=2.) & (dcm::distance=dcm::positiv_directional));
+        sys.solve();
+
+        d.sspace = dcm::positiv_directional;
+        d.sc_value=2;
+        BOOST_CHECK(d.calculate(g1->getValue(), g2->getValue())==0);
+        BOOST_CHECK(d.result == 0);
+
+        sys.removeConstraint3D(c);
+        c = sys.createConstraint3D(g1,g2, (dcm::distance=2.) & (dcm::distance=dcm::negative_directional));
+        sys.solve();
+
+        d.sspace = dcm::negative_directional;
+        BOOST_CHECK(Kernel_t::isSame(d.calculate(g1->getValue(), g2->getValue()),0, 1e-8));
+        BOOST_CHECK(Kernel_t::isSame(d.result,-4, 1e-8));
+
+        sys.removeConstraint3D(c);
+        c = sys.createConstraint3D(g1,g2, (dcm::distance=1.) & (dcm::distance=dcm::bidirectional));
+        sys.solve();
+
+        d.sc_value=1;
+        d.sspace = dcm::bidirectional;
+        BOOST_CHECK(Kernel_t::isSame(d.calculate(g1->getValue(), g2->getValue()),0, 1e-8));
+        BOOST_CHECK(Kernel_t::isSame(d.result, -2, 1e-8));
+
 
     }
     catch
