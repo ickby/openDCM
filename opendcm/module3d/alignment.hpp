@@ -22,10 +22,13 @@
 
 #include <opendcm/core/equations.hpp>
 #include "distance.hpp"
+#include "coincident.hpp"
 
 namespace dcm {
 
-struct Alignment : public constraint_sequence< fusion::vector2< Distance, Orientation > > {
+//use ci_orientation to ensure the correct orientations for alignment (distance is only defined for special
+//orientations)
+struct Alignment : public constraint_sequence< fusion::vector2< Distance, details::ci_orientation > > {
   
   using constraint_sequence::operator=;
 };
