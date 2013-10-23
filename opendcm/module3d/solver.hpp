@@ -414,7 +414,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             bool done = false;
             if(!has_cycle) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "non-cyclic system dedected"
+                BOOST_LOG(log)<< "non-cyclic system dedected";
 #endif
                               //cool, lets do uncylic. first all rotational constraints with rotational parameters
                               mes.setAccess(rotation);
@@ -447,7 +447,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             //not done already? try it the hard way!
             if(!done) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "Full scale solver used"
+                BOOST_LOG(log)<< "Full scale solver used";
 #endif
                               Rescaler re(cluster, mes);
                 re();
