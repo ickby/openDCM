@@ -52,6 +52,10 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     typedef typename Sys::Kernel::MappedEquationSystem Base;
 
     boost::shared_ptr<Cluster> m_cluster;
+    
+#ifdef USE_LOGGING
+    src::logger log;
+#endif
 
     MES(boost::shared_ptr<Cluster> cl, int par, int eqn);
     virtual void recalculate();
@@ -126,7 +130,9 @@ struct SystemSolver : public Job<Sys> {
 
 template<typename Sys>
 MES<Sys>::MES(boost::shared_ptr<Cluster> cl, int par, int eqn) : Base(par, eqn), m_cluster(cl) {
-
+#ifdef USE_LOGGING
+    log.add_attribute("Tag", attrs::constant< std::string >("MES3D"));
+#endif
 };
 
 template<typename Sys>
@@ -160,6 +166,9 @@ void MES<Sys>::recalculate() {
 template<typename Sys>
 void MES<Sys>::removeLocalGradientZeros() {
 
+#ifdef USE_LOGGING
+    BOOST_LOG(log) << "remove local gradient zero";
+#endif
     //let the constraints treat the local zeros
     typedef typename Cluster::template object_iterator<Constraint3D> oiter;
     typedef typename boost::graph_traits<Cluster>::edge_iterator eiter;

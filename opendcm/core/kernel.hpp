@@ -182,6 +182,12 @@ struct Dogleg {
                       << "residual: "<<sys.Residual.transpose()<<std::endl
                       << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
+        sys.removeLocalGradientZeros();
+
+#ifdef USE_LOGGING
+        BOOST_LOG(log)<< "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl
+                      << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
+#endif
 
         number_type err = sys.Residual.norm();
 
@@ -231,9 +237,6 @@ struct Dogleg {
             number_type err_new;
             number_type dF=0, dL=0;
             number_type rho;
-
-            if(iter==0)
-                sys.removeLocalGradientZeros();
 
             //get the update step
             calculateStep(g, sys.Jacobi,  sys.Residual, h_dl, delta);
