@@ -22,6 +22,8 @@
 
 #ifdef USE_LOGGING
 
+#define BOOST_LOG_DYN_LINK
+
 #include <boost/log/core.hpp>
 #include <boost/log/sinks.hpp>
 #include <boost/log/expressions/formatters.hpp>
