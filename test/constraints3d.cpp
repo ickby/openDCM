@@ -24,6 +24,7 @@
 
 #include <boost/mpl/vector.hpp>
 #include <boost/test/unit_test.hpp>
+#include <boost/exception/get_error_info.hpp>
 
 namespace mpl = boost::mpl;
 
@@ -263,11 +264,16 @@ struct constraint_checker {
             system.removeGeometry3D(g2);
             return true;
         }
-        catch(...) {
+        catch(const std::exception& e) {
             system.removeGeometry3D(g1);
             system.removeGeometry3D(g2);
             return false;
         }
+        catch(const boost::exception& e) {
+            std::cout<<"unexpected error " << *boost::get_error_info<boost::errinfo_errno>(e)
+                     << " raised: " << boost::get_error_info<dcm::error_message>(e)->c_str()<<std::endl;
+            return false;
+        };
     }
 
     template<typename TT1, typename TT2>
@@ -297,9 +303,14 @@ struct constraint_checker {
             system.removePart(p2);
             return true;
         }
-        catch(...) {
+        catch(const std::exception&) {
             system.removePart(p1);
             system.removePart(p2);
+            return false;
+        }
+        catch(const boost::exception& e) {
+            std::cout<<"unexpected error " << *boost::get_error_info<boost::errinfo_errno>(e)
+                     << " raised: " << boost::get_error_info<dcm::error_message>(e)->c_str()<<std::endl;
             return false;
         }
     }
@@ -379,20 +390,20 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
     constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
     BOOST_CHECK(checker10.check_normal(2., notype()));
     BOOST_CHECK(checker10.check_cluster(2., notype()));
-    
+
     //check different solution spaces where possible
     constraint_checker<point_t, plane_t, dcm::Distance> checker11(sys);
     BOOST_CHECK(checker11.check_normal(2., dcm::positiv_directional));
     BOOST_CHECK(checker11.check_cluster(2., dcm::positiv_directional));
-    
+
     constraint_checker<point_t, plane_t, dcm::Distance> checker12(sys);
     BOOST_CHECK(checker12.check_normal(2., dcm::negative_directional));
     BOOST_CHECK(checker12.check_cluster(2., dcm::negative_directional));
-    
+
     constraint_checker<point_t, cylinder_t, dcm::Distance> checker13(sys);
     BOOST_CHECK(checker13.check_normal(2., dcm::positiv_directional));
     BOOST_CHECK(checker13.check_cluster(2., dcm::positiv_directional));
-    
+
     constraint_checker<point_t, cylinder_t, dcm::Distance> checker14(sys);
     BOOST_CHECK(checker14.check_normal(2., dcm::negative_directional));
     BOOST_CHECK(checker14.check_cluster(2., dcm::negative_directional));

@@ -747,7 +747,7 @@ public:
                 return (*it.first).first;
         }
 
-        return LocalVertex();
+        throw details::cluster_error() <<  boost::errinfo_errno(12) << error_message("Cluster is not part of this graph");
     };
 
     /**
@@ -791,7 +791,7 @@ public:
         typename ClusterMap::iterator it = m_clusters.find(v);
 
         if(it == m_clusters.end())
-            return; //TODO:throw
+            throw details::cluster_error() <<  boost::errinfo_errno(11) << error_message("Cluster is not part of this graph");
 
         std::pair<LocalVertex, boost::shared_ptr<ClusterGraph> > res = *it;
 
@@ -1122,11 +1122,14 @@ private:
         bool operator()(edge_bundle_single& e) {
             bool res;
 
+            //this predicate can be used to compare the edge itself or the vertives it connects. See
+            //if we are a relevant edge
             if(isEdge)
                 res = (edge == fusion::at_c<1> (e));
             else
                 res = (vert == fusion::at_c<1> (e).source) || (vert == fusion::at_c<1> (e).target);
 
+            //we are a hit, invoke the functor.
             if(res || vert < 0)
                 func(fusion::at_c<1> (e));
 
@@ -1144,8 +1147,10 @@ private:
 
         std::pair<LocalVertex, bool> res = getContainingVertex(v);
 
+        //we don't throw, as this function gets invoked recursivly and it may happen that the
+        //vertex to remove is only in the top layers, not the button ones
         if(!res.second)
-            throw details::cluster_error() <<  boost::errinfo_errno(010) << error_message("global vertex not part of this graph");
+            return;
 
 
         //iterate over every edge that connects to the global vertex or the cluster in which it is in
@@ -1192,6 +1197,9 @@ public:
     **/
     template<typename Functor>
     void removeVertex(LocalVertex id, Functor& f) {
+        //it is important to delete the global vertex, not the only local one as it's possible that
+        //we are in a subcluster and there are connections to the global vertex in the parent. They
+        //need to be deleted too.
         removeVertex(getGlobalVertex(id), f);
     };
     //no default template arguments for template functions allowed before c++0x, so a little workaround
@@ -1766,13 +1774,12 @@ public:
                 //a bit cumbersome to allow cluster moving
                 if(parent()->getContainingVertex(global.source).first == nv)
                     target = global.target;
-                else
-                    if(parent()->getContainingVertex(global.target).first == nv)
-                        target = global.source;
-                    else {
-                        i++;
-                        continue;
-                    }
+                else if(parent()->getContainingVertex(global.target).first == nv)
+                    target = global.source;
+                else {
+                    i++;
+                    continue;
+                }
 
                 std::pair<LocalVertex, bool> res = parent()->getContainingVertex(target);
 
