@@ -71,6 +71,7 @@ struct distance {
 namespace dcm {
 
 struct reset {}; 	//signal name
+struct module3d_error : virtual boost::exception {}; //exception for all module3d special errors
 
 template<typename Typelist, typename ID = No_Identifier>
 struct Module3D {
@@ -140,6 +141,10 @@ struct Module3D {
             typedef typename mpl::push_front<Typelist, boost::blank>::type ExtTypeList;
             typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
+#ifdef USE_LOGGING
+            src::logger log;
+#endif
+	    
             struct cloner : boost::static_visitor<void> {
                 typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
@@ -314,9 +319,9 @@ struct Module3D {
             using inheriter_base::m_this;
 
         public:
-	    using inheriter_base::createGeometry3D;
-	    using inheriter_base::createConstraint3D;
-	    
+            using inheriter_base::createGeometry3D;
+            using inheriter_base::createConstraint3D;
+
             template<typename T>
             Geom createGeometry3D(T geom, Identifier id);
             Geom createGeometry3D(Identifier id);
@@ -769,6 +774,9 @@ void Module3D<Typelist, ID>::type<Sys>::inheriter_id::removeGeometry3D(Identifie
 
     if(hasGeometry3D(id))
         inheriter_base::removeGeometry3D(getGeometry3D(id));
+    else
+      throw module3d_error() <<  boost::errinfo_errno(410) << error_message("no geometry with this ID in this system");
+    
 };
 
 template<typename Typelist, typename ID>
@@ -788,6 +796,8 @@ void Module3D<Typelist, ID>::type<Sys>::inheriter_id::removeConstraint3D(Identif
 
     if(hasConstraint3D(id))
         removeConstraint3D(getConstraint3D(id));
+    else
+      throw module3d_error() <<  boost::errinfo_errno(411) << error_message("no constraint with this ID in this system");
 };
 
 

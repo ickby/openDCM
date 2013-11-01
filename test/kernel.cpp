@@ -211,4 +211,11 @@ BOOST_AUTO_TEST_CASE(kernel_dogleg) {
 
 }
 
+BOOST_AUTO_TEST_CASE(kernel_transformation) {
+
+    dcm::detail::Transform<double, 3> T;
+    std::cout<<T<<std::endl;
+
+}
+
 BOOST_AUTO_TEST_SUITE_END();

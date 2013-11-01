@@ -52,13 +52,13 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
 
     System sys;
     cmath math;
-	
+
     Kernel::Vector3 vec(0,0,0);
     math.initFixMaps();
     new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
-	
+
     for(int i=1; i<100; i++) {
-		
+
         //add the amount of points
         for(int j=0; j<i; j++) {
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
             g->clusterMode(true, false);
             math.addGeometry(g);
         };
-		
+
         //calculate the scale value for these points
         double scale = math.calculateClusterScale();
 
@@ -79,7 +79,9 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
                 BOOST_CHECK_GE(val / scale , (MINFAKTOR)-0.01);
                 BOOST_CHECK_LE(val / scale , (MAXFAKTOR)+0.01);
             };
-        } else BOOST_REQUIRE(scale==0);
+        }
+        else
+            BOOST_REQUIRE(scale==0);
 
         //see if we can set arbitrary bigger scale values. no hart checking as currently the alogrithm
         //is not perfect
@@ -90,7 +92,9 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
                 BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
                 BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
             };
-        } else BOOST_REQUIRE(scale==0);
+        }
+        else
+            BOOST_REQUIRE(scale==0);
 
         math.clearGeometry();
         math.initFixMaps();
@@ -222,12 +226,12 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     Geom g2(new Geometry3D(v2, sys));
     g2->clusterMode(true, false);
     math.addGeometry(g2);
-    
+
     Eigen::Vector3d v3 = Eigen::Vector3d::Random()*100;
     Geom g3(new Geometry3D(v3, sys));
     g3->clusterMode(true, false);
     math.addGeometry(g3);
-    
+
     Scalar d1 = (v1-v2).norm();
     Scalar d2 = (v1-v3).norm();
     Scalar d3 = (v2-v3).norm();
@@ -235,16 +239,16 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     double scale1 = math.calculateClusterScale();
     math.applyClusterScale(2.*scale1, false);
     math.recalculate();
-    
+
     BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR) ) );
     BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR) ) );
     BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR) ) );
-    
+
     double scale2 = math.calculateClusterScale();
     math.applyClusterScale(3*scale2, false);
-    math.recalculate();    
+    math.recalculate();
 
-    
+
     BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
     BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
     BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
@@ -256,7 +260,7 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     };
 
     math.finishCalculation();
-    
+
     BOOST_CHECK(math.m_transform.isApprox(Kernel::Transform3D::Identity(), 1e-10));
     BOOST_CHECK( g1->rotated().isApprox(v1, 1e-10) );
     BOOST_CHECK( g2->rotated().isApprox(v2, 1e-10) );
