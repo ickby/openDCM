@@ -79,6 +79,7 @@ struct ModuleState {
         //add only a property to the cluster as we need it to store the clusers global vertex
         typedef mpl::vector1<details::cluster_vertex_prop>  properties;
         typedef mpl::vector0<>  objects;
+	typedef mpl::vector0<>  geometries;
 
         //nothing to do on startup
         static void system_init(Sys& sys) {};

@@ -75,6 +75,7 @@ struct TestModule1 {
         typedef mpl::vector2<test_object1, test_object2> objects;
         typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, 
 			      test_edge1_prop>   properties;
+	typedef mpl::vector0<> geometries;
 	typedef dcm::Unspecified_Identifier Identifier;
 	
         static void system_init(Sys& sys) {};
