@@ -15,7 +15,7 @@ find_package(Eigen3)
 
 #check for extern templates
 if(EXTERNALIZE)
-  add_definitions( -DUSE_EXTERNAL )
+  add_definitions( -DDCM_EXTERNAL_STATE )
 endif(EXTERNALIZE)
 
 if(LOGGING)

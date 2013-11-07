@@ -172,7 +172,7 @@ struct parser_parser< typename details::getModule3D<System>::type::fix_prop, Sys
 
 }
 
-#ifndef USE_EXTERNAL
+#ifndef DCM_EXTERNAL_STATE
 #include "state_imp.hpp"
 #endif
 

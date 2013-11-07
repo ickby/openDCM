@@ -68,8 +68,8 @@ struct vertex_parser : qi::grammar< IIterator, fusion::vector<LocalVertex, Globa
 }
 }
 
-//#ifndef USE_EXTERNAL
-//#include "edge_vertex_parser_imp.hpp"
-//#endif
+#ifndef DCM_EXTERNAL_STATE
+#include "edge_vertex_parser_imp.hpp"
+#endif
 
 #endif

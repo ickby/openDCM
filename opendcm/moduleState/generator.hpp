@@ -76,7 +76,7 @@ struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
 
 }//namespace dcm
 
-#ifndef USE_EXTERNAL
+#ifndef DCM_EXTERNAL_STATE
 #include "generator_imp.hpp"
 #endif
 

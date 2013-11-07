@@ -29,7 +29,7 @@
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/list/append.hpp>
 
-#ifdef USE_EXTERNAL
+#ifdef DCM_EXTERNAL
 
 #define DCM_EXTERNAL_INCLUDE_001 <opendcm/moduleState/edge_vertex_generator_imp.hpp>
 #define DCM_EXTERNAL_001( System )\

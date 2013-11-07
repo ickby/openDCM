@@ -19,7 +19,7 @@
 
 #include "parser.hpp"
 
-#ifdef USE_EXTERNAL
-#include DCM_EXTERNAL_INCLUDE_005
-DCM_EXTERNAL_005( System )
+#ifdef DCM_EXTERNAL_STATE
+#include DCM_EXTERNAL_STATE_INCLUDE_005
+DCM_EXTERNAL_STATE_005( System )
 #endif

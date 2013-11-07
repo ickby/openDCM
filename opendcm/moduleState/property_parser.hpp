@@ -98,7 +98,7 @@ struct prop_par : qi::grammar<IIterator, typename details::pts<PropertyList>::ty
 } //DCM
 } //details
 
-#ifndef USE_EXTERNAL
+#ifndef DCM_EXTERNAL_STATE
   #include "property_parser_imp.hpp"
 #endif
 
