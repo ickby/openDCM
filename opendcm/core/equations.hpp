@@ -27,6 +27,7 @@
 #include <boost/mpl/is_sequence.hpp>
 #include <boost/mpl/and.hpp>
 #include <boost/mpl/not.hpp>
+#include <boost/mpl/sort.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
 #include <boost/fusion/include/iterator_range.hpp>
@@ -118,18 +119,18 @@ struct constraint_sequence : public seq {
     typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T& val) {
 
         typedef typename pushed_seq<seq, T>::type Sequence;
-        typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<seq, T>::S1>::type >::type EndOldBef;
-        typedef typename fusion::result_of::next<EndOldBef>::type EndOld;
 
         //create the new sequence
         Sequence vec;
+	
+	//get a index vector for this sequence
+        typedef typename mpl::transform<typename pushed_seq<seq, T>::S1,
+                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
+                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector_added;
 
-        //copy the old values into the new sequence
-        Begin b(vec);
-        EndOld eo(vec);
-        fusion::iterator_range<Begin, EndOld> range(b, eo);
-        fusion::copy(*this, range);
+        //and copy the types in
+        fusion::nview<Sequence, position_vector_added> view_added(vec);
+        fusion::copy(*this, view_added);
 
         //insert this object at the end of the sequence
         *fusion::find<T>(vec) = val;
@@ -143,18 +144,18 @@ struct constraint_sequence : public seq {
     typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, seq>::type >::type operator &(T& val) {
 
         typedef typename pushed_seq<T, seq>::type Sequence;
-        typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<T, seq>::S1>::type >::type EndFBef;
-	typedef typename fusion::result_of::next<EndFBef>::type EndF;
-
+ 
         //create the new sequence
         Sequence vec;
 
-        Begin b(vec);
-        EndF ef(vec);
+        //get a index vector for the added sequence
+        typedef typename mpl::transform<typename pushed_seq<T, seq>::S1,
+                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
+                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector_added;
 
-        fusion::iterator_range<Begin, EndF> range(b, ef);
-        fusion::copy(val, range);
+        //and copy the types in
+        fusion::nview<Sequence, position_vector_added> view_added(vec);
+        fusion::copy(val, view_added);
 
         //to copy the types of the second sequence is not as easy as before. If types were already present in
         //the original sequence they are not added again. therefore we need to find all types of the second sequence
@@ -185,6 +186,11 @@ struct constraint_sequence : public seq {
     };
 };
 
+template<typename T>
+struct get_equation_id {
+    typedef typename T::ID type;
+};
+
 template<typename Seq, typename T>
 struct pushed_seq {
     typedef typename mpl::if_<mpl::is_sequence<Seq>, Seq, fusion::vector1<Seq> >::type S1;
@@ -192,12 +198,13 @@ struct pushed_seq {
 
     typedef typename mpl::fold< S2, S1, mpl::if_< boost::is_same<
     mpl::find<mpl::_1, mpl::_2>, mpl::end<mpl::_1> >, mpl::push_back<mpl::_1,mpl::_2>, mpl::_1> >::type unique_vector;
+    typedef typename mpl::sort<unique_vector, mpl::less< get_equation_id<mpl::_1>, get_equation_id<mpl::_2> > >::type sorted_vector;
 
-    typedef typename fusion::result_of::as_vector< unique_vector >::type vec;
+    typedef typename fusion::result_of::as_vector< sorted_vector >::type vec;
     typedef constraint_sequence<vec> type;
 };
 
-template<typename Derived, typename Option, bool rotation_only = false>
+template<typename Derived, typename Option, int id, bool rotation_only = false>
 struct Equation : public EQ {
 
     typedef typename mpl::if_<mpl::is_sequence<Option>, Option, mpl::vector<Option> >::type option_sequence;
@@ -206,6 +213,8 @@ struct Equation : public EQ {
 
     options values;
     bool pure_rotation;
+
+    typedef mpl::int_<id> ID;
 
     struct option_copy {
 
@@ -269,19 +278,18 @@ struct Equation : public EQ {
     typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val) {
 
         typedef typename pushed_seq<T, Derived>::type Sequence;
-        typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<T, Derived>::S1>::type >::type EndOldBef;
-	typedef typename fusion::result_of::next<EndOldBef>::type EndOld;
 
         //create the new sequence
         Sequence vec;
 
-        //copy the old values into the new sequence
-        Begin b(vec);
-        EndOld eo(vec);
+        //get a index vector for the added sequence
+        typedef typename mpl::transform<typename pushed_seq<T, Derived>::S1,
+                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
+                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector;
 
-        fusion::iterator_range<Begin, EndOld> range(b, eo);
-        fusion::copy(val, range);
+        //and copy the types in
+        fusion::nview<Sequence, position_vector> view(vec);
+        fusion::copy(val, view);
 
         //insert this object into the sequence
         *fusion::find<Derived>(vec) = *static_cast<Derived*>(this);
@@ -316,7 +324,7 @@ operator << (std::basic_ostream<charT,traits>& stream, const Eq& equation)
     return stream;
 }
 
-struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace> > {
+struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace>, 1 > {
 
     using Equation::operator=;
     using Equation::options;
@@ -390,7 +398,7 @@ struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace> 
     };
 };
 
-struct Orientation : public Equation<Orientation, Direction, true> {
+struct Orientation : public Equation<Orientation, Direction, 2, true> {
 
     using Equation::operator=;
     using Equation::options;
@@ -456,7 +464,7 @@ struct Orientation : public Equation<Orientation, Direction, true> {
     };
 };
 
-struct Angle : public Equation<Angle, mpl::vector2<double, SolutionSpace>, true> {
+struct Angle : public Equation<Angle, mpl::vector2<double, SolutionSpace>, 3, true> {
 
     using Equation::operator=;
 

@@ -60,9 +60,10 @@ struct geometry_traits<line_t> {
 }
 
 //two vectors perpendicular, maybe the easiest constraints of them all
-struct test_constraint : public dcm::Equation<test_constraint, int> {
+struct test_constraint : public dcm::Equation<test_constraint, int, 99> {
 
     using Equation::options;
+    using Equation::values;
 
     void setDefault() {
         fusion::at_key<int>(values) = std::make_pair(false, 0);
