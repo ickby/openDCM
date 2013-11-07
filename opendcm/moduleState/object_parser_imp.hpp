@@ -26,34 +26,34 @@
 
 namespace dcm {
 namespace details {
-  
+
 template<typename srs, typename prs, typename dist>
-typename boost::enable_if<mpl::less< dist, mpl::size<srs> >, void >::type recursive_obj_init( srs& sseq, prs& pseq ) {
-  
-  if(dist::value == 0) {
-    fusion::at<dist>(pseq) %= fusion::at<dist>(sseq)(qi::_r1, qi::_r2);
-  }
-  else {
-    fusion::at<dist>(pseq) %= fusion::at<typename mpl::prior< typename mpl::max<dist, mpl::int_<1> >::type >::type>(pseq)(qi::_r1, qi::_r2) | fusion::at<dist>(sseq)(qi::_r1, qi::_r2);
-  }
-  
-  recursive_obj_init<srs, prs, typename mpl::next<dist>::type>(sseq, pseq);
+typename boost::enable_if<mpl::less< dist, mpl::size<srs> >, void >::type recursive_obj_init(srs& sseq, prs& pseq) {
+    
+    if(dist::value == 0) {
+      fusion::at<dist>(pseq) %= fusion::at<dist>(sseq)(qi::_r1, qi::_r2);
+    }
+    else {
+      fusion::at<dist>(pseq) %= fusion::at<typename mpl::prior< typename mpl::max<dist, mpl::int_<1> >::type >::type>(pseq)(qi::_r1, qi::_r2) | fusion::at<dist>(sseq)(qi::_r1, qi::_r2);
+    }
+
+    recursive_obj_init<srs, prs, typename mpl::next<dist>::type>(sseq, pseq);
 };
 
 template<typename srs, typename prs, typename dist>
-typename boost::disable_if<mpl::less< dist, mpl::size<srs> >, void >::type recursive_obj_init( srs& sseq, prs& pseq ){};
+typename boost::disable_if<mpl::less< dist, mpl::size<srs> >, void >::type recursive_obj_init(srs& sseq, prs& pseq) {};
 
-  
+
 template<typename Sys, typename ObjList, typename Object, typename Par>
 obj_parser<Sys, ObjList, Object, Par>::obj_parser(): obj_parser::base_type(start) {
-  
+
     typedef typename mpl::find<ObjList, Object>::type::pos pos;
-    
+
     Par::init(subrule);
     start = qi::lit("<Object>") >> subrule(qi::_r2)[phx::at_c<pos::value>(*qi::_r1) = qi::_1]
             >> qi::eps(phx::at_c<pos::value>(*qi::_r1))[ phx::bind(&Sys::template push_back<Object>, qi::_r2, phx::at_c<pos::value>(*qi::_r1))]
             >> prop[phx::bind(&obj_parser::setProperties, phx::at_c<pos::value>(*qi::_r1), qi::_1)]
-            >> qi::lit("</Object>");
+            >> qi::lit("</Object>"); 
 };
 
 template<typename Sys, typename ObjList, typename Object, typename Par>
@@ -63,11 +63,22 @@ void obj_parser<Sys, ObjList, Object, Par>::setProperties(boost::shared_ptr<Obje
 
 template<typename Sys>
 obj_par<Sys>::obj_par(): obj_par<Sys>::base_type(obj) {
-  
+
+    //create a vector with the appropriate rules for all needed objects.
+    typedef typename obj_parser_fold<Sys, ObjectList, mpl::vector<> >::type sub_rules_sequence;
+    //the type of the objectlist rule
+    typedef qi::rule<IIterator, qi::unused_type(typename details::sps<ObjectList>::type*, Sys*), qi::space_type> parent_rule;
+    //we need to store all recursive created rules
+    typedef typename mpl::fold< sub_rules_sequence, mpl::vector0<>,
+            mpl::push_back<mpl::_1, parent_rule> >::type parent_rules_sequence;
+
+    typename fusion::result_of::as_vector<sub_rules_sequence>::type sub_rules;
+    typename fusion::result_of::as_vector<parent_rules_sequence>::type parent_rules;
+
     recursive_obj_init<typename fusion::result_of::as_vector<sub_rules_sequence>::type,
-		      typename fusion::result_of::as_vector<parent_rules_sequence>::type,
-		      mpl::int_<0> >(sub_rules, parent_rules);
-		   
+                       typename fusion::result_of::as_vector<parent_rules_sequence>::type,
+                       mpl::int_<0> >(sub_rules, parent_rules);
+
     obj = *(fusion::back(parent_rules)(&qi::_val, qi::_r1));
 };
 

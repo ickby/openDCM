@@ -117,6 +117,11 @@ BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
     BOOST_CHECK( fusion::at_key<double>(fusion::front(a).values).second == 0 ); 
     BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(a).values).second == bidirectional ); 
     BOOST_CHECK( fusion::at_key<Direction>(fusion::back(a).values).second == parallel ); 
+    
+    //test funny mixtures
+    Coincidence c;
+    Distance d3;
+    c & d3;
 };
 
 BOOST_AUTO_TEST_SUITE_END();

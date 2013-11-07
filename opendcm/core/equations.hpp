@@ -39,6 +39,7 @@
 #include <boost/fusion/include/map.hpp>
 #include <boost/fusion/include/as_map.hpp>
 #include <boost/fusion/include/filter_view.hpp>
+#include <boost/fusion/include/size.hpp>
 
 #include <boost/exception/exception.hpp>
 
@@ -118,8 +119,8 @@ struct constraint_sequence : public seq {
 
         typedef typename pushed_seq<seq, T>::type Sequence;
         typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename fusion::result_of::back<typename pushed_seq<seq, T>::S1>::type >::type EndOld;
-
+        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<seq, T>::S1>::type >::type EndOldBef;
+        typedef typename fusion::result_of::next<EndOldBef>::type EndOld;
 
         //create the new sequence
         Sequence vec;
@@ -127,7 +128,6 @@ struct constraint_sequence : public seq {
         //copy the old values into the new sequence
         Begin b(vec);
         EndOld eo(vec);
-
         fusion::iterator_range<Begin, EndOld> range(b, eo);
         fusion::copy(*this, range);
 
@@ -144,7 +144,8 @@ struct constraint_sequence : public seq {
 
         typedef typename pushed_seq<T, seq>::type Sequence;
         typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename fusion::result_of::back<typename pushed_seq<T, seq>::S1>::type >::type EndF;
+        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<T, seq>::S1>::type >::type EndFBef;
+	typedef typename fusion::result_of::next<EndFBef>::type EndF;
 
         //create the new sequence
         Sequence vec;
@@ -269,7 +270,8 @@ struct Equation : public EQ {
 
         typedef typename pushed_seq<T, Derived>::type Sequence;
         typedef typename fusion::result_of::begin<Sequence>::type Begin;
-        typedef typename fusion::result_of::find<Sequence, typename fusion::result_of::back<typename pushed_seq<T, Derived>::S1>::type >::type EndOld;
+        typedef typename fusion::result_of::find<Sequence, typename mpl::back<typename pushed_seq<T, Derived>::S1>::type >::type EndOldBef;
+	typedef typename fusion::result_of::next<EndOldBef>::type EndOld;
 
         //create the new sequence
         Sequence vec;
@@ -281,7 +283,7 @@ struct Equation : public EQ {
         fusion::iterator_range<Begin, EndOld> range(b, eo);
         fusion::copy(val, range);
 
-        //insert this object at the end of the sequence
+        //insert this object into the sequence
         *fusion::find<Derived>(vec) = *static_cast<Derived*>(this);
 
         //and return our new extendet sequence
