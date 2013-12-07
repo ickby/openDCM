@@ -15,6 +15,8 @@ find_package(Eigen3)
 
 #check for extern templates
 if(EXTERNALIZE)
+  add_definitions( -DDCM_EXTERNAL_CORE )
+  add_definitions( -DDCM_EXTERNAL_3D )
   add_definitions( -DDCM_EXTERNAL_STATE )
 endif(EXTERNALIZE)
 

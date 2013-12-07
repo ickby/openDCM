@@ -22,6 +22,19 @@
 #include<opendcm/core.hpp>
 #include<opendcm/module3d.hpp>
 
+//the only core component that needs direct externalisation
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/system_imp.hpp"
+#endif
+
+//the module3d externalisation components
+#ifdef DCM_EXTERNAL_3D
+#include "opendcm/module3d/imp/clustermath_imp.hpp"
+#include "opendcm/module3d/imp/module_imp.hpp"
+#include "opendcm/module3d/imp/geometry3d_imp.hpp"
+#include "opendcm/module3d/imp/constraint3d_imp.hpp"
+#endif
+
 namespace dcm {
 
 template<>
@@ -155,10 +168,10 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     Geom g1(new Geometry3D(p1, sys));
     Geom g2(new Geometry3D(p2, sys));
     //the stuff that is normaly done by map downstream geometry
-    g1->offset() = math.getParameterOffset();
+    g1->offset() = math.getParameterOffset(dcm::rotation);
     g1->clusterMode(true, false);
     g1->trans(transI);
-    g2->offset() = math.getParameterOffset();
+    g2->offset() = math.getParameterOffset(dcm::general);
     g2->clusterMode(true, false);
     g2->trans(transI);
     math.addGeometry(g1);
@@ -198,12 +211,12 @@ BOOST_AUTO_TEST_CASE(clustermath_identityhandling) {
     math.applyClusterScale(s, false);
 
     math.recalculate();
-    BOOST_CHECK(Kernel::isSame((g1->rotated()*s*SKALEFAKTOR-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->rotated()*s*SKALEFAKTOR-p2).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g1->rotated()*s*SKALEFAKTOR-p1).norm(),0., 1e-6));
+    BOOST_CHECK(Kernel::isSame((g2->rotated()*s*SKALEFAKTOR-p2).norm(),0., 1e-6));
 
     math.finishCalculation();
-    BOOST_CHECK(Kernel::isSame((g1->rotated()-p1).norm(),0.));
-    BOOST_CHECK(Kernel::isSame((g2->rotated()-p2).norm(),0.));
+    BOOST_CHECK(Kernel::isSame((g1->rotated()-p1).norm(),0., 1e-6));
+    BOOST_CHECK(Kernel::isSame((g2->rotated()-p2).norm(),0., 1e-6));
     BOOST_CHECK(init.isApprox(math.m_transform, 1e-10));
 }
 
@@ -240,18 +253,18 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     math.applyClusterScale(2.*scale1, false);
     math.recalculate();
 
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR) ) );
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR) ) );
-    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR), 1e-6 ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR), 1e-6 ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR), 1e-6 ) );
 
     double scale2 = math.calculateClusterScale();
     math.applyClusterScale(3*scale2, false);
     math.recalculate();
 
 
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
-    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
-    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR) ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g2->rotated()).norm(), d1/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR), 1e-6 ) );
+    BOOST_CHECK( Kernel::isSame( (g1->rotated()-g3->rotated()).norm(), d2/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR), 1e-6 ) );
+    BOOST_CHECK( Kernel::isSame( (g2->rotated()-g3->rotated()).norm(), d3/(2.*scale1*SKALEFAKTOR*3.*scale2*SKALEFAKTOR), 1e-6 ) );
 
     for(int j=0; j<3; j++) {
         double val = math.getGeometry()[j]->point().norm();
@@ -265,6 +278,6 @@ BOOST_AUTO_TEST_CASE(clustermath_multiscaling_idendity) {
     BOOST_CHECK( g1->rotated().isApprox(v1, 1e-10) );
     BOOST_CHECK( g2->rotated().isApprox(v2, 1e-10) );
     BOOST_CHECK( g3->rotated().isApprox(v3, 1e-10) );
-}*/
-
+}
+*/
 BOOST_AUTO_TEST_SUITE_END();

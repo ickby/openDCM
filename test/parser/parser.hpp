@@ -20,11 +20,6 @@
 #ifndef DCM_TEST_PARSER_H
 #define DCM_TEST_PARSER_H
 
-#ifdef DCM_EXTERNAL_STATE
-//we externalize module 3d to reduce the compile time pressure on object parser
-#define DCM_EXTERNAL_3D
-#endif
-
 #include <boost/test/unit_test.hpp>
 
 #include "opendcm/core.hpp"

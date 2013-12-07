@@ -23,13 +23,11 @@
 #endif
 
 #include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/property.hpp"
 
-#include <boost/fusion/sequence.hpp>
-#include <boost/mpl/vector.hpp>
-#include <utility>
-
-#include <iostream>
+//we don't want a extra external file
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/clustergraph_imp.hpp"
+#endif
 
 #include <boost/test/unit_test.hpp>
 

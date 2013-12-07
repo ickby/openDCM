@@ -23,6 +23,14 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
+#include <boost/mpl/map.hpp>
+
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/system_imp.hpp"
+#include "opendcm/core/imp/clustergraph_imp.hpp"
+#include "opendcm/core/imp/object_imp.hpp"
+#endif
+
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(system_and_object);

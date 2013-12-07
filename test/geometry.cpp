@@ -19,6 +19,11 @@
 
 #include "opendcm/core.hpp"
 
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/kernel_imp.hpp"
+#include "opendcm/core/imp/transformation_imp.hpp"
+#include "opendcm/core/imp/geometry_imp.hpp"
+#endif
 
 #include <boost/test/unit_test.hpp>
 

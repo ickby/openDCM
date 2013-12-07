@@ -10,33 +10,45 @@ link_directories ( ${Boost_LIBRARY_DIRS} )
 set(framework_SRC framework.cpp)
 
 if(EXTERNALIZE)
-  set(state_SRC parser.cpp
-		parser_ext4.cpp
-		parser_ext2.cpp
-		parser_ext3.cpp
-		parser_ext1.cpp
-	        parser_ext5.cpp
-	        parser_ext6.cpp
-	        parser_ext7.cpp
-	        parser_ext8.cpp
-  )
+
+  set(state_SRC #parser/parser.cpp
+		#parser/parser_ext4.cpp
+		#parser/parser_ext2.cpp
+		#parser/parser_ext3.cpp
+		#parser/parser_ext1.cpp
+	        #parser/parser_ext5.cpp
+	        #parser/parser_ext6.cpp
+	        #parser/parser_ext7.cpp
+	        #parser/parser_ext8.cpp
+	        #parser/parser_ext9.cpp
+	        parser/parser_ext10.cpp
+ )
+ set(module3d_SRC #module3d/module3d.cpp
+		  #module3d/m3d_ext1.cpp
+		  #module3d/m3d_ext2.cpp
+		   module3d/m3d_ext3.cpp
+		   module3d/m3d_ext4.cpp)
+ 
 else(EXTERNALIZE)
+
   set(state_SRC parser.cpp)
+  set(module3d_SRC module3d/module3d.cpp)
+  
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
-	      kernel.cpp
-	      clustergraph.cpp
-	      sys_and_obj.cpp
-	      geometry.cpp
-	      clustermath.cpp
-	      constraints3d.cpp
-	      module3d.cpp
-	      dof.cpp
-	      modulepart.cpp
-	      modulehl3d.cpp
-	      misc.cpp
-	      userbugs.cpp
+	      #kernel.cpp
+	      #clustergraph.cpp
+	      #sys_and_obj.cpp
+	      #geometry.cpp
+	      #clustermath.cpp
+	      #constraints3d.cpp
+	      ${module3d_SRC}
+	      #dof.cpp
+	      #modulepart.cpp
+	      #modulehl3d.cpp
+	      #misc.cpp
+	      #userbugs.cpp
 	      #${state_SRC}	      
 )
 
@@ -60,4 +72,3 @@ SET_TARGET_PROPERTIES(solvertest PROPERTIES COMPILE_FLAGS "/bigobj")
 ENDIF (MSVC)
 
 target_link_libraries(solvertest framework ${log_LIB})
-

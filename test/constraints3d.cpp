@@ -22,6 +22,18 @@
 #include "opendcm/modulepart.hpp"
 #include "opendcm/moduleshape3d.hpp"
 
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/system_imp.hpp"
+#endif
+
+#ifdef DCM_EXTERNAL_3D
+#include "opendcm/module3d/imp/constraint3d_imp.hpp"
+#include "opendcm/module3d/imp/geometry3d_imp.hpp"
+#include "opendcm/module3d/imp/module_imp.hpp"
+#include "opendcm/module3d/imp/clustermath_imp.hpp"
+#include "opendcm/module3d/imp/solver_imp.hpp"
+#endif
+
 #include <boost/mpl/vector.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/exception/get_error_info.hpp>
@@ -408,7 +420,7 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
     BOOST_CHECK(checker14.check_normal(2., dcm::negative_directional));
     BOOST_CHECK(checker14.check_cluster(2., dcm::negative_directional));
 }
-/*
+
 BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
 
     System sys;
@@ -465,6 +477,6 @@ BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
     constraint_checker<point_t, segment_t, dcm::Distance> checker(sys);
     BOOST_CHECK(checker.check_normal(2., notype()));
     BOOST_CHECK(checker.check_cluster(2., notype()));
-}*/
+}
 
 BOOST_AUTO_TEST_SUITE_END();

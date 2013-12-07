@@ -20,8 +20,11 @@
 #include "opendcm/core/kernel.hpp"
 
 #include <iostream>
-
 #include <boost/test/unit_test.hpp>
+
+//we are in externalize mode, but don't want a extra cpp file, so we include the implementations here
+#include "opendcm/core/imp/transformation_imp.hpp"
+#include "opendcm/core/imp/kernel_imp.hpp"
 
 BOOST_AUTO_TEST_SUITE(kernel_suit);
 
@@ -79,6 +82,7 @@ struct EqnSystem : public kernel::MappedEquationSystem {
 struct test {
   double x,y,z;};
 
+  
 BOOST_AUTO_TEST_CASE(kernel_mapping) {
 
     typedef kernel::Matrix 	test_type;
@@ -116,7 +120,7 @@ BOOST_AUTO_TEST_CASE(kernel_mapping) {
     BOOST_CHECK( v3(1) == v3m(1) );
     BOOST_CHECK( v3(2) == v3m(2) );
 };
-
+/*
 BOOST_AUTO_TEST_CASE(kernel_multimap) {
   
     // test all constructors
@@ -195,10 +199,7 @@ BOOST_AUTO_TEST_CASE(kernel_multimap) {
     BOOST_CHECK(map7==mat3);
     BOOST_CHECK(map7+mat3 == 2*map7);
 };
-
-template<class T>
-struct test1 {
-};
+*/
 
 BOOST_AUTO_TEST_CASE(kernel_dogleg) {
 

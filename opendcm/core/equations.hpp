@@ -25,23 +25,12 @@
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/mpl/is_sequence.hpp>
-#include <boost/mpl/and.hpp>
 #include <boost/mpl/not.hpp>
-#include <boost/mpl/sort.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/mpl.hpp>
-#include <boost/fusion/include/iterator_range.hpp>
-#include <boost/fusion/include/copy.hpp>
-#include <boost/fusion/include/advance.hpp>
-#include <boost/fusion/include/back.hpp>
-#include <boost/fusion/include/iterator_range.hpp>
-#include <boost/fusion/include/nview.hpp>
-#include <boost/fusion/include/for_each.hpp>
 #include <boost/fusion/include/map.hpp>
 #include <boost/fusion/include/as_map.hpp>
-#include <boost/fusion/include/filter_view.hpp>
-#include <boost/fusion/include/size.hpp>
-
+#include <boost/fusion/include/at_key.hpp>
 #include <boost/exception/exception.hpp>
 
 namespace fusion = boost::fusion;
@@ -84,8 +73,8 @@ struct PseudoScale {
 //type to allow a metaprogramming check for a Equation
 struct EQ {};
 
-template<typename Seq, typename T>
-struct pushed_seq;
+//template<typename Seq, typename T>
+//struct pushed_seq;
 
 //metafunctions to retrieve the options of an equation
 template<typename T>
@@ -113,79 +102,26 @@ struct constraint_sequence : public seq {
     void pretty(T type) {
         std::cout<<"pretty: "<<__PRETTY_FUNCTION__<<std::endl;
     };
-
+    
+    //dont allow expression equation stacking: the compile time impact is huge if we want to allow
+    //text parsing
+/*
     //an equation gets added to this sequence
     template<typename T>
-    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T& val) {
-
-        typedef typename pushed_seq<seq, T>::type Sequence;
-
-        //create the new sequence
-        Sequence vec;
-	
-	//get a index vector for this sequence
-        typedef typename mpl::transform<typename pushed_seq<seq, T>::S1,
-                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
-                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector_added;
-
-        //and copy the types in
-        fusion::nview<Sequence, position_vector_added> view_added(vec);
-        fusion::copy(*this, view_added);
-
-        //insert this object at the end of the sequence
-        *fusion::find<T>(vec) = val;
-
-        //and return our new extendet sequence
-        return vec;
-    };
+    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T& val);
 
     //an sequence gets added to this sequence (happens only if sequenced equations like coincident are used)
     template<typename T>
-    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, seq>::type >::type operator &(T& val) {
-
-        typedef typename pushed_seq<T, seq>::type Sequence;
- 
-        //create the new sequence
-        Sequence vec;
-
-        //get a index vector for the added sequence
-        typedef typename mpl::transform<typename pushed_seq<T, seq>::S1,
-                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
-                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector_added;
-
-        //and copy the types in
-        fusion::nview<Sequence, position_vector_added> view_added(vec);
-        fusion::copy(val, view_added);
-
-        //to copy the types of the second sequence is not as easy as before. If types were already present in
-        //the original sequence they are not added again. therefore we need to find all types of the second sequence
-        //in the new one and assign the objects to this positions.
-
-        //get a index vector for all second-sequence-elements
-        typedef typename mpl::transform<typename pushed_seq<T, seq>::S2,
-                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
-                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector;
-
-        //and copy the types in
-        fusion::nview<Sequence, position_vector> view(vec);
-        fusion::copy(*this, view);
-
-        //and return our new extendet sequence
-        return vec;
-    };
-
+    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, seq>::type >::type operator &(T& val);
+*/
     //we also allow to set values directly into the equation, as this makes it more compftable for multi constraints
     //as align. Note that this only works if all option types of all equations in this sequence are distinguishable
     template<typename T>
     typename boost::enable_if<typename seq_has_option<seq, T>::type, constraint_sequence<seq>&>::type
-    operator=(const T& val) {
-
-        fusion::filter_view<constraint_sequence, has_option<mpl::_, T > > view(*this);
-        fusion::front(view) = val;
-        return *this;
-    };
+    operator=(const T& val);
 };
 
+/*
 template<typename T>
 struct get_equation_id {
     typedef typename T::ID type;
@@ -202,7 +138,7 @@ struct pushed_seq {
 
     typedef typename fusion::result_of::as_vector< sorted_vector >::type vec;
     typedef constraint_sequence<vec> type;
-};
+};*/
 
 template<typename Derived, typename Option, int id, bool rotation_only = false>
 struct Equation : public EQ {
@@ -216,132 +152,52 @@ struct Equation : public EQ {
 
     typedef mpl::int_<id> ID;
 
-    struct option_copy {
-
-        options* values;
-        option_copy(options& op) : values(&op) {};
-
-        template<typename T>
-        void operator()(const T& val) const {
-            if(val.second.first)
-                fusion::at_key<typename T::first_type>(*values) = val.second;
-        };
-    };
-
     Equation() : pure_rotation(rotation_only) {};
 
     //assign option
     template<typename T>
-    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val) {
-        fusion::at_key<T>(values).second = val;
-        fusion::at_key<T>(values).first  = true;
-        return *(static_cast<Derived*>(this));
-    };
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val);
+    
     //assign option
     template<typename T>
-    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator=(const T& val) {
-        return operator()(val);
-    };
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator=(const T& val);
+    
     //assign complete equation (we need to override the operator= in the derived class anyway as it
     //is automaticly created by the compiler, so we use a different name here to avoid duplicate
     //operator= warning on msvc)
-    Derived& assign(const Derived& eq) {
+    Derived& assign(const Derived& eq);
 
-        //we only copy the values which were set and are therefore valid
-        option_copy oc(values);
-        fusion::for_each(eq.values, oc);
-
-        //the assigned eqution can be set back to default for convinience in further usage
-        const_cast<Derived*>(&eq)->setDefault();
-
-        return *static_cast<Derived*>(this);
-    };
+    //dont allow expression equation stacking: the compile time impact is huge if we want to allow
+    //text parsing
     /*
-        Derived& operator=(const Derived& eq) {
-    	option_copy oc(values);
-            fusion::for_each(eq.values, oc);
-    	return *static_cast<Derived*>(this);
-        };*/
-
     //an equation gets added to this equation
     template<typename T>
-    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val) {
-
-        typename pushed_seq<T, Derived>::type vec;
-        *fusion::find<T>(vec) = val;
-        *fusion::find<Derived>(vec) = *(static_cast<Derived*>(this));
-        return vec;
-    };
+    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val);
 
     //an sequence gets added to this equation (happens only if sequenced equations like coincident are used)
     template<typename T>
-    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val) {
-
-        typedef typename pushed_seq<T, Derived>::type Sequence;
-
-        //create the new sequence
-        Sequence vec;
-
-        //get a index vector for the added sequence
-        typedef typename mpl::transform<typename pushed_seq<T, Derived>::S1,
-                fusion::result_of::distance<typename fusion::result_of::begin<Sequence>::type,
-                fusion::result_of::find<Sequence, mpl::_1> > >::type position_vector;
-
-        //and copy the types in
-        fusion::nview<Sequence, position_vector> view(vec);
-        fusion::copy(val, view);
-
-        //insert this object into the sequence
-        *fusion::find<Derived>(vec) = *static_cast<Derived*>(this);
-
-        //and return our new extendet sequence
-        return vec;
-    };
-
+    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val);
+    */
+    
     //set default option values, neeeded for repedability and to prevent unexpected behaviour
     virtual void setDefault() = 0;
 };
 
-//convinience stream functions for debugging
-template <typename charT, typename traits>
-struct print_pair {
-    std::basic_ostream<charT,traits>* stream;
-
-    template<typename T>
-    void operator()(const T& t) const {
-        *stream << "("<<t.second.first << ", "<<t.second.second<<") ";
-    };
-};
-
 template <typename charT, typename traits, typename Eq>
 typename boost::enable_if<boost::is_base_of<EQ, Eq>, std::basic_ostream<charT,traits>&>::type
-operator << (std::basic_ostream<charT,traits>& stream, const Eq& equation)
-{
-    print_pair<charT, traits> pr;
-    pr.stream = &stream;
-    stream << typeid(equation).name() << ": ";
-    fusion::for_each(equation.values, pr);
-    return stream;
-}
+operator << (std::basic_ostream<charT,traits>& stream, const Eq& equation);
 
 struct Distance : public Equation<Distance, mpl::vector2<double, SolutionSpace>, 1 > {
 
     using Equation::operator=;
     using Equation::options;
-    Distance() : Equation() {
-        setDefault();
-    };
+    Distance();
 
     //override needed ass assignmend operator is always created by the compiler
     //and we need to ensure that our custom one is used
-    Distance& operator=(const Distance& d) {
-        return Equation::assign(d);
-    };
+    Distance& operator=(const Distance& d);
 
-    void setDefault() {
-        fusion::at_key<double>(values) = std::make_pair(false, 0.);
-        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, bidirectional);
-    };
+    void setDefault();
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type {
@@ -402,19 +258,13 @@ struct Orientation : public Equation<Orientation, Direction, 2, true> {
 
     using Equation::operator=;
     using Equation::options;
-    Orientation() : Equation() {
-        setDefault();
-    };
+    Orientation();
 
     //override needed ass assignmend operator is always created by the compiler
     //and we need to ensure that our custom one is used
-    Orientation& operator=(const Orientation& d) {
-        return Equation::assign(d);
-    };
+    Orientation& operator=(const Orientation& d);
 
-    void setDefault() {
-        fusion::at_key<Direction>(values) = std::make_pair(false, parallel);
-    };
+    void setDefault();
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -468,20 +318,13 @@ struct Angle : public Equation<Angle, mpl::vector2<double, SolutionSpace>, 3, tr
 
     using Equation::operator=;
 
-    Angle() : Equation() {
-        setDefault();
-    };
+    Angle();
 
     //override needed ass assignmend operator is always created by the compiler
     //and we need to ensure that our custom one is used
-    Angle& operator=(const Angle& d) {
-        return Equation::assign(d);
-    };
+    Angle& operator=(const Angle& d);
 
-    void setDefault() {
-        fusion::at_key<double>(values) = std::make_pair(false, 0.);
-        fusion::at_key<SolutionSpace>(values) = std::make_pair(false, bidirectional);
-    };
+    void setDefault();
 
     template< typename Kernel, typename Tag1, typename Tag2 >
     struct type : public PseudoScale<Kernel> {
@@ -539,6 +382,10 @@ static Orientation orientation;
 static Angle    angle;
 
 };
+
+#ifndef DCM_EXTERNAL_CORE
+#include "imp/equations_imp.hpp"
+#endif
 
 #endif //GCM_EQUATIONS_H
 

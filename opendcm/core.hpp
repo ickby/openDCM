@@ -41,5 +41,14 @@
 #include "core/kernel.hpp"
 #include "core/system.hpp"
 
+
+#ifdef DCM_EXTERNAL_CORE
+
+#define DCM_EXTERNAL_CORE_INCLUDE_01 "opendcm/core/imp/system_imp.hpp"
+#define DCM_EXTERNAL_CORE_01( Sys )\
+    template class dcm::System<typename Sys::Kernel, typename Sys::Module1, typename Sys::Module2, typename Sys::Module3>;    
+
+#endif //external
+
 #endif //DCM_CORE_H
 

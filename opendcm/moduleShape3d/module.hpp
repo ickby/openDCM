@@ -32,6 +32,8 @@
 #include <boost/mpl/map.hpp>
 #include <boost/type_traits.hpp>
 
+#include <boost/fusion/include/make_vector.hpp>
+
 #include <boost/preprocessor.hpp>
 #include <boost/preprocessor/repetition/repeat.hpp>
 #include <boost/preprocessor/cat.hpp>

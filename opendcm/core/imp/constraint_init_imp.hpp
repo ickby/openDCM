@@ -1,6 +1,6 @@
 /*
     openDCM, dimensional constraint manager
-    Copyright (C) 2013  Stefan Troeger <stefantroeger@gmx.net>
+    Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -10,16 +10,31 @@
     This library is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+    GNU Lesser General Public License for more detemplate tails.
 
     You should have received a copy of the GNU Lesser General Public License along
     with this library; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "parser.hpp"
+#ifndef DCM_CONSTRAINT_INIT_IMP_H
+#define DCM_CONSTRAINT_INIT_IMP_H
 
-#ifdef DCM_EXTERNAL_STATE
-#include DCM_EXTERNAL_3D_INCLUDE_002
-DCM_EXTERNAL_3D_002( System )
-#endif
+#include "../constraint.hpp"
+
+namespace mpl = boost::mpl;
+namespace fusion = boost::fusion;
+
+namespace dcm {
+
+namespace detail {
+
+
+};//detail
+
+};//dcm
+
+#endif //GCM_CONSTRAINT_H
+
+
+
