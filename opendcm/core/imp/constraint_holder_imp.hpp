@@ -20,7 +20,7 @@
 #ifndef DCM_CONSTRAINT_HOLDER_IMP_H
 #define DCM_CONSTRAINT_HOLDER_IMP_H
 
-#include "../constraint.hpp"
+#include "opendcm/core/constraint.hpp"
 
 #include <boost/fusion/include/mpl.hpp>
 #include <boost/fusion/include/for_each.hpp>

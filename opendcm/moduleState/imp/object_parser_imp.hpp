@@ -20,7 +20,7 @@
 #ifndef DCM_OBJECT_PARSER_IMP_H
 #define DCM_OBJECT_PARSER_IMP_H
 
-#include "object_parser.hpp"
+#include "../object_parser.hpp"
 #include "property_parser_imp.hpp"
 #include "boost/phoenix/fusion/at.hpp"
 

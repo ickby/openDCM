@@ -26,6 +26,9 @@
 #include "opendcm/core/imp/transformation_imp.hpp"
 #endif
 
+//include it here as it is in the same external compilation unit as clustermath
+#include "solver_imp.hpp"
+
 namespace dcm {
 namespace details {
   

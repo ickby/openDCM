@@ -23,8 +23,8 @@
 #ifndef DCM_PARSER_TRAITS_IMPL_H
 #define DCM_PARSER_TRAITS_IMPL_H
 
-#include "traits.hpp"
-#include "defines.hpp"
+#include "../traits.hpp"
+#include "../defines.hpp"
 
 #include <boost/mpl/bool.hpp>
 

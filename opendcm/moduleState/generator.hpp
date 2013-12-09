@@ -31,7 +31,7 @@
 #include <opendcm/core/clustergraph.hpp>
 
 #include "traits.hpp"
-#include "traits_impl.hpp"
+#include "imp/traits_impl.hpp"
 #include "indent.hpp"
 
 #include <boost/mpl/int.hpp>
@@ -77,7 +77,7 @@ struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
 }//namespace dcm
 
 #ifndef DCM_EXTERNAL_STATE
-#include "generator_imp.hpp"
+#include "imp/generator_imp.hpp"
 #endif
 
 #endif //DCM_GENERATOR_H

@@ -110,22 +110,10 @@ protected:
     inline void intitalizeFinalize(ConstraintVector& cv, boost::mpl::true_);
 
 
-    int equationCount();
-
-    template< typename creator_type>
-    void resetType(creator_type& c);
-
+    int  equationCount();
     void calculate(Scalar scale, bool rotation_only = false);
     void treatLGZ();
-
     void setMaps(MES& mes);
-
-    void geometryReset(geom_ptr g) {
-        /*    placeholder* p = content->resetConstraint(first, second);
-            delete content;
-            content = p;*/
-    };
-
     void collectPseudoPoints(Vec& vec1, Vec& vec2);
 
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
@@ -327,9 +315,8 @@ public:
 };//dcm
 
 #ifndef DCM_EXTERNAL_CORE
-#include "constraint_imp.hpp"
-#include "constraint_holder_imp.hpp"
-#include "constraint_init_imp.hpp"
+#include "imp/constraint_imp.hpp"
+#include "imp/constraint_holder_imp.hpp"
 #endif
 
 #endif //GCM_CONSTRAINT_H

@@ -159,15 +159,6 @@ int Constraint<Sys, Dim>::equationCount() {
 };
 
 template<typename Sys, int Dim>
-template< typename creator_type>
-void Constraint<Sys, Dim>::resetType(creator_type& c) {
-    boost::apply_visitor(c, first->m_geometry, second->m_geometry);
-    content = c.p;
-    if(c.need_swap)
-        first.swap(second);
-};
-
-template<typename Sys, int Dim>
 void Constraint<Sys, Dim>::calculate(Scalar scale, bool rotation_only) {
     content->calculate(first, second, scale, rotation_only);
 };

@@ -19,6 +19,9 @@
 
 #include "parser.hpp"
 
+#include "opendcm/moduleState/indent.hpp"
+#include <boost/iostreams/filtering_stream.hpp>
+
 template<typename T, typename G>
 void generate(std::stringstream& s, T& input, G& gen) {
 
@@ -193,7 +196,7 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   
   boost::shared_ptr<Geometry3D> g1 = sys.createGeometry3D(v1, 1);
   boost::shared_ptr<Geometry3D> g2 = sys.createGeometry3D(v2, 2);
-  sys.createConstraint3D(3, g1, g2, (dcm::distance=3.) & (dcm::distance=3.));
+  sys.createConstraint3D(3, g1, g2, dcm::distance=3.);
   
   std::stringstream s;
   sys.saveState(s);

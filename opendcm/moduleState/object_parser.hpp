@@ -67,7 +67,7 @@ typename details::sps<typename Sys::objects>::type(Sys*),
 }//DCM
 
 #ifndef DCM_EXTERNAL_STATE
-#include "property_parser_imp.hpp"
+#include "imp/object_parser_imp.hpp"
 #endif
 
 #endif

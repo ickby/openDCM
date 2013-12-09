@@ -22,6 +22,9 @@
 
 #include "opendcm/core/property.hpp"
 #include "opendcm/core/clustergraph.hpp"
+#include <boost/fusion/adapted/struct/adapt_struct.hpp>
+#include <boost/fusion/include/adapt_struct.hpp>
+
 
 namespace dcm {
 namespace details {
@@ -32,5 +35,11 @@ struct cluster_vertex_prop {
 };
 }
 }
+
+BOOST_FUSION_ADAPT_TPL_STRUCT(
+    (T1)(T2)(T3)(T4),
+    (dcm::ClusterGraph) (T1)(T2)(T3)(T4),
+    (int, test)
+    (typename dcm::details::pts<T3>::type, m_properties))
 
 #endif

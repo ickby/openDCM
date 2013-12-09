@@ -20,7 +20,7 @@
 #ifndef DCM_PROPERTY_PARSER_IMP_H
 #define DCM_PROPERTY_PARSER_IMP_H
 
-#include "property_parser.hpp"
+#include "../property_parser.hpp"
 #include <boost/fusion/include/back.hpp>
 #include <boost/phoenix/fusion/at.hpp>
 
@@ -47,6 +47,17 @@ typename boost::enable_if<mpl::less< dist, mpl::size<srs> >, void >::type recurs
 template<typename srs, typename prs, typename dist>
 typename boost::disable_if<mpl::less< dist, mpl::size<srs> >, void >::type recursive_init(srs& sseq, prs& pseq) {};
 
+template<typename ParentRuleSequence, typename Rule>
+typename boost::disable_if<typename fusion::result_of::empty<ParentRuleSequence>::type, void>::type
+initalizeLastRule(ParentRuleSequence& pr, Rule& r) {
+    r = *(fusion::back(pr)(&qi::_val));
+};
+
+template<typename ParentRuleSequence, typename Rule>
+typename boost::enable_if<typename fusion::result_of::empty<ParentRuleSequence>::type, void>::type
+initalizeLastRule(ParentRuleSequence& pr, Rule& r) {};
+
+
 template<typename PropList, typename Prop, typename Par>
 prop_parser<PropList, Prop, Par>::prop_parser() : prop_parser<PropList, Prop, Par>::base_type(start) {
 
@@ -63,7 +74,8 @@ prop_par<Sys, PropertyList>::prop_par() : prop_par<Sys, PropertyList>::base_type
                    typename fusion::result_of::as_vector<parent_rules_sequence>::type,
                    mpl::int_<0> >(sub_rules, parent_rules);
 
-    prop = *(fusion::back(parent_rules)(&qi::_val));
+    //we need to specialy treat empty sequences
+    initalizeLastRule(parent_rules, prop);
 };
 
 template<typename Sys>

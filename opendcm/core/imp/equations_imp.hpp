@@ -117,34 +117,6 @@ constraint_sequence<seq>::operator &(T& val) {
     return vec;
 };
 */
-
-template<typename seq>
-template<typename T>
-typename boost::enable_if<typename seq_has_option<seq, T>::type, constraint_sequence<seq>&>::type
-constraint_sequence<seq>::operator=(const T& val) {
-
-    fusion::filter_view<constraint_sequence, has_option<mpl::_, T > > view(*this);
-    fusion::front(view) = val;
-    return *this;
-};
-
-template<typename Derived, typename Option, int id, bool rotation_only>
-template<typename T>
-typename boost::enable_if<fusion::result_of::has_key<typename Equation<Derived, Option, id, rotation_only>::options, T>, Derived&>::type
-Equation<Derived, Option, id, rotation_only>::operator()(const T& val) {
-    fusion::at_key<T>(values).second = val;
-    fusion::at_key<T>(values).first  = true;
-    return *(static_cast<Derived*>(this));
-};
-
-//assign option
-template<typename Derived, typename Option, int id, bool rotation_only >
-template<typename T>
-typename boost::enable_if<fusion::result_of::has_key<typename Equation<Derived, Option, id, rotation_only>::options, T>, Derived&>::type
-Equation<Derived, Option, id, rotation_only>::operator=(const T& val) {
-    return operator()(val);
-};
-
 template<typename options>
 struct option_copy {
 

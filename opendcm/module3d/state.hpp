@@ -25,15 +25,11 @@
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/karma.hpp>
-#include <boost/spirit/include/phoenix.hpp>
 
 #include <ios>
 
 namespace karma = boost::spirit::karma;
 namespace qi = boost::spirit::qi;
-namespace karma_ascii = boost::spirit::karma::ascii;
-namespace qi_ascii = boost::spirit::qi::ascii;
-namespace phx = boost::phoenix;
 
 namespace dcm {
 
@@ -173,7 +169,7 @@ struct parser_parser< typename details::getModule3D<System>::type::fix_prop, Sys
 }
 
 #ifndef DCM_EXTERNAL_STATE
-#include "state_imp.hpp"
+#include "imp/state_imp.hpp"
 #endif
 
 #endif //DCM_MODULE3D_STATE_HPP

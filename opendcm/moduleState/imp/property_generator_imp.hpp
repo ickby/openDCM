@@ -1,7 +1,7 @@
 #ifndef DCM_PROPERTY_GENERATOR_IMP_H
 #define DCM_PROPERTY_GENERATOR_IMP_H
 
-#include "property_generator.hpp"
+#include "../property_generator.hpp"
 #include "traits_impl.hpp"
 
 namespace dcm {

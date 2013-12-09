@@ -24,6 +24,7 @@
 #include "kernel_imp.hpp"
 #include "transformation_imp.hpp"
 #include "clustergraph_imp.hpp"
+#include "equations_imp.hpp"
 #endif
 
 #include "../system.hpp"

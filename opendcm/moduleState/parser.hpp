@@ -80,7 +80,7 @@ struct parser : qi::grammar<IIterator, typename Sys::Cluster*(Sys*), qi::locals<
 }
 
 #ifndef DCM_EXTERNAL_STATE
-#include "parser_imp.hpp"
+#include "imp/parser_imp.hpp"
 #endif
 
 #endif //DCM_PARSER_H

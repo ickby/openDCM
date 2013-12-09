@@ -73,6 +73,10 @@
 #define DCM_EXTERNAL_STATE_INCLUDE_008 <opendcm/moduleState/parser_imp.hpp>
 #define DCM_EXTERNAL_STATE_008( System )\
     template struct dcm::parser<System>; \
+    
+#define DCM_EXTERNAL_STATE_INCLUDE_009 <opendcm/moduleState/imp/module_imp.hpp>
+#define DCM_EXTERNAL_STATE_009( System )\
+    template struct dcm::ModuleState::type<System>; \
 
 #endif //external
 

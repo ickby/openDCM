@@ -17,12 +17,15 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "parser.hpp"
+#include "m3d.hpp"
 
-#ifdef DCM_EXTERNAL_STATE
-#include DCM_EXTERNAL_STATE_INCLUDE_003
-DCM_EXTERNAL_STATE_003( System )
 
-#include DCM_EXTERNAL_STATE_INCLUDE_009
-DCM_EXTERNAL_STATE_009( System )
+#ifdef DCM_EXTERNAL_CORE
+#include DCM_EXTERNAL_CORE_INCLUDE_01
+DCM_EXTERNAL_CORE_01( SystemNOID )
+#endif
+
+#ifdef DCM_EXTERNAL_3D
+#include DCM_EXTERNAL_3D_INCLUDE_01
+DCM_EXTERNAL_3D_01( SystemNOID )
 #endif

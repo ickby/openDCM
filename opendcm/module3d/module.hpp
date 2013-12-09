@@ -319,9 +319,7 @@ typename boost::add_reference<T>::type get(G geom) {
 
 }//dcm
 
-#ifndef DCM_EXTERNAL_3D
-#include "imp/module3d_imp.hpp"
-#endif
+#include "imp/module_imp.hpp"
 
 #endif //DCM_GEOMETRY3D_H
 

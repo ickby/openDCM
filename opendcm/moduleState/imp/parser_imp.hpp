@@ -28,24 +28,19 @@
 #include <boost/fusion/adapted/struct/adapt_struct.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 
-BOOST_FUSION_ADAPT_TPL_STRUCT(
-    (T1)(T2)(T3)(T4),
-    (dcm::ClusterGraph) (T1)(T2)(T3)(T4),
-    (typename dcm::details::pts<T3>::type, m_properties))
-
-#include "parser.hpp"
-
+#include "../parser.hpp"
+#include "../defines.hpp"
 
 namespace boost { namespace spirit { namespace traits
 {
     template <typename T1, typename T2, typename T3, typename T4>
-    struct transform_attribute<dcm::ClusterGraph<T1,T2,T3,T4>*, dcm::ClusterGraph<T1,T2,T3,T4>, qi::domain>
+    struct transform_attribute<dcm::ClusterGraph<T1,T2,T3,T4>*, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties, qi::domain>
     {
-        typedef dcm::ClusterGraph<T1,T2,T3,T4>& type;
-        static type pre(dcm::ClusterGraph<T1,T2,T3,T4>* const& val) { 
-	    return *val; 
+        typedef typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties& type;
+        static type pre(dcm::ClusterGraph<T1,T2,T3,T4>* & val) { 
+	    return val->m_properties; 
         }
-        static void post(dcm::ClusterGraph<T1,T2,T3,T4>* const& val, dcm::ClusterGraph<T1,T2,T3,T4> const& attr) {}
+        static void post(dcm::ClusterGraph<T1,T2,T3,T4>* const& val, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties const& attr) {}
         static void fail(dcm::ClusterGraph<T1,T2,T3,T4>* const&) {}
     };
 }}}
@@ -61,7 +56,7 @@ parser<Sys>::parser() : parser<Sys>::base_type(cluster) {
 	      >> -(qi::eps( qi::_a > 0 )[qi::_val = phx::new_<typename Sys::Cluster>()])
 	      >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, qi::_val, true)]
 	      >> qi::eps[phx::bind(&Injector<Sys>::setVertexProperty, &in, qi::_val, qi::_a)]
-              >> qi::attr_cast<graph*, graph>(cluster_prop >> qi::eps)
+              >> qi::attr_cast<graph*, typename graph::Properties>(cluster_prop >> qi::eps)
 	      >> qi::omit[(*cluster(qi::_r1))[qi::_b = qi::_1]]
               >> qi::omit[*vertex(qi::_val, qi::_r1)]
               >> qi::omit[*edge(qi::_val, qi::_r1)]

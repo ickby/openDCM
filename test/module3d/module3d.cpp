@@ -20,6 +20,9 @@
 #include "m3d.hpp"
 #include <boost/exception/get_error_info.hpp>
 
+test_constraint test;
+comp_constraint comp_test;
+
 using namespace dcm;
 
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
@@ -120,7 +123,7 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     BOOST_CHECK(kernel::isSame(v2.dot(v3),0, 1e-6));
     BOOST_CHECK(kernel::isSame(v3.dot(v1),0, 1e-6));
 };
-
+/*
 BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
 
     SystemNOID sys;
@@ -160,7 +163,7 @@ BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
     BOOST_CHECK(kernel::isSame((v1-v4).norm(),3, 1e-6));
     BOOST_CHECK(kernel::isSame(v4.dot(v2),0, 1e-6));
     BOOST_CHECK(kernel::isSame((v4-v2).norm(),3, 1e-6));
-}
+}*/
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
 

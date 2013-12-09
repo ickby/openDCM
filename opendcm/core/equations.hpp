@@ -31,6 +31,7 @@
 #include <boost/fusion/include/map.hpp>
 #include <boost/fusion/include/as_map.hpp>
 #include <boost/fusion/include/at_key.hpp>
+#include <boost/fusion/include/filter_view.hpp>
 #include <boost/exception/exception.hpp>
 
 namespace fusion = boost::fusion;
@@ -102,23 +103,29 @@ struct constraint_sequence : public seq {
     void pretty(T type) {
         std::cout<<"pretty: "<<__PRETTY_FUNCTION__<<std::endl;
     };
-    
+
     //dont allow expression equation stacking: the compile time impact is huge if we want to allow
     //text parsing
-/*
-    //an equation gets added to this sequence
-    template<typename T>
-    typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T& val);
+    /*
+        //an equation gets added to this sequence
+        template<typename T>
+        typename boost::enable_if< boost::is_base_of< dcm::EQ, T>, typename pushed_seq<seq, T>::type >::type operator &(T& val);
 
-    //an sequence gets added to this sequence (happens only if sequenced equations like coincident are used)
-    template<typename T>
-    typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, seq>::type >::type operator &(T& val);
-*/
+        //an sequence gets added to this sequence (happens only if sequenced equations like coincident are used)
+        template<typename T>
+        typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, seq>::type >::type operator &(T& val);
+    */
     //we also allow to set values directly into the equation, as this makes it more compftable for multi constraints
     //as align. Note that this only works if all option types of all equations in this sequence are distinguishable
     template<typename T>
     typename boost::enable_if<typename seq_has_option<seq, T>::type, constraint_sequence<seq>&>::type
-    operator=(const T& val);
+    operator=(const T& val) {
+
+        fusion::filter_view<constraint_sequence, has_option<mpl::_, T > > view(*this);
+        fusion::front(view) = val;
+        return *this;
+    };
+
 };
 
 /*
@@ -156,12 +163,18 @@ struct Equation : public EQ {
 
     //assign option
     template<typename T>
-    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val);
-    
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator()(const T& val) {
+        fusion::at_key<T>(values).second = val;
+        fusion::at_key<T>(values).first  = true;
+        return *(static_cast<Derived*>(this));
+    };
+
     //assign option
     template<typename T>
-    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator=(const T& val);
-    
+    typename boost::enable_if<fusion::result_of::has_key<options, T>, Derived&>::type operator=(const T& val) {
+        return operator()(val);
+    };
+
     //assign complete equation (we need to override the operator= in the derived class anyway as it
     //is automaticly created by the compiler, so we use a different name here to avoid duplicate
     //operator= warning on msvc)
@@ -178,7 +191,7 @@ struct Equation : public EQ {
     template<typename T>
     typename boost::enable_if< mpl::is_sequence<T>, typename pushed_seq<T, Derived>::type >::type operator &(T& val);
     */
-    
+
     //set default option values, neeeded for repedability and to prevent unexpected behaviour
     virtual void setDefault() = 0;
 };

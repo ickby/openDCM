@@ -69,7 +69,7 @@ struct vertex_generator : karma::grammar<Iterator, std::vector<typename Sys::Clu
 }//dcm
 
 #ifndef DCM_EXTERNAL_STATE
-  #include "edge_vertex_generator_imp.hpp"
+  #include "imp/edge_vertex_generator_imp.hpp"
 #endif
 
 #endif

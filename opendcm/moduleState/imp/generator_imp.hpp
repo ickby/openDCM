@@ -20,19 +20,11 @@
 #ifndef DCM_GENERATOR_IMP_H
 #define DCM_GENERATOR_IMP_H
 
-#include "generator.hpp"
+#include "../generator.hpp"
 #include "opendcm/core/clustergraph.hpp"
+#include "../defines.hpp"
 
 #include <boost/fusion/include/std_pair.hpp>
-#include <boost/fusion/adapted/struct/adapt_struct.hpp>
-#include <boost/fusion/include/adapt_struct.hpp>
-
-
-BOOST_FUSION_ADAPT_TPL_STRUCT(
-    (T1)(T2)(T3)(T4),
-    (dcm::ClusterGraph) (T1)(T2)(T3)(T4),
-    (int, test)
-    (typename dcm::details::pts<T3>::type, m_properties))
 
 
 namespace boost { namespace spirit { namespace traits

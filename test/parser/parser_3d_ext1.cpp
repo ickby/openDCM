@@ -19,7 +19,12 @@
 
 #include "parser.hpp"
 
-#ifdef DCM_EXTERNAL_STATE
-#include DCM_EXTERNAL_3D_INCLUDE_002
-DCM_EXTERNAL_3D_002( System )
+#ifdef DCM_EXTERNAL_CORE
+#include DCM_EXTERNAL_CORE_INCLUDE_01
+DCM_EXTERNAL_CORE_01( System )
+#endif
+
+#ifdef DCM_EXTERNAL_3D
+#include DCM_EXTERNAL_3D_INCLUDE_01
+DCM_EXTERNAL_3D_01( System )
 #endif

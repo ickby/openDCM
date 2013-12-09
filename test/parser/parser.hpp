@@ -25,7 +25,6 @@
 #include "opendcm/core.hpp"
 #include "opendcm/modulestate.hpp"
 #include "opendcm/module3d.hpp"
-#include "opendcm/externalize.hpp"
 
 #include <iosfwd>
 #include <sstream>
@@ -35,6 +34,8 @@
 #include <boost/spirit/include/phoenix.hpp>
 
 namespace karma = boost::spirit::karma;
+namespace phx = boost::phoenix;
+namespace qi  = boost::spirit::qi;
 
 struct TestModule1 {
 
@@ -79,6 +80,7 @@ struct TestModule1 {
 	typedef dcm::Unspecified_Identifier Identifier;
 	
         static void system_init(Sys& sys) {};
+	static void system_copy(const Sys& from, Sys& into) {};
     };
 };
 

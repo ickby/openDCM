@@ -20,7 +20,7 @@
 #ifndef DCM_EDGE_GENERATOR_IMP_H
 #define DCM_EDGE_GENERATOR_IMP_H
 
-#include "edge_vertex_generator.hpp"
+#include "../edge_vertex_generator.hpp"
 #include "boost/phoenix/fusion/at.hpp"
 
 namespace dcm {

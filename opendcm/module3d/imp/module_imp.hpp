@@ -24,9 +24,8 @@
 
 #include <boost/bind.hpp>
 
-#ifdef DCM_EXTERNAL_CORE
-#include "opendcm/core/imp/equations_imp.hpp"
-#endif
+#include "constraint3d_imp.hpp"
+#include "geometry3d_imp.hpp"
 
 namespace dcm {
 
@@ -43,7 +42,7 @@ namespace details {
 template<typename T>
 struct fusion_vec {
     typedef typename mpl::if_< mpl::is_sequence<T>,
-            T, fusion::vector<T> >::type type;
+            T, fusion::vector1<T> >::type type;
 };
 
 struct set_constraint_option {

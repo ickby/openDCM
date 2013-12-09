@@ -27,6 +27,7 @@
 #include <boost/spirit/include/qi.hpp>
 #include "opendcm/core/clustergraph.hpp"
 #include "extractor.hpp"
+#include "object_parser.hpp"
 
 namespace qi = boost::spirit::qi;
 namespace fusion = boost::fusion;
@@ -69,7 +70,7 @@ struct vertex_parser : qi::grammar< IIterator, fusion::vector<LocalVertex, Globa
 }
 
 #ifndef DCM_EXTERNAL_STATE
-#include "edge_vertex_parser_imp.hpp"
+#include "imp/edge_vertex_parser_imp.hpp"
 #endif
 
 #endif

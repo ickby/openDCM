@@ -21,6 +21,18 @@
 #include "opendcm/module3d.hpp"
 #include "opendcm/modulepart.hpp"
 
+#ifdef DCM_EXTERNAL_CORE
+#include "opendcm/core/imp/system_imp.hpp"
+#include "opendcm/core/imp/kernel_imp.hpp"
+#endif
+
+#ifdef DCM_EXTERNAL_3D
+#include "opendcm/module3d/imp/clustermath_imp.hpp"
+#include "opendcm/module3d/imp/constraint3d_imp.hpp"
+#include "opendcm/module3d/imp/constraint3d_holder_imp.hpp"
+#include "opendcm/module3d/imp/geometry3d_imp.hpp"
+#endif
+
 #include "test/Octave/debugsolver.hpp"
 
 #include <boost/test/unit_test.hpp>

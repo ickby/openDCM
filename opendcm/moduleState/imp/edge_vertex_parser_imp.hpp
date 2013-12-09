@@ -20,7 +20,7 @@
 #ifndef DCM_EDGE_PARSER_IMP_H
 #define DCM_EDGE_PARSER_IMP_H
 
-#include "edge_vertex_parser.hpp"
+#include "../edge_vertex_parser.hpp"
 #include "boost/phoenix/fusion/at.hpp"
 
 namespace dcm {

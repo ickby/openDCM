@@ -74,54 +74,5 @@ typedef Module::type<SystemNOID>::vertex_prop vertex_prop;
 
 BOOST_AUTO_TEST_SUITE(Misc_test_suit);
 
-BOOST_AUTO_TEST_CASE(misc_multi_option_equation){
-  
-    Distance d;
-    fusion::vector<Distance> v;
-    
-    //check default values
-    BOOST_CHECK( fusion::at_key<double>(fusion::front(v).values).second == 0. );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == bidirectional );
-    
-    //only unique equations are allowed, therefore the sequence should hold only one type
-    v = (d=2.) & (d=positiv_directional);
-    
-    BOOST_CHECK( fusion::at_key<double>(fusion::front(v).values).second == 2 );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == positiv_directional );
-    
-    //the basic distance eqution should be set to default values after copy or assignment
-    BOOST_CHECK( fusion::at_key<double>(d.values).second == 0 );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == bidirectional );
-     
-    //test default value after assignment
-    Distance d2;
-    (d = 2.) & (d=positiv_directional);
-    d2 = d;
-    BOOST_CHECK( fusion::at_key<double>(d.values).second == 0. );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(d.values).second == bidirectional );
-
-    
-    //test partial value overriding
-    v = (d=2.) & (d=positiv_directional) & (d=5.);
-    
-    BOOST_CHECK( fusion::at_key<double>(fusion::front(v).values).second == 5. );
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v).values).second == positiv_directional );
-    
-    //test multi-equation constraint value assigment
-    Alignment a;    
-    fusion::vector<Distance, details::al_orientation> v2 = (a=positiv_directional) & (a=perpendicular) & (a=-2.);
-    
-    BOOST_CHECK( fusion::at_key<double>(fusion::front(v2).values).second == -2. ); 
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(v2).values).second == positiv_directional ); 
-    BOOST_CHECK( fusion::at_key<Direction>(fusion::back(v2).values).second == perpendicular ); 
-    BOOST_CHECK( fusion::at_key<double>(fusion::front(a).values).second == 0 ); 
-    BOOST_CHECK( fusion::at_key<SolutionSpace>(fusion::front(a).values).second == bidirectional ); 
-    BOOST_CHECK( fusion::at_key<Direction>(fusion::back(a).values).second == parallel ); 
-    
-    //test funny mixtures
-    Coincidence c;
-    Distance d3;
-    c & d3;
-};
 
 BOOST_AUTO_TEST_SUITE_END();
