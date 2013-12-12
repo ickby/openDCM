@@ -155,42 +155,42 @@ System<KernelType, T1, T2, T3>* System<KernelType, T1, T2, T3>::createSubsystem(
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-template<typename Setting>
-typename boost::enable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Setting>::type,
-         typename mpl::end<typename KernelType::properties>::type >, typename Setting::type& >::type
-System<KernelType, T1, T2, T3>::getSetting() {
-    return m_settings.template getProperty<Setting>();
+template<typename Option>
+typename boost::enable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Option>::type,
+         typename mpl::end<typename KernelType::properties>::type >, typename Option::type& >::type
+System<KernelType, T1, T2, T3>::getOption() {
+    return m_options.template getProperty<Option>();
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-template<typename Setting>
-typename boost::disable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Setting>::type,
-         typename mpl::end<typename KernelType::properties>::type >, typename Setting::type& >::type
-System<KernelType, T1, T2, T3>::getSetting() {
-    return m_kernel.template getProperty<Setting>();
+template<typename Option>
+typename boost::disable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Option>::type,
+         typename mpl::end<typename KernelType::properties>::type >, typename Option::type& >::type
+System<KernelType, T1, T2, T3>::getOption() {
+    return m_kernel.template getProperty<Option>();
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-template<typename Setting>
-typename boost::enable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Setting>::type,
+template<typename Option>
+typename boost::enable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Option>::type,
          typename mpl::end<typename KernelType::properties>::type >, void >::type
-System<KernelType, T1, T2, T3>::setSetting(typename Setting::type value) {
-    m_settings.template setProperty<Setting>(value);
+System<KernelType, T1, T2, T3>::setOption(typename Option::type value) {
+    m_options.template setProperty<Option>(value);
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-template<typename Setting>
-typename boost::disable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Setting>::type,
+template<typename Option>
+typename boost::disable_if< boost::is_same< typename mpl::find<typename KernelType::properties, Option>::type,
          typename mpl::end<typename KernelType::properties>::type >, void >::type
-System<KernelType, T1, T2, T3>::setSetting(typename Setting::type value) {
-    m_kernel.template setProperty<Setting>(value);
+System<KernelType, T1, T2, T3>::setOption(typename Option::type value) {
+    m_kernel.template setProperty<Option>(value);
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-template<typename Setting>
-typename Setting::type&
-System<KernelType, T1, T2, T3>::setting() {
-    return getSetting<Setting>();
+template<typename Option>
+typename Option::type&
+System<KernelType, T1, T2, T3>::option() {
+    return getOption<Option>();
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >

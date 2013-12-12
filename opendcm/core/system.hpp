@@ -186,8 +186,8 @@ protected:
     
     //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user 
     //should not access the settings via the proeprty getter and setter functions.
-    typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> SettingOwner;
-    SettingOwner m_settings;
+    typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> OptionOwner;
+    OptionOwner m_options;
 
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
@@ -224,25 +224,25 @@ public:
     System* createSubsystem();
     
     //a kernel has it's own settings, therefore we need to decide which is accessed
-    template<typename Setting>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Setting>::type,
-    typename mpl::end<typename Kernel::properties>::type >, typename Setting::type& >::type getSetting();
+    template<typename Option>
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
+    typename mpl::end<typename Kernel::properties>::type >, typename Option::type& >::type getOption();
     
-    template<typename Setting>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Setting>::type,
-    typename mpl::end<typename Kernel::properties>::type >, typename Setting::type& >::type getSetting();
+    template<typename Option>
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
+    typename mpl::end<typename Kernel::properties>::type >, typename Option::type& >::type getOption();
     
-    template<typename Setting>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Setting>::type,
-    typename mpl::end<typename Kernel::properties>::type >, void >::type setSetting(typename Setting::type value);
+    template<typename Option>
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
+    typename mpl::end<typename Kernel::properties>::type >, void >::type setOption(typename Option::type value);
     
-    template<typename Setting>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Setting>::type,
-    typename mpl::end<typename Kernel::properties>::type >, void >::type setSetting(typename Setting::type value);
+    template<typename Option>
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
+    typename mpl::end<typename Kernel::properties>::type >, void >::type setOption(typename Option::type value);
     
     //convinience function
-    template<typename Setting>
-    typename Setting::type& setting();
+    template<typename Option>
+    typename Option::type& option();
     
     //let evryone access and use our math kernel
     Kernel& kernel();

@@ -219,16 +219,16 @@ BOOST_AUTO_TEST_CASE(settings_properties) {
     typedef TestModule1::type<System> Module1;
     
     //check general settings
-    BOOST_CHECK(sys.getSetting<Module1::setting1_prop>());
-    sys.setSetting<Module1::setting1_prop>(false);
-    BOOST_CHECK(!sys.getSetting<Module1::setting1_prop>());
-    sys.getSetting<Module1::setting1_prop>() = true;
-    BOOST_CHECK(sys.getSetting<Module1::setting1_prop>());
+    BOOST_CHECK(sys.getOption<Module1::setting1_prop>());
+    sys.setOption<Module1::setting1_prop>(false);
+    BOOST_CHECK(!sys.getOption<Module1::setting1_prop>());
+    sys.getOption<Module1::setting1_prop>() = true;
+    BOOST_CHECK(sys.getOption<Module1::setting1_prop>());
     
     //test kernel settings
-    BOOST_CHECK(sys.setting<dcm::precision>() == 1e-6);
-    sys.setting<dcm::precision>() = 4e-7;
-    BOOST_CHECK(sys.setting<dcm::precision>() == 4e-7);
+    BOOST_CHECK(sys.option<dcm::precision>() == 1e-6);
+    sys.option<dcm::precision>() = 4e-7;
+    BOOST_CHECK(sys.option<dcm::precision>() == 4e-7);
 };
 
 struct test_functor_void {
