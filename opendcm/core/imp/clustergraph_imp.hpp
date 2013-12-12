@@ -1,4 +1,4 @@
-/*
+  /*
     openDCM, dimensional constraint manager
     Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
 
@@ -389,7 +389,7 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::numClusters() const
 }
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::isCluster(LocalVertex v) {
+bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::isCluster(const LocalVertex v) const {
     return (m_clusters.find(v) != m_clusters.end());
 };
 
@@ -498,6 +498,22 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex() {
 
     setChanged();
     return fusion::make_vector(v, m_id->count());
+};
+
+template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+fusion::vector<LocalVertex, GlobalVertex>
+ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex(GlobalVertex gv) {
+
+    vertex_bundle vp;
+    fusion::at_c<0> (vp) = gv;
+    LocalVertex v = boost::add_vertex(vp, *this);
+    
+    //ensure that we never create this id, as it is used now
+    if(gv > m_id->count())
+      m_id->setCount(gv);
+
+    setChanged();
+    return fusion::make_vector(v, gv);
 };
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
@@ -626,13 +642,6 @@ template< typename edge_prop, typename vertex_prop, typename cluster_prop, typen
 GlobalVertex
 ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getGlobalVertex(LocalVertex v) const {
     return fusion::at_c<0> ((*this) [v]);
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-GlobalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::setGlobalVertex(LocalVertex lv, GlobalVertex gv) {
-    fusion::at_c<0> ((*this) [lv]) = gv;
-    return gv;
 };
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>

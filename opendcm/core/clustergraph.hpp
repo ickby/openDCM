@@ -134,7 +134,7 @@ struct IDgen {
     /**
      * @brief Set the current value for incremental creation
      *
-     * ID's are created incrementaly and if a specific startingpoint is whised it can be set here by
+     * ID's are created incrementaly and if a specific startingpoint is wished it can be set here by
      * supplying the last created ID or the amount of totaly created ID's
      *
      * @param id The last created ID
@@ -543,7 +543,7 @@ public:
      * @param v The vertex to be checked
      * @return bool is cluster or not
      **/
-    bool isCluster(LocalVertex v);
+    bool isCluster(const dcm::LocalVertex v) const;
 
     /**
      * @brief Get the cluster corresponding the discriptor
@@ -617,6 +617,18 @@ public:
      **/
     fusion::vector<LocalVertex, GlobalVertex> addVertex();
 
+    /**
+     * @brief Add a vertex to the local cluster with given global identifier
+     *
+     * Sometimes it is needed to add a vertex with given global identifier. As the global vertex can not
+     * be changed after creation, this method can be used to specify the global vertex by which this 
+     * graph vertex can be identified. The given global vertex is not checked, you need to ensure that 
+     * it is a unique id. The ID generator is changed so that it creates only identifier bigger than v.
+     * 
+     * @return fusion::vector<LocalVertex, GlobalVertex> the local and global vertex descriptor
+     **/
+    fusion::vector<LocalVertex, GlobalVertex> addVertex(GlobalVertex v);
+    
     /**
      * @brief Iterators of all global vertices in this cluster
      *
@@ -730,18 +742,6 @@ public:
      * @return GlobalVertex
      **/
     GlobalVertex getGlobalVertex(LocalVertex v) const;
-
-    /**
-     * @brief Set the GlobalVertex assiociated with this local one.
-     *
-     * Be carefull, LocalVertices get an global value assigned while created, override it only when your
-     * are sure that it is unique
-     *
-     * @param lv LocalVertex which sould get assigned the global one
-     * @param gv The value which the localVertex should get assigned
-     * @return GlobalVertex which was assigned
-     **/
-    GlobalVertex setGlobalVertex(LocalVertex lv, GlobalVertex gv);
 
     /**
      * @brief Get the LocalVertex which corresponds to the golab one

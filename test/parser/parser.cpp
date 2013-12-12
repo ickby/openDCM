@@ -130,12 +130,25 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     std::stringstream s;
     sys.saveState(s);
 
+    std::cout<<s.str()<<std::endl;
+     
     //change main graphs property as this is not reset
     sys.m_cluster->setProperty<dcm::type_prop>(2);
     sys.m_cluster->setProperty<dcm::changed_prop>(false);
+    
+    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
 
+    sys.clear();
+    BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 0);
+    BOOST_CHECK(boost::num_edges(*sys.m_cluster) == 0);
+    BOOST_REQUIRE(sys.m_cluster->numClusters() == 0);
+    
+    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
+    
     //load the state
     sys.loadState(s);
+    
+    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
 
     //check clusters
     BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 5);
@@ -201,7 +214,7 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   std::stringstream s;
   sys.saveState(s);
   
-  std::cout<<s.str()<<std::endl;
+//  std::cout<<s.str()<<std::endl;
   
   sys2.loadState(s);
   

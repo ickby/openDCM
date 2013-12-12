@@ -62,7 +62,7 @@ parser<Sys>::parser() : parser<Sys>::base_type(cluster) {
               >> qi::omit[*edge(qi::_val, qi::_r1)]
               >> qi::eps[phx::bind(&Injector<Sys>::addClusters, &in, qi::_b, qi::_val)]
               >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, qi::_val, false)]
-              >> "</Cluster>";// >> str[&sp::print];
+              >> "</Cluster>";
 };
 
 }
