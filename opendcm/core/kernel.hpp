@@ -192,7 +192,6 @@ struct Kernel : public PropertyOwner< mpl::vector<precision> > {
     template<typename Functor>
     int solve(MappedEquationSystem& mes, Functor& f);
 
-    typedef mpl::vector1<precision> properties;
 };
 
   

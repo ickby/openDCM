@@ -49,7 +49,9 @@
 #define DCM_EXTERNAL_STATE_003( System )\
     template struct dcm::details::vertex_prop_gen<System>; \
     template struct dcm::details::edge_prop_gen<System>; \
-    template struct dcm::details::cluster_prop_gen<System>;
+    template struct dcm::details::cluster_prop_gen<System>; \
+    template struct dcm::details::system_prop_gen<System>; \
+    template struct dcm::details::kernel_prop_gen<System>; 
 
 #define DCM_EXTERNAL_STATE_INCLUDE_004 <opendcm/moduleState/generator_imp.hpp>
 #define DCM_EXTERNAL_STATE_004( System )\
@@ -59,7 +61,9 @@
 #define DCM_EXTERNAL_STATE_005( System )\
     template struct dcm::details::vertex_prop_par<System>; \
     template struct dcm::details::edge_prop_par<System>; \
-    template struct dcm::details::cluster_prop_par<System>;
+    template struct dcm::details::cluster_prop_par<System>; \
+    template struct dcm::details::system_prop_par<System>; \
+    template struct dcm::details::kernel_prop_par<System>; 
     
 #define DCM_EXTERNAL_STATE_INCLUDE_006 <opendcm/moduleState/object_parser_imp.hpp>
 #define DCM_EXTERNAL_STATE_006( System )\

@@ -25,36 +25,44 @@
 #include "../defines.hpp"
 
 #include <boost/fusion/include/std_pair.hpp>
+#include <boost/fusion/adapted/struct.hpp>
 
-
-namespace boost { namespace spirit { namespace traits
+namespace boost {
+namespace spirit {
+namespace traits
 {
-    template <typename T1, typename T2, typename T3, typename T4>
-    struct transform_attribute<dcm::ClusterGraph<T1,T2,T3,T4>* const, dcm::ClusterGraph<T1,T2,T3,T4>&, karma::domain>
-    {
-        typedef dcm::ClusterGraph<T1,T2,T3,T4>& type;
-        static type pre(dcm::ClusterGraph<T1,T2,T3,T4>* const& val) { 
-	    return *val; 
-        }
-    };
-}}}
+template <typename T1, typename T2, typename T3, typename T4>
+struct transform_attribute<boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> > const, dcm::ClusterGraph<T1,T2,T3,T4>&, karma::domain>
+{
+    typedef dcm::ClusterGraph<T1,T2,T3,T4>& type;
+    static type pre(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> > const& val) {
+        return *val;
+    }
+};
+}
+}
+}
 
 namespace dcm {
 
 template<typename Sys>
 generator<Sys>::generator() : generator<Sys>::base_type(start) {
-           
+
     cluster %= karma::omit[karma::int_] << cluster_prop
-	       << -karma::buffer[karma::eol << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, &ex, karma::_val, karma::_1)]]
-	       << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, &ex, karma::_val, karma::_1)]
-	       << -karma::buffer[karma::eol << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, &ex, karma::_val, karma::_1)]]
+               << -karma::buffer[karma::eol << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, &ex, karma::_val, karma::_1)]]
+               << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, &ex, karma::_val, karma::_1)]
+               << -karma::buffer[karma::eol << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, &ex, karma::_val, karma::_1)]]
                << "-" << karma::eol
                << karma::lit("</Cluster>");
 
-    cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">+" 
-		    << karma::attr_cast<graph*,graph&>(cluster); 
-		    
-    start %= karma::lit("<Cluster id=0>+") << cluster;
+    cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">+"
+                    << qi::attr_cast<boost::shared_ptr<graph>, graph&>(cluster);
+
+    system %= system_prop << karma::lit("<Kernel>+") << kernel_prop
+              << "-" << karma::eol << karma::lit("</Kernel>") << karma::eol
+	      << karma::lit("<Cluster id=0>+") << qi::attr_cast<boost::shared_ptr<graph>, graph&>(cluster);
+
+    start %= karma::lit("<openDCM>+") << karma::eol << system << "-" << karma::eol << karma::lit("</openDCM>");
 };
 
 }//namespace dcm

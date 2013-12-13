@@ -87,6 +87,12 @@ vertex_prop_par<Sys>::vertex_prop_par() : prop_par<Sys, typename Sys::Cluster::v
 template<typename Sys>
 edge_prop_par<Sys>::edge_prop_par() : prop_par<Sys, typename Sys::Cluster::edge_properties>() {};
 
+template<typename Sys>
+kernel_prop_par<Sys>::kernel_prop_par() : prop_par<Sys, typename Sys::Kernel::PropertySequence>() {};
+
+template<typename Sys>
+system_prop_par<Sys>::system_prop_par() : prop_par<Sys, typename Sys::OptionOwner::PropertySequence>() {};
+
 } //DCM
 } //details
 

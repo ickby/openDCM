@@ -173,6 +173,12 @@ public:
 	    mpl::vector1<vertex_index_prop> >::type 	vertex_properties;
     typedef typename details::cluster_fold< properties,
             mpl::vector2<changed_prop, type_prop>  >::type cluster_properties;
+	    
+    //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user 
+    //should not access the settings via the proeprty getter and setter functions.
+    typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> OptionOwner;
+    OptionOwner m_options;
+
 
 protected:
     //object storage
@@ -183,11 +189,6 @@ protected:
 
     template<typename FT1, typename FT2, typename FT3>
     friend struct Object;
-    
-    //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user 
-    //should not access the settings via the proeprty getter and setter functions.
-    typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> OptionOwner;
-    OptionOwner m_options;
 
 #ifdef USE_LOGGING
     boost::shared_ptr< sink_t > sink;
@@ -225,20 +226,20 @@ public:
     
     //a kernel has it's own settings, therefore we need to decide which is accessed
     template<typename Option>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
-    typename mpl::end<typename Kernel::properties>::type >, typename Option::type& >::type getOption();
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
+    typename mpl::end<typename Kernel::Properties>::type >, typename Option::type& >::type getOption();
     
     template<typename Option>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
-    typename mpl::end<typename Kernel::properties>::type >, typename Option::type& >::type getOption();
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
+    typename mpl::end<typename Kernel::Properties>::type >, typename Option::type& >::type getOption();
     
     template<typename Option>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
-    typename mpl::end<typename Kernel::properties>::type >, void >::type setOption(typename Option::type value);
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
+    typename mpl::end<typename Kernel::Properties>::type >, void >::type setOption(typename Option::type value);
     
     template<typename Option>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::properties, Option>::type,
-    typename mpl::end<typename Kernel::properties>::type >, void >::type setOption(typename Option::type value);
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
+    typename mpl::end<typename Kernel::Properties>::type >, void >::type setOption(typename Option::type value);
     
     //convinience function
     template<typename Option>

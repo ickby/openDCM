@@ -235,7 +235,7 @@ struct notype {};
 template<typename t1, typename t2, typename ct>
 struct createConstraint {
     cons_ptr apply(System& system, geom_ptr g1, geom_ptr g2, t1 val1, t2 val2, ct type) {
-        return system.createConstraint3D(g2, g1, (type=val1) & (type=val2));
+        return system.createConstraint3D(g2, g1, type = val1 = val2);
     };
 };
 

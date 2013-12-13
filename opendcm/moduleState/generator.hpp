@@ -53,7 +53,7 @@ namespace dcm {
 typedef std::ostream_iterator<char> Iterator;
 
 template<typename Sys>
-struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
+struct generator : karma::grammar<Iterator, Sys&()> {
 
     typedef typename Sys::Cluster graph;
     typedef typename graph::Properties graph_bundle;
@@ -62,11 +62,15 @@ struct generator : karma::grammar<Iterator, typename Sys::Cluster& ()> {
 
     generator();
 
-    karma::rule<Iterator, graph& ()> start;
+    karma::rule<Iterator, Sys& ()> start;
 
-    karma::rule<Iterator, std::pair<GlobalVertex, graph*>()> cluster_pair;
+    karma::rule<Iterator, std::pair<GlobalVertex, boost::shared_ptr<graph> >()> cluster_pair;
     karma::rule<Iterator, graph&()> cluster;   
+    karma::rule<Iterator, Sys&()>   system;
+    
     details::cluster_prop_gen<Sys> cluster_prop;
+    details::system_prop_gen<Sys>  system_prop;
+    details::kernel_prop_gen<Sys>  kernel_prop;
 
     details::vertex_generator<Sys> vertex_range;
     details::edge_generator<Sys> edge_range;

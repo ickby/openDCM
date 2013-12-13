@@ -37,6 +37,13 @@ vertex_prop_gen<Sys>::vertex_prop_gen() : prop_gen<Sys, typename Sys::Cluster::v
 template<typename Sys>
 edge_prop_gen<Sys>::edge_prop_gen() : prop_gen<Sys, typename Sys::Cluster::edge_properties>() {};
 
+template<typename Sys>
+system_prop_gen<Sys>::system_prop_gen() : prop_gen<Sys, typename Sys::OptionOwner::PropertySequence>() {};
+
+template<typename Sys>
+kernel_prop_gen<Sys>::kernel_prop_gen() : prop_gen<Sys, typename Sys::Kernel::PropertySequence>() {};
+
+
 }//details
 }//dcm
 

@@ -42,7 +42,7 @@ void ModuleState::type<Sys>::inheriter::saveState(std::ostream& stream) {
     std::ostream_iterator<char> out(indent_stream);
     generator<Sys> gen;
 
-    karma::generate(out, gen, *m_this->m_cluster);
+    karma::generate(out, gen, *m_this);
 };
 
 template<typename Sys>
@@ -58,8 +58,7 @@ void ModuleState::type<Sys>::inheriter::loadState(std::istream& stream) {
     // use iterator to parse file data
     parser<Sys> par;
     m_this->clear();
-    typename Sys::Cluster* cl_ptr = m_this->m_cluster.get();
-    qi::phrase_parse(begin, end, par(m_this), qi::space, cl_ptr);
+    qi::phrase_parse(begin, end, par, qi::space, *m_this);
 };
 
 }
