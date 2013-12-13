@@ -25,6 +25,7 @@
 
 #include "../traits.hpp"
 #include "../defines.hpp"
+#include "opendcm/core/kernel.hpp"
 
 #include <boost/mpl/bool.hpp>
 
@@ -81,6 +82,18 @@ struct parser_generator<changed_prop, System, iterator> {
 };
 
 template<typename System>
+struct parser_generate<precision, System> : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_generator<precision, System, iterator> {
+    typedef karma::rule<iterator, double&()> generator;
+
+    static void init(generator& r) {
+        r = karma::lit("<type>precision</type>\n<value>") << karma::double_ <<"</value>";
+    };
+};
+
+template<typename System>
 struct parser_generate<id_prop<typename System::Identifier>, System>
         : public mpl::not_<boost::is_same<typename System::Identifier, No_Identifier> > {};
 
@@ -114,6 +127,18 @@ struct parser_parser<changed_prop, System, iterator> {
 
     static void init(parser& r) {
         r = qi::lit("<type>clusterchanged</type>") >> ("<value>") >> qi::bool_ >>"</value>" ;
+    };
+};
+
+template<typename System>
+struct parser_parse<precision, System> : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_parser<precision, System, iterator> {
+    typedef qi::rule<iterator, double(), qi::space_type> parser;
+
+    static void init(parser& r) {
+        r = qi::lit("<type>precision</type>") >> ("<value>") >> qi::double_ >>"</value>" ;
     };
 };
 

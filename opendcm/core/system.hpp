@@ -226,20 +226,20 @@ public:
     
     //a kernel has it's own settings, therefore we need to decide which is accessed
     template<typename Option>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
-    typename mpl::end<typename Kernel::Properties>::type >, typename Option::type& >::type getOption();
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
+    typename mpl::end<typename Kernel::PropertySequence>::type >, typename Option::type& >::type getOption();
     
     template<typename Option>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
-    typename mpl::end<typename Kernel::Properties>::type >, typename Option::type& >::type getOption();
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
+    typename mpl::end<typename Kernel::PropertySequence>::type >, typename Option::type& >::type getOption();
     
     template<typename Option>
-    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
-    typename mpl::end<typename Kernel::Properties>::type >, void >::type setOption(typename Option::type value);
+    typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
+    typename mpl::end<typename Kernel::PropertySequence>::type >, void >::type setOption(typename Option::type value);
     
     template<typename Option>
-    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::Properties, Option>::type,
-    typename mpl::end<typename Kernel::Properties>::type >, void >::type setOption(typename Option::type value);
+    typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
+    typename mpl::end<typename Kernel::PropertySequence>::type >, void >::type setOption(typename Option::type value);
     
     //convinience function
     template<typename Option>

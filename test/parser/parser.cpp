@@ -211,8 +211,13 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   boost::shared_ptr<Geometry3D> g2 = sys.createGeometry3D(v2, 2);
   sys.createConstraint3D(3, g1, g2, dcm::distance=3.);
   
+  sys.setOption<dcm::precision>(2e-9);
+  
   std::stringstream s;
   sys.saveState(s);
+  
+  //some things are note reset!
+  sys.setOption<dcm::precision>(5e-2);
   
 //  std::cout<<s.str()<<std::endl;
   
@@ -246,6 +251,7 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   nv2 = get<Eigen::Vector3d>(ng2);
   
   BOOST_CHECK( Kernel::isSame((nv1-nv2).norm(), 3, 10e-6) );
+  BOOST_CHECK( Kernel::isSame(sys.getOption<dcm::precision>(), 2e-9, 1e-12) );
   
 }
 

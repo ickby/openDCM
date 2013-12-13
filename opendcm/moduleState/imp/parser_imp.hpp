@@ -31,19 +31,23 @@
 #include "../parser.hpp"
 #include "../defines.hpp"
 
-namespace boost { namespace spirit { namespace traits
+namespace boost {
+namespace spirit {
+namespace traits
 {
-    template <typename T1, typename T2, typename T3, typename T4>
-    struct transform_attribute<boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> >, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties, qi::domain>
-    {
-        typedef typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties& type;
-        static type pre(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> > & val) { 
-	    return val->m_properties; 
-        }
-        static void post(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> >const& val, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties const& attr) {}
-        static void fail(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> > const&) {}
-    };
-}}}
+template <typename T1, typename T2, typename T3, typename T4>
+struct transform_attribute<boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> >, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties, qi::domain>
+{
+    typedef typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties& type;
+    static type pre(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> >& val) {
+        return val->m_properties;
+    }
+    static void post(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> >const& val, typename dcm::ClusterGraph<T1,T2,T3,T4>::Properties const& attr) {}
+    static void fail(boost::shared_ptr<dcm::ClusterGraph<T1,T2,T3,T4> > const&) {}
+};
+}
+}
+}
 
 namespace dcm {
 
@@ -53,20 +57,20 @@ template<typename Sys>
 parser<Sys>::parser() : parser<Sys>::base_type(system) {
 
     cluster %= qi::lit("<Cluster id=") >> qi::omit[qi::int_[qi::_a = qi::_1]] >> ">"
-	      >> -(qi::eps( qi::_a > 0 )[qi::_val = phx::construct<boost::shared_ptr<graph> >(phx::new_<typename Sys::Cluster>())])
-	      >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, &(*qi::_val), true)]
-	      >> qi::eps[phx::bind(&Injector<Sys>::setVertexProperty, &in, &(*qi::_val), qi::_a)]
-              >> qi::attr_cast<boost::shared_ptr<graph>, typename graph::Properties>(cluster_prop >> qi::eps)
-	      >> qi::omit[(*cluster(qi::_r1))[qi::_b = qi::_1]]
-              >> qi::omit[*vertex(&(*qi::_val), qi::_r1)]
-              >> qi::omit[*edge(&(*qi::_val), qi::_r1)]
-              >> qi::eps[phx::bind(&Injector<Sys>::addClusters, &in, qi::_b, &(*qi::_val))]
-              >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, &(*qi::_val), false)]
-              >> "</Cluster>";
-	      
-    system %= qi::lit("<openDCM>") >> -system_prop 
-	      >> qi::lit("<Kernel>") >> -kernel_prop >> qi::lit("</Kernel>")
-	      >> cluster(&qi::_val) >> qi::lit("</openDCM>");
+               >> -(qi::eps(qi::_a > 0)[qi::_val = phx::construct<boost::shared_ptr<graph> >(phx::new_<typename Sys::Cluster>())])
+               >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, &(*qi::_val), true)]
+               >> qi::eps[phx::bind(&Injector<Sys>::setVertexProperty, &in, &(*qi::_val), qi::_a)]
+               >> qi::attr_cast<boost::shared_ptr<graph>, typename graph::Properties>(cluster_prop >> qi::eps)
+               >> qi::omit[(*cluster(qi::_r1))[qi::_b = qi::_1]]
+               >> qi::omit[*vertex(&(*qi::_val), qi::_r1)]
+               >> qi::omit[*edge(&(*qi::_val), qi::_r1)]
+               >> qi::eps[phx::bind(&Injector<Sys>::addClusters, &in, qi::_b, &(*qi::_val))]
+               >> qi::eps[phx::bind(&Sys::Cluster::setCopyMode, &(*qi::_val), false)]
+               >> "</Cluster>";
+
+    system %= qi::lit("<openDCM>") >> -system_prop
+              >> qi::lit("<Kernel>") >> -kernel_prop >> qi::lit("</Kernel>")
+              >> cluster(&qi::_val) >> qi::lit("</openDCM>");
 };
 
 }
