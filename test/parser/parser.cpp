@@ -130,26 +130,26 @@ BOOST_AUTO_TEST_CASE(parser_graph) {
     std::stringstream s;
     sys.saveState(s);
 
-    std::cout<<s.str()<<std::endl;
+    //std::cout<<s.str()<<std::endl;
      
     //change main graphs property as this is not reset
     sys.m_cluster->setProperty<dcm::type_prop>(2);
     sys.m_cluster->setProperty<dcm::changed_prop>(false);
-    
-    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
 
     sys.clear();
     BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 0);
     BOOST_CHECK(boost::num_edges(*sys.m_cluster) == 0);
     BOOST_REQUIRE(sys.m_cluster->numClusters() == 0);
     
-    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
-    
+    //change properties so we can see if they get rewritten
+    sys.m_cluster->getProperty<dcm::type_prop>() = 35;
+    sys.m_cluster->getProperty<dcm::changed_prop>() = true;
+    scl1->getProperty<dcm::type_prop>() = 32;
+    scl2->getProperty<dcm::type_prop>() = 37;
+      
     //load the state
     sys.loadState(s);
-    
-    std::cout<<"num vertices:" << boost::num_vertices(*sys.m_cluster)<<std::endl;
-
+ 
     //check clusters
     BOOST_CHECK(boost::num_vertices(*sys.m_cluster) == 5);
     BOOST_CHECK(boost::num_edges(*sys.m_cluster) == 5);
@@ -216,10 +216,10 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   std::stringstream s;
   sys.saveState(s);
   
-  //some things are note reset!
+  //some things are note reset, to test we need to override them first!
   sys.setOption<dcm::precision>(5e-2);
   
-//  std::cout<<s.str()<<std::endl;
+  std::cout<<s.str()<<std::endl;
   
   sys2.loadState(s);
   
@@ -252,6 +252,8 @@ BOOST_AUTO_TEST_CASE(parser_module3d) {
   
   BOOST_CHECK( Kernel::isSame((nv1-nv2).norm(), 3, 10e-6) );
   BOOST_CHECK( Kernel::isSame(sys.getOption<dcm::precision>(), 2e-9, 1e-12) );
+  
+  std::cout<<"precision: "<<sys.getOption<dcm::precision>()<<std::endl;
   
 }
 

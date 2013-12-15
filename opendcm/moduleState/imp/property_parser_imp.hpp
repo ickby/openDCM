@@ -21,6 +21,8 @@
 #define DCM_PROPERTY_PARSER_IMP_H
 
 #include "../property_parser.hpp"
+#include "traits_impl.hpp"
+
 #include <boost/fusion/include/back.hpp>
 #include <boost/phoenix/fusion/at.hpp>
 

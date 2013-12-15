@@ -52,17 +52,17 @@ generator<Sys>::generator() : generator<Sys>::base_type(start) {
                << -karma::buffer[karma::eol << (cluster_pair % karma::eol)[phx::bind(&Extractor<Sys>::getClusterRange, &ex, karma::_val, karma::_1)]]
                << -vertex_range[phx::bind(&Extractor<Sys>::getVertexRange, &ex, karma::_val, karma::_1)]
                << -karma::buffer[karma::eol << edge_range[phx::bind(&Extractor<Sys>::getEdgeRange, &ex, karma::_val, karma::_1)]]
-               << "-" << karma::eol
+               << "$" << karma::eol
                << karma::lit("</Cluster>");
 
-    cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">+"
+    cluster_pair %= karma::lit("<Cluster id=") << karma::int_ <<  ">#"
                     << qi::attr_cast<boost::shared_ptr<graph>, graph&>(cluster);
 
-    system %= system_prop << karma::lit("<Kernel>+") << kernel_prop
-              << "-" << karma::eol << karma::lit("</Kernel>") << karma::eol
-	      << karma::lit("<Cluster id=0>+") << qi::attr_cast<boost::shared_ptr<graph>, graph&>(cluster);
+    system %= system_prop << karma::lit("<Kernel>#") << kernel_prop
+              << "$" << karma::eol << karma::lit("</Kernel>") << karma::eol
+	      << karma::lit("<Cluster id=0>#") << qi::attr_cast<boost::shared_ptr<graph>, graph&>(cluster);
 
-    start %= karma::lit("<openDCM>+") << karma::eol << system << "-" << karma::eol << karma::lit("</openDCM>");
+    start %= karma::lit("<openDCM>#") << karma::eol << system << "$" << karma::eol << karma::lit("</openDCM>");
 };
 
 }//namespace dcm

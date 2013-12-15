@@ -32,14 +32,14 @@ edge_generator<Sys>::edge_generator() : edge_generator<Sys>::base_type(edge_rang
         globaledge = karma::int_[phx::bind(&Extractor<Sys>::getGlobalEdgeID, &ex, karma::_val, karma::_1)]
                      << " source=" << karma::int_[phx::bind(&Extractor<Sys>::getGlobalEdgeSource, &ex, karma::_val, karma::_1)]
                      << " target=" << karma::int_[phx::bind(&Extractor<Sys>::getGlobalEdgeTarget, &ex, karma::_val, karma::_1)] << '>'
-                     << "+" << objects[karma::_1 = phx::at_c<0>(karma::_val)] << "-\n" ;
+                     << "#" << objects[karma::_1 = phx::at_c<0>(karma::_val)] << "$\n" ;
 
 
         globaledge_range = *(karma::lit("<GlobalEdge id=")<<globaledge<<karma::lit("</GlobalEdge>"));
 
-        edge =  karma::lit("source=")<<karma::int_[karma::_1 = phx::at_c<1>(karma::_val)] << " target="<<karma::int_[karma::_1 = phx::at_c<2>(karma::_val)] << ">+"
+        edge =  karma::lit("source=")<<karma::int_[karma::_1 = phx::at_c<1>(karma::_val)] << " target="<<karma::int_[karma::_1 = phx::at_c<2>(karma::_val)] << ">#"
                 << edge_prop[karma::_1 = phx::at_c<0>(phx::at_c<0>(karma::_val))]
-                << karma::eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(karma::_val))] << '-' << karma::eol;
+                << karma::eol << globaledge_range[karma::_1 = phx::at_c<1>(phx::at_c<0>(karma::_val))] << '$' << karma::eol;
 
         edge_range = (karma::lit("<Edge ") << edge << karma::lit("</Edge>")) % karma::eol;
 };
@@ -47,7 +47,7 @@ edge_generator<Sys>::edge_generator() : edge_generator<Sys>::base_type(edge_rang
 template<typename Sys>
 vertex_generator<Sys>::vertex_generator() : vertex_generator<Sys>::base_type(vertex_range) {
   
-        vertex = karma::int_ << ">+" << vertex_prop << objects << "-\n";
+        vertex = karma::int_ << ">#" << vertex_prop << objects << "$\n";
 
         vertex_range = '\n' << (karma::lit("<Vertex id=") << vertex  << karma::lit("</Vertex>")) % karma::eol;
 };

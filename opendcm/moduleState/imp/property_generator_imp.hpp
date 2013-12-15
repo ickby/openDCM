@@ -15,8 +15,8 @@ template<typename Prop, typename Gen>
 prop_grammar<Prop, Gen>::prop_grammar() : prop_grammar<Prop, Gen>::base_type(start) {
   
     Gen::init(subrule);
-    start =  karma::lit("\n<Property>") << '+' << karma::eol << subrule
-             << '-' << karma::eol << karma::lit("</Property>");
+    start =  karma::lit("\n<Property>") << '#' << karma::eol << subrule
+             << '$' << karma::eol << karma::lit("</Property>");
 };
 
 template<typename Sys, typename PropertyList>

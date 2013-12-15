@@ -22,9 +22,9 @@ namespace details {
 template<typename Sys, typename Object, typename Gen>
 obj_grammar<Sys, Object,Gen>::obj_grammar() : obj_grammar<Sys, Object,Gen>::base_type(start) {
     Gen::init(subrule);
-    start = karma::lit("\n<Object>") << '+' << karma::eol << subrule
+    start = karma::lit("\n<Object>") << '#' << karma::eol << subrule
             << prop[phx::bind(&obj_grammar::getProperties, karma::_val, karma::_1)]
-            << '-' << karma::eol << karma::lit("</Object>");
+            << '$' << karma::eol << karma::lit("</Object>");
 };
 
 template<typename Sys, typename Object, typename Gen>
