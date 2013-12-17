@@ -88,6 +88,9 @@ struct TestModule1 {
             int test_inherit2(int f, int s) {
                 return f+s;
             };
+	    void emit_signal_3() {
+                ((Sys*)this)->template emitSignal<test_signal3>();
+            };
         };
 
         struct test_object1_prop {
@@ -113,6 +116,7 @@ struct TestModule1 {
         typedef mpl::vector0<> geometries;
         typedef mpl::vector1<test_object1> objects;
         typedef mpl::vector4<test_edge_property1, test_vertex_property1, test_object1_prop, setting1_prop>   properties;
+	typedef mpl::map< mpl::pair<test_signal3, boost::function<void ()> > > signals;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -152,6 +156,7 @@ struct TestModule2 {
         typedef mpl::vector4<test_edge_property2, test_vertex_property2,
                 test_object2_prop, test_object1_external_prop> properties;
         typedef dcm::Unspecified_Identifier Identifier;
+	typedef mpl::map0<> signals;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -247,7 +252,7 @@ struct test_functor_double {
     int counter;
 };
 
-BOOST_AUTO_TEST_CASE(object_signals) {
+BOOST_AUTO_TEST_CASE(signals) {
 
     System sys;
 
@@ -256,7 +261,7 @@ BOOST_AUTO_TEST_CASE(object_signals) {
 
     to1 o1(sys);
 
-    test_functor_void s, s2;
+    test_functor_void s, s2, s3;
 
     dcm::Connection c1 = o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s));
     o1.connectSignal<test_signal1>(boost::bind(&test_functor_void::count, &s2));
@@ -279,6 +284,12 @@ BOOST_AUTO_TEST_CASE(object_signals) {
     o1.emit_test_double(2,4);
 
     BOOST_CHECK(d.counter == 6);
+    
+    sys.connectSignal<test_signal3>(boost::bind(&test_functor_void::count, &s3));
+    sys.emit_signal_3();
+    sys.emit_signal_3();
+    
+    BOOST_CHECK(s3.counter == 2);
 };
 
 BOOST_AUTO_TEST_SUITE_END();

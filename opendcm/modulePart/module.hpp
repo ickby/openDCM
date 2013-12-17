@@ -52,6 +52,7 @@ struct ModulePart {
                 mpl::pair<recalculated, boost::function<void (Partptr) > > >  PartSignal;
 
         typedef ID Identifier;
+	typedef mpl::map0<> signals;
 
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:

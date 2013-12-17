@@ -78,6 +78,7 @@ struct TestModule1 {
 			      test_edge1_prop>   properties;
 	typedef mpl::vector0<> geometries;
 	typedef dcm::Unspecified_Identifier Identifier;
+	typedef mpl::map0<> signals;
 	
         static void system_init(Sys& sys) {};
 	static void system_copy(const Sys& from, Sys& into) {};

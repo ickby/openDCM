@@ -21,6 +21,7 @@
 #define GCM_SYSTEM_H
 
 #include <boost/mpl/vector.hpp>
+#include <boost/mpl/map.hpp>
 #include <boost/mpl/vector/vector0.hpp>
 #include <boost/mpl/fold.hpp>
 #include <boost/mpl/insert.hpp>
@@ -34,6 +35,7 @@
 #include "sheduler.hpp"
 #include "logging.hpp"
 #include "traits.hpp"
+#include "object.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -91,6 +93,14 @@ struct get_identifier {
 template<typename seq, typename state>
 struct map_fold : mpl::fold< seq, state, mpl::insert<mpl::_1,mpl::_2> > {};
 
+template<typename seq1, typename seq2, typename seq3>
+struct map_fold_3 {
+  typedef typename details::map_fold<seq1,
+            typename details::map_fold<seq2,
+            typename details::map_fold<seq3,
+            mpl::map<> >::type >::type>::type type;
+};
+
 struct nothing {};
 
 template<int v>
@@ -102,6 +112,7 @@ struct EmptyModule {
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>   objects;
 	typedef mpl::vector<>   geometries;
+	typedef mpl::map<>	signals;
         typedef Unspecified_Identifier Identifier;
 
         static void system_init(T& sys) {};
@@ -114,15 +125,18 @@ struct is_shared_ptr : boost::mpl::false_ {};
 template <class T>
 struct is_shared_ptr<boost::shared_ptr<T> > : boost::mpl::true_ {};
 
+template<typename M1, typename M2, typename  M3>
+struct inheriter : public M1::inheriter, public M2::inheriter, public M3::inheriter,
+		   dcm::SignalOwner<typename details::map_fold_3<typename M1::signals, typename M2::signals, typename M3::signals>::type> {};
 }
 
 template< typename KernelType,
           typename  T1 = details::EmptyModule<1>,
           typename  T2 = details::EmptyModule<2>,
           typename  T3 = details::EmptyModule<3> >
-class System : 	public T1::template type< System<KernelType,T1,T2,T3> >::inheriter,
-    public T2::template type< System<KernelType,T1,T2,T3> >::inheriter,
-    public T3::template type< System<KernelType,T1,T2,T3> >::inheriter {
+class System : 	public details::inheriter<typename T1::template type< System<KernelType,T1,T2,T3> >,
+   	typename T2::template type< System<KernelType,T1,T2,T3> >,
+	typename T3::template type< System<KernelType,T1,T2,T3> > > {
 
     typedef System<KernelType,T1,T2,T3> BaseType;
 public:
@@ -265,6 +279,7 @@ public:
 #endif
 
 #endif //GCM_SYSTEM_H
+
 
 
 

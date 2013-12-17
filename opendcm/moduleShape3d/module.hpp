@@ -473,6 +473,7 @@ struct ModuleShape3D {
         typedef mpl::vector3<shape_purpose_prop, shape_constraint_prop, shape_geometry_prop> properties;
         typedef mpl::vector1<Shape3D> objects;
         typedef mpl::vector1<tag::segment3D> geometries;
+	typedef mpl::map0<> signals;
 
         //needed static functions
         static void system_init(Sys& sys) {};

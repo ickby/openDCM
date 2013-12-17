@@ -49,6 +49,7 @@ struct ModuleState {
         typedef mpl::vector1<details::cluster_vertex_prop>  properties;
         typedef mpl::vector0<>  objects;
 	typedef mpl::vector0<>  geometries;
+	typedef mpl::map0<> signals;
 
         //nothing to do on startup and copy
         static void system_init(Sys& sys) {};
