@@ -139,19 +139,39 @@ void System<KernelType, T1, T2, T3>::solve() {
     double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
     //Base::Console().Message("overall solving time in ms: %f\n", ms);
 
+    //signal our successful solving
+    BaseType::template emitSignal<solved>(this);
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-System<KernelType, T1, T2, T3>* System<KernelType, T1, T2, T3>::createSubsystem() {
+boost::shared_ptr<System<KernelType, T1, T2, T3> > System<KernelType, T1, T2, T3>::createSubsystem() {
 
-    System* s = new System();
+    boost::shared_ptr<System> s = boost::shared_ptr<System>(new System());
     s->m_cluster = m_cluster->createCluster().first;
     s->m_storage = m_storage;
     s->m_cluster->template setProperty<dcm::type_prop>(details::subcluster);
 #ifdef USE_LOGGING
     stop_log(s->sink);
 #endif
+    
+    //inform modules that we have a subsystem now
+    Inheriter1::system_sub(s);
+    Inheriter2::system_sub(s);
+    Inheriter3::system_sub(s);
+    
+    m_subsystems.push_back(s);
+      
     return s;
+};
+
+template< typename KernelType, typename T1, typename T2, typename T3 >
+typename std::vector<boost::shared_ptr<System<KernelType, T1, T2, T3> > >::iterator System<KernelType, T1, T2, T3>::beginSubsystems() {
+  return m_subsystems.begin();
+};
+
+template< typename KernelType, typename T1, typename T2, typename T3 >
+typename std::vector<boost::shared_ptr<System<KernelType, T1, T2, T3> > >::iterator System<KernelType, T1, T2, T3>::endSubsystems() {
+  return m_subsystems.end();
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >

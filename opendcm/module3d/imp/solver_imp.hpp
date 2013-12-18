@@ -371,8 +371,9 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 #endif
             };
         }
-
+      
         //solving is done, now go to all relevant geometries and clusters and write the values back
+        //(no need to emit recalculated signal as this cluster is never recalculated in this run)
         it = boost::vertices(*cluster);
         for(; it.first != it.second; it.first++) {
 
@@ -396,7 +397,6 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         }
         //we have solved this cluster
         cluster->template setProperty<changed_prop>(false);
-
     }
     catch(boost::exception&) {
         throw;

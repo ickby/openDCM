@@ -88,9 +88,10 @@ struct TestModule1 {
             int test_inherit2(int f, int s) {
                 return f+s;
             };
-	    void emit_signal_3() {
+            void emit_signal_3() {
                 ((Sys*)this)->template emitSignal<test_signal3>();
             };
+            void system_sub(Sys* subsys) {};
         };
 
         struct test_object1_prop {
@@ -102,8 +103,8 @@ struct TestModule1 {
                 };
             };
         };
-	
-	struct setting1_prop {
+
+        struct setting1_prop {
             typedef bool type;
             typedef dcm::setting_property kind;
             struct default_value {
@@ -116,7 +117,7 @@ struct TestModule1 {
         typedef mpl::vector0<> geometries;
         typedef mpl::vector1<test_object1> objects;
         typedef mpl::vector4<test_edge_property1, test_vertex_property1, test_object1_prop, setting1_prop>   properties;
-	typedef mpl::map< mpl::pair<test_signal3, boost::function<void ()> > > signals;
+        typedef mpl::map< mpl::pair<test_signal3, boost::function<void ()> > > signals;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -140,6 +141,7 @@ struct TestModule2 {
             int test_inherit3(T1 f, T1 s) {
                 return ((Sys*)this)->test_inherit2(f,s);
             };
+            void system_sub(Sys* subsys) {};
         };
 
         struct test_object1_external_prop {
@@ -156,7 +158,7 @@ struct TestModule2 {
         typedef mpl::vector4<test_edge_property2, test_vertex_property2,
                 test_object2_prop, test_object1_external_prop> properties;
         typedef dcm::Unspecified_Identifier Identifier;
-	typedef mpl::map0<> signals;
+        typedef mpl::map0<> signals;
 
         template<typename System>
         static void system_init(System& sys) {};
@@ -219,17 +221,17 @@ BOOST_AUTO_TEST_CASE(object_properties) {
 };
 
 BOOST_AUTO_TEST_CASE(settings_properties) {
-  
+
     System sys;
     typedef TestModule1::type<System> Module1;
-    
+
     //check general settings
     BOOST_CHECK(sys.getOption<Module1::setting1_prop>());
     sys.setOption<Module1::setting1_prop>(false);
     BOOST_CHECK(!sys.getOption<Module1::setting1_prop>());
     sys.getOption<Module1::setting1_prop>() = true;
     BOOST_CHECK(sys.getOption<Module1::setting1_prop>());
-    
+
     //test kernel settings
     BOOST_CHECK(sys.option<dcm::precision>() == 1e-6);
     sys.option<dcm::precision>() = 4e-7;
@@ -284,11 +286,11 @@ BOOST_AUTO_TEST_CASE(signals) {
     o1.emit_test_double(2,4);
 
     BOOST_CHECK(d.counter == 6);
-    
+
     sys.connectSignal<test_signal3>(boost::bind(&test_functor_void::count, &s3));
     sys.emit_signal_3();
     sys.emit_signal_3();
-    
+
     BOOST_CHECK(s3.counter == 2);
 };
 

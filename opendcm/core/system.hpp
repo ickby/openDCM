@@ -42,9 +42,9 @@ namespace fusion = boost::fusion;
 
 namespace dcm {
 
-struct No_Identifier {};
-struct Unspecified_Identifier {};
-
+struct No_Identifier {}; //struct to show that no identifier shall be used
+struct Unspecified_Identifier {}; //struct to show that it dosen't matter which identifier type is used
+struct solved {}; //signal emitted when solving is done
 
 namespace details {
   
@@ -93,12 +93,13 @@ struct get_identifier {
 template<typename seq, typename state>
 struct map_fold : mpl::fold< seq, state, mpl::insert<mpl::_1,mpl::_2> > {};
 
-template<typename seq1, typename seq2, typename seq3>
+
+template<typename state, typename seq1, typename seq2, typename seq3>
 struct map_fold_3 {
   typedef typename details::map_fold<seq1,
             typename details::map_fold<seq2,
             typename details::map_fold<seq3,
-            mpl::map<> >::type >::type>::type type;
+            state >::type >::type>::type type;
 };
 
 struct nothing {};
@@ -108,7 +109,9 @@ struct EmptyModule {
 
     template<typename T>
     struct type {
-        struct inheriter {};
+        struct inheriter {
+	  void system_sub(boost::shared_ptr<T> subsys) {};
+	};
         typedef mpl::vector<>	properties;
         typedef mpl::vector<>   objects;
 	typedef mpl::vector<>   geometries;
@@ -125,16 +128,17 @@ struct is_shared_ptr : boost::mpl::false_ {};
 template <class T>
 struct is_shared_ptr<boost::shared_ptr<T> > : boost::mpl::true_ {};
 
-template<typename M1, typename M2, typename  M3>
+template<typename Sys, typename M1, typename M2, typename  M3>
 struct inheriter : public M1::inheriter, public M2::inheriter, public M3::inheriter,
-		   dcm::SignalOwner<typename details::map_fold_3<typename M1::signals, typename M2::signals, typename M3::signals>::type> {};
+		   dcm::SignalOwner<typename details::map_fold_3< mpl::map<mpl::pair<solved, boost::function<void (Sys*)> > >, 
+		   typename M1::signals, typename M2::signals, typename M3::signals>::type> {};
 }
 
 template< typename KernelType,
           typename  T1 = details::EmptyModule<1>,
           typename  T2 = details::EmptyModule<2>,
           typename  T3 = details::EmptyModule<3> >
-class System : 	public details::inheriter<typename T1::template type< System<KernelType,T1,T2,T3> >,
+class System : 	public details::inheriter<System<KernelType,T1,T2,T3>, typename T1::template type< System<KernelType,T1,T2,T3> >,
    	typename T2::template type< System<KernelType,T1,T2,T3> >,
 	typename T3::template type< System<KernelType,T1,T2,T3> > > {
 
@@ -148,6 +152,9 @@ public:
     typedef typename T2::template type< BaseType > Type2;
     typedef typename T3::template type< BaseType > Type3;
     typedef mpl::vector3<Type1, Type2, Type3> TypeVector;
+    typedef typename Type1::inheriter Inheriter1;
+    typedef typename Type2::inheriter Inheriter2;
+    typedef typename Type3::inheriter Inheriter3;
 
     //Check if all Identifiers are the same and find out which type it is
     typedef typename mpl::fold<TypeVector, mpl::vector<>,
@@ -236,7 +243,9 @@ public:
 
     void solve();
     
-    System* createSubsystem();
+    boost::shared_ptr< System > createSubsystem();
+    typename std::vector< boost::shared_ptr<System> >::iterator beginSubsystems();
+    typename std::vector< boost::shared_ptr<System> >::iterator endSubsystems();
     
     //a kernel has it's own settings, therefore we need to decide which is accessed
     template<typename Option>
@@ -270,6 +279,7 @@ public:
     boost::shared_ptr<Storage> m_storage;
     Shedule m_sheduler;
     Kernel  m_kernel;
+    std::vector<boost::shared_ptr<System> > m_subsystems;
 };
 
 }
@@ -279,6 +289,7 @@ public:
 #endif
 
 #endif //GCM_SYSTEM_H
+
 
 
 

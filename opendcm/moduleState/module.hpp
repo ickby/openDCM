@@ -42,18 +42,20 @@ struct ModuleState {
 
             void saveState(std::ostream& stream);
             void loadState(std::istream& stream);
+
+            void system_sub(boost:shared_ptr<Sys> subsys) {};
         };
 
 
         //add only a property to the cluster as we need it to store the clusers global vertex
         typedef mpl::vector1<details::cluster_vertex_prop>  properties;
         typedef mpl::vector0<>  objects;
-	typedef mpl::vector0<>  geometries;
-	typedef mpl::map0<> signals;
+        typedef mpl::vector0<>  geometries;
+        typedef mpl::map0<> signals;
 
         //nothing to do on startup and copy
         static void system_init(Sys& sys) {};
-	static void system_copy(const Sys& from, Sys& into) {};
+        static void system_copy(const Sys& from, Sys& into) {};
     };
 };
 

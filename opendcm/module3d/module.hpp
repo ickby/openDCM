@@ -217,6 +217,8 @@ struct Module3D {
             Cons createConstraint3D(Geom first, Geom second, T1 constraint1);
             void removeConstraint3D(Cons c);
 
+            void system_sub(boost::shared_ptr<Sys> subsys) {};
+
         protected:
             Sys* m_this;
             void apply_edge_remove(GlobalEdge e);
@@ -270,7 +272,7 @@ struct Module3D {
         typedef mpl::vector4<vertex_prop, edge_prop, math_prop, fix_prop>  properties;
         typedef mpl::vector2<Geometry3D, Constraint3D> objects;
         typedef mpl::vector5<tag::point3D, tag::direction3D, tag::line3D, tag::plane3D, tag::cylinder3D> geometries;
-	typedef mpl::map0<> signals;
+        typedef mpl::map0<> signals;
 
         static void system_init(Sys& sys) {
             sys.m_sheduler.addProcessJob(new SystemSolver());

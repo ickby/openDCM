@@ -420,4 +420,65 @@ BOOST_AUTO_TEST_CASE(modulepart_clone) {
   delete clone;
 }
 
+struct test_functor_void {
+    test_functor_void() : counter(0) {};
+    void count() {
+        counter++;
+    };
+    int counter;
+};
+
+template<typename Sys>
+struct test_functor_system {
+    test_functor_system() : counter(0) {};
+    void count(boost::shared_ptr<Sys> s) {
+        counter ++;
+    };
+    int counter;
+};
+
+BOOST_AUTO_TEST_CASE(modulepart_subsystem) {
+  
+  Eigen::Vector3d p1,p3,p4;
+  p1 << 7, -0.5, 0.3;
+  p3 << -2, -1.3, -2.8;
+  p4 << 0.2, -0.5, 1.2;
+  
+  SystemNOID sys;
+  Part_ptr part1 = sys.createPart(place());
+  Geom g1 = part1->addGeometry3D( p1 );
+  
+  boost::shared_ptr<SystemNOID>  subsys = sys.createSubsystem();
+  subsys->setTransformation(place());
+  
+  //see if the signals work!
+  test_functor_void tv1, tv2;
+  test_functor_system<SystemNOID> ts1, ts2;
+  sys.connectSignal<dcm::solved>(boost::bind(&test_functor_void::count, &tv1));
+  sys.connectSignal<dcm::recalculated>(boost::bind(&test_functor_system<SystemNOID>::count, &ts1, _1));
+  subsys->connectSignal<dcm::solved>(boost::bind(&test_functor_void::count, &tv2));
+  subsys->connectSignal<dcm::recalculated>(boost::bind(&test_functor_system<SystemNOID>::count, &ts2, _1));  
+  
+  Geom g3 = subsys->createGeometry3D( p3 );
+  Geom g4 = subsys->createGeometry3D( p4 );
+  
+  sys.createConstraint3D(g1,g3,dcm::distance=5.);
+  sys.createConstraint3D(g1,g4,dcm::distance=5.);
+
+  sys.solve();
+  
+  Eigen::Vector3d v1,v2,v3,v4;
+  v1 = get<Eigen::Vector3d>(g1);
+  v3 = get<Eigen::Vector3d>(g3);
+  v4 = get<Eigen::Vector3d>(g4);
+
+  BOOST_CHECK( Kernel::isSame((v1-v3).norm(),5., 1e-6) );
+  BOOST_CHECK( Kernel::isSame((v1-v4).norm(),5., 1e-6) );
+  
+  BOOST_CHECK( tv1.counter == 1 );
+  BOOST_CHECK( ts1.counter == 0 );  
+  BOOST_CHECK( tv2.counter == 0 );
+  BOOST_CHECK( ts2.counter == 1 ); 
+}
+
 BOOST_AUTO_TEST_SUITE_END();
