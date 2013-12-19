@@ -45,6 +45,11 @@ enum ParameterType {
     complete  //all parameter
 };
 
+enum SolverModes {
+    continuous,
+    step    
+};
+
 //solver settings
 struct precision {
 
@@ -57,6 +62,18 @@ struct precision {
     };
 };
 
+struct solvermode {
+
+    typedef SolverModes type;
+    typedef setting_property kind;
+    struct default_value {
+        SolverModes operator()() {
+            return continuous;
+        };
+    };
+};
+
+//and the solver itself
 template<typename Kernel>
 struct Dogleg {
 
@@ -83,14 +100,14 @@ struct Dogleg {
 
     void init(typename Kernel::MappedEquationSystem& sys);
     
-    int solve(typename Kernel::MappedEquationSystem& sys);
+    int solve(typename Kernel::MappedEquationSystem& sys, bool continuous = true);
 
     template<typename Functor>
-    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);
+    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale, bool continuous = true);
 };
 
 template<typename Scalar, template<class> class Nonlinear = Dogleg>
-struct Kernel : public PropertyOwner< mpl::vector<precision> > {
+struct Kernel : public PropertyOwner< mpl::vector2<precision, solvermode> > {
 
     //basics
     typedef Scalar number_type;

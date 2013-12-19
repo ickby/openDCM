@@ -171,14 +171,14 @@ void Dogleg<Kernel>::init(typename Kernel::MappedEquationSystem& sys)  {
 };
 
 template<typename Kernel>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys)  {
+int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, bool continuous)  {
     nothing n;
-    return solve(sys, n);
+    return solve(sys, n, continuous);
 };
 
 template<typename Kernel>
 template<typename Functor>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale) {
+int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale, bool continuous) {
 
     clock_t start = clock();
     clock_t inc_rec = clock();
@@ -189,7 +189,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     int maxIterNumber = 5000;//MaxIterations * xsize;
     number_type diverging_lim = 1e6*err + 1e12;
 
-    while(!stop) {
+    do {
 
         // check if finished
         if(fx_inf <= m_kernel->template getProperty<precision>()*sys.Scaling)  // Success
@@ -299,6 +299,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
         iter++;
         counter++;
     }
+    while(!stop && continuous);
 
     /*
             clock_t end = clock();
@@ -476,15 +477,22 @@ bool Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,con
 
 template<typename Scalar, template<class> class Nonlinear>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
+
     nothing n;
-    m_solver.init(mes);
+
+    if(getProperty<solvermode>()==continuous)
+        m_solver.init(mes);
+
     return m_solver.solve(mes, n);
 };
 
 template<typename Scalar, template<class> class Nonlinear>
 template<typename Functor>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes, Functor& f) {
-    m_solver.init(mes);
+
+    if(getProperty<solvermode>()==continuous)
+        m_solver.init(mes);
+
     return m_solver.solve(mes, f);
 };
 
