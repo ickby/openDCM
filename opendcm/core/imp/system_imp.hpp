@@ -132,15 +132,18 @@ void System<KernelType, T1, T2, T3>::erase(boost::shared_ptr<Object> ptr) {
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >
-void System<KernelType, T1, T2, T3>::solve() {
+SolverInfo System<KernelType, T1, T2, T3>::solve() {
     clock_t start = clock();
     m_sheduler.execute(*this);
     clock_t end = clock();
-    double ms = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
-    //Base::Console().Message("overall solving time in ms: %f\n", ms);
+    
+    SolverInfo info = m_kernel.getSolverInfo();
+    info.time = (double(end-start)* 1000.) / double(CLOCKS_PER_SEC);
 
     //signal our successful solving
     BaseType::template emitSignal<solved>(this);
+    
+    return info;
 };
 
 template< typename KernelType, typename T1, typename T2, typename T3 >

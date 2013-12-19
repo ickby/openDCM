@@ -38,6 +38,13 @@ struct nothing {
     void operator()() {};
 };
 
+//information about solving
+struct SolverInfo {
+  int iterations;
+  double error;  
+  double time;
+};
+
 //the parameter types
 enum ParameterType {
     general,  //every non-rotation parameter, therefore every translation and non transformed parameter
@@ -82,7 +89,7 @@ struct Dogleg {
 #endif
 
     typedef typename Kernel::number_type number_type;
-    number_type tolg, tolx, delta, nu, g_inf, fx_inf, err;
+    number_type tolg, tolx, delta, nu, g_inf, fx_inf, err, time;
     Kernel* m_kernel;
     int iter, stop, reduce, unused, counter;
     typename Kernel::Vector h_dl, F_old, g;
@@ -218,6 +225,8 @@ struct Kernel : public PropertyOwner< mpl::vector2<precision, solvermode> > {
 
     template<typename Functor>
     int solve(MappedEquationSystem& mes, Functor& f);
+    
+    SolverInfo getSolverInfo();
     
 private:
     NonlinearSolver m_solver;

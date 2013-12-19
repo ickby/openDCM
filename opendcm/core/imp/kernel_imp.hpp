@@ -181,7 +181,6 @@ template<typename Functor>
 int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale, bool continuous) {
 
     clock_t start = clock();
-    clock_t inc_rec = clock();
 
     if(!sys.isValid())
         throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
@@ -222,11 +221,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
         // get the new values
         sys.Parameter += h_dl;
-
-        clock_t start_rec = clock();
         sys.recalculate();
-        clock_t end_rec = clock();
-        inc_rec += end_rec-start_rec;
 
 #ifdef USE_LOGGING
 
@@ -301,11 +296,10 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     }
     while(!stop && continuous);
 
-    /*
-            clock_t end = clock();
-            double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
-            double ms_rec = (double(inc_rec-start) * 1000.) / double(CLOCKS_PER_SEC);
-    */
+
+    clock_t end = clock();
+    time = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
+
 #ifdef USE_LOGGING
     BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter<<", unused: "<<unused<<", reason:"<< stop;
     BOOST_LOG(log)<< "final jacobi: "<<std::endl<<sys.Jacobi;
@@ -438,6 +432,17 @@ template<typename Scalar, template<class> class Nonlinear>
 Kernel<Scalar, Nonlinear>::Kernel() {
     //init the solver
     m_solver.setKernel(this);
+}
+
+template<typename Scalar, template<class> class Nonlinear>
+SolverInfo Kernel<Scalar, Nonlinear>::getSolverInfo() {
+    
+    SolverInfo info;
+    info.iterations = m_solver.iter;
+    info.error = m_solver.err;
+    info.time = m_solver.time;
+    
+    return info;
 }
 
 //static comparison versions

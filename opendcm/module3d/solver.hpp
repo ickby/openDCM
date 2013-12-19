@@ -25,7 +25,7 @@
 
 #include <boost/graph/depth_first_search.hpp>
 
-namespace dcm {
+namespace dcm {  
 namespace details {
 
 template<typename Sys>

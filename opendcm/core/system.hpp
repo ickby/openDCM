@@ -36,6 +36,7 @@
 #include "logging.hpp"
 #include "traits.hpp"
 #include "object.hpp"
+#include "kernel.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -241,7 +242,7 @@ public:
     template<typename Object>
     void erase(boost::shared_ptr<Object> ptr);
 
-    void solve();
+    SolverInfo solve();
     
     boost::shared_ptr< System > createSubsystem();
     typename std::vector< boost::shared_ptr<System> >::iterator beginSubsystems();
