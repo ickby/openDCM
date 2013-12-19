@@ -34,6 +34,20 @@ Dogleg<Kernel>::Dogleg(Kernel* k) : m_kernel(k), tolg(1e-40), tolx(1e-20) {
 };
 
 template<typename Kernel>
+Dogleg<Kernel>::Dogleg() : tolg(1e-40), tolx(1e-20) {
+
+#ifdef USE_LOGGING
+    log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
+#endif
+};
+
+template<typename Kernel>
+void Dogleg<Kernel>::setKernel(Kernel* k) {
+
+    m_kernel = k;
+};
+
+template<typename Kernel>
 template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
 void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
                                    const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
@@ -46,15 +60,19 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     // get the gauss-newton step
     const typename Kernel::Vector h_gn = (jacobi).fullPivLu().solve(-residual);
 #ifdef USE_LOGGING
+
     if(!boost::math::isfinite(h_gn.norm())) {
         BOOST_LOG(log)<< "Unnormal gauss-newton detected: "<<h_gn.norm();
     }
+
     if(!boost::math::isfinite(h_sd.norm())) {
         BOOST_LOG(log)<< "Unnormal steepest descent detected: "<<h_sd.norm();
     }
+
     if(!boost::math::isfinite(alpha)) {
         BOOST_LOG(log)<< "Unnormal alpha detected: "<<alpha;
     }
+
 #endif
 
     // compute the dogleg step
@@ -65,9 +83,11 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         //h_dl = alpha*h_sd;
         h_dl = (delta/(h_sd.norm()))*h_sd;
 #ifdef USE_LOGGING
+
         if(!boost::math::isfinite(h_dl.norm())) {
             BOOST_LOG(log)<< "Unnormal dogleg descent detected: "<<h_dl.norm();
         }
+
 #endif
     }
     else {
@@ -77,6 +97,7 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         typename Kernel::Vector b = h_gn;
         number_type c = a.transpose()*(b-a);
         number_type bas = (b-a).squaredNorm(), as = a.squaredNorm();
+
         if(c<0) {
             beta = -c+std::sqrt(std::pow(c,2)+bas*(std::pow(delta,2)-as));
             beta /= bas;
@@ -93,14 +114,60 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         if(!boost::math::isfinite(c)) {
             BOOST_LOG(log)<< "Unnormal dogleg c detected: "<<c;
         }
+
         if(!boost::math::isfinite(bas)) {
             BOOST_LOG(log)<< "Unnormal dogleg bas detected: "<<bas;
         }
+
         if(!boost::math::isfinite(beta)) {
             BOOST_LOG(log)<< "Unnormal dogleg beta detected: "<<beta;
         }
+
 #endif
     }
+};
+
+template<typename Kernel>
+void Dogleg<Kernel>::init(typename Kernel::MappedEquationSystem& sys)  {
+
+    if(!sys.isValid())
+        throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
+
+    F_old.resize(sys.equationCount());
+    g.resize(sys.equationCount());
+    J_old.resize(sys.equationCount(), sys.parameterCount());
+
+    sys.recalculate();
+#ifdef USE_LOGGING
+    BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
+                  << "residual: "<<sys.Residual.transpose()<<std::endl
+                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
+#endif
+    sys.removeLocalGradientZeros();
+
+#ifdef USE_LOGGING
+    BOOST_LOG(log)<< "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl
+                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
+#endif
+
+    err = sys.Residual.norm();
+
+    F_old = sys.Residual;
+    J_old = sys.Jacobi;
+
+    g = sys.Jacobi.transpose()*(sys.Residual);
+
+    // get the infinity norm fx_inf and g_inf
+    g_inf = g.template lpNorm<E::Infinity>();
+    fx_inf = sys.Residual.template lpNorm<E::Infinity>();
+
+    delta=5;
+    nu=2.;
+    iter=0;
+    stop=0;
+    reduce=0;
+    unused=0;
+    counter=0;
 };
 
 template<typename Kernel>
@@ -119,43 +186,8 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     if(!sys.isValid())
         throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
 
-
-    bool translate = true;
-
-    typename Kernel::Vector h_dl, F_old(sys.equationCount()), g(sys.equationCount());
-    typename Kernel::Matrix J_old(sys.equationCount(), sys.parameterCount());
-
-    sys.recalculate();
-#ifdef USE_LOGGING
-    BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
-                  << "residual: "<<sys.Residual.transpose()<<std::endl
-                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
-#endif
-    sys.removeLocalGradientZeros();
-
-#ifdef USE_LOGGING
-    BOOST_LOG(log)<< "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl
-                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
-#endif
-
-    number_type err = sys.Residual.norm();
-
-    F_old = sys.Residual;
-    J_old = sys.Jacobi;
-
-    g = sys.Jacobi.transpose()*(sys.Residual);
-
-    // get the infinity norm fx_inf and g_inf
-    number_type g_inf = g.template lpNorm<E::Infinity>();
-    number_type fx_inf = sys.Residual.template lpNorm<E::Infinity>();
-
-    int maxIterNumber = 10000;//MaxIterations * xsize;
+    int maxIterNumber = 5000;//MaxIterations * xsize;
     number_type diverging_lim = 1e6*err + 1e12;
-
-    number_type delta=5;
-    number_type nu=2.;
-    int iter=0, stop=0, reduce=0, unused=0, counter=0;
-
 
     while(!stop) {
 
@@ -197,12 +229,15 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
         inc_rec += end_rec-start_rec;
 
 #ifdef USE_LOGGING
+
         if(!boost::math::isfinite(sys.Residual.norm())) {
             BOOST_LOG(log)<< "Unnormal residual detected: "<<sys.Residual.norm();
         }
+
         if(!boost::math::isfinite(sys.Jacobi.sum())) {
             BOOST_LOG(log)<< "Unnormal jacobi detected: "<<sys.Jacobi.sum();
         }
+
 #endif
 
         //calculate the translation update ratio
@@ -212,6 +247,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
         if(dF<=0 || dL<=0)
             rho = -1;
+
         // update delta
         if(rho>0.85) {
             delta = std::max(delta,2*h_dl.norm());
@@ -263,6 +299,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
         iter++;
         counter++;
     }
+
     /*
             clock_t end = clock();
             double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
@@ -357,6 +394,7 @@ template<typename Scalar, template<class> class Nonlinear>
 bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::isValid() {
     if(!m_params || !m_eqns)
         return false;
+
     return true;
 };
 
@@ -394,6 +432,12 @@ bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::hasParameterType(Parameter
     else
         return (m_params>0);
 };
+
+template<typename Scalar, template<class> class Nonlinear>
+Kernel<Scalar, Nonlinear>::Kernel() {
+    //init the solver
+    m_solver.setKernel(this);
+}
 
 //static comparison versions
 template<typename Scalar, template<class> class Nonlinear>
@@ -433,13 +477,15 @@ bool Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,con
 template<typename Scalar, template<class> class Nonlinear>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
     nothing n;
-    return NonlinearSolver(this).solve(mes, n);
+    m_solver.init(mes);
+    return m_solver.solve(mes, n);
 };
 
 template<typename Scalar, template<class> class Nonlinear>
 template<typename Functor>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes, Functor& f) {
-    return NonlinearSolver(this).solve(mes, f);
+    m_solver.init(mes);
+    return m_solver.solve(mes, f);
 };
 
 }

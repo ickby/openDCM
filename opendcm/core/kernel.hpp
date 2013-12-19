@@ -65,16 +65,24 @@ struct Dogleg {
 #endif
 
     typedef typename Kernel::number_type number_type;
-    number_type tolg, tolx;
+    number_type tolg, tolx, delta, nu, g_inf, fx_inf, err;
     Kernel* m_kernel;
+    int iter, stop, reduce, unused, counter;
+    typename Kernel::Vector h_dl, F_old, g;
+    typename Kernel::Matrix J_old;
 
     Dogleg(Kernel* k);
+    Dogleg();
+    
+    void setKernel(Kernel* k);
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
     void calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
                        const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                        const double delta);
 
+    void init(typename Kernel::MappedEquationSystem& sys);
+    
     int solve(typename Kernel::MappedEquationSystem& sys);
 
     template<typename Functor>
@@ -173,6 +181,8 @@ struct Kernel : public PropertyOwner< mpl::vector<precision> > {
     };
 
 
+    Kernel();
+    
     //static comparison versions
     template <typename DerivedA,typename DerivedB>
     static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission);
@@ -191,6 +201,9 @@ struct Kernel : public PropertyOwner< mpl::vector<precision> > {
 
     template<typename Functor>
     int solve(MappedEquationSystem& mes, Functor& f);
+    
+private:
+    NonlinearSolver m_solver;
 
 };
 
