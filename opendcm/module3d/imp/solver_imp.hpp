@@ -355,7 +355,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
             if(!has_cycle) {
 #ifdef USE_LOGGING
-                BOOST_LOG(log)<< "non-cyclic system dedected";
+                BOOST_LOG(log)<< "non-cyclic system dedected: solve rotation only";
 #endif
                 //cool, lets do uncylic. first all rotational constraints with rotational parameters
                 mes.setAccess(rotation);
@@ -370,9 +370,13 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                 mes.setGeneralEquationAccess(true);
                 mes.recalculate();
 
-                if(mes.Residual.norm()<1e-6)
+                if(sys.kernel().isSame(mes.Residual.template lpNorm<E::Infinity>(),0.))
                     done = true;
                 else {
+#ifdef USE_LOGGING
+                    BOOST_LOG(log)<< "Solve Translation after Rotations are not enough";
+#endif
+
                     //let's try translation only
                     try {
                         DummyScaler re;
