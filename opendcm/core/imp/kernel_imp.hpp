@@ -128,7 +128,16 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
 };
 
 template<typename Kernel>
-void Dogleg<Kernel>::init(typename Kernel::MappedEquationSystem& sys)  {
+int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys)  {
+    nothing n;
+    return solve(sys, n);
+};
+
+template<typename Kernel>
+template<typename Functor>
+int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale) {
+
+    clock_t start = clock();
 
     if(!sys.isValid())
         throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
@@ -168,22 +177,6 @@ void Dogleg<Kernel>::init(typename Kernel::MappedEquationSystem& sys)  {
     reduce=0;
     unused=0;
     counter=0;
-};
-
-template<typename Kernel>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, bool continuous)  {
-    nothing n;
-    return solve(sys, n, continuous);
-};
-
-template<typename Kernel>
-template<typename Functor>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale, bool continuous) {
-
-    clock_t start = clock();
-
-    if(!sys.isValid())
-        throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");
 
     int maxIterNumber = 5000;//MaxIterations * xsize;
     number_type diverging_lim = 1e6*err + 1e12;
@@ -279,7 +272,6 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
             // get infinity norms
             g_inf = g.template lpNorm<E::Infinity>();
             fx_inf = sys.Residual.template lpNorm<E::Infinity>();
-
         }
         else {
             sys.Residual = F_old;
@@ -294,7 +286,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
         iter++;
         counter++;
     }
-    while(!stop && continuous);
+    while(!stop);
 
 
     clock_t end = clock();
@@ -436,12 +428,12 @@ Kernel<Scalar, Nonlinear>::Kernel() {
 
 template<typename Scalar, template<class> class Nonlinear>
 SolverInfo Kernel<Scalar, Nonlinear>::getSolverInfo() {
-    
+
     SolverInfo info;
     info.iterations = m_solver.iter;
     info.error = m_solver.err;
     info.time = m_solver.time;
-    
+
     return info;
 }
 
@@ -484,19 +476,12 @@ template<typename Scalar, template<class> class Nonlinear>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
 
     nothing n;
-
-    if(getProperty<solvermode>()==continuous)
-        m_solver.init(mes);
-
     return m_solver.solve(mes, n);
 };
 
 template<typename Scalar, template<class> class Nonlinear>
 template<typename Functor>
 int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes, Functor& f) {
-
-    if(getProperty<solvermode>()==continuous)
-        m_solver.init(mes);
 
     return m_solver.solve(mes, f);
 };

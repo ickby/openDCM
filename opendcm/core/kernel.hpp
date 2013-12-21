@@ -40,9 +40,9 @@ struct nothing {
 
 //information about solving
 struct SolverInfo {
-  int iterations;
-  double error;  
-  double time;
+    int iterations;
+    double error;
+    double time;
 };
 
 //the parameter types
@@ -50,11 +50,6 @@ enum ParameterType {
     general,  //every non-rotation parameter, therefore every translation and non transformed parameter
     rotation, //all rotation parameters
     complete  //all parameter
-};
-
-enum SolverModes {
-    continuous,
-    step    
 };
 
 //solver settings
@@ -65,17 +60,6 @@ struct precision {
     struct default_value {
         double operator()() {
             return 1e-6;
-        };
-    };
-};
-
-struct solvermode {
-
-    typedef SolverModes type;
-    typedef setting_property kind;
-    struct default_value {
-        SolverModes operator()() {
-            return continuous;
         };
     };
 };
@@ -97,7 +81,7 @@ struct Dogleg {
 
     Dogleg(Kernel* k);
     Dogleg();
-    
+
     void setKernel(Kernel* k);
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
@@ -105,16 +89,14 @@ struct Dogleg {
                        const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                        const double delta);
 
-    void init(typename Kernel::MappedEquationSystem& sys);
-    
-    int solve(typename Kernel::MappedEquationSystem& sys, bool continuous = true);
+    int solve(typename Kernel::MappedEquationSystem& sys);
 
     template<typename Functor>
-    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale, bool continuous = true);
+    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);
 };
 
 template<typename Scalar, template<class> class Nonlinear = Dogleg>
-struct Kernel : public PropertyOwner< mpl::vector2<precision, solvermode> > {
+struct Kernel : public PropertyOwner< mpl::vector1<precision> > {
 
     //basics
     typedef Scalar number_type;
@@ -199,14 +181,14 @@ struct Kernel : public PropertyOwner< mpl::vector2<precision, solvermode> > {
 
         void setGeneralEquationAccess(bool general);
         bool hasParameterType(ParameterType t);
-	
-	virtual void recalculate() = 0;
+
+        virtual void recalculate() = 0;
         virtual void removeLocalGradientZeros() = 0;
     };
 
 
     Kernel();
-    
+
     //static comparison versions
     template <typename DerivedA,typename DerivedB>
     static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission);
@@ -225,15 +207,15 @@ struct Kernel : public PropertyOwner< mpl::vector2<precision, solvermode> > {
 
     template<typename Functor>
     int solve(MappedEquationSystem& mes, Functor& f);
-    
+
     SolverInfo getSolverInfo();
-    
+
 private:
     NonlinearSolver m_solver;
 
 };
 
-  
+
 }//dcm
 
 #ifndef DCM_EXTERNAL_CORE
