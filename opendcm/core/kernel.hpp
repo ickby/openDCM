@@ -46,7 +46,7 @@ struct SolverInfo {
 };
 
 //the parameter types
-enum ParameterType {
+enum AccessType {
     general,  //every non-rotation parameter, therefore every translation and non transformed parameter
     rotation, //all rotation parameters
     complete  //all parameter
@@ -148,39 +148,37 @@ struct Kernel : public PropertyOwner< mpl::vector1<precision> > {
 
     struct MappedEquationSystem {
 
-    protected:
+    //protected:
         Matrix m_jacobi;
-        Vector m_parameter;
+        Vector m_parameter, m_residual;
 
-        bool rot_only; //calculate only rotations?
+        AccessType m_access; //which parameters/equation shall be calculated?
         int m_params, m_eqns; //total amount
-        int m_param_rot_offset, m_param_trans_offset, m_eqn_offset;   //current positions while creation
+        int m_param_rot_offset, m_param_trans_offset, m_eqn_rot_offset, m_eqn_trans_offset;   //current positions while creation
 
     public:
         MatrixMap Jacobi;
         VectorMap Parameter;
-        Vector	  Residual;
+        VectorMap Residual;
 
         number_type Scaling;
 
         int parameterCount();
         int equationCount();
-        bool rotationOnly();
+        AccessType access();
 
         MappedEquationSystem(int params, int equations);
 
-        int setParameterMap(int number, VectorMap& map, ParameterType t = general);
-        int setParameterMap(Vector3Map& map, ParameterType t = general);
-        int setResidualMap(VectorMap& map);
+        int setParameterMap(int number, VectorMap& map, AccessType t = general);
+        int setParameterMap(Vector3Map& map, AccessType t = general);
+        int setResidualMap(VectorMap& map, AccessType t = general);
         void setJacobiMap(int eqn, int offset, int number, CVectorMap& map);
         void setJacobiMap(int eqn, int offset, int number, VectorMap& map);
 
         bool isValid();
 
-        void setAccess(ParameterType t);
-
-        void setGeneralEquationAccess(bool general);
-        bool hasParameterType(ParameterType t);
+        void setAccess(AccessType t);
+        bool hasAccessType(AccessType t);
 
         virtual void recalculate() = 0;
         virtual void removeLocalGradientZeros() = 0;

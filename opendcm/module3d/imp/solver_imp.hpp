@@ -69,7 +69,7 @@ void MES<Sys>::recalculate() {
 
         for(; oit.first != oit.second; oit.first++) {
             if(*oit.first)
-                (*oit.first)->calculate(Base::Scaling, Base::rot_only);
+                (*oit.first)->calculate(Base::Scaling, Base::m_access);
         }
     }
 };
@@ -324,7 +324,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
     try {
         //if we don't have rotations we need no expensive scaling code
-        if(!mes.hasParameterType(rotation)) {
+        if(!mes.hasAccessType(rotation)) {
 
 #ifdef USE_LOGGING
             BOOST_LOG(log)<< "No rotation parameters in system, solve without scaling";
@@ -359,7 +359,6 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 #endif
                 //cool, lets do uncylic. first all rotational constraints with rotational parameters
                 mes.setAccess(rotation);
-                mes.setGeneralEquationAccess(false);
                 //solve can be done without catching exceptions, because this only fails if the system in
                 //unsolvable
                 DummyScaler re;
@@ -367,7 +366,6 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
                 //now let's see if we have to go on with the translations
                 mes.setAccess(general);
-                mes.setGeneralEquationAccess(true);
                 mes.recalculate();
 
                 if(sys.kernel().isSame(mes.Residual.template lpNorm<E::Infinity>(),0.))
@@ -395,6 +393,9 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 #ifdef USE_LOGGING
                 BOOST_LOG(log)<< "Full scale solver used";
 #endif
+                mes.setAccess(complete);
+                mes.recalculate();
+
                 Rescaler re(cluster, mes);
                 re();
                 sys.kernel().solve(mes, re);
