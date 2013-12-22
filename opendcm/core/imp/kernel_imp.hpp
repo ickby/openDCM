@@ -21,6 +21,7 @@
 #define DCM_KERNEL_IMP_H
 
 #include "../kernel.hpp"
+#include <Base/Console.h>
 #include <boost/math/special_functions.hpp>
 #include <Eigen/QR>
 
@@ -62,9 +63,7 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
     const double eigen_error = (jacobi*h_gn + residual).norm();
 #ifdef USE_LOGGING
-    BOOST_LOG(log)<< "Gauss Newton error: "<<eigen_error;
-
-    if(!boost::math::isfinite(h_gn.norm())) {
+   if(!boost::math::isfinite(h_gn.norm())) {
         BOOST_LOG(log)<< "Unnormal gauss-newton detected: "<<h_gn.norm();
     }
 
@@ -81,9 +80,6 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     // compute the dogleg step
     if(h_gn.norm() <= delta) {
         h_dl = h_gn;
-#ifdef USE_LOGGING
-        BOOST_LOG(log)<< "Gauss Newton Step: "<<eigen_error;
-#endif
     }
     else if((alpha*h_sd).norm() >= delta) {
         //h_dl = alpha*h_sd;
@@ -93,8 +89,6 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         if(!boost::math::isfinite(h_dl.norm())) {
             BOOST_LOG(log)<< "Unnormal dogleg descent detected: "<<h_dl.norm();
         }
-
-        BOOST_LOG(log)<< "Steepest Descend step";
 
 #endif
     }
@@ -130,8 +124,6 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         if(!boost::math::isfinite(beta)) {
             BOOST_LOG(log)<< "Unnormal dogleg beta detected: "<<beta;
         }
-
-        BOOST_LOG(log)<< "Dogleg Step";
 
 #endif
     }
@@ -188,7 +180,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     unused=0;
     counter=0;
 
-    int maxIterNumber = 5000;//MaxIterations * xsize;
+    int maxIterNumber = 10000;//MaxIterations * xsize;
     number_type diverging_lim = 1e6*err + 1e12;
 
     do {
@@ -219,11 +211,11 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
         //get the update step
         calculateStep(g, sys.Jacobi, sys.Residual, h_dl, delta);
 
-#ifdef USE_LOGGING
-        BOOST_LOG(log)<< "Step in iter "<<iter<<std::endl
-                      << "Step: "<<h_dl.transpose()<<std::endl
-                      << "Jacobi: "<<sys.Jacobi<<std::endl;
-#endif
+// #ifdef USE_LOGGING
+//         BOOST_LOG(log)<< "Step in iter "<<iter<<std::endl
+//                       << "Step: "<<h_dl.transpose()<<std::endl
+//                       << "Jacobi: "<<sys.Jacobi<<std::endl;
+// #endif
 
         // calculate the linear model
         dL = sys.Residual.norm() - (sys.Residual + sys.Jacobi*h_dl).norm();
@@ -262,10 +254,10 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
             nu = 2*nu;
         }
 
-#ifdef USE_LOGGING
-        BOOST_LOG(log)<<"Result of step dF: "<<dF<<", dL: "<<dL<<std::endl
-                      << "New Residual: "<< sys.Residual.transpose()<<std::endl;
-#endif
+// #ifdef USE_LOGGING
+//         BOOST_LOG(log)<<"Result of step dF: "<<dF<<", dL: "<<dL<<std::endl
+//                       << "New Residual: "<< sys.Residual.transpose()<<std::endl;
+// #endif
 
         if(dF > 0 && dL > 0) {
 
@@ -343,7 +335,7 @@ Kernel<Scalar, Nonlinear>::MappedEquationSystem::MappedEquationSystem(int params
       m_parameter(params), m_residual(equations),
       m_params(params), m_eqns(equations), Scaling(1.),
       Jacobi(&m_jacobi(0,0),equations,params,DynStride(equations,1)),
-      Parameter(&m_parameter(0),params,DynStride(1,1)), 
+      Parameter(&m_parameter(0),params,DynStride(1,1)),
       Residual(&m_residual(0),equations,DynStride(1,1)) {
 
     m_param_rot_offset = 0;
@@ -421,21 +413,22 @@ void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setAccess(AccessType t) {
     if(t==complete) {
         new(&Jacobi) MatrixMap(&m_jacobi(0,0),m_eqns,m_params,DynStride(m_eqns,1));
         new(&Parameter) VectorMap(&m_parameter(0),m_params,DynStride(1,1));
-	new(&Residual)  VectorMap(&m_residual(0), m_eqns,  DynStride(1,1));
+        new(&Residual)  VectorMap(&m_residual(0), m_eqns,  DynStride(1,1));
     }
     else if(t==rotation) {
         int num = m_param_trans_offset;
         new(&Jacobi) MatrixMap(&m_jacobi(0,0),m_eqn_trans_offset,num,DynStride(m_eqns,1));
         new(&Parameter) VectorMap(&m_parameter(0),num,DynStride(1,1));
-	new(&Residual)  VectorMap(&m_residual(0), m_eqn_trans_offset,  DynStride(1,1));
+        new(&Residual)  VectorMap(&m_residual(0), m_eqn_trans_offset,  DynStride(1,1));
     }
     else if(t==general) {
         int num = m_params - m_param_trans_offset;
         int eq_num = m_eqns - m_eqn_trans_offset;
         new(&Jacobi) MatrixMap(&m_jacobi(m_eqn_trans_offset,m_param_trans_offset),eq_num,num,DynStride(m_eqns,1));
         new(&Parameter) VectorMap(&m_parameter(m_param_trans_offset),num,DynStride(1,1));
-	new(&Residual)  VectorMap(&m_residual(m_eqn_trans_offset), eq_num,  DynStride(1,1));
+        new(&Residual)  VectorMap(&m_residual(m_eqn_trans_offset), eq_num,  DynStride(1,1));
     }
+
     m_access = t;
 };
 
@@ -443,11 +436,11 @@ template<typename Scalar, template<class> class Nonlinear>
 bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::hasAccessType(AccessType t) {
 
     if(t==rotation)
-        return (m_param_rot_offset>0);
+        return (m_param_rot_offset>0 && m_eqn_rot_offset>0);
     else if(t==general)
-        return (m_param_trans_offset<m_params);
+        return (m_param_trans_offset<m_params && m_eqn_trans_offset<m_eqns);
     else
-        return (m_params>0);
+        return (m_params>0 && m_eqns>0);
 };
 
 template<typename Scalar, template<class> class Nonlinear>
