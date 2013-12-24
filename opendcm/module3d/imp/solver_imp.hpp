@@ -224,7 +224,9 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         boost::shared_ptr<Cluster> c = (*cit.first).second;
 
         if(c->template getProperty<changed_prop>() &&
-                c->template getProperty<type_prop>() == details::cluster3D)
+                ((c->template getProperty<type_prop>() == details::cluster3D)
+                 || ((c->template getProperty<type_prop>() == details::subcluster) &&
+                     (sys.template getOption<subsystemsolving>() == Automatic))))
             solveCluster(c, sys);
     }
 
@@ -379,7 +381,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             mes.Scaling = 1./(re.calculateScale()*SKALEFAKTOR);
 
             try {
-                sys.kernel().solve(mes, re);
+                DummyScaler dummy;
+                sys.kernel().solve(mes, dummy);
                 mes.Scaling = 1.;
             }
             catch(...) {
@@ -424,6 +427,12 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                 mes.recalculate();
 
                 Rescaler re(cluster, mes);
+                re();
+                mes.recalculate();
+                re();
+                mes.recalculate();
+                re();
+                mes.recalculate();
                 re();
                 sys.kernel().solve(mes, re);
 #ifdef USE_LOGGING
