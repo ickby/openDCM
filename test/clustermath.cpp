@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
     math.initFixMaps();
     new(&math.m_normQ) Kernel::Vector3Map(&vec(0));
 
-    for(int i=1; i<100; i++) {
+    for(int i=1; i<10; i++) {
 
         //add the amount of points
         for(int j=0; j<i; j++) {
@@ -86,30 +86,39 @@ BOOST_AUTO_TEST_CASE(clustermath_scaling) {
         double scale = math.calculateClusterScale();
 
         //see if the scale value is correct
-        if(i!=1) {
+        if(i>1) {
             for(int j=0; j<i; j++) {
                 double val = (math.getGeometry()[j]->point() - math.midpoint).norm();
                 BOOST_CHECK_GE(val / scale , (MINFAKTOR)-0.01);
                 BOOST_CHECK_LE(val / scale , (MAXFAKTOR)+0.01);
-            };
+            }
         }
-        else
-            BOOST_REQUIRE(scale==0);
 
         //see if we can set arbitrary bigger scale values. no hart checking as currently the alogrithm
         //is not perfect
-        math.applyClusterScale(2.*scale, false);
-        if(i!=1) {
-            for(int j=0; j<i; j++) {
-                double val = math.getGeometry()[j]->point().norm();
-                BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
-                BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
-            };
-        }
-        else
-            BOOST_REQUIRE(scale==0);
+        math.applyClusterScale(scale, false);
 
+        math.recalculate();
+
+        for(int j=0; j<i; j++) {
+            double val = math.getGeometry()[j]->point().norm();
+            BOOST_CHECK_GE(val, (MINFAKTOR/SKALEFAKTOR)-0.01);
+            BOOST_CHECK_LE(val, (MAXFAKTOR/SKALEFAKTOR)+0.01);
+        };
+
+        //now we can check if a second calculation and application of acale is the same as the first,
+        //as it should be
+        //calculate the scale value for these points
+        scale = math.calculateClusterScale();
+
+        BOOST_CHECK_GE(scale , (MINFAKTOR)-0.01);
+
+        BOOST_CHECK_LE(scale , (MAXFAKTOR)+0.01);
+
+
+	math.finishCalculation();
         math.clearGeometry();
+
         math.initFixMaps();
     }
 }
