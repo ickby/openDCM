@@ -22,6 +22,7 @@
 
 #include "../geometry.hpp"
 #include "opendcm/core/imp/constraint_holder_imp.hpp"
+#include "opendcm/core/imp/kernel_imp.hpp"
 
 #ifdef DCM_EXTERNAL_CORE
 //following macros are used for externalisation. As the holder type can hould a very big set of combinations,

@@ -22,6 +22,9 @@
 #include "opendcm/moduleState/indent.hpp"
 #include <boost/iostreams/filtering_stream.hpp>
 
+//we need isSame implementation
+#include "opendcm/core/imp/kernel_imp.hpp"
+
 template<typename T, typename G>
 void generate(std::stringstream& s, T& input, G& gen) {
 

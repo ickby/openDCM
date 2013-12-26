@@ -50,9 +50,11 @@ struct TestModule1 {
             test_object2(Sys& system) : dcm::Object<Sys, test_object2, signal_map >(system) { };
         };
 
-        struct inheriter {};
+        struct inheriter {
+            void system_sub(boost::shared_ptr<Sys> subsys) {};
+        };
 
-	struct test_cluster_prop {
+        struct test_cluster_prop {
             typedef int type;
             typedef dcm::cluster_property kind;
         };
@@ -74,14 +76,14 @@ struct TestModule1 {
         };
 
         typedef mpl::vector2<test_object1, test_object2> objects;
-        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop, 
-			      test_edge1_prop>   properties;
-	typedef mpl::vector0<> geometries;
-	typedef dcm::Unspecified_Identifier Identifier;
-	typedef mpl::map0<> signals;
-	
+        typedef mpl::vector4<test_object1_prop, test_object2_prop, test_vertex1_prop,
+                test_edge1_prop>   properties;
+        typedef mpl::vector0<> geometries;
+        typedef dcm::Unspecified_Identifier Identifier;
+        typedef mpl::map0<> signals;
+
         static void system_init(Sys& sys) {};
-	static void system_copy(const Sys& from, Sys& into) {};
+        static void system_copy(const Sys& from, Sys& into) {};
     };
 };
 
@@ -101,8 +103,8 @@ struct geometry_traits<Eigen::Vector3d> {
 
 template<typename System>
 struct parser_generate< typename TestModule1::type<System>::test_vertex1_prop, System>
-  : public mpl::true_{};
-  
+        : public mpl::true_ {};
+
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
@@ -114,15 +116,15 @@ struct parser_generator< typename TestModule1::type<System>::test_vertex1_prop, 
 
 template<typename System>
 struct parser_parse< typename TestModule1::type<System>::test_vertex1_prop, System>
-  : public mpl::true_{};
-  
+        : public mpl::true_ {};
+
 template<typename System, typename iterator>
 struct parser_parser< typename TestModule1::type<System>::test_vertex1_prop, System, iterator > {
 
     typedef qi::rule<iterator, int(), qi::space_type> parser;
     static void init(parser& r) {
-        r = qi::lexeme[qi::lit("<type>vertex 1 prop</type>")] >> ("<value>") 
-	>> qi::int_ >> ("</value>");
+        r = qi::lexeme[qi::lit("<type>vertex 1 prop</type>")] >> ("<value>")
+            >> qi::int_ >> ("</value>");
     };
 };
 
@@ -130,8 +132,8 @@ struct parser_parser< typename TestModule1::type<System>::test_vertex1_prop, Sys
 
 template<typename System>
 struct parser_generate< typename TestModule1::type<System>::test_edge1_prop, System>
-  : public mpl::true_{};
-  
+        : public mpl::true_ {};
+
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_edge1_prop, System, iterator > {
 
@@ -143,21 +145,21 @@ struct parser_generator< typename TestModule1::type<System>::test_edge1_prop, Sy
 
 template<typename System>
 struct parser_parse< typename TestModule1::type<System>::test_edge1_prop, System>
-  : public mpl::true_{};
+        : public mpl::true_ {};
 
 template<typename System, typename iterator>
 struct parser_parser< typename TestModule1::type<System>::test_edge1_prop, System, iterator > {
-  
+
     typedef qi::rule<iterator, int(), qi::space_type> parser;
     static void init(parser& r) {
-        r = qi::lexeme[qi::lit("<type>edge 1 prop</type>")] >> ("<value>") 
-	    >> qi::int_ >> ("</value>");
+        r = qi::lexeme[qi::lit("<type>edge 1 prop</type>")] >> ("<value>")
+            >> qi::int_ >> ("</value>");
     };
 };
 
 template<typename System>
 struct parser_generate< typename TestModule1::type<System>::test_object1, System>
-  : public mpl::true_{};
+        : public mpl::true_ {};
 
 template<typename System, typename iterator>
 struct parser_generator< typename TestModule1::type<System>::test_object1, System, iterator > {
@@ -170,17 +172,17 @@ struct parser_generator< typename TestModule1::type<System>::test_object1, Syste
 
 template<typename System>
 struct parser_parse< typename TestModule1::type<System>::test_object1, System>
-  : public mpl::true_{};
+        : public mpl::true_ {};
 
 template<typename System, typename iterator>
 struct parser_parser< typename TestModule1::type<System>::test_object1, System, iterator > {
 
     typedef typename TestModule1::type<System>::test_object1 object_type;
-    
+
     typedef qi::rule<iterator, boost::shared_ptr<object_type>(System*), qi::space_type> parser;
     static void init(parser& r) {
-        r = qi::lexeme[qi::lit("<type>object 1 prop</type>")[ qi::_val = 
-		  phx::construct<boost::shared_ptr<object_type> >( phx::new_<object_type>(*qi::_r1))]] >> ("<value>HaHAHAHAHA</value>");
+        r = qi::lexeme[qi::lit("<type>object 1 prop</type>")[ qi::_val =
+                           phx::construct<boost::shared_ptr<object_type> >(phx::new_<object_type>(*qi::_r1))]] >> ("<value>HaHAHAHAHA</value>");
     };
 };
 }
