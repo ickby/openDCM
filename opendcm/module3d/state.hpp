@@ -65,6 +65,17 @@ struct parser_generator< typename details::getModule3D<System>::type::vertex_pro
 };
 
 template<typename System>
+struct parser_generate< typename details::getModule3D<System>::type::math_prop , System>
+        : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_generator< typename details::getModule3D<System>::type::math_prop , System, iterator > {
+
+    typedef karma::rule<iterator, details::ClusterMath<System>&(), karma::locals<int> > generator;
+    static void init(generator& r);
+};
+
+template<typename System>
 struct parser_generate< typename details::getModule3D<System>::type::Constraint3D , System>
         : public mpl::true_ {};
 
@@ -128,6 +139,16 @@ struct parser_parser< typename details::getModule3D<System>::type::vertex_prop, 
     static void init(parser& r);
 };
 
+template<typename System>
+struct parser_parse< typename details::getModule3D<System>::type::math_prop, System>
+        : public mpl::true_ {};
+
+template<typename System, typename iterator>
+struct parser_parser< typename details::getModule3D<System>::type::math_prop, System, iterator > {
+
+    typedef qi::rule<iterator, details::ClusterMath<System>(), qi::space_type > parser;
+    static void init(parser& r);
+};
 
 template<typename System>
 struct parser_parse< typename details::getModule3D<System>::type::Constraint3D , System>

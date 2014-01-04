@@ -106,6 +106,31 @@ typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform()
 };
 
 template<typename Sys>
+typename ClusterMath<Sys>::Kernel::Transform3D::Translation const& ClusterMath<Sys>::getTranslation() const {
+    return m_transform.translation();
+};
+
+template<typename Sys>
+typename ClusterMath<Sys>::Kernel::Transform3D::Rotation const& ClusterMath<Sys>::getRotation() const {
+    return m_transform.rotation();
+};
+
+template<typename Sys>
+void ClusterMath<Sys>::setTransform(typename ClusterMath<Sys>::Kernel::Transform3D const& t) {
+    m_transform = t;
+};
+
+template<typename Sys>
+void ClusterMath<Sys>::setTranslation(typename ClusterMath<Sys>::Kernel::Transform3D::Translation const& t) {
+    m_transform.setTranslation(t);
+};
+
+template<typename Sys>
+void ClusterMath<Sys>::setRotation(typename ClusterMath<Sys>::Kernel::Transform3D::Rotation const& r) {
+    m_transform.setRotation(r);
+};
+
+template<typename Sys>
 void ClusterMath<Sys>::mapsToTransform(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
     //add scale only after possible reset
     typename Kernel::Transform3D::Scaling scale(m_transform.scaling());
