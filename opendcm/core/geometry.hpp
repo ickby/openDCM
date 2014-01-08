@@ -217,7 +217,7 @@ class Geometry {
 
 #ifdef USE_LOGGING
 protected:
-    src::logger log;
+    dcm_logger log;
 #endif
 
 public:

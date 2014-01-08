@@ -170,7 +170,7 @@ struct test_constraint : public dcm::Equation<test_constraint, int, 99> {
 
 //multi-equation constraint test
 typedef fusion::vector2<test_constraint, dcm::Distance> vector;
-struct comp_constraint : public dcm::constraint_sequence<vector> {
+struct comp_constraint : public dcm::constraint_sequence<vector, comp_constraint> {
     //allow to set the distance
     comp_constraint& operator()(double val) {
         fusion::at_c<1>(*this) = val;

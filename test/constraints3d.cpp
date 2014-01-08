@@ -161,7 +161,12 @@ template<typename Kernel>
 struct CheckSolver {
 
     typedef typename Kernel::number_type Scalar;
-    CheckSolver(Kernel* k) {};
+    
+    Scalar time, err;
+    int iter;
+    
+    CheckSolver() {};
+    void setKernel(Kernel* k) {};
 
     template<typename Functor>
     int solve(typename Kernel::MappedEquationSystem& sys, Functor& f) {

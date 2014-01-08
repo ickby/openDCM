@@ -69,7 +69,7 @@ template<typename Kernel>
 struct Dogleg {
 
 #ifdef USE_LOGGING
-    src::logger log;
+    dcm_logger log;
 #endif
 
     typedef typename Kernel::number_type number_type;

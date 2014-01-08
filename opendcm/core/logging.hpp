@@ -44,8 +44,20 @@ namespace keywords = boost::log::keywords;
 
 namespace dcm {
 
+enum severity_level {
+
+    iteration,
+    solving,
+    manipulaition,
+    information,
+    error
+};
+
+BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severity_level)
+
 static int counter = 0;
 typedef sinks::synchronous_sink< sinks::text_file_backend > sink_t;
+typedef src::severity_logger< severity_level > dcm_logger;
 
 inline boost::shared_ptr< sink_t > init_log() {
 

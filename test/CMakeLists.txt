@@ -39,19 +39,19 @@ else(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
-	      #kernel.cpp
-	      #clustergraph.cpp
-	      #sys_and_obj.cpp
-	      #geometry.cpp
-	      #clustermath.cpp
-	      #constraints3d.cpp
-	      #${module3d_SRC}
-	      #dof.cpp
-	      #modulepart.cpp
-	      #modulehl3d.cpp
+	      kernel.cpp
+	      clustergraph.cpp
+	      sys_and_obj.cpp
+	      geometry.cpp
+	      clustermath.cpp
+	      constraints3d.cpp
+	      ${module3d_SRC}
+	      dof.cpp
+	      modulepart.cpp
+	      modulehl3d.cpp
 	      #misc.cpp
 	      #userbugs.cpp
-	      ${state_SRC}	      
+	      #${state_SRC}	      
 )
 
 if(LOGGING)
