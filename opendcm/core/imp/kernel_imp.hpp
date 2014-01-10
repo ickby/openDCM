@@ -35,7 +35,7 @@ Dogleg<Kernel>::Dogleg(Kernel* k) : m_kernel(k), tolg(1e-40), tolx(1e-20) {
 };
 
 template<typename Kernel>
-Dogleg<Kernel>::Dogleg() : tolg(1e-40), tolx(1e-20) {
+Dogleg<Kernel>::Dogleg() : tolg(1e-6), tolx(1e-3) {
 
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
@@ -62,7 +62,8 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
     const double eigen_error = (jacobi*h_gn + residual).norm();
 #ifdef USE_LOGGING
-   if(!boost::math::isfinite(h_gn.norm())) {
+
+    if(!boost::math::isfinite(h_gn.norm())) {
         BOOST_LOG_SEV(log, error) << "Unnormal gauss-newton detected: "<<h_gn.norm();
     }
 
@@ -150,14 +151,14 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     sys.recalculate();
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving) << "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
-                  << "residual: "<<sys.Residual.transpose()<<std::endl
-                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
+                                << "residual: "<<sys.Residual.transpose()<<std::endl
+                                << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
     sys.removeLocalGradientZeros();
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving) << "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl
-                  << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
+                                << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
 
     err = sys.Residual.norm();
@@ -179,17 +180,18 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     unused=0;
     counter=0;
 
-    int maxIterNumber = 10000;//MaxIterations * xsize;
+    int maxIterNumber = m_kernel->template getProperty<iterations>();
+    number_type pr = m_kernel->template getProperty<precision>()*sys.Scaling;
     number_type diverging_lim = 1e6*err + 1e12;
 
     do {
 
         // check if finished
-        if(fx_inf <= m_kernel->template getProperty<precision>()*sys.Scaling)  // Success
+        if(fx_inf <= pr)  // Success
             stop = 1;
-        else if(g_inf <= tolg)
+        else if(g_inf <= tolg*pr)
             throw solving_error() <<  boost::errinfo_errno(2) << error_message("g infinity norm smaller below limit");
-        else if(delta <= tolx)
+        else if(delta <= tolx*pr)
             throw solving_error() <<  boost::errinfo_errno(3) << error_message("step size below limit");
         else if(iter >= maxIterNumber)
             throw solving_error() <<  boost::errinfo_errno(4) << error_message("maximal iterations reached");
@@ -212,9 +214,9 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
 #ifdef USE_LOGGING
         BOOST_LOG_SEV(log, iteration) << "Step in iter "<<iter<<std::endl
-                      << "Step: "<<h_dl.transpose()<<std::endl
-                      << "Jacobi: "<<sys.Jacobi<<std::endl
-                      << "Residual: "<<sys.Residual.transpose();
+                                      << "Step: "<<h_dl.transpose()<<std::endl
+                                      << "Jacobi: "<<sys.Jacobi<<std::endl
+                                      << "Residual: "<<sys.Residual.transpose();
 #endif
 
         // calculate the linear model
@@ -256,7 +258,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
 #ifdef USE_LOGGING
         BOOST_LOG_SEV(log, iteration)<<"Result of step dF: "<<dF<<", dL: "<<dL<<std::endl
-                      << "New Residual: "<< sys.Residual.transpose()<<std::endl;
+                                     << "New Residual: "<< sys.Residual.transpose()<<std::endl;
 #endif
 
         if(dF > 0 && dL > 0) {
@@ -307,7 +309,9 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving)<<"Done solving: "<<err<<", iter: "<<iter<<", unused: "<<unused<<", reason:"<< stop;
-    BOOST_LOG_SEV(log, solving)<< "final jacobi: "<<std::endl<<sys.Jacobi;
+    BOOST_LOG_SEV(log, solving)<< "final jacobi: "<<std::endl<<sys.Jacobi
+                               << "residual: "<<sys.Residual.transpose()<<std::endl
+                               << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
 
     return stop;

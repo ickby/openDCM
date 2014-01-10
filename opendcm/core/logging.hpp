@@ -27,7 +27,7 @@
 #include <boost/log/core.hpp>
 #include <boost/log/sinks.hpp>
 #include <boost/log/expressions/formatters.hpp>
-#include <boost/log/sources/basic_logger.hpp>
+#include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/attributes.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
@@ -48,7 +48,7 @@ enum severity_level {
 
     iteration,
     solving,
-    manipulaition,
+    manipulation,
     information,
     error
 };

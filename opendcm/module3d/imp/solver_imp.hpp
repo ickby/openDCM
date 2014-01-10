@@ -337,7 +337,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     }
 
     try {
-        //if we don't have rotations we need no expensive scaling code
+    /*    //if we don't have rotations we need no expensive scaling code
         if(!mes.hasAccessType(rotation)) {
 
 #ifdef USE_LOGGING
@@ -423,7 +423,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
             //};
 
             //not done already? try it the hard way!
-            if(!done) {
+            if(!done) {*/
 #ifdef USE_LOGGING
                 BOOST_LOG_SEV(log, solving)<< "Full scale solver used";
 #endif
@@ -436,8 +436,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 #ifdef USE_LOGGING
                 BOOST_LOG_SEV(log, solving)<< "Numbers of rescale: "<<re.rescales;
 #endif
-            };
-        }
+        /*    };
+        }*/
 
         //done solving, write the results back
         finish(cluster, sys, mes);

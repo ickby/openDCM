@@ -377,14 +377,14 @@ void parser_generator< typename details::getModule3D<System>::type::vertex_prop 
     r = karma::lit("<type>Vertex</type>")
         << karma::eol << "<value>" << karma::int_ << "</value>";
 };
-
+/*
 template<typename System, typename iterator>
 void parser_generator< typename details::getModule3D<System>::type::math_prop , System, iterator >::init(generator& r) {
 
     r = karma::lit("<type>Math3D</type>")
         << karma::eol << "<Translation>" << (details::scientific[ boost::spirit::_pass = translation_out(karma::_val, karma::_a, karma::_1) ] % ' ') << "</Translation>"
 	<< karma::eol << karma::eps[karma::_a = 0] << "<Rotation>" << (details::scientific[ boost::spirit::_pass = rotation_out(karma::_val, karma::_a, karma::_1) ] % ' ') << "</Rotation>";
-};
+};*/
 
 template<typename System, typename iterator>
 void parser_generator< typename details::getModule3D<System>::type::Constraint3D , System, iterator >::init(generator& r) {
@@ -427,13 +427,13 @@ void parser_parser< typename details::getModule3D<System>::type::vertex_prop, Sy
 
     r %= qi::lit("<type>Vertex</type>") >> "<value>" >> qi::int_ >> "</value>";
 };
-
+/*
 template<typename System, typename iterator>
 void parser_parser< typename details::getModule3D<System>::type::math_prop, System, iterator >::init(parser& r) {
 
     //r = qi::lit("<type>Math3D</type>") >> "<Translation>" >> (*qi::double_)[ phx::bind(&details::TranslationInput<details::ClusterMath<System> >, qi::_val, qi::_1) ] >> "</Translation>"
 	//  >> "<Rotation>" >> (*qi::double_)[ phx::bind(&details::RotationInput<details::ClusterMath<System> >,qi::_val, qi::_1) ] >> "</Rotation>";
-};
+};*/
 
 template<typename System, typename iterator>
 void parser_parser< typename details::getModule3D<System>::type::Constraint3D, System, iterator >::init(parser& r) {
