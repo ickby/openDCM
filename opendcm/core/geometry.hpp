@@ -151,6 +151,8 @@ struct orderd_bracket_accessor {
     void set(Scalar value, T& t) {
         t[ID] = value;
     };
+    template<typename T>
+    void finalize(T& t) {};
 };
 
 struct orderd_roundbracket_accessor {
@@ -163,6 +165,8 @@ struct orderd_roundbracket_accessor {
     void set(Scalar value, T& t) {
         t(ID) = value;
     };
+    template<typename T>
+    void finalize(T& t) {};
 };
 
 //tag ordering (smaller weight is first tag)

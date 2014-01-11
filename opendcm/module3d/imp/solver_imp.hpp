@@ -26,6 +26,7 @@
 #include <boost/graph/undirected_dfs.hpp>
 
 #include <opendcm/core/kernel.hpp>
+#include <opendcm/core/clustergraph.hpp>
 
 #ifdef DCM_EXTERNAL_CORE
 #include "opendcm/core/imp/kernel_imp.hpp"
@@ -34,7 +35,6 @@
 
 namespace dcm {
 namespace details {
-
 
 template<typename Sys>
 MES<Sys>::MES(boost::shared_ptr<Cluster> cl, int par, int eqn) : Base(par, eqn), m_cluster(cl) {
@@ -95,6 +95,100 @@ void MES<Sys>::removeLocalGradientZeros() {
         for(; oit.first != oit.second; oit.first++) {
             if(*oit.first)
                 (*oit.first)->treatLGZ();
+        }
+    }
+};
+
+
+//the dfs_tree is used to detect the cluster connections in the dcm system. We search for all connected
+//clusters (and all groups of connected clusters if there exist multiple ones devided by non cluster vertices)
+//and need to hold the order the individual clusters appear in the cluster group.
+template<typename ClusterGraph>
+struct dfs_tree:public boost::default_dfs_visitor {
+
+    boost::shared_ptr<ClusterGraph> parent;
+    dfs_tree(boost::shared_ptr<ClusterGraph> g) : parent(g) {};
+    
+    //we need to hold the discovered vertex and a indicator if this is a cluster or not
+    std::vector< fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > > tree;
+
+    void discover_vertex(LocalVertex u, const ClusterGraph& g) {
+        tree.push_back(fusion::make_vector(u, parent->getVertexCluster(u)));
+    }
+
+    void finish_vertex(LocalVertex u, const ClusterGraph& g) {
+        assert(fusion::at_c<0>(tree.back()) == u);
+        tree.pop_back();
+    }
+};
+
+template<typename Sys>
+struct init_mes : public dfs_tree<typename Sys::Cluster> {
+
+    typedef typename Sys::Cluster ClusterGraph;
+    typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+    typedef typename module3d::Geometry3D Geometry3D;
+    typedef typename module3d::Constraint3D Constraint3D;
+
+    using dfs_tree<typename Sys::Cluster>::parent;
+    MES<Sys>& mes;
+
+    //we need to have our clustergraph seperate, as the ones given to the callbacks are const and can 
+    //therefore not be used for initialising
+    init_mes(MES<Sys>& system, boost::shared_ptr<ClusterGraph> p) : dfs_tree<typename Sys::Cluster>(p), mes(system) {};
+
+    void discover_vertex(LocalVertex u, const ClusterGraph& g) {
+        dfs_tree<ClusterGraph>::discover_vertex(u, g);
+
+        boost::shared_ptr<ClusterGraph> c = fusion::at_c<1>(dfs_tree<ClusterGraph>::tree.back());
+
+        if(c) {
+            details::ClusterMath<Sys>& cm =  c->template getProperty<typename module3d::math_prop>();
+
+            //only get maps and propagate downstream if not fixed
+            if(!c->template getProperty<typename module3d::fix_prop>()) {
+                //set norm Quaternion as map to the parameter vector
+                int offset_rot = mes.setParameterMap(cm.getNormQuaternionMap(), rotation);
+                //set translation as map to the parameter vector
+                int offset = mes.setParameterMap(cm.getTranslationMap(), general);
+                //write initail values to the parameter maps
+                //remember the parameter offset as all downstream geometry must use this offset
+                cm.setParameterOffset(offset_rot, rotation);
+                cm.setParameterOffset(offset, general);
+                //wirte initial values
+                cm.initMaps();
+            }
+            else
+                cm.initFixMaps();
+
+            //map all geometrie within that cluster to it's rotation matrix
+            //for collecting all geometries which need updates
+            cm.clearGeometry();
+            cm.mapClusterDownstreamGeometry(c);
+
+        }
+        else {
+            boost::shared_ptr<Geometry3D> gm = parent->template getObject<Geometry3D>(u);
+            gm->initMap(&mes);
+        }
+    }
+
+    void finish_edge(LocalEdge u, const ClusterGraph& g) {
+
+        //as always: every local edge can hold multiple global ones, so iterate over all constraints
+        //hold by the individual edge
+        typedef typename ClusterGraph::template object_iterator<Constraint3D> oiter;
+        std::pair< oiter, oiter > oit = parent->template getObjects<Constraint3D>(u);
+
+        for(; oit.first != oit.second; oit.first++) {
+
+            //set the maps
+            boost::shared_ptr<Constraint3D> c = *oit.first;
+
+            if(c)
+                c->setMaps(mes);
+
+            //TODO: else throw (as every global edge was counted as one equation)
         }
     }
 };
@@ -277,164 +371,120 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     //initialise the system with now known size
     Mes mes(cluster, params, constraints);
 
-    //iterate all geometrys again and set the needed maps
-    it = boost::vertices(*cluster);
-
-    for(; it.first != it.second; it.first++) {
-
-        if(cluster->isCluster(*it.first)) {
-            boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
-            details::ClusterMath<Sys>& cm =  c->template getProperty<math_prop>();
-
-            //only get maps and propagate downstream if not fixed
-            if(!c->template getProperty<fix_prop>()) {
-                //set norm Quaternion as map to the parameter vector
-                int offset_rot = mes.setParameterMap(cm.getNormQuaternionMap(), rotation);
-                //set translation as map to the parameter vector
-                int offset = mes.setParameterMap(cm.getTranslationMap(), general);
-                //write initail values to the parameter maps
-                //remember the parameter offset as all downstream geometry must use this offset
-                cm.setParameterOffset(offset_rot, rotation);
-                cm.setParameterOffset(offset, general);
-                //wirte initial values
-                cm.initMaps();
-            }
-            else
-                cm.initFixMaps();
-
-            //map all geometrie within that cluster to it's rotation matrix
-            //for collecting all geometries which need updates
-            cm.clearGeometry();
-            cm.mapClusterDownstreamGeometry(c);
-
-        }
-        else {
-            Geom g = cluster->template getObject<Geometry3D>(*it.first);
-            g->initMap(&mes);
-        }
-    }
-
-    //and now the constraints to set the residual and gradient maps
-    typedef typename Cluster::template object_iterator<Constraint3D> oiter;
-    e_it = boost::edges(*cluster);
-
-    for(; e_it.first != e_it.second; e_it.first++) {
-
-        //as always: every local edge can hold multiple global ones, so iterate over all constraints
-        //hold by the individual edge
-        std::pair< oiter, oiter > oit = cluster->template getObjects<Constraint3D>(*e_it.first);
-
-        for(; oit.first != oit.second; oit.first++) {
-
-            //set the maps
-            Cons c = *oit.first;
-
-            if(c)
-                c->setMaps(mes);
-
-            //TODO: else throw (as every global edge was counted as one equation)
-        }
-    }
-
     try {
-    /*    //if we don't have rotations we need no expensive scaling code
-        if(!mes.hasAccessType(rotation)) {
+        /*    //if we don't have rotations we need no expensive scaling code
+            if(!mes.hasAccessType(rotation)) {
 
-#ifdef USE_LOGGING
-            BOOST_LOG_SEV(log, solving)<< "No rotation parameters in system, solve without scaling";
-#endif
-            DummyScaler re;
-            sys.kernel().solve(mes, re);
-
-        }
-        else {
-
-            // we have rotations, so let's check our options. first search for cycles, as systems with them
-            // always need the full solver power
-            bool has_cycle;
-            cycle_dedector cd(has_cycle);
-            //create te needed property maps and fill it
-            property_map<vertex_index_prop, Cluster> vi_map(cluster);
-            cluster->initIndexMaps();
-            typedef std::map< LocalVertex, boost::default_color_type> vcmap;
-            typedef std::map< LocalEdge, boost::default_color_type> ecmap;
-            vcmap v_cm;
-            ecmap e_cm;
-            boost::associative_property_map< vcmap > v_cpm(v_cm);
-            boost::associative_property_map< ecmap > e_cpm(e_cm);
-
-            boost::undirected_dfs(*cluster.get(), boost::visitor(cd).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
-
-            bool done = false;
-
-            //if(!has_cycle) {
-#ifdef USE_LOGGING
-            BOOST_LOG_SEV(log, solving)<< "non-cyclic system dedected: solve rotation only";
-#endif
-            //cool, lets do uncylic. first all rotational constraints with rotational parameters
-            mes.setAccess(rotation);
-
-            //rotations need to be calculated in a scaled manner. thats because the normales used for
-            //rotation calculation are always 1, no matter how big the part is. This can lead to problems
-            //when for example two rotated faces have a precision error on the parallel normals but a distance
-            //at the outer edges is far bigger than the precision as the distance from normal origin to outer edge
-            //is bigger 1. that would lead to unsolvable translation-only systems.
-
-            //solve need to catch exceptions to reset the mes scaling on failure
-            Rescaler re(cluster, mes);
-            mes.Scaling = 1./(re.calculateScale()*SKALEFAKTOR);
-
-            try {
-                DummyScaler dummy;
-                sys.kernel().solve(mes, dummy);
-                mes.Scaling = 1.;
-            }
-            catch(...) {
-                mes.Scaling = 1.;
-                throw;
-            }
-
-            //now let's see if we have to go on with the translations
-            if(mes.hasAccessType(general)) {
-
-                mes.setAccess(general);
-                mes.recalculate();
-
-                if(sys.kernel().isSame(mes.Residual.template lpNorm<E::Infinity>(),0.))
-                    done = true;
-                else {
-#ifdef USE_LOGGING
-                    BOOST_LOG_SEV(log, solving)<< "Solve Translation after Rotations are not enough";
-#endif
-
-                    //let's try translation only
-                    try {
-                        DummyScaler re;
-                        sys.kernel().solve(mes, re);
-                        done=true;
-                    }
-                    catch(boost::exception&) {
-                        //not successful, so we need brute force
-                        done = false;
-                    }
-                }
-            };
-
-            //};
-
-            //not done already? try it the hard way!
-            if(!done) {*/
-#ifdef USE_LOGGING
-                BOOST_LOG_SEV(log, solving)<< "Full scale solver used";
-#endif
-                mes.setAccess(complete);
-                mes.recalculate();
-
-                Rescaler re(cluster, mes);
-                re();
+        #ifdef USE_LOGGING
+                BOOST_LOG_SEV(log, solving)<< "No rotation parameters in system, solve without scaling";
+        #endif
+                DummyScaler re;
                 sys.kernel().solve(mes, re);
+
+            }
+            else {
+
+                // we have rotations, so let's check our options. first search for cycles, as systems with them
+                // always need the full solver power
+                bool has_cycle;
+                cycle_dedector cd(has_cycle);
+                //create te needed property maps and fill it
+                property_map<vertex_index_prop, Cluster> vi_map(cluster);
+                cluster->initIndexMaps();
+                typedef std::map< LocalVertex, boost::default_color_type> vcmap;
+                typedef std::map< LocalEdge, boost::default_color_type> ecmap;
+                vcmap v_cm;
+                ecmap e_cm;
+                boost::associative_property_map< vcmap > v_cpm(v_cm);
+                boost::associative_property_map< ecmap > e_cpm(e_cm);
+
+                boost::undirected_dfs(*cluster.get(), boost::visitor(cd).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+
+                bool done = false;
+
+                //if(!has_cycle) {
+        #ifdef USE_LOGGING
+                BOOST_LOG_SEV(log, solving)<< "non-cyclic system dedected: solve rotation only";
+        #endif
+                //cool, lets do uncylic. first all rotational constraints with rotational parameters
+                mes.setAccess(rotation);
+
+                //rotations need to be calculated in a scaled manner. thats because the normales used for
+                //rotation calculation are always 1, no matter how big the part is. This can lead to problems
+                //when for example two rotated faces have a precision error on the parallel normals but a distance
+                //at the outer edges is far bigger than the precision as the distance from normal origin to outer edge
+                //is bigger 1. that would lead to unsolvable translation-only systems.
+
+                //solve need to catch exceptions to reset the mes scaling on failure
+                Rescaler re(cluster, mes);
+                mes.Scaling = 1./(re.calculateScale()*SKALEFAKTOR);
+
+                try {
+                    DummyScaler dummy;
+                    sys.kernel().solve(mes, dummy);
+                    mes.Scaling = 1.;
+                }
+                catch(...) {
+                    mes.Scaling = 1.;
+                    throw;
+                }
+
+                //now let's see if we have to go on with the translations
+                if(mes.hasAccessType(general)) {
+
+                    mes.setAccess(general);
+                    mes.recalculate();
+
+                    if(sys.kernel().isSame(mes.Residual.template lpNorm<E::Infinity>(),0.))
+                        done = true;
+                    else {
+        #ifdef USE_LOGGING
+                        BOOST_LOG_SEV(log, solving)<< "Solve Translation after Rotations are not enough";
+        #endif
+
+                        //let's try translation only
+                        try {
+                            DummyScaler re;
+                            sys.kernel().solve(mes, re);
+                            done=true;
+                        }
+                        catch(boost::exception&) {
+                            //not successful, so we need brute force
+                            done = false;
+                        }
+                    }
+                };
+
+                //};
+
+                //not done already? try it the hard way!
+                if(!done) {*/
 #ifdef USE_LOGGING
-                BOOST_LOG_SEV(log, solving)<< "Numbers of rescale: "<<re.rescales;
+        BOOST_LOG_SEV(log, solving)<< "Full scale solver used";
+#endif
+
+        init_mes<Sys> visitor(mes, cluster);
+        //create te needed property maps and fill it
+        property_map<vertex_index_prop, Cluster> vi_map(cluster);
+        cluster->initIndexMaps();
+        typedef std::map< LocalVertex, boost::default_color_type> vcmap;
+        typedef std::map< LocalEdge, boost::default_color_type> ecmap;
+        vcmap v_cm;
+        ecmap e_cm;
+        boost::associative_property_map< vcmap > v_cpm(v_cm);
+        boost::associative_property_map< ecmap > e_cpm(e_cm);
+
+        boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+
+
+        mes.setAccess(complete);
+        mes.recalculate();
+
+        Rescaler re(cluster, mes);
+        re();
+        sys.kernel().solve(mes, re);
+#ifdef USE_LOGGING
+        BOOST_LOG_SEV(log, solving)<< "Numbers of rescale: "<<re.rescales;
 #endif
         /*    };
         }*/

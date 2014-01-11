@@ -48,7 +48,7 @@ set(test_SRC  define.cpp
 	      ${module3d_SRC}
 	      dof.cpp
 	      modulepart.cpp
-	      modulehl3d.cpp
+	      #modulehl3d.cpp
 	      #misc.cpp
 	      #userbugs.cpp
 	      #${state_SRC}	      

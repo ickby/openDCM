@@ -96,19 +96,6 @@ struct SystemSolver : public Job<Sys> {
         void operator()() {};
     };
 
-    struct cycle_dedector:public boost::default_dfs_visitor {
-
-        bool& m_dedected;
-        cycle_dedector(bool& ed) : m_dedected(ed) {
-            m_dedected = false;
-        };
-
-        template <class Edge, class Graph>
-        void back_edge(Edge u, const Graph& g) {
-            m_dedected = true;
-        }
-    };
-
     SystemSolver();
     virtual void execute(Sys& sys);
     void solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sys);
