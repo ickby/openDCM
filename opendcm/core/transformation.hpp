@@ -125,28 +125,34 @@ public:
 template<typename Scalar, int Dim>
 class DiffTransform : public Transform<Scalar, Dim> {
 
+public:
+        typedef Eigen::Matrix<Scalar, Dim, Dim*Dim+Dim> DiffMatrix;
+	using Transform<Scalar, Dim>::operator*;
+	
+private:
     typedef typename Transform<Scalar, Dim>::Rotation Rotation;
     typedef typename Transform<Scalar, Dim>::Translation Translation;
     typedef typename Transform<Scalar, Dim>::Scaling Scaling;
-    typedef Eigen::Matrix<Scalar, Dim, 3*Dim> DiffMatrix;
-
     DiffMatrix m_diffMatrix;
 
 public:
+    
     DiffTransform() : Transform<Scalar, Dim>() { };
     DiffTransform(const Rotation& r) : Transform<Scalar, Dim>(r) {};
     DiffTransform(const Rotation& r, const Translation& t) : Transform<Scalar, Dim>(r,t) {};
     DiffTransform(const Rotation& r, const Translation& t, const Scaling& s) : Transform<Scalar, Dim>(r,t,s) {};
    
-    DiffTransform(Transform<Scalar, Dim>& trans);
+    DiffTransform(const Transform<Scalar, Dim>& trans);
 
-    const DiffMatrix& differential();
-    Scalar& operator()(int f, int s);
-    Scalar& at(int f, int s);
+    //inline those for faster access
+    const DiffMatrix& differential() const { return m_diffMatrix;};
+    DiffMatrix& differential() {return m_diffMatrix;};
+    Scalar& operator()(int f, int s) {return m_diffMatrix(f,s);};
+    Scalar& at(int f, int s) {return m_diffMatrix(f,s);};
 };
 
-/*When you overload a binary operator as a member function of a class the overload is used
- * when the first operand is of the class type.For stream operators, the first operand
+/* When you overload a binary operator as a member function of a class the overload is used
+ * when the first operand is of the class type. For stream operators, the first operand
  * is the stream and not (usually) the custom class.
 */
 template<typename charT, typename traits, typename Kernel, int Dim>

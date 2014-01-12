@@ -74,11 +74,10 @@ void Geometry<Kernel, Dim, TagList>::transform(const Transform& t) {
 
     if(m_isInCluster)
         transform(t, m_toplocal);
+    else if(m_init)
+        transform(t, m_rotated);
     else
-        if(m_init)
-            transform(t, m_rotated);
-        else
-            transform(t, m_global);
+        transform(t, m_global);
 };
 
 template< typename Kernel, int Dim, typename TagList>
@@ -163,6 +162,7 @@ void Geometry<Kernel, Dim, TagList>::setClusterMode(bool iscluster, bool isFixed
 
     m_isInCluster = iscluster;
     m_clusterFixed = isFixed;
+
     if(iscluster) {
         //we are in cluster, therfore the parameter map should not point to a solver value but to
         //the rotated original value;
@@ -186,22 +186,27 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
 
         //now calculate the gradient vectors and add them to diffparam
         for(int j=0; j<Dim; j++)
-            m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * m_toplocal.template segment<Dim>(i*Dim);
+            m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * m_toplocal.template segment<Dim>(i*Dim)
+                                               + trans.differential().block(0,j+9,Dim,1);
     }
+
     //after rotating the needed parameters we translate the stuff that needs to be moved
     for(int i=0; i!=m_translations; i++) {
         m_rotated.block(i*Dim,0,Dim,1) += trans.translation().vector();
         m_rotated.block(i*Dim,0,Dim,1) *= trans.scaling().factor();
+
         //calculate the gradient vectors and add them to diffparam
-        m_diffparam.block(i*Dim,Dim,Dim,Dim).setIdentity();
+        m_diffparam.block(i*Dim,Dim,Dim,Dim) = Kernel::Matrix3::Identity();
     }
 
 #ifdef USE_LOGGING
+
     if(!boost::math::isnormal(m_rotated.norm()) || !boost::math::isnormal(m_diffparam.norm())) {
         BOOST_LOG_SEV(log, error) << "Unnormal recalculated value detected: "<<m_rotated.transpose()<<std::endl
-                       << "or unnormal recalculated diff detected: "<<std::endl<<m_diffparam<<std::endl
-                       <<" with Transform: "<<std::endl<<trans;
+                                  << "or unnormal recalculated diff detected: "<<std::endl<<m_diffparam<<std::endl
+                                  <<" with Transform: "<<std::endl<<trans;
     }
+
 #endif
 };
 
@@ -226,6 +231,7 @@ void Geometry<Kernel, Dim, TagList>::finishCalculation() {
     };
 
     m_init = false;
+
     m_isInCluster = false;
 
     recalculated();
@@ -248,7 +254,7 @@ void Geometry<Kernel, Dim, TagList>::transform(const Transform& t, VectorType& v
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, manipulation) << "Transformed with cluster: "<<m_isInCluster
-                   << ", init: "<<m_init<<" into: "<< vec.transpose();
+                                     << ", init: "<<m_init<<" into: "<< vec.transpose();
 #endif
 }
 

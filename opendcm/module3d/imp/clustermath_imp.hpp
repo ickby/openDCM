@@ -31,7 +31,7 @@
 
 namespace dcm {
 namespace details {
-  
+
 template<typename Sys>
 ClusterMath<Sys>::ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
 
@@ -72,12 +72,12 @@ typename ClusterMath<Sys>::Kernel::Vector3Map& ClusterMath<Sys>::getTranslationM
 template<typename Sys>
 void ClusterMath<Sys>::initMaps() {
 
-    transformToMaps(m_transform);
+    transformToMaps(m_successiveTransform.inverse()*m_transform);
     init = true;
     midpoint.setZero();
     m_shift.setZero();
     m_ssrTransform.setIdentity();
-    m_diffTrans = m_transform;
+    m_diffTrans = typename Kernel::DiffTransform3D(m_successiveTransform.inverse()*m_transform);
     fix=false;
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Init transform: "<<m_transform;
@@ -93,6 +93,7 @@ void ClusterMath<Sys>::initFixMaps() {
     midpoint.setZero();
     m_shift.setZero();
     m_ssrTransform.setIdentity();
+    m_successiveTransform.setIdentity();
     m_diffTrans = m_transform;
     fix=true;
 #ifdef USE_LOGGING
@@ -103,6 +104,11 @@ void ClusterMath<Sys>::initFixMaps() {
 template<typename Sys>
 typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform() {
     return m_transform;
+};
+
+template<typename Sys>
+typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getSuccessiveTransform() {
+    return m_successiveTransform;
 };
 
 template<typename Sys>
@@ -118,6 +124,11 @@ typename ClusterMath<Sys>::Kernel::Transform3D::Rotation const& ClusterMath<Sys>
 template<typename Sys>
 void ClusterMath<Sys>::setTransform(typename ClusterMath<Sys>::Kernel::Transform3D const& t) {
     m_transform = t;
+};
+
+template<typename Sys>
+void ClusterMath<Sys>::setSuccessiveTransform(typename ClusterMath<Sys>::Kernel::Transform3D const& t) {
+    m_successiveTransform = t;
 };
 
 template<typename Sys>
@@ -139,16 +150,19 @@ void ClusterMath<Sys>::mapsToTransform(typename ClusterMath<Sys>::Kernel::Transf
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::transformToMaps(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
+void ClusterMath<Sys>::transformToMaps(const typename Kernel::Transform3D& trans) {
 
     const typename Kernel::Quaternion& m_quaternion = trans.rotation();
+
     if(m_quaternion.w() < 1.) {
         Scalar s = std::acos(m_quaternion.w())/std::sin(std::acos(m_quaternion.w()));
         m_normQ = m_quaternion.vec()*s;
         m_normQ /= NQFAKTOR;
-    } else {
+    }
+    else {
         m_normQ.setZero();
     }
+
     m_translation = trans.translation().vector();
 };
 
@@ -163,12 +177,15 @@ void ClusterMath<Sys>::finishCalculation() {
     init=false;
 
     m_transform = m_ssrTransform*m_transform;
+    m_transform = m_successiveTransform*m_transform;
 
     //scale all geometries back to the original size
     m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
     typedef typename std::vector<Geom>::iterator iter;
+
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->recalculate(m_diffTrans);
+
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Finish transform:"<<std::endl<<m_transform;
 #endif
@@ -182,8 +199,10 @@ void ClusterMath<Sys>::finishFixCalculation() {
     typedef typename std::vector<Geom>::iterator iter;
     m_transform *= m_ssrTransform.inverse();
     typename Kernel::DiffTransform3D diff(m_transform);
+
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->recalculate(diff);
+
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Finish fix transform:"<<std::endl<<m_transform;
 #endif
@@ -198,17 +217,17 @@ void ClusterMath<Sys>::resetClusterRotation(typename ClusterMath<Sys>::Kernel::T
 
     trans  = m_resetTransform.inverse()*trans;
     m_ssrTransform *= m_resetTransform;
-    //m_transform = m_resetTransform.inverse()*m_transform;
 
     //apply the needed transformation to all geometries local values
     typedef typename std::vector<Geom>::iterator iter;
+
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
         (*it)->transform(m_resetTransform);
     };
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::calcDiffTransform(typename ClusterMath<Sys>::Kernel::DiffTransform3D& trans) {
+typename Sys::Kernel::Quaternion ClusterMath<Sys>::calcDiffTransform(typename ClusterMath<Sys>::Kernel::DiffTransform3D& trans) {
 
     Scalar norm = m_normQ.norm();
     trans.setIdentity();
@@ -217,28 +236,36 @@ void ClusterMath<Sys>::calcDiffTransform(typename ClusterMath<Sys>::Kernel::Diff
         if(norm == 0) {
             trans *= typename Kernel::Transform3D::Translation(m_translation);
             resetClusterRotation(trans);
-        } else {
+        }
+        else {
             const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
             trans =  typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac,m_normQ(2)*fac);
             trans *= typename Kernel::Transform3D::Translation(m_translation);
             resetClusterRotation(trans);
         }
+
         transformToMaps(trans);
-        return;
+        typename Sys::Kernel::Quaternion q = trans.rotation();
+        trans = m_successiveTransform * trans;
+        return q;
     }
 
     const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
-    trans = typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-    trans *= typename Kernel::Transform3D::Translation(m_translation);
+
+    typename Kernel::Transform3D tmp;
+    tmp = typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
+    tmp *= typename Kernel::Transform3D::Translation(m_translation);
+
+    //set the real transformation
+    trans = m_successiveTransform * tmp;
+    return tmp.rotation();
 };
 
 template<typename Sys>
 void ClusterMath<Sys>::recalculate() {
 
 
-    calcDiffTransform(m_diffTrans);
-
-    const typename Kernel::Quaternion Q = m_diffTrans.rotation();
+    const typename Kernel::Quaternion Q = calcDiffTransform(m_diffTrans);
 
     // now calculate the gradient quaternions and calculate the diff rotation matrices
     // m_normQ = (a,b,c)
@@ -302,8 +329,23 @@ void ClusterMath<Sys>::recalculate() {
     m_diffTrans.at(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
     m_diffTrans.at(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
 
+    std::cout<<m_successiveTransform<<std::endl
+             <<m_successiveTransform.rotation().matrix()<<std::endl<<"-------------------------------------------------------------"<<std::endl;
+    std::cout<<m_diffTrans<<std::endl<<"-------------------------------------------------------------"<<std::endl;
+
+
+    //calculate the full differential transformation together with the successive trans
+    m_diffTrans.differential().template block<3,1>(0,9) = m_diffTrans.differential().template block<3,3>(0,0)*m_successiveTransform.translation().vector();
+    m_diffTrans.differential().template block<3,1>(0,10) = m_diffTrans.differential().template block<3,3>(0,3)*m_successiveTransform.translation().vector();
+    m_diffTrans.differential().template block<3,1>(0,11) = m_diffTrans.differential().template block<3,3>(0,6)*m_successiveTransform.translation().vector();
+    m_diffTrans.differential().template block<3,3>(0,0) *= m_successiveTransform.rotation().matrix();
+    m_diffTrans.differential().template block<3,3>(0,3) *= m_successiveTransform.rotation().matrix();
+    m_diffTrans.differential().template block<3,3>(0,6) *= m_successiveTransform.rotation().matrix();
+
+    std::cout<<m_diffTrans<<std::endl<<"-------------------------------------------------------------"<<std::endl<<std::endl;
     //recalculate all geometries
     typedef typename std::vector<Geom>::iterator iter;
+
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->recalculate(m_diffTrans);
 };
@@ -324,8 +366,8 @@ std::vector<typename ClusterMath<Sys>::Geom>& ClusterMath<Sys>::getGeometry() {
 };
 
 template<typename Sys>
-ClusterMath<Sys>::map_downstream::map_downstream(details::ClusterMath<Sys>& cm, bool fix)
-    : m_clusterMath(cm), m_isFixed(fix) {
+ClusterMath<Sys>::map_downstream::map_downstream(details::ClusterMath<Sys>& cm, bool fix, GlobalVertex v)
+    : m_clusterMath(cm), m_isFixed(fix), m_clusterVertex(v) {
     m_transform = m_clusterMath.getTransform().inverse();
 };
 
@@ -338,6 +380,8 @@ void ClusterMath<Sys>::map_downstream::operator()(Geom g) {
     g->m_offset_rot = m_clusterMath.getParameterOffset(rotation);
     //position and offset of the parameters must be set to the clusters values
     g->setClusterMode(true, m_isFixed);
+    //the cluster the geometry belongs to now
+    g->m_clusterVertex = m_clusterVertex;
     //calculate the appropriate local values
     g->transform(m_transform);
 };
@@ -353,14 +397,14 @@ void ClusterMath<Sys>::map_downstream::operator()(boost::shared_ptr<Cluster> c) 
 
 
 template<typename Sys>
-void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster) {
+void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster, GlobalVertex v) {
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Map downstream geometry";
 #endif
 
     map_downstream down(cluster->template getProperty<math_prop>(),
-                        cluster->template getProperty<fix_prop>());
+                        cluster->template getProperty<fix_prop>(), v);
     cluster->template for_each<Geometry3D>(down, true);
     //TODO: if one subcluster is fixed the hole cluster should be too, as there are no
     //	dof's remaining between parts and so nothing can be moved when one part is fixed.
@@ -372,9 +416,11 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
 #endif
+
     //ensure the usage of the right transformation
     if(!fix)
         mapsToTransform(m_transform);
+
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
 #endif
@@ -384,10 +430,13 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
     typename Kernel::Transform3D trans(m_transform.rotation(), m_transform.translation());
     trans.invert();
     typedef typename Vec::iterator iter;
+
     for(iter it = m_pseudo.begin(); it != m_pseudo.end(); it++) {
         m_points.push_back(trans*(*it));
     }
+
     typedef typename std::vector<Geom>::iterator g_iter;
+
     for(g_iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         m_points.push_back((*it)->getPoint());
 
@@ -396,7 +445,8 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
     else if(m_points.size() == 1) {
         const typename Kernel::Vector3 p = m_points[0];
         return calcOnePoint(p);
-    } else if(m_points.size() == 2) {
+    }
+    else if(m_points.size() == 2) {
         const typename Kernel::Vector3 p1 = m_points[0];
         const typename Kernel::Vector3 p2 = m_points[1];
 
@@ -404,7 +454,8 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
             return calcOnePoint(p1);
 
         return calcTwoPoints(p1, p2);
-    } else if(m_points.size() == 3) {
+    }
+    else if(m_points.size() == 3) {
 
         const typename Kernel::Vector3 p1 = m_points[0];
         const typename Kernel::Vector3 p2 = m_points[1];
@@ -419,12 +470,15 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
                 return calcOnePoint(p1);
 
             return calcTwoPoints(p1, p3);
-        } else if(Kernel::isSame(e.norm(), 0., 1e-10)) {
+        }
+        else if(Kernel::isSame(e.norm(), 0., 1e-10)) {
             return calcTwoPoints(p1, p2);
-        } else if(!Kernel::isSame((d/d.norm() - e/e.norm()).norm(), 0., 1e-10) &&
-                  !Kernel::isSame((d/d.norm() + e/e.norm()).norm(), 0., 1e-10)) {
+        }
+        else if(!Kernel::isSame((d/d.norm() - e/e.norm()).norm(), 0., 1e-10) &&
+                !Kernel::isSame((d/d.norm() + e/e.norm()).norm(), 0., 1e-10)) {
             return calcThreePoints(p1, p2, p3);
         }
+
         //three points on a line need to be treaded as multiple points
     }
 
@@ -433,6 +487,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 
     //get the bonding box to get the center of points
     Scalar xmin=1e10, xmax=1e-10, ymin=1e10, ymax=1e-10, zmin=1e10, zmax=1e-10;
+
     for(iter it = m_points.begin(); it != m_points.end(); it++) {
         typename Kernel::Vector3 v = (*it);
         xmin = (v(0)<xmin) ? v(0) : xmin;
@@ -442,29 +497,38 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
         zmin = (v(2)<zmin) ? v(2) : zmin;
         zmax = (v(2)<zmax) ? zmax : v(2);
     };
+
     //now calculate the midpoint
     midpoint << xmin+xmax, ymin+ymax, zmin+zmax;
+
     midpoint /= 2.;
 
 
     //get the scale direction an the resulting nearest point indexes
     double xh = xmax-xmin;
+
     double yh = ymax-ymin;
+
     double zh = zmax-zmin;
+
     int i1, i2, i3;
+
     if((xh<=yh) && (xh<=zh)) {
         i1=1;
         i2=2;
         i3=0;
-    } else if((yh<xh) && (yh<zh)) {
+    }
+    else if((yh<xh) && (yh<zh)) {
         i1=0;
         i2=2;
         i3=1;
-    } else {
+    }
+    else {
         i1=0;
         i2=1;
         i3=2;
     }
+
     scale_dir.setZero();
     scale_dir(i3) = 1;
     max = Eigen::Vector3d(xmin,ymin,zmin);
@@ -478,6 +542,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
     for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
         const Eigen::Vector3d point = (*it)-midpoint;
+
         if(point.norm()<MINFAKTOR*m_scale) {
 
             const double h = std::abs(point(i3)-maxm(i3));
@@ -498,7 +563,8 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
             minm = (*it)-midpoint;
 
             it = m_points.begin();
-        } else if(point.norm()<minscale) {
+        }
+        else if(point.norm()<minscale) {
             minscale = point.norm();
         }
     }
@@ -507,6 +573,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
         //we are in the range, let's get the perfect balanced scale value
         m_scale = (minscale+maxm.norm())/2.;
     }
+
     return m_scale;
 };
 
@@ -517,6 +584,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     BOOST_LOG(log) << "Apply cluster scale: "<<scale;
     BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling().factor();
 #endif
+
     //ensure the usage of the right transform
     if(!fix)
         mapsToTransform(m_transform);
@@ -531,12 +599,14 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
         typename Kernel::DiffTransform3D diff(m_transform);
         //now calculate the scaled geometrys
         typedef typename std::vector<Geom>::iterator iter;
+
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
             (*it)->recalculate(diff);
 #ifdef USE_LOGGING
             BOOST_LOG(log) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
 #endif
         };
+
         return;
     }
 
@@ -562,36 +632,43 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
             Scalar d = std::pow(maxm(1),2) + std::pow(maxm(2),2);
             Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
             midpoint(0) += maxm(0) + h;
-        } else if(scale_dir(1)) {
+        }
+        else if(scale_dir(1)) {
             Scalar d = std::pow(maxm(0),2) + std::pow(maxm(2),2);
             Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
             midpoint(1) += maxm(1) + h;
-        } else {
+        }
+        else {
             Scalar d = std::pow(maxm(0),2) + std::pow(maxm(1),2);
             Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
             midpoint(2) += maxm(2) + h;
         }
-    } else {
+    }
+    else {
 
         //TODO: it's possible that for this case we get too far away from the outer points.
         //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
         //      scale to applie, so it results in an error.
         //get the closest point
         typedef typename Vec::iterator iter;
+
         for(iter it = m_points.begin(); it != m_points.end(); it++) {
 
             const Eigen::Vector3d point = (*it)-midpoint;
+
             if(point.norm()<MINFAKTOR*scale) {
 
                 if(scale_dir(0)) {
                     Scalar d = std::pow(point(1),2) + std::pow(point(2),2);
                     Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                     midpoint(0) += point(0) + h;
-                } else if(scale_dir(1)) {
+                }
+                else if(scale_dir(1)) {
                     Scalar d = std::pow(point(0),2) + std::pow(point(2),2);
                     Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                     midpoint(1) += point(1) + h;
-                } else {
+                }
+                else {
                     Scalar d = std::pow(point(0),2) + std::pow(point(1),2);
                     Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
                     midpoint(2) += point(2) + h;
@@ -606,6 +683,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 
     //recalculate all geometries
     typedef typename std::vector<Geom>::iterator iter;
+
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->transform(ssTrans);
 
@@ -618,12 +696,14 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling().factor();
     BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling().factor();
-    //we may want to access the scale points for debuging (I mean you, freecad assembly debug!), so 
+    //we may want to access the scale points for debuging (I mean you, freecad assembly debug!), so
     //it is important to transform them too to ensure the points are in the same coordinate system
     typename Vec::iterator it;
+
     for(it=m_points.begin(); it!=m_points.end(); it++) {
-      (*it) = ssTrans * (*it);
+        (*it) = ssTrans * (*it);
     };
+
 #endif
 };
 
@@ -649,8 +729,10 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calcTwoPoints(const typename
     midpoint  = p1+(p2-p1)/2.;
     scale_dir = (p2-p1).cross(midpoint);
     scale_dir = scale_dir.cross(p2-p1);
+
     if(!Kernel::isSame(scale_dir.norm(),0, 1e-10)) scale_dir.normalize();
     else scale_dir(0) = 1;
+
     mode = details::two;
     m_scale = (p2-p1).norm()/2.;
     return m_scale;

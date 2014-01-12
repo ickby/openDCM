@@ -41,6 +41,7 @@
 #include "object.hpp"
 #include "equations.hpp"
 #include "geometry.hpp"
+#include "clustergraph.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -94,7 +95,7 @@ public:
     template<typename ConstraintVector>
     void initialize(ConstraintVector& obj);
 
-protected:
+//protected:
     //initialising from geometry functions
     template<typename WhichType, typename ConstraintVector>
     void initializeFirstGeometry(ConstraintVector& cv, boost::mpl::false_);
@@ -111,7 +112,7 @@ protected:
 
 
     int  equationCount();
-    void calculate(Scalar scale, AccessType access = general);
+    void calculate(Scalar scale, AccessType access = general, GlobalVertex g = -1);
     void treatLGZ();
     void setMaps(MES& mes);
     void collectPseudoPoints(Vec& vec1, Vec& vec2);
@@ -137,7 +138,7 @@ protected:
     struct placeholder  {
         virtual ~placeholder() {}
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const = 0;
-        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType access = general) = 0;
+        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType access = general, GlobalVertex g = -1) = 0;
         virtual void treatLGZ(geom_ptr first, geom_ptr second) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
@@ -201,8 +202,9 @@ public:
             geom_ptr first, second;
             Scalar scale;
             AccessType access;
+	    GlobalVertex cluster_vertex;
 
-            Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a = general);
+            Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a = general, GlobalVertex g =-1);
 
             template< typename T >
             void operator()(T& val) const;
@@ -286,7 +288,7 @@ public:
 
         holder(Objects& obj);
 
-        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType a = general);
+        virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType a = general, GlobalVertex g = -1);
         virtual void treatLGZ(geom_ptr first, geom_ptr second);
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);

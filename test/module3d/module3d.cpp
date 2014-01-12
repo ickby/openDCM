@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     };
 
 };
-
+/*
 BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
     SystemNOID sys;
@@ -123,47 +123,47 @@ BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
     BOOST_CHECK(kernel::isSame(v2.dot(v3),0, 1e-6));
     BOOST_CHECK(kernel::isSame(v3.dot(v1),0, 1e-6));
 };
-/*
-BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
 
-    SystemNOID sys;
-
-    Eigen::Vector3d p1,p2,p3, p4;
-    p1 << 7, -0.5, 0.3;
-    p2 << 0.2, 0.5, -0.1;
-    p3 << -2,-1,-4;
-    p4 << 4, -3, -9;
-
-
-    geom_ptr g1 = sys.createGeometry3D(p1);
-    geom_ptr g2 = sys.createGeometry3D(p2);
-    geom_ptr g3 = sys.createGeometry3D(p3);
-    geom_ptr g4 = sys.createGeometry3D(p4);
-
-    //multi constraint and fire
-    cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3.));
-    cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3.) & test);
-    cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3.) & test);
-    cons_ptr c4 = sys.createConstraint3D(g1, g4, comp_test(3.));
-    cons_ptr c5 = sys.createConstraint3D(g2, g4, comp_test(3.) & dcm::distance(3.) & comp_test(3.) & test);
-    sys.solve();
-
-    Eigen::Vector3d& v1 = get<Eigen::Vector3d>(g1);
-    Eigen::Vector3d& v2 = get<Eigen::Vector3d>(g2);
-    Eigen::Vector3d& v3 = get<Eigen::Vector3d>(g3);
-    Eigen::Vector3d& v4 = get<Eigen::Vector3d>(g4);
-
-    BOOST_CHECK(kernel::isSame(v1.dot(v2),0, 1e-6));
-    BOOST_CHECK(kernel::isSame((v1-v2).norm(),3, 1e-6));
-    BOOST_CHECK(kernel::isSame(v2.dot(v3),0, 1e-6));
-    BOOST_CHECK(kernel::isSame((v2-v3).norm(),3, 1e-6));
-    BOOST_CHECK(kernel::isSame(v3.dot(v1),0, 1e-6));
-    BOOST_CHECK(kernel::isSame((v1-v3).norm(),3, 1e-6));
-    BOOST_CHECK(kernel::isSame(v4.dot(v1),0, 1e-6));
-    BOOST_CHECK(kernel::isSame((v1-v4).norm(),3, 1e-6));
-    BOOST_CHECK(kernel::isSame(v4.dot(v2),0, 1e-6));
-    BOOST_CHECK(kernel::isSame((v4-v2).norm(),3, 1e-6));
-}*/
+// BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
+// 
+//     SystemNOID sys;
+// 
+//     Eigen::Vector3d p1,p2,p3, p4;
+//     p1 << 7, -0.5, 0.3;
+//     p2 << 0.2, 0.5, -0.1;
+//     p3 << -2,-1,-4;
+//     p4 << 4, -3, -9;
+// 
+// 
+//     geom_ptr g1 = sys.createGeometry3D(p1);
+//     geom_ptr g2 = sys.createGeometry3D(p2);
+//     geom_ptr g3 = sys.createGeometry3D(p3);
+//     geom_ptr g4 = sys.createGeometry3D(p4);
+// 
+//     //multi constraint and fire
+//     cons_ptr c1 = sys.createConstraint3D(g1, g2, test & dcm::distance(3.));
+//     cons_ptr c2 = sys.createConstraint3D(g2, g3, dcm::distance(3.) & test);
+//     cons_ptr c3 = sys.createConstraint3D(g3, g1, test & dcm::distance(3.) & test);
+//     cons_ptr c4 = sys.createConstraint3D(g1, g4, comp_test(3.));
+//     cons_ptr c5 = sys.createConstraint3D(g2, g4, comp_test(3.) & dcm::distance(3.) & comp_test(3.) & test);
+//     sys.solve();
+// 
+//     Eigen::Vector3d& v1 = get<Eigen::Vector3d>(g1);
+//     Eigen::Vector3d& v2 = get<Eigen::Vector3d>(g2);
+//     Eigen::Vector3d& v3 = get<Eigen::Vector3d>(g3);
+//     Eigen::Vector3d& v4 = get<Eigen::Vector3d>(g4);
+// 
+//     BOOST_CHECK(kernel::isSame(v1.dot(v2),0, 1e-6));
+//     BOOST_CHECK(kernel::isSame((v1-v2).norm(),3, 1e-6));
+//     BOOST_CHECK(kernel::isSame(v2.dot(v3),0, 1e-6));
+//     BOOST_CHECK(kernel::isSame((v2-v3).norm(),3, 1e-6));
+//     BOOST_CHECK(kernel::isSame(v3.dot(v1),0, 1e-6));
+//     BOOST_CHECK(kernel::isSame((v1-v3).norm(),3, 1e-6));
+//     BOOST_CHECK(kernel::isSame(v4.dot(v1),0, 1e-6));
+//     BOOST_CHECK(kernel::isSame((v1-v4).norm(),3, 1e-6));
+//     BOOST_CHECK(kernel::isSame(v4.dot(v2),0, 1e-6));
+//     BOOST_CHECK(kernel::isSame((v4-v2).norm(),3, 1e-6));
+// }
 
 BOOST_AUTO_TEST_CASE(module3d_id) {
 
@@ -263,6 +263,6 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
 
     delete clone;
 
-};
+};*/
 
 BOOST_AUTO_TEST_SUITE_END();

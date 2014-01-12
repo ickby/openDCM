@@ -25,7 +25,7 @@
 
 #include <boost/graph/depth_first_search.hpp>
 
-namespace dcm {  
+namespace dcm {
 namespace details {
 
 template<typename Sys>
@@ -44,7 +44,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     typedef typename Sys::Kernel::MappedEquationSystem Base;
 
     boost::shared_ptr<Cluster> m_cluster;
-    
+
 #ifdef USE_LOGGING
     dcm_logger log;
 #endif
@@ -84,7 +84,7 @@ struct SystemSolver : public Job<Sys> {
 
         void operator()();
 
-	Scalar calculateScale();
+        Scalar calculateScale();
         Scalar scaleClusters(Scalar sc);
         void collectPseudoPoints(boost::shared_ptr<Cluster> parent,
                                  LocalVertex cluster,
@@ -94,6 +94,7 @@ struct SystemSolver : public Job<Sys> {
 
     struct DummyScaler {
         void operator()() {};
+        int rescales;
     };
 
     SystemSolver();

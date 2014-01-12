@@ -58,7 +58,7 @@ public:
 
     typedef typename Kernel::number_type Scalar;
 
-    typename Kernel::Transform3D m_transform, m_ssrTransform, m_resetTransform;
+    typename Kernel::Transform3D m_transform, m_ssrTransform, m_resetTransform, m_successiveTransform;
     typename Kernel::DiffTransform3D m_diffTrans;
     typename Kernel::Vector3Map	 m_normQ;
     typename Kernel::Quaternion  m_resetQuaternion;
@@ -92,21 +92,23 @@ public:
     void initFixMaps();
 
     typename Kernel::Transform3D& getTransform();
+    typename Kernel::Transform3D& getSuccessiveTransform();
     typename Kernel::Transform3D::Translation const& getTranslation() const;
     typename Kernel::Transform3D::Rotation const& getRotation() const;
     void setTransform(typename Kernel::Transform3D const& t);
-    void setTranslation(typename Kernel::Transform3D::Translation const& );
+    void setSuccessiveTransform(typename Kernel::Transform3D const& t);
+    void setTranslation(typename Kernel::Transform3D::Translation const&);
     void setRotation(typename Kernel::Transform3D::Rotation const&);
-    
+
     void mapsToTransform(typename Kernel::Transform3D& trans);
-    void transformToMaps(typename Kernel::Transform3D& trans);
+    void transformToMaps(const typename Kernel::Transform3D& trans);
 
     void finishCalculation();
     void finishFixCalculation();
 
     void resetClusterRotation(typename Kernel::Transform3D& trans);
 
-    void calcDiffTransform(typename Kernel::DiffTransform3D& trans);
+    typename Kernel::Quaternion calcDiffTransform(typename Kernel::DiffTransform3D& trans);
     void recalculate();
 
     void addGeometry(Geom g);
@@ -118,14 +120,15 @@ public:
         details::ClusterMath<Sys>& 	m_clusterMath;
         typename Kernel::Transform3D	m_transform;
         bool m_isFixed;
+        GlobalVertex m_clusterVertex;
 
-        map_downstream(details::ClusterMath<Sys>& cm, bool fix);
+        map_downstream(details::ClusterMath<Sys>& cm, bool fix, GlobalVertex v);
 
         void operator()(Geom g);
         void operator()(boost::shared_ptr<Cluster> c);
     };
 
-    void mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster);
+    void mapClusterDownstreamGeometry(boost::shared_ptr< Cluster > cluster, dcm::GlobalVertex v);
 
     //Calculate the scale of the cluster. Therefore the midpoint is calculated and the scale is
     // defined as the max distance between the midpoint and the points.

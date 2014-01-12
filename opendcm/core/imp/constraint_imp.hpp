@@ -159,8 +159,8 @@ int Constraint<Sys, Dim>::equationCount() {
 };
 
 template<typename Sys, int Dim>
-void Constraint<Sys, Dim>::calculate(Scalar scale, AccessType access) {
-    content->calculate(first, second, scale, access);
+void Constraint<Sys, Dim>::calculate(Scalar scale, AccessType access, GlobalVertex g) {
+    content->calculate(first, second, scale, access, g);
 };
 
 template<typename Sys, int Dim>

@@ -154,7 +154,7 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
                                 << "residual: "<<sys.Residual.transpose()<<std::endl
                                 << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
-    sys.removeLocalGradientZeros();
+    //sys.removeLocalGradientZeros();
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving) << "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl

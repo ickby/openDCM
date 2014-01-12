@@ -38,6 +38,7 @@
 #include "traits.hpp"
 #include "logging.hpp"
 #include "transformation.hpp"
+#include "clustergraph.hpp"
 
 namespace mpl = boost::mpl;
 
@@ -294,6 +295,7 @@ public:
     int     m_rotations; //count of rotations to be done when original vector gets rotated
     int     m_translations; //count of translations to be done when original vector gets rotated
     bool    m_isInCluster, m_clusterFixed, m_init;
+    GlobalVertex m_clusterVertex;
     typename Kernel::Vector      m_toplocal; //the local value in the toplevel cluster used for cuttent solving
     typename Kernel::Vector      m_global; //the global value outside of all clusters
     typename Kernel::Vector      m_rotated; //the global value as the rotation of toplocal (used as temp)

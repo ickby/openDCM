@@ -400,7 +400,7 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getVertexCluster(Lo
         return m_clusters[v];
 
     //TODO:throw if not a cluster
-    return sp_base::shared_from_this();
+    return boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >();//sp_base::shared_from_this();
 };
 
 template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>

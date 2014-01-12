@@ -65,8 +65,8 @@ Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::OptionSetter::operat
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
-Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a)
-    : first(f), second(s), scale(sc), access(a) {
+Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a, GlobalVertex g)
+    : first(f), second(s), scale(sc), access(a), cluster_vertex(g) {
 
 };
 
@@ -114,7 +114,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
         if(first->m_parameterCount) {
             if(first->getClusterMode()) {
                 //when the cluster is fixed no maps are set as no parameters exist.
-                if(!first->isClusterFixed()) {
+                if(!first->isClusterFixed() && (first->m_clusterVertex==cluster_vertex || cluster_vertex==-1)) {
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
@@ -135,7 +135,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
         }
         if(second->m_parameterCount) {
             if(second->getClusterMode()) {
-                if(!second->isClusterFixed()) {
+                if(!second->isClusterFixed() && (second->m_clusterVertex==cluster_vertex || cluster_vertex==-1)) {
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
@@ -354,8 +354,8 @@ Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::holder(Objects& obj)
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
 void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::calculate(geom_ptr first, geom_ptr second,
-        Scalar scale, AccessType access) {
-    fusion::for_each(m_sets, Calculater(first, second, scale, access));
+        Scalar scale, AccessType access, GlobalVertex g) {
+    fusion::for_each(m_sets, Calculater(first, second, scale, access, g));
 };
 
 template<typename Sys, int Dim>

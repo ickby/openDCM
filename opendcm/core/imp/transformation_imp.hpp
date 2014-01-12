@@ -268,30 +268,11 @@ Transform<Scalar, Dim>& Transform<Scalar, Dim>::normalize() {
 
 
 template<typename Scalar, int Dim>
-DiffTransform<Scalar, Dim>::DiffTransform(Transform<Scalar, Dim>& trans)
+DiffTransform<Scalar, Dim>::DiffTransform(const Transform<Scalar, Dim>& trans)
     : Transform<Scalar, Dim>(trans.rotation(), trans.translation(), trans.scaling()) {
 
     m_diffMatrix.setZero();
 };
-
-template<typename Scalar, int Dim>
-const typename DiffTransform<Scalar, Dim>::DiffMatrix&
-DiffTransform<Scalar, Dim>::differential() {
-    return m_diffMatrix;
-};
-
-template<typename Scalar, int Dim>
-inline Scalar&
-DiffTransform<Scalar, Dim>::operator()(int f, int s) {
-    return m_diffMatrix(f,s);
-};
-
-template<typename Scalar, int Dim>
-inline Scalar&
-DiffTransform<Scalar, Dim>::at(int f, int s) {
-    return m_diffMatrix(f,s);
-};
-
 
 /*When you overload a binary operator as a member function of a class the overload is used
  * when the first operand is of the class type.For stream operators, the first operand
