@@ -242,10 +242,7 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
     BOOST_CHECK(Kernel::isSame(get<place>(part1).transformPoint(p1), v1, 1e-6));
     BOOST_CHECK(Kernel::isSame(get<place>(part2).transformPoint(p3), v3, 1e-6));
     BOOST_CHECK(Kernel::isSame(get<place>(part2).transformPoint(p4), v4, 1e-6));
-    
-    std::cout<<"p1 :"<<get<place>(part2).transformPoint(p1).transpose()<<std::endl;
-    std::cout<<"p3 :"<<get<place>(part2).transformPoint(p3).transpose()<<std::endl;
-    std::cout<<"p4 :"<<get<place>(part2).transformPoint(p4).transpose()<<std::endl;
+
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_transformations) {

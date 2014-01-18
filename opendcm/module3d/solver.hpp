@@ -22,6 +22,7 @@
 
 #include "defines.hpp"
 #include "opendcm/core/sheduler.hpp"
+#include <opendcm/core/clustergraph.hpp>
 
 #include <boost/graph/depth_first_search.hpp>
 
@@ -43,6 +44,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     typedef typename Kernel::number_type Scalar;
     typedef typename Sys::Kernel::MappedEquationSystem Base;
 
+    LocalVertex start;
     boost::shared_ptr<Cluster> m_cluster;
 
 #ifdef USE_LOGGING
@@ -52,6 +54,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     MES(boost::shared_ptr<Cluster> cl, int par, int eqn);
     virtual void recalculate();
     virtual void removeLocalGradientZeros();
+    void setStart(LocalVertex v) {start = v;};
 };
 
 template<typename Sys>
@@ -100,6 +103,7 @@ struct SystemSolver : public Job<Sys> {
     SystemSolver();
     virtual void execute(Sys& sys);
     void solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sys);
+    LocalVertex getStartingVertex(boost::shared_ptr<Cluster> cluster);
     void finish(boost::shared_ptr< Cluster > cluster, Sys& sys, Mes& mes);
 };
 
@@ -107,3 +111,4 @@ struct SystemSolver : public Job<Sys> {
 }//dcm
 
 #endif //DCM_SOLVER_3D_HPP
+

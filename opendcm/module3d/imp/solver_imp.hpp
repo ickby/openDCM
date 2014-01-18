@@ -26,7 +26,6 @@
 #include <boost/graph/undirected_dfs.hpp>
 
 #include <opendcm/core/kernel.hpp>
-#include <opendcm/core/clustergraph.hpp>
 
 #ifdef DCM_EXTERNAL_CORE
 #include "opendcm/core/imp/kernel_imp.hpp"
@@ -127,17 +126,17 @@ struct recalculater : public dfs_tree<Sys> {
         if(g) {
             //and only those which are not fixed
             if(! g->template getProperty<typename module3d::fix_prop>()) {
-		//std::cout<<"recalc cluster"<<std::endl;
+                //std::cout<<"recalc cluster"<<std::endl;
                 //if the vertex before was a cluster we need to set its transform as successive transform
                 if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
-		    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
+                    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
                     g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
-		 //   std::cout<<"set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
-		  
-		}
+                    //   std::cout<<"set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
+
+                }
 
                 g->template getProperty<typename module3d::math_prop>().recalculate();
-		//std::cout<<"calculated transform: "<<std::endl<<g->template getProperty<typename module3d::math_prop>().m_diffTrans<<std::endl<<std::endl;
+                //std::cout<<"calculated transform: "<<std::endl<<g->template getProperty<typename module3d::math_prop>().m_diffTrans<<std::endl<<std::endl;
             }
         }
     };
@@ -261,7 +260,7 @@ void MES<Sys>::recalculate() {
     ecmap e_cm;
     boost::associative_property_map< vcmap > v_cpm(v_cm);
     boost::associative_property_map< ecmap > e_cpm(e_cm);
-    boost::undirected_dfs(*m_cluster.get(), boost::visitor(visitor).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+    boost::undirected_dfs(*m_cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
 };
 
 template<typename Sys>
@@ -330,14 +329,14 @@ struct init_mes : public dfs_tree<Sys> {
                 if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
                     details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
                     cm.setSuccessiveTransform(cm_s.getTransform());
-		 //   std::cout<<"init set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
+                    //   std::cout<<"init set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
                 }
 
                 //wirte initial values
                 cm.initMaps();
-		Transform d;
-		cm.mapsToTransform(d);
-		//std::cout<<"init map: "<<std::endl<<d<<std::endl<<std::endl;
+                Transform d;
+                cm.mapsToTransform(d);
+                //std::cout<<"init map: "<<std::endl<<d<<std::endl<<std::endl;
             }
             else
                 cm.initFixMaps();
@@ -571,6 +570,10 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     //initialise the system with now known size
     Mes mes(cluster, params, constraints);
 
+    //get recalculate starting position
+    LocalVertex start = getStartingVertex(cluster);
+    mes.setStart(start);
+
     try {
         /*    //if we don't have rotations we need no expensive scaling code
             if(!mes.hasAccessType(rotation)) {
@@ -663,6 +666,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         BOOST_LOG_SEV(log, solving)<< "Full scale solver used";
 #endif
 
+
         init_mes<Sys> visitor(mes, cluster);
         //create te needed property maps and fill it
         property_map<vertex_index_prop, Cluster> vi_map(cluster);
@@ -674,7 +678,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         boost::associative_property_map< vcmap > v_cpm(v_cm);
         boost::associative_property_map< ecmap > e_cpm(e_cm);
 
-        boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+        boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
 
 
         mes.setAccess(complete);
@@ -735,6 +739,37 @@ void SystemSolver<Sys>::finish(boost::shared_ptr<Cluster> cluster, Sys& sys, Mes
     //we have solved this cluster
     cluster->template setProperty<changed_prop>(false);
 }
+
+template<typename Sys>
+LocalVertex SystemSolver<Sys>::getStartingVertex(boost::shared_ptr<Cluster> cluster) {
+
+    //want to start with fixed subcluster if possible
+
+    bool found = false;
+    LocalVertex result;
+    typedef typename Cluster::cluster_iterator citer;
+    std::pair<citer, citer> cit = cluster->clusters();
+
+    for(; cit.first != cit.second; cit.first++) {
+
+        boost::shared_ptr<Cluster> c = (*cit.first).second;
+
+        if(c->template getProperty<fix_prop>()) {
+            if(!found) {
+                result = (*cit.first).first;
+                found = true;
+            }
+            //we only allow one fixed cluster, as the solving algorithm can't handle more
+            else
+                throw solving_error() <<  boost::errinfo_errno(11) << error_message("Multiple fixed entities are not allowed");
+        }
+    }
+
+    if(found)
+        return result;
+
+    return *(boost::vertices(*cluster).first);
+};
 
 }//details
 }//dcm
