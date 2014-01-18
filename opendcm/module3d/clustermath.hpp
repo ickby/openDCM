@@ -59,7 +59,7 @@ public:
     typedef typename Kernel::number_type Scalar;
 
     typename Kernel::Transform3D m_transform, m_ssrTransform, m_resetTransform, m_successiveTransform;
-    typename Kernel::DiffTransform3D m_diffTrans;
+    typename Kernel::DiffTransform3D m_diffTrans, m_diffTransClusterPath;
     typename Kernel::Vector3Map	 m_normQ;
     typename Kernel::Quaternion  m_resetQuaternion;
 
@@ -92,6 +92,7 @@ public:
     void initFixMaps();
 
     typename Kernel::Transform3D& getTransform();
+    typename Kernel::Transform3D  getClusterPathTransform();
     typename Kernel::Transform3D& getSuccessiveTransform();
     typename Kernel::Transform3D::Translation const& getTranslation() const;
     typename Kernel::Transform3D::Rotation const& getRotation() const;
@@ -110,6 +111,7 @@ public:
 
     typename Kernel::Quaternion calcDiffTransform(typename Kernel::DiffTransform3D& trans);
     void recalculate();
+    void recalculateInverted(typename Kernel::Transform3D& t);
 
     void addGeometry(Geom g);
     void clearGeometry();

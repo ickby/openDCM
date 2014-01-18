@@ -47,9 +47,9 @@ struct place {
         quat.normalize();
         trans<<1,2,3;
     };
-    
+
     Eigen::Vector3d transformPoint(const Eigen::Vector3d& v) {
-      return quat._transformVector(v) + trans;
+        return quat._transformVector(v) + trans;
     };
 
 public:
@@ -168,7 +168,7 @@ typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;
 
-
+/*
 BOOST_AUTO_TEST_CASE(modulepart_basics) {
 
     try {
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
     p1 << 7, -0.5, 0.3;
     p3 << -2, -1.3, -2.8;
     p4 << 0.2, -0.5, 1.2;
-    
+
     place pl1;
     pl1.quat *= Kernel::Quaternion(1,2,3,4);
     pl1.trans *= 5;
@@ -237,7 +237,7 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
 
     BOOST_CHECK(Kernel::isSame((v1-v3).norm(),5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v1-v4).norm(),5., 1e-6));
-    
+
     //lets check if the placements are updated correctly
     BOOST_CHECK(Kernel::isSame(get<place>(part1).transformPoint(p1), v1, 1e-6));
     BOOST_CHECK(Kernel::isSame(get<place>(part2).transformPoint(p3), v3, 1e-6));
@@ -525,6 +525,48 @@ BOOST_AUTO_TEST_CASE(modulepart_subsystem) {
     BOOST_CHECK(ts1.counter == 0);
     BOOST_CHECK(tv2.counter == 0);
     BOOST_CHECK(ts2.counter == 1);
+}*/
+
+BOOST_AUTO_TEST_CASE(modulepart_cyclic) {
+
+    try {
+        Eigen::Vector3d p1,p3,p4;
+        p1 << 7, -0.5, 0.3;
+        p3 << -2, -1.3, -2.8;
+        p4 << 0.2, -0.5, 1.2;
+
+        SystemNOID sys;
+        Part_ptr part1 = sys.createPart(place());
+        Geom g1 = part1->addGeometry3D(p1);
+
+        Part_ptr part2 = sys.createPart(place());
+        Geom g3 = part2->addGeometry3D(p3);
+
+        Part_ptr part3 = sys.createPart(place());
+        Geom g4 = part3->addGeometry3D(p4);
+
+        sys.createConstraint3D(g1,g3,dcm::distance=5.);
+        sys.createConstraint3D(g3,g4,dcm::distance=5.);
+        sys.createConstraint3D(g4,g1,dcm::distance=5.);
+
+        sys.solve();
+
+        Eigen::Vector3d v1,v3,v4;
+        v1 = get<Eigen::Vector3d>(g1);
+        v3 = get<Eigen::Vector3d>(g3);
+        v4 = get<Eigen::Vector3d>(g4);
+
+        BOOST_CHECK(Kernel::isSame((v1-v3).norm(),5., 1e-6));
+        BOOST_CHECK(Kernel::isSame((v3-v4).norm(),5., 1e-6));
+        BOOST_CHECK(Kernel::isSame((v4-v1).norm(),5., 1e-6));
+
+    }
+    catch(boost::exception& e) {
+        std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
+                  << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
+        BOOST_FAIL("Exception not expected");
+    };
+
 }
 
 BOOST_AUTO_TEST_SUITE_END();

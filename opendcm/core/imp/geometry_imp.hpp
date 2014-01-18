@@ -209,6 +209,31 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
 #endif
 };
 
+template< typename Kernel, int Dim, typename TagList>
+void Geometry<Kernel, Dim, TagList>::recalculateInverted(Transform& t, DiffTransform& trans) {
+    if(!m_isInCluster)
+        return;
+
+    //translation stay as they are, therefore calculate rotation diffs only
+    for(int i=0; i!=m_rotations; i++) {
+        //calculate the gradient vectors only as the global value has not changed
+        for(int j=0; j<Dim; j++) {
+            typename Kernel::Vector3 vec = m_toplocal.template segment<Dim>(i*Dim);
+            m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * (t.transform(vec));
+        };
+    }
+
+#ifdef USE_LOGGING
+
+    if(!boost::math::isnormal(m_rotated.norm()) || !boost::math::isnormal(m_diffparam.norm())) {
+        BOOST_LOG_SEV(log, error) << "Inverted, Unnormal recalculated value detected: "<<m_rotated.transpose()<<std::endl
+                                  << "or unnormal recalculated diff detected: "<<std::endl<<m_diffparam<<std::endl
+                                  <<" with Transform: "<<std::endl<<trans;
+    }
+
+#endif
+};
+
 
 template< typename Kernel, int Dim, typename TagList>
 void Geometry<Kernel, Dim, TagList>::finishCalculation() {

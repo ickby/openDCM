@@ -77,7 +77,7 @@ void ClusterMath<Sys>::initMaps() {
     midpoint.setZero();
     m_shift.setZero();
     m_ssrTransform.setIdentity();
-    m_diffTrans = typename Kernel::DiffTransform3D(m_transform*m_successiveTransform.inverse());
+    m_diffTrans = typename Kernel::DiffTransform3D(m_transform);
     fix=false;
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Init transform: "<<m_transform;
@@ -104,9 +104,15 @@ void ClusterMath<Sys>::initFixMaps() {
 template<typename Sys>
 typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform() {
     if(init)
-        m_transform = typename Kernel::Transform3D(m_diffTrans.rotation(), m_diffTrans.translation()) * m_successiveTransform;
+        m_transform = typename Kernel::Transform3D(m_diffTrans.rotation(), m_diffTrans.translation());
 
     return m_transform;
+};
+
+template<typename Sys>
+typename ClusterMath<Sys>::Kernel::Transform3D ClusterMath<Sys>::getClusterPathTransform() {
+
+    return getTransform()*m_successiveTransform.inverse();
 };
 
 template<typename Sys>
@@ -181,7 +187,7 @@ void ClusterMath<Sys>::finishCalculation() {
     init=false;
 
     m_transform = m_ssrTransform*m_transform;
-    
+
     //scale all geometries back to the original size
     m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
     typedef typename std::vector<Geom>::iterator iter;
@@ -255,20 +261,20 @@ typename Sys::Kernel::Quaternion ClusterMath<Sys>::calcDiffTransform(typename Cl
 
     const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
 
-    const typename Kernel::Quaternion Q(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac); 
+    const typename Kernel::Quaternion Q(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
     trans = Q;
     trans *= typename Kernel::Transform3D::Translation(m_translation);
 
     //std::cout<<"clustermath maps trans:"<<std::endl<<trans<<std::endl;
-    //std::cout<<"clustermath successive:"<<std::endl<<m_successiveTransform<<std::endl; 
-    
+    //std::cout<<"clustermath successive:"<<std::endl<<m_successiveTransform<<std::endl;
+
     //set the real transformation
     trans *= m_successiveTransform ;
-    
-      //  std::cout<<"clustermath comp:"<<std::endl<<trans<<std::endl;
+
+    //  std::cout<<"clustermath comp:"<<std::endl<<trans<<std::endl;
 
     return Q;
-    
+
 };
 
 template<typename Sys>
@@ -353,6 +359,15 @@ void ClusterMath<Sys>::recalculate() {
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->recalculate(m_diffTrans);
 };
+
+template<typename Sys>
+void ClusterMath<Sys>::recalculateInverted(typename Kernel::Transform3D& t) {
+
+    typedef typename std::vector<Geom>::iterator iter;
+
+    for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+        (*it)->recalculateInverted(t, m_diffTrans);
+}
 
 template<typename Sys>
 void ClusterMath<Sys>::addGeometry(Geom g) {

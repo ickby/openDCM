@@ -126,17 +126,13 @@ struct recalculater : public dfs_tree<Sys> {
         if(g) {
             //and only those which are not fixed
             if(! g->template getProperty<typename module3d::fix_prop>()) {
-                //std::cout<<"recalc cluster"<<std::endl;
                 //if the vertex before was a cluster we need to set its transform as successive transform
                 if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
                     details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
                     g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
-                    //   std::cout<<"set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
-
                 }
 
                 g->template getProperty<typename module3d::math_prop>().recalculate();
-                //std::cout<<"calculated transform: "<<std::endl<<g->template getProperty<typename module3d::math_prop>().m_diffTrans<<std::endl<<std::endl;
             }
         }
     };
@@ -223,13 +219,37 @@ struct recalculater : public dfs_tree<Sys> {
 
             fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > initial = fusion::make_vector(initial_v, dfs_tree<Sys>::parent->getVertexCluster(initial_v));
 
-            //lets go all the way back to the initial vertex and calculate the constraint for all encountered 
-	    //cluster (or stop when there is a non-cluster vertex in the path)
-	    typename dfs_tree<Sys>::Transform trans;
-	    while(fusion::at_c<0>(current) && fusion::at_c<1>(current) != fusion::at_c<1>(initial)) {
-	      
-	      
-	    };
+            //get the iterator to go back on the graph path we are coming from
+            typename dfs_tree<Sys>::TreeType::iterator path_iter = dfs_tree<Sys>::tree.end();
+            assert(fusion::at_c<1>(*(--path_iter)) == fusion::at_c<1>(current));
+
+            //lets go all the way back to the initial vertex and calculate the constraint for all encountered
+            //cluster (or stop when there is a non-cluster vertex in the path)
+            typename dfs_tree<Sys>::Transform trans;
+            GlobalVertex calc_cluster_global = dfs_tree<Sys>::parent->getGlobalVertex(fusion::at_c<0>(current));
+            std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
+
+            while(fusion::at_c<0>(current) && fusion::at_c<1>(current) != fusion::at_c<1>(initial)) {
+
+                //calculate the cluster, which then updates the geometries
+                details::ClusterMath<Sys>& cm = fusion::at_c<1>(current)->template getProperty<typename module3d::math_prop>();
+                cm.recalculateInverted(trans);
+
+                //all geometries are updated again, calculate the constraints
+                int offset = cm.getParameterOffset(general);
+                int rot_offset = cm.getParameterOffset(rotation);
+
+                for(oiter it = oit.first; it != oit.second; it++) {
+                    if(*it) {
+                        //calculate the constraint, but write the value to the cluster we took the derivative from!
+                        (*it)->calculate(scaling, access, calc_cluster_global, offset, rot_offset);
+                    };
+                }
+
+                //lets go the next step
+                trans *= cm.getClusterPathTransform();
+                current = *(--path_iter);
+            };
         }
 
         //lucky bastart! treat it as normal edge
@@ -330,14 +350,12 @@ struct init_mes : public dfs_tree<Sys> {
                 if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
                     details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
                     cm.setSuccessiveTransform(cm_s.getTransform());
-                    //   std::cout<<"init set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
                 }
 
                 //wirte initial values
                 cm.initMaps();
                 Transform d;
                 cm.mapsToTransform(d);
-                //std::cout<<"init map: "<<std::endl<<d<<std::endl<<std::endl;
             }
             else
                 cm.initFixMaps();

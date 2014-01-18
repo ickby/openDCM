@@ -331,6 +331,7 @@ public:
     };
 
     void recalculate(DiffTransform& trans);
+    void recalculateInverted(Transform& t, DiffTransform& trans);
 
     typename Kernel::Vector3 getPoint() {
             return m_toplocal.template segment<Dim>(0);

@@ -65,8 +65,8 @@ Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::OptionSetter::operat
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
-Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a, GlobalVertex g)
-    : first(f), second(s), scale(sc), access(a), cluster_vertex(g) {
+Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a, GlobalVertex g, int o, int ro)
+    : first(f), second(s), scale(sc), access(a), cluster_vertex(g), offset(o), rot_offset(ro) {
 
 };
 
@@ -117,16 +117,19 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
                 //when the cluster is fixed no maps are set as no parameters exist.
                 if(!first->isClusterFixed() && (first->m_clusterVertex==cluster_vertex || cluster_vertex==-1)) {
 
+                    int o  = (cluster_vertex==-1 || offset==-1) ? first->m_offset : offset;
+                    int ro = (cluster_vertex==-1 || rot_offset==-1) ? first->m_offset_rot : rot_offset;
+
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        val.m_diff_first(first->m_offset_rot+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                second->m_parameter, first->m_diffparam.col(i));
+                        val.m_diff_first(ro+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                 second->m_parameter, first->m_diffparam.col(i));
                     }
 
                     //and now with the translations
                     for(int i=0; i<3; i++) {
-                        val.m_diff_first(first->m_offset+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                              second->m_parameter, first->m_diffparam.col(i+3));
+                        val.m_diff_first(o+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                second->m_parameter, first->m_diffparam.col(i+3));
                     }
                 }
             }
@@ -140,22 +143,25 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
             if(second->getClusterMode()) {
                 if(!second->isClusterFixed() && (second->m_clusterVertex==cluster_vertex || cluster_vertex==-1)) {
 
+                    int o  = (cluster_vertex==-1 || offset==-1) ? second->m_offset : offset;
+                    int ro = (cluster_vertex==-1 || rot_offset==-1) ? second->m_offset_rot : rot_offset;
+
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        val.m_diff_second(second->m_offset_rot+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                        val.m_diff_second(ro+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
                                 second->m_parameter, second->m_diffparam.col(i));
                     }
 
                     //and the translation seperated
                     for(int i=0; i<3; i++) {
-                        val.m_diff_second(second->m_offset+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                        val.m_diff_second(o+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
                                                                 second->m_parameter, second->m_diffparam.col(i+3));
                     }
                 }
             }
             else {
                 //not in cluster, so allow the constraint to optimize the gradient calculation
-                 val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
+                val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
             }
         }
     }
@@ -181,22 +187,16 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::MapSetter::oper
     int equation = mes.setResidualMap(val.m_residual, val.access);
 
     if(first->getClusterMode()) {
-        if(!first->isClusterFixed()) {
-            //mes.setJacobiMap(equation, first->m_offset_rot, 3, val.m_diff_first_rot);
-            //mes.setJacobiMap(equation, first->m_offset, 3, val.m_diff_first);
+        if(!first->isClusterFixed())
             mes.setJacobiMap(equation, val.m_diff_first);
-        }
     }
     else
         mes.setJacobiMap(equation, first->m_offset, first->m_parameterCount, val.m_diff_first);
 
 
     if(second->getClusterMode()) {
-        if(!second->isClusterFixed()) {
-            //mes.setJacobiMap(equation, second->m_offset_rot, 3, val.m_diff_second_rot);
-            //mes.setJacobiMap(equation, second->m_offset, 3, val.m_diff_second);
+        if(!second->isClusterFixed())
             mes.setJacobiMap(equation, val.m_diff_second);
-        }
     }
     else
         mes.setJacobiMap(equation, second->m_offset, second->m_parameterCount, val.m_diff_second);
@@ -361,8 +361,8 @@ Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::holder(Objects& obj)
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
 void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::calculate(geom_ptr first, geom_ptr second,
-        Scalar scale, AccessType access, GlobalVertex g) {
-    fusion::for_each(m_sets, Calculater(first, second, scale, access, g));
+        Scalar scale, AccessType access, GlobalVertex g, int off, int roff) {
+    fusion::for_each(m_sets, Calculater(first, second, scale, access, g, off, roff));
 };
 
 template<typename Sys, int Dim>

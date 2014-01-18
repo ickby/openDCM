@@ -106,7 +106,7 @@ public:
     template<typename Derived>
     Derived& transform(Eigen::MatrixBase<Derived>& vec) const;
     template<typename Derived>
-    Derived operator*(const Eigen::MatrixBase<Derived>& vec) const;
+    Derived operator*(const Eigen::MatrixBase< Derived >& vec) const;
     template<typename Derived>
     void operator()(Eigen::MatrixBase<Derived>& vec) const;
 
