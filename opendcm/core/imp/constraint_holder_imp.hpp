@@ -80,27 +80,28 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
         return;
 
     //if we are not one of the accessed types we dont need to be recalculated
-    if((access==rotation && val.access!=rotation) 
-	|| (access == general && val.access != general)) {
+    if((access==rotation && val.access!=rotation)
+            || (access == general && val.access != general)) {
 
         val.m_residual(0) = 0;
+
         if(first->getClusterMode()) {
             if(!first->isClusterFixed()) {
-                val.m_diff_first_rot.setZero();
-                val.m_diff_first.setZero();
+                val.m_diff_first.template segment<3>(first->m_offset_rot).setZero();
+                val.m_diff_first.template segment<3>(first->m_offset).setZero();
             }
         }
         else
-            val.m_diff_first.setZero();
+            val.m_diff_first.segment(first->m_offset, first->m_parameterCount).setZero();
 
         if(second->getClusterMode()) {
             if(!second->isClusterFixed()) {
-                val.m_diff_second_rot.setZero();
-                val.m_diff_second.setZero();
+                val.m_diff_second.template segment<3>(second->m_offset_rot).setZero();
+                val.m_diff_second.template segment<3>(second->m_offset).setZero();
             }
         }
         else
-            val.m_diff_second.setZero();
+            val.m_diff_second.segment(second->m_offset, second->m_parameterCount).setZero();
 
     }
     //we need to calculate, so lets go for it!
@@ -118,13 +119,14 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        val.m_diff_first_rot(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                  second->m_parameter, first->m_diffparam.col(i));
+                        val.m_diff_first(first->m_offset_rot+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                second->m_parameter, first->m_diffparam.col(i));
                     }
+
                     //and now with the translations
                     for(int i=0; i<3; i++) {
-                        val.m_diff_first(i) = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                              second->m_parameter, first->m_diffparam.col(i+3));
+                        val.m_diff_first(first->m_offset+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                              second->m_parameter, first->m_diffparam.col(i+3));
                     }
                 }
             }
@@ -133,25 +135,27 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
                 val.m_eq.calculateGradientFirstComplete(first->m_parameter, second->m_parameter, val.m_diff_first);
             }
         }
+
         if(second->m_parameterCount) {
             if(second->getClusterMode()) {
                 if(!second->isClusterFixed() && (second->m_clusterVertex==cluster_vertex || cluster_vertex==-1)) {
 
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
-                        val.m_diff_second_rot(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                   second->m_parameter, second->m_diffparam.col(i));
+                        val.m_diff_second(second->m_offset_rot+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                                second->m_parameter, second->m_diffparam.col(i));
                     }
+
                     //and the translation seperated
                     for(int i=0; i<3; i++) {
-                        val.m_diff_second(i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                               second->m_parameter, second->m_diffparam.col(i+3));
+                        val.m_diff_second(second->m_offset+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
+                                                                second->m_parameter, second->m_diffparam.col(i+3));
                     }
                 }
             }
             else {
                 //not in cluster, so allow the constraint to optimize the gradient calculation
-                val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
+                 val.m_eq.calculateGradientSecondComplete(first->m_parameter, second->m_parameter, val.m_diff_second);
             }
         }
     }
@@ -175,11 +179,12 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::MapSetter::oper
     //when in cluster, there are 6 clusterparameter we differentiat for, if not we differentiat
     //for every parameter in the geometry;
     int equation = mes.setResidualMap(val.m_residual, val.access);
-    
+
     if(first->getClusterMode()) {
         if(!first->isClusterFixed()) {
-            mes.setJacobiMap(equation, first->m_offset_rot, 3, val.m_diff_first_rot);
-            mes.setJacobiMap(equation, first->m_offset, 3, val.m_diff_first);
+            //mes.setJacobiMap(equation, first->m_offset_rot, 3, val.m_diff_first_rot);
+            //mes.setJacobiMap(equation, first->m_offset, 3, val.m_diff_first);
+            mes.setJacobiMap(equation, val.m_diff_first);
         }
     }
     else
@@ -188,8 +193,9 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::MapSetter::oper
 
     if(second->getClusterMode()) {
         if(!second->isClusterFixed()) {
-            mes.setJacobiMap(equation, second->m_offset_rot, 3, val.m_diff_second_rot);
-            mes.setJacobiMap(equation, second->m_offset, 3, val.m_diff_second);
+            //mes.setJacobiMap(equation, second->m_offset_rot, 3, val.m_diff_second_rot);
+            //mes.setJacobiMap(equation, second->m_offset, 3, val.m_diff_second);
+            mes.setJacobiMap(equation, val.m_diff_second);
         }
     }
     else
@@ -251,7 +257,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::LGZ::operator()
             for(int i=0; i<3; i++) {
 
                 //only treat if the gradient realy is zero
-                if(Kernel::isSame(val.m_diff_first_rot(i), 0, 1e-7)) {
+                if(Kernel::isSame(val.m_diff_first(first->m_offset_rot+i), 0, 1e-7)) {
 
                     //to get the approximated second derivative we need the slightly moved geometrie
                     const typename Kernel::Vector  p_old =  first->m_parameter;
@@ -267,18 +273,19 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::LGZ::operator()
                     if(!Kernel::isSame(res, 0, 1e-7)) {
 
                         //is a fake zero, let's correct it
-                        val.m_diff_first_rot(i) = res;
+                        val.m_diff_first(first->m_offset_rot+i) = res;
                     };
                 };
             };
         }
+
         //and the same for the second one too
         if(second->getClusterMode() && !second->isClusterFixed()) {
 
             for(int i=0; i<3; i++) {
 
                 //only treat if the gradient realy is zero
-                if(Kernel::isSame(val.m_diff_second_rot(i), 0, 1e-7)) {
+                if(Kernel::isSame(val.m_diff_second(second->m_offset_rot+i), 0, 1e-7)) {
 
                     //to get the approximated second derivative we need the slightly moved geometrie
                     const typename Kernel::Vector  p_old =  second->m_parameter;
@@ -294,7 +301,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::LGZ::operator()
                     if(!Kernel::isSame(res, 0, 1e-7)) {
 
                         //is a fake zero, let's correct it
-                        val.m_diff_second_rot(i) = res;
+                        val.m_diff_second(second->m_offset_rot+i) = res;
                     };
                 };
             };

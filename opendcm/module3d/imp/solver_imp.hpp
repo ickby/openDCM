@@ -207,28 +207,29 @@ struct recalculater : public dfs_tree<Sys> {
     void back_edge(LocalEdge u, const ClusterGraph& graph) {
 
         typedef typename ClusterGraph::template object_iterator<Constraint3D> oiter;
-        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<Sys>::tree.back();
+        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > current = dfs_tree<Sys>::tree.back();
 
-        //one side is a cluster for sure
-        if(fusion::at_c<1>(vec)) {
+        //the indexed side is a cluster, so we need to go the hard way
+        if(fusion::at_c<1>(current)) {
 
-            LocalVertex popped;
+            LocalVertex initial_v;
 
-            //get the vertex which was popped right before this edge was called
-            if(fusion::at_c<0>(vec)==boost::source(u, graph)) {
-                popped = boost::target(u, graph);
+            //get the vertex which we connect to with this backedge
+            if(fusion::at_c<0>(current)==boost::source(u, graph)) {
+                initial_v = boost::target(u, graph);
             }
             else
-                popped = boost::source(u, graph);
+                initial_v = boost::source(u, graph);
 
-            boost::shared_ptr<ClusterGraph> second = dfs_tree<Sys>::parent->getVertexCluster(popped);
+            fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > initial = fusion::make_vector(initial_v, dfs_tree<Sys>::parent->getVertexCluster(initial_v));
 
-            //lets see if we are a edge between clusters
-            if(second) {
-                //connecting two clusters, let the hell break loose!
-                assert(false);
-                return;
-            }
+            //lets go all the way back to the initial vertex and calculate the constraint for all encountered 
+	    //cluster (or stop when there is a non-cluster vertex in the path)
+	    typename dfs_tree<Sys>::Transform trans;
+	    while(fusion::at_c<0>(current) && fusion::at_c<1>(current) != fusion::at_c<1>(initial)) {
+	      
+	      
+	    };
         }
 
         //lucky bastart! treat it as normal edge

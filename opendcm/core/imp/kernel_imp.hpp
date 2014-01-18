@@ -394,13 +394,18 @@ int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setResidualMap(VectorMap& m
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, int offset, int number, CVectorMap& map) {
-    new(&map) CVectorMap(&m_jacobi(eqn, offset), number, DynStride(0,m_eqns));
+void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, CVectorMap& map) {
+    new(&map) CVectorMap(&m_jacobi(eqn, 0), m_params, DynStride(0,m_eqns));
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, int offset, int number, VectorMap& map) {
-    new(&map) VectorMap(&m_jacobi(eqn, offset), number, DynStride(0,m_eqns));
+void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, VectorMap& map) {
+    new(&map) VectorMap(&m_jacobi(eqn, 0), m_params, DynStride(0,m_eqns));
+};
+
+template<typename Scalar, template<class> class Nonlinear>
+void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, int off, int num, VectorMap& map) {
+    new(&map) VectorMap(&m_jacobi(eqn, off), num, DynStride(0,m_eqns));
 };
 
 template<typename Scalar, template<class> class Nonlinear>

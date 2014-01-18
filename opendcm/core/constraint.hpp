@@ -120,13 +120,12 @@ public:
     //Equation is the constraint with types, the EquationSet hold all needed Maps for calculation
     template<typename Equation>
     struct EquationSet {
-        EquationSet() : m_diff_first(NULL,0,DS(0,0)), m_diff_first_rot(NULL,0,DS(0,0)),
-            m_diff_second(NULL,0,DS(0,0)), m_diff_second_rot(NULL,0,DS(0,0)),
-            m_residual(NULL,0,DS(0,0)), enabled(true) {};
+        EquationSet() : m_diff_first(NULL,0,DS(0,0)),
+            m_diff_second(NULL,0,DS(0,0)), m_residual(NULL,0,DS(0,0)), enabled(true) {};
 
         Equation m_eq;
-        typename Kernel::VectorMap m_diff_first, m_diff_first_rot; //first geometry diff
-        typename Kernel::VectorMap m_diff_second, m_diff_second_rot; //second geometry diff
+        typename Kernel::VectorMap m_diff_first;  //first geometry diff
+        typename Kernel::VectorMap m_diff_second; //second geometry diff
         typename Kernel::VectorMap m_residual;
 
         bool enabled;

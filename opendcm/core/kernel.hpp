@@ -183,8 +183,9 @@ struct Kernel : public PropertyOwner< mpl::vector2<precision, iterations> > {
         int setParameterMap(int number, VectorMap& map, AccessType t = general);
         int setParameterMap(Vector3Map& map, AccessType t = general);
         int setResidualMap(VectorMap& map, AccessType t = general);
-        void setJacobiMap(int eqn, int offset, int number, CVectorMap& map);
-        void setJacobiMap(int eqn, int offset, int number, VectorMap& map);
+        void setJacobiMap(int eqn, CVectorMap& map);
+        void setJacobiMap(int eqn, VectorMap& map);
+	void setJacobiMap(int eqn, int offset, int number, VectorMap& map);
 
         bool isValid();
 

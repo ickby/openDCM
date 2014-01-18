@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(module3d_basic_solving) {
     };
 
 };
-/*
+
 BOOST_AUTO_TEST_CASE(module3d_cluster_solving) {
 
     SystemNOID sys;
@@ -263,6 +263,6 @@ BOOST_AUTO_TEST_CASE(module3d_cloning) {
 
     delete clone;
 
-};*/
+};
 
 BOOST_AUTO_TEST_SUITE_END();
