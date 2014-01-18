@@ -119,16 +119,16 @@ public:
     Transform& normalize();
 
 public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 template<typename Scalar, int Dim>
 class DiffTransform : public Transform<Scalar, Dim> {
 
 public:
-        typedef Eigen::Matrix<Scalar, Dim, Dim*Dim+Dim> DiffMatrix;
-	using Transform<Scalar, Dim>::operator*;
-	
+    typedef Eigen::Matrix<Scalar, Dim, Dim* Dim+Dim> DiffMatrix;
+    using Transform<Scalar, Dim>::operator*;
+
 private:
     typedef typename Transform<Scalar, Dim>::Rotation Rotation;
     typedef typename Transform<Scalar, Dim>::Translation Translation;
@@ -136,19 +136,27 @@ private:
     DiffMatrix m_diffMatrix;
 
 public:
-    
+
     DiffTransform() : Transform<Scalar, Dim>() { };
     DiffTransform(const Rotation& r) : Transform<Scalar, Dim>(r) {};
     DiffTransform(const Rotation& r, const Translation& t) : Transform<Scalar, Dim>(r,t) {};
     DiffTransform(const Rotation& r, const Translation& t, const Scaling& s) : Transform<Scalar, Dim>(r,t,s) {};
-   
+
     DiffTransform(const Transform<Scalar, Dim>& trans);
 
     //inline those for faster access
-    const DiffMatrix& differential() const { return m_diffMatrix;};
-    DiffMatrix& differential() {return m_diffMatrix;};
-    Scalar& operator()(int f, int s) {return m_diffMatrix(f,s);};
-    Scalar& at(int f, int s) {return m_diffMatrix(f,s);};
+    const DiffMatrix& differential() const {
+        return m_diffMatrix;
+    };
+    DiffMatrix& differential() {
+        return m_diffMatrix;
+    };
+    Scalar& operator()(int f, int s) {
+        return m_diffMatrix(f,s);
+    };
+    Scalar& at(int f, int s) {
+        return m_diffMatrix(f,s);
+    };
 };
 
 /* When you overload a binary operator as a member function of a class the overload is used
@@ -161,8 +169,23 @@ std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& o
 template<typename charT, typename traits,typename Kernel, int Dim>
 std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::detail::DiffTransform<Kernel, Dim>& t);
 
-
 }//detail
+
+//same for trans*difftras
+template<typename Scalar, int Dim>
+detail::Transform<Scalar, Dim> operator*(const detail::Transform<Scalar, Dim>& t, const detail::DiffTransform<Scalar, Dim>& dt) {
+
+    detail::Transform<Scalar, Dim> trans(t);
+    return trans*=dt;
+};
+
+//same for trans*difftras
+template<typename Scalar, int Dim>
+detail::Transform<Scalar, Dim>& operator*=(detail::Transform<Scalar, Dim>& t, detail::DiffTransform<Scalar, Dim>& dt) {
+
+    return t*=detail::Transform<Scalar, Dim>(dt.rotation(), dt.translation(), dt.scaling());
+};
+
 }//DCM
 
 //#ifndef DCM_EXTERNAL_CORE

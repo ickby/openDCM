@@ -85,6 +85,10 @@ Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::Geometry3D_base(con
     //now write the value;
     (typename geometry_traits<T>::modell()).template extract<Scalar,
     typename geometry_traits<T>::accessor >(geometry, Base::getValue());
+    
+#ifdef USE_LOGGING
+    BOOST_LOG_SEV(Base::log, information) << "Set global Value: " << Base::getValue().transpose();
+#endif
 };
 
 template<typename Typelist, typename ID>
@@ -100,6 +104,10 @@ void Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::set(const T& g
     (typename geometry_traits<T>::modell()).template extract<Scalar,
     typename geometry_traits<T>::accessor >(geometry, Base::getValue());
 
+#ifdef USE_LOGGING
+    BOOST_LOG_SEV(Base::log, information) << "Set global Value: " << Base::getValue().transpose();
+#endif
+    
     reset();
 };
 

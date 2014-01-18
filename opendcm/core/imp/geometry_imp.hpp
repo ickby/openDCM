@@ -106,7 +106,7 @@ void Geometry<Kernel, Dim, TagList>::init() {
     m_init = false;
 
 #ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, information) << "Init: "<<m_global.transpose();
+    BOOST_LOG_SEV(log, information) << "Init";
 #endif
 
 };
@@ -186,8 +186,7 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
 
         //now calculate the gradient vectors and add them to diffparam
         for(int j=0; j<Dim; j++)
-            m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * m_toplocal.template segment<Dim>(i*Dim)
-                                               + trans.differential().block(0,j+9,Dim,1);
+            m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * m_toplocal.template segment<Dim>(i*Dim);;
     }
 
     //after rotating the needed parameters we translate the stuff that needs to be moved
@@ -196,7 +195,7 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
         m_rotated.block(i*Dim,0,Dim,1) *= trans.scaling().factor();
 
         //calculate the gradient vectors and add them to diffparam
-        m_diffparam.block(i*Dim,Dim,Dim,Dim) = Kernel::Matrix3::Identity();
+        m_diffparam.block(i*Dim,Dim,Dim,Dim) = trans.differential().block(0,9,Dim,Dim);
     }
 
 #ifdef USE_LOGGING

@@ -39,8 +39,13 @@ namespace details {
 //the dfs_tree is used to detect the cluster connections in the dcm system. We search for all connected
 //clusters (and all groups of connected clusters if there exist multiple ones devided by non cluster vertices)
 //and need to hold the order the individual clusters appear in the cluster group.
-template<typename ClusterGraph>
+template<typename Sys>
 struct dfs_tree : public boost::default_dfs_visitor {
+
+    typedef typename Sys::Cluster ClusterGraph;
+    typedef typename Sys::Kernel  Kernel;
+    typedef typename Kernel::Transform3D Transform;
+    typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
 
     boost::shared_ptr<ClusterGraph> parent;
     dfs_tree(boost::shared_ptr<ClusterGraph> g) : parent(g) {};
@@ -58,11 +63,43 @@ struct dfs_tree : public boost::default_dfs_visitor {
         assert(fusion::at_c<0>(tree.back()) == u);
         tree.pop_back();
     }
+
+    Transform calcSuccessiveTransform() {
+
+        //we go the dfs tree back until we hit its end or a non-cluster vertex
+        typedef typename TreeType::iterator iter;
+
+        iter it = tree.end();
+        iter end = tree.begin();
+        it--;
+        end--;
+
+        //find the stopping point first
+        for(; it != end; it--) {
+            if(!fusion::at_c<1>(*it))
+                break;
+        };
+
+        //from the stopping point we can collect all transformation as they are surely connected to
+        //the last tree vertex
+        Transform trans;
+
+        it++;
+
+        for(; it != tree.end(); it++) {
+            if(fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>().init)
+                trans *= fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>().m_diffTrans();
+            else
+                trans *= fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>().getTransform();
+        };
+
+        return trans;
+    };
 };
 
 
 template<typename Sys>
-struct recalculater : public dfs_tree<typename Sys::Cluster> {
+struct recalculater : public dfs_tree<Sys> {
 
     typedef typename Sys::Cluster ClusterGraph;
     typedef typename Sys::Kernel Kernel;
@@ -75,33 +112,46 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
     Scalar scaling;
     AccessType access;
 
-    recalculater(boost::shared_ptr<ClusterGraph> cg, Scalar sc, AccessType ac) : dfs_tree<typename Sys::Cluster>(cg),
+    recalculater(boost::shared_ptr<ClusterGraph> cg, Scalar sc, AccessType ac) : dfs_tree<Sys>(cg),
         scaling(sc), access(ac) {};
 
     //recalculate clusters
     void discover_vertex(LocalVertex u, const ClusterGraph& graph) {
 
-        dfs_tree<ClusterGraph>::discover_vertex(u, graph);
+        dfs_tree<Sys>::discover_vertex(u, graph);
+
+        typename dfs_tree<Sys>::TreeType::iterator it = --dfs_tree<Sys>::tree.end();
+        boost::shared_ptr<ClusterGraph> g = fusion::at_c<1>(*it);
 
         //only calculate clusters
-        if(fusion::at_c<1>(dfs_tree<ClusterGraph>::tree.back())) {
-            boost::shared_ptr<ClusterGraph> g = fusion::at_c<1>(dfs_tree<ClusterGraph>::tree.back());
+        if(g) {
+            //and only those which are not fixed
+            if(! g->template getProperty<typename module3d::fix_prop>()) {
+		//std::cout<<"recalc cluster"<<std::endl;
+                //if the vertex before was a cluster we need to set its transform as successive transform
+                if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
+		    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
+                    g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
+		 //   std::cout<<"set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
+		  
+		}
 
-            if(! g->template getProperty<typename module3d::fix_prop>())
                 g->template getProperty<typename module3d::math_prop>().recalculate();
+		//std::cout<<"calculated transform: "<<std::endl<<g->template getProperty<typename module3d::math_prop>().m_diffTrans<<std::endl<<std::endl;
+            }
         }
     };
 
     //simulate finish_edge callback
     void finish_vertex(LocalVertex u, const ClusterGraph& g) {
 
-        LocalVertex old = fusion::at_c<0>(dfs_tree<ClusterGraph>::tree.back());
-        dfs_tree<ClusterGraph>::finish_vertex(u,g);
+        LocalVertex old = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
+        dfs_tree<Sys>::finish_vertex(u,g);
 
-        if(dfs_tree<ClusterGraph>::tree.empty())
+        if(dfs_tree<Sys>::tree.empty())
             return;
 
-        LocalVertex newe = fusion::at_c<0>(dfs_tree<ClusterGraph>::tree.back());
+        LocalVertex newe = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
         finish_edge_tmp(boost::edge(old, newe, g).first, g);
     }
 
@@ -111,7 +161,7 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
     void finish_edge_tmp(LocalEdge u, const ClusterGraph& graph) {
 
         typedef typename ClusterGraph::template object_iterator<Constraint3D> oiter;
-        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<ClusterGraph>::tree.back();
+        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<Sys>::tree.back();
 
         //one side is a cluster for sure
         if(fusion::at_c<1>(vec)) {
@@ -125,21 +175,19 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
             else
                 popped = boost::source(u, graph);
 
-            boost::shared_ptr<ClusterGraph> second = dfs_tree<ClusterGraph>::parent->getVertexCluster(popped);
+            boost::shared_ptr<ClusterGraph> second = dfs_tree<Sys>::parent->getVertexCluster(popped);
 
             //lets see if we are a edge between clusters
             if(second) {
 
                 //yay! we only need to calculate the popped cluster
-                std::pair< oiter, oiter > oit = dfs_tree<ClusterGraph>::parent->template getObjects<Constraint3D>(u);
+                std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
 
                 for(; oit.first != oit.second; oit.first++) {
-                    if(*oit.first) {
-		      std::cout<<"recalc constraint"<<std::endl;
-                        (*oit.first)->calculate(scaling, access, dfs_tree<ClusterGraph>::parent->getGlobalVertex(popped));
-		    }
+                    if(*oit.first)
+                        (*oit.first)->calculate(scaling, access, dfs_tree<Sys>::parent->getGlobalVertex(popped));
                 }
-		std::cout<<"recalc edge done ----------------------"<<std::endl;
+
                 return;
             };
         }
@@ -147,7 +195,7 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
         //with everything updated just nicely we can compute the constraints
         //as always: every local edge can hold multiple global ones, so iterate over all constraints
         //hold by the individual edge
-        std::pair< oiter, oiter > oit = dfs_tree<ClusterGraph>::parent->template getObjects<Constraint3D>(u);
+        std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
 
         for(; oit.first != oit.second; oit.first++) {
             if(*oit.first)
@@ -160,7 +208,7 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
     void back_edge(LocalEdge u, const ClusterGraph& graph) {
 
         typedef typename ClusterGraph::template object_iterator<Constraint3D> oiter;
-        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<ClusterGraph>::tree.back();
+        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<Sys>::tree.back();
 
         //one side is a cluster for sure
         if(fusion::at_c<1>(vec)) {
@@ -174,18 +222,18 @@ struct recalculater : public dfs_tree<typename Sys::Cluster> {
             else
                 popped = boost::source(u, graph);
 
-            boost::shared_ptr<ClusterGraph> second = dfs_tree<ClusterGraph>::parent->getVertexCluster(popped);
+            boost::shared_ptr<ClusterGraph> second = dfs_tree<Sys>::parent->getVertexCluster(popped);
 
             //lets see if we are a edge between clusters
             if(second) {
                 //connecting two clusters, let the hell break loose!
-
+                assert(false);
                 return;
             }
         }
 
         //lucky bastart! treat it as normal edge
-        std::pair< oiter, oiter > oit = dfs_tree<ClusterGraph>::parent->template getObjects<Constraint3D>(u);
+        std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
 
         for(; oit.first != oit.second; oit.first++) {
             if(*oit.first)
@@ -240,7 +288,7 @@ void MES<Sys>::removeLocalGradientZeros() {
 };
 
 template<typename Sys>
-struct init_mes : public dfs_tree<typename Sys::Cluster> {
+struct init_mes : public dfs_tree<Sys> {
 
     typedef typename Sys::Cluster ClusterGraph;
     typedef typename Sys::Kernel Kernel;
@@ -249,20 +297,22 @@ struct init_mes : public dfs_tree<typename Sys::Cluster> {
     typedef typename module3d::Constraint3D Constraint3D;
     typedef typename Kernel::Transform3D Transform;
 
-    using dfs_tree<typename Sys::Cluster>::parent;
+    using dfs_tree<Sys>::parent;
     MES<Sys>& mes;
 
     //we need to have our clustergraph seperate, as the ones given to the callbacks are const and can
     //therefore not be used for initialising
-    init_mes(MES<Sys>& system, boost::shared_ptr<ClusterGraph> p) : dfs_tree<typename Sys::Cluster>(p), mes(system) {};
+    init_mes(MES<Sys>& system, boost::shared_ptr<ClusterGraph> p) : dfs_tree<Sys>(p), mes(system) {};
 
     void discover_vertex(LocalVertex u, const ClusterGraph& g) {
 
-        dfs_tree<ClusterGraph>::discover_vertex(u, g);
-        boost::shared_ptr<ClusterGraph> c = fusion::at_c<1>(dfs_tree<ClusterGraph>::tree.back());
+        dfs_tree<Sys>::discover_vertex(u, g);
 
+        typename dfs_tree<Sys>::TreeType::iterator it = --dfs_tree<Sys>::tree.end();
+        boost::shared_ptr<ClusterGraph> c = fusion::at_c<1>(*it);
+
+//	std::cout<<"init vertex"<<std::endl;
         if(c) {
-	  std::cout << "Init Cluster" << std::endl;
             details::ClusterMath<Sys>& cm =  c->template getProperty<typename module3d::math_prop>();
 
             //only get maps and propagate tream if not fixed
@@ -276,10 +326,18 @@ struct init_mes : public dfs_tree<typename Sys::Cluster> {
                 cm.setParameterOffset(offset_rot, rotation);
                 cm.setParameterOffset(offset, general);
 
-                cm.setSuccessiveTransform(calcSuccessiveTransform());
+                //if the vertex before was a cluster we need to set its transform as successive transform
+                if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
+                    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
+                    cm.setSuccessiveTransform(cm_s.getTransform());
+		 //   std::cout<<"init set successive: "<<std::endl<<cm_s.getTransform()<<std::endl;
+                }
 
                 //wirte initial values
                 cm.initMaps();
+		Transform d;
+		cm.mapsToTransform(d);
+		//std::cout<<"init map: "<<std::endl<<d<<std::endl<<std::endl;
             }
             else
                 cm.initFixMaps();
@@ -291,7 +349,6 @@ struct init_mes : public dfs_tree<typename Sys::Cluster> {
 
         }
         else {
-	  std::cout << "Init Geom" << std::endl;
             boost::shared_ptr<Geometry3D> gm = parent->template getObject<Geometry3D>(u);
             gm->initMap(&mes);
         }
@@ -300,13 +357,13 @@ struct init_mes : public dfs_tree<typename Sys::Cluster> {
     //simulate finish_edge callback
     void finish_vertex(LocalVertex u, const ClusterGraph& g) {
 
-        LocalVertex old = fusion::at_c<0>(dfs_tree<ClusterGraph>::tree.back());
-        dfs_tree<ClusterGraph>::finish_vertex(u,g);
+        LocalVertex old = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
+        dfs_tree<Sys>::finish_vertex(u,g);
 
-        if(dfs_tree<ClusterGraph>::tree.empty())
+        if(dfs_tree<Sys>::tree.empty())
             return;
 
-        LocalVertex newe = fusion::at_c<0>(dfs_tree<ClusterGraph>::tree.back());
+        LocalVertex newe = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
         finish_edge_tmp(boost::edge(old, newe, g).first, g);
     }
 
@@ -327,42 +384,13 @@ struct init_mes : public dfs_tree<typename Sys::Cluster> {
 
         for(; oit.first != oit.second; oit.first++) {
 
-	    std::cout<<"init constraint"<<std::endl;
+            //std::cout<<"init constraint"<<std::endl;
             //set the maps
             boost::shared_ptr<Constraint3D> c = *oit.first;
 
             if(c)
                 c->setMaps(mes);
         }
-    };
-
-    Transform calcSuccessiveTransform() {
-
-        //we go the dfs tree back until we hit its end or a non-cluster vertex
-        typedef typename dfs_tree<typename Sys::Cluster>::TreeType::iterator iter;
-
-        iter it = dfs_tree<typename Sys::Cluster>::tree.end();
-        iter end = dfs_tree<typename Sys::Cluster>::tree.begin();
-        it--;
-        end--;
-
-        //find the stopping point first
-        for(; it != end; it--) {
-            if(!fusion::at_c<1>(*it))
-                break;
-        };
-
-        //from the stopping point we can collect all transformation as they are surely connected to
-        //the last tree vertex
-        Transform trans;
-
-        it++;
-
-        for(; it != dfs_tree<typename Sys::Cluster>::tree.end(); it++) {
-            trans *= fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>().getTransform();
-        };
-
-        return trans;
     };
 };
 
@@ -653,7 +681,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         mes.recalculate();
 
         //Rescaler re(cluster, mes);
-	DummyScaler re;
+        DummyScaler re;
         re();
         sys.kernel().solve(mes, re);
 #ifdef USE_LOGGING

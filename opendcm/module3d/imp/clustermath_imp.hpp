@@ -72,12 +72,12 @@ typename ClusterMath<Sys>::Kernel::Vector3Map& ClusterMath<Sys>::getTranslationM
 template<typename Sys>
 void ClusterMath<Sys>::initMaps() {
 
-    transformToMaps(m_successiveTransform.inverse()*m_transform);
+    transformToMaps(m_transform*m_successiveTransform.inverse());
     init = true;
     midpoint.setZero();
     m_shift.setZero();
     m_ssrTransform.setIdentity();
-    m_diffTrans = typename Kernel::DiffTransform3D(m_successiveTransform.inverse()*m_transform);
+    m_diffTrans = typename Kernel::DiffTransform3D(m_transform*m_successiveTransform.inverse());
     fix=false;
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Init transform: "<<m_transform;
@@ -103,6 +103,9 @@ void ClusterMath<Sys>::initFixMaps() {
 
 template<typename Sys>
 typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform() {
+    if(init)
+        m_transform = typename Kernel::Transform3D(m_diffTrans.rotation(), m_diffTrans.translation()) * m_successiveTransform;
+
     return m_transform;
 };
 
@@ -177,7 +180,8 @@ void ClusterMath<Sys>::finishCalculation() {
     init=false;
 
     m_transform = m_ssrTransform*m_transform;
-    m_transform = m_successiveTransform*m_transform;
+    //m_successiveTransform *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
+    m_transform = m_transform * m_successiveTransform;
 
     //scale all geometries back to the original size
     m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
@@ -246,19 +250,26 @@ typename Sys::Kernel::Quaternion ClusterMath<Sys>::calcDiffTransform(typename Cl
 
         transformToMaps(trans);
         typename Sys::Kernel::Quaternion q = trans.rotation();
-        trans = m_successiveTransform * trans;
+        trans *= m_successiveTransform;
         return q;
     }
 
     const Scalar fac = std::sin(NQFAKTOR*norm)/norm;
 
-    typename Kernel::Transform3D tmp;
-    tmp = typename Kernel::Quaternion(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac);
-    tmp *= typename Kernel::Transform3D::Translation(m_translation);
+    const typename Kernel::Quaternion Q(std::cos(NQFAKTOR*norm), m_normQ(0)*fac, m_normQ(1)*fac, m_normQ(2)*fac); 
+    trans = Q;
+    trans *= typename Kernel::Transform3D::Translation(m_translation);
 
+    //std::cout<<"clustermath maps trans:"<<std::endl<<trans<<std::endl;
+    //std::cout<<"clustermath successive:"<<std::endl<<m_successiveTransform<<std::endl; 
+    
     //set the real transformation
-    trans = m_successiveTransform * tmp;
-    return tmp.rotation();
+    trans *= m_successiveTransform ;
+    
+      //  std::cout<<"clustermath comp:"<<std::endl<<trans<<std::endl;
+
+    return Q;
+    
 };
 
 template<typename Sys>
@@ -329,20 +340,14 @@ void ClusterMath<Sys>::recalculate() {
     m_diffTrans.at(2,7) = 2.0*(dwc*Q.x()+Q.w()*dxc)+2.0*(dyc*Q.z()+Q.y()*dzc);
     m_diffTrans.at(2,8) = -4.0*(Q.x()*dxc+Q.y()*dyc);
 
-    std::cout<<m_successiveTransform<<std::endl
-             <<m_successiveTransform.rotation().matrix()<<std::endl<<"-------------------------------------------------------------"<<std::endl;
-    std::cout<<m_diffTrans<<std::endl<<"-------------------------------------------------------------"<<std::endl;
-
 
     //calculate the full differential transformation together with the successive trans
-    m_diffTrans.differential().template block<3,1>(0,9) = m_diffTrans.differential().template block<3,3>(0,0)*m_successiveTransform.translation().vector();
-    m_diffTrans.differential().template block<3,1>(0,10) = m_diffTrans.differential().template block<3,3>(0,3)*m_successiveTransform.translation().vector();
-    m_diffTrans.differential().template block<3,1>(0,11) = m_diffTrans.differential().template block<3,3>(0,6)*m_successiveTransform.translation().vector();
-    m_diffTrans.differential().template block<3,3>(0,0) *= m_successiveTransform.rotation().matrix();
-    m_diffTrans.differential().template block<3,3>(0,3) *= m_successiveTransform.rotation().matrix();
-    m_diffTrans.differential().template block<3,3>(0,6) *= m_successiveTransform.rotation().matrix();
+    const typename Kernel::Quaternion::RotationMatrixType mat = m_successiveTransform.rotation().matrix();
+    m_diffTrans.differential().template block<3,3>(0,9) = mat * Kernel::Matrix3::Identity();
+    m_diffTrans.differential().template block<3,3>(0,0) = mat * m_diffTrans.differential().template block<3,3>(0,0);
+    m_diffTrans.differential().template block<3,3>(0,3) = mat * m_diffTrans.differential().template block<3,3>(0,3);
+    m_diffTrans.differential().template block<3,3>(0,6) = mat * m_diffTrans.differential().template block<3,3>(0,6);
 
-    std::cout<<m_diffTrans<<std::endl<<"-------------------------------------------------------------"<<std::endl<<std::endl;
     //recalculate all geometries
     typedef typename std::vector<Geom>::iterator iter;
 
@@ -421,11 +426,14 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
     if(!fix)
         mapsToTransform(m_transform);
 
+    //make sure it is the global transform
+    //m_transform = m_successiveTransform*m_transform;
+
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
 #endif
 
-    //collect all points together
+    //collect all local points together
     m_points.clear();
     typename Kernel::Transform3D trans(m_transform.rotation(), m_transform.translation());
     trans.invert();
@@ -589,13 +597,15 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     if(!fix)
         mapsToTransform(m_transform);
 
-
+    //make sure it is the global transform
+    //m_transform = m_successiveTransform*m_transform;
 
     //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
     //to alow the adoption of the scale. and no shift should been set.
     if(isFixed) {
         m_transform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
         m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
+        //m_successiveTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
         typename Kernel::DiffTransform3D diff(m_transform);
         //now calculate the scaled geometrys
         typedef typename std::vector<Geom>::iterator iter;
@@ -690,8 +700,9 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     //set the new rotation and translation
     m_transform = ssTrans.inverse()*m_transform;
     m_ssrTransform *= ssTrans;
+    //m_successiveTransform *= typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
 
-    transformToMaps(m_transform);
+    transformToMaps(m_transform * m_successiveTransform.inverse());
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling().factor();
