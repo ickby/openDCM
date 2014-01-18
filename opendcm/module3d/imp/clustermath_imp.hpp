@@ -176,13 +176,12 @@ void ClusterMath<Sys>::finishCalculation() {
     BOOST_LOG(log) << "Finish calculation";
 #endif
 
+    //reads value from difftransform, therefore it includes successive transform!
     mapsToTransform(m_transform);
     init=false;
 
     m_transform = m_ssrTransform*m_transform;
-    //m_successiveTransform *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
-    m_transform = m_transform * m_successiveTransform;
-
+    
     //scale all geometries back to the original size
     m_diffTrans *= typename Kernel::Transform3D::Scaling(1./m_ssrTransform.scaling().factor());
     typedef typename std::vector<Geom>::iterator iter;
@@ -422,12 +421,10 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
     BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
 #endif
 
-    //ensure the usage of the right transformation
+    //ensure the usage of the right transformation (inlcudes successive)
     if(!fix)
         mapsToTransform(m_transform);
 
-    //make sure it is the global transform
-    m_transform = m_transform*m_successiveTransform;
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
@@ -593,12 +590,9 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling().factor();
 #endif
 
-    //ensure the usage of the right transform
+    //ensure the usage of the right transform (includes successive)
     if(!fix)
         mapsToTransform(m_transform);
-
-    //make sure it is the global transform
-    m_transform = m_transform*m_successiveTransform;
 
     //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
     //to alow the adoption of the scale. and no shift should been set.

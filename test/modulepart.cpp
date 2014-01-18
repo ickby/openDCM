@@ -47,6 +47,10 @@ struct place {
         quat.normalize();
         trans<<1,2,3;
     };
+    
+    Eigen::Vector3d transformPoint(const Eigen::Vector3d& v) {
+      return quat._transformVector(v) + trans;
+    };
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -208,9 +212,13 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
     p1 << 7, -0.5, 0.3;
     p3 << -2, -1.3, -2.8;
     p4 << 0.2, -0.5, 1.2;
+    
+    place pl1;
+    pl1.quat *= Kernel::Quaternion(1,2,3,4);
+    pl1.trans *= 5;
 
     SystemNOID sys;
-    Part_ptr part1 = sys.createPart(place());
+    Part_ptr part1 = sys.createPart(pl1);
     Geom g1 = part1->addGeometry3D(p1, dcm::Local);
 
     Part_ptr part2 = sys.createPart(place());
@@ -229,6 +237,15 @@ BOOST_AUTO_TEST_CASE(modulepart_local) {
 
     BOOST_CHECK(Kernel::isSame((v1-v3).norm(),5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v1-v4).norm(),5., 1e-6));
+    
+    //lets check if the placements are updated correctly
+    BOOST_CHECK(Kernel::isSame(get<place>(part1).transformPoint(p1), v1, 1e-6));
+    BOOST_CHECK(Kernel::isSame(get<place>(part2).transformPoint(p3), v3, 1e-6));
+    BOOST_CHECK(Kernel::isSame(get<place>(part2).transformPoint(p4), v4, 1e-6));
+    
+    std::cout<<"p1 :"<<get<place>(part2).transformPoint(p1).transpose()<<std::endl;
+    std::cout<<"p3 :"<<get<place>(part2).transformPoint(p3).transpose()<<std::endl;
+    std::cout<<"p4 :"<<get<place>(part2).transformPoint(p4).transpose()<<std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_transformations) {
