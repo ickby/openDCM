@@ -164,7 +164,7 @@ typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;
 
-/*
+
 BOOST_AUTO_TEST_CASE(modulepart_basics) {
 
     try {
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(modulepart_combined) {
     BOOST_CHECK(Kernel::isSame((v2-v4).norm(), 5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 7., 1e-6));
 }
-*/
+
 BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
 
     plane_t p1,p2,p3,p4, v1, v2, v3, v4;
@@ -364,7 +364,7 @@ BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
     BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0., 1e-6));
 
 }
-/*
+
 BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {
 
     plane_t p1,p2;
@@ -511,6 +511,6 @@ BOOST_AUTO_TEST_CASE(modulepart_subsystem) {
     BOOST_CHECK(ts1.counter == 0);
     BOOST_CHECK(tv2.counter == 0);
     BOOST_CHECK(ts2.counter == 1);
-}*/
+}
 
 BOOST_AUTO_TEST_SUITE_END();

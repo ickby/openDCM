@@ -427,7 +427,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
         mapsToTransform(m_transform);
 
     //make sure it is the global transform
-    //m_transform = m_successiveTransform*m_transform;
+    m_transform = m_transform*m_successiveTransform;
 
 #ifdef USE_LOGGING
     BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
@@ -598,7 +598,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
         mapsToTransform(m_transform);
 
     //make sure it is the global transform
-    //m_transform = m_successiveTransform*m_transform;
+    m_transform = m_transform*m_successiveTransform;
 
     //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
     //to alow the adoption of the scale. and no shift should been set.

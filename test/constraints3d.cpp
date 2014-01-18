@@ -449,7 +449,7 @@ BOOST_AUTO_TEST_CASE(constraint3d_distance) {
         BOOST_CHECK(checker14.check_normal(2., dcm::negative_directional));
         BOOST_CHECK(checker14.check_cluster(2., dcm::negative_directional));
 }
-/*
+
 BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
 
     System sys;
@@ -506,6 +506,6 @@ BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
     constraint_checker<point_t, segment_t, dcm::Distance> checker(sys);
     BOOST_CHECK(checker.check_normal(2., notype()));
     BOOST_CHECK(checker.check_cluster(2., notype()));
-}*/
+}
 
 BOOST_AUTO_TEST_SUITE_END();

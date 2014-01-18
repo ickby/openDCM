@@ -680,8 +680,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         mes.setAccess(complete);
         mes.recalculate();
 
-        //Rescaler re(cluster, mes);
-        DummyScaler re;
+        Rescaler re(cluster, mes);
         re();
         sys.kernel().solve(mes, re);
 #ifdef USE_LOGGING
