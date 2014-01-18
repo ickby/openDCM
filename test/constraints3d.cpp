@@ -320,8 +320,8 @@ struct constraint_checker {
 
         place pl1, pl2;
         pl1.trans *= 100;
-        pl1.quat *= Kernel::Transform3D::Rotation(2,3,4,5);
-	pl2.trans *= 50;
+//      pl1.quat *= Kernel::Transform3D::Rotation(2,3,4,5);
+//	pl2.trans *= 50;
         part_ptr p1 = system.createPart(pl1);
         part_ptr p2 = system.createPart(pl2);
 
