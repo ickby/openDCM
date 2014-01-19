@@ -53,7 +53,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
 
     MES(boost::shared_ptr<Cluster> cl, int par, int eqn);
     virtual void recalculate();
-    virtual void removeLocalGradientZeros();
+    virtual void removeLocalGradientZeros(bool lgz);
     void setStart(LocalVertex v) {start = v;};
 };
 

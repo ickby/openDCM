@@ -131,6 +131,10 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
                         val.m_diff_first(o+i) = val.m_eq.calculateGradientFirst(first->m_parameter,
                                                 second->m_parameter, first->m_diffparam.col(i+3));
                     }
+
+                    //maybe we need to tread the local gradient zeros
+                    if(LGZ & !Sys::Kernel::isSame(val.m_residual(0),0, 1e-7))
+                        treatLGZ(val, true);
                 }
             }
             else {
@@ -149,14 +153,18 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
                     //cluster mode, so we do a full calculation with all 3 rotation diffparam vectors
                     for(int i=0; i<3; i++) {
                         val.m_diff_second(ro+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                second->m_parameter, second->m_diffparam.col(i));
+                                                  second->m_parameter, second->m_diffparam.col(i));
                     }
 
                     //and the translation seperated
                     for(int i=0; i<3; i++) {
                         val.m_diff_second(o+i) = val.m_eq.calculateGradientSecond(first->m_parameter,
-                                                                second->m_parameter, second->m_diffparam.col(i+3));
+                                                 second->m_parameter, second->m_diffparam.col(i+3));
                     }
+
+                    //maybe we need to tread the local gradient zeros
+                    if(LGZ & !Sys::Kernel::isSame(val.m_residual(0),0, 1e-7))
+                        treatLGZ(val, false);
                 }
             }
             else {
@@ -165,6 +173,71 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
             }
         }
     }
+};
+
+template<typename Sys, int Dim>
+template<typename ConstraintVector, typename tag1, typename tag2>
+template< typename T >
+void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::treatLGZ(T& val, bool exec_first) const {
+
+    typedef typename Sys::Kernel Kernel;
+
+    //to treat local gradient zeros we calculate a approximate second derivative of the equations
+    //only do that if neseccary: residual is not zero
+//    if(!Kernel::isSame(val.m_residual(0),0, 1e-7)) { //TODO: use exact precission and scale value
+
+    if(exec_first) {
+        //LGZ exists for rotations only
+        for(int i=0; i<3; i++) {
+
+            //only treat if the gradient realy is zero
+            if(Kernel::isSame(val.m_diff_first(first->m_offset_rot+i), 0, 1e-7)) {
+
+                //to get the approximated second derivative we need the slightly moved geometrie
+                const typename Kernel::Vector  p_old =  first->m_parameter;
+                first->m_parameter += first->m_diffparam.col(i)*1e-3;
+                first->normalize();
+                //with this changed geometrie we test if a gradient exist now
+                typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
+                typename Kernel::number_type res = val.m_eq.calculateGradientFirst(first->m_parameter,
+                                                   second->m_parameter, block);
+                first->m_parameter = p_old;
+
+                //let's see if the initial LGZ was a real one
+                if(!Kernel::isSame(res, 0, 1e-7)) {
+
+                    //is a fake zero, let's correct it
+                    val.m_diff_first(first->m_offset_rot+i) = res;
+                };
+            };
+        };
+    }
+    else {
+        //LGZ exists for rotations only
+        for(int i=0; i<3; i++) {
+
+            //only treat if the gradient realy is zero
+            if(Kernel::isSame(val.m_diff_second(second->m_offset_rot+i), 0, 1e-7)) {
+
+                //to get the approximated second derivative we need the slightly moved geometrie
+                const typename Kernel::Vector  p_old =  second->m_parameter;
+                second->m_parameter += second->m_diffparam.col(i)*1e-3;
+                second->normalize();
+                //with this changed geometrie we test if a gradient exist now
+                typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
+                typename Kernel::number_type res = val.m_eq.calculateGradientSecond(first->m_parameter,
+                                                   second->m_parameter, block);
+                second->m_parameter = p_old;
+
+                //let's see if the initial LGZ was a real one
+                if(!Kernel::isSame(res, 0, 1e-7)) {
+
+                    //is a fake zero, let's correct it
+                    val.m_diff_second(second->m_offset_rot+i) = res;
+                };
+            };
+        };
+    };
 };
 
 template<typename Sys, int Dim>
@@ -232,85 +305,6 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::PseudoCollector
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
-Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::LGZ::LGZ(geom_ptr f, geom_ptr s)
-    : first(f), second(s) {
-
-};
-
-template<typename Sys, int Dim>
-template<typename ConstraintVector, typename tag1, typename tag2>
-template< typename T >
-void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::LGZ::operator()(T& val) const {
-
-    typedef typename Sys::Kernel Kernel;
-
-    if(!val.enabled)
-        return;
-
-    //to treat local gradient zeros we calculate a approximate second derivative of the equations
-    //only do that if neseccary: residual is not zero
-    if(!Kernel::isSame(val.m_residual(0),0, 1e-7)) { //TODO: use exact precission and scale value
-
-        //rotations exist only in cluster
-        if(first->getClusterMode() && !first->isClusterFixed()) {
-            //LGZ exists for rotations only
-            for(int i=0; i<3; i++) {
-
-                //only treat if the gradient realy is zero
-                if(Kernel::isSame(val.m_diff_first(first->m_offset_rot+i), 0, 1e-7)) {
-
-                    //to get the approximated second derivative we need the slightly moved geometrie
-                    const typename Kernel::Vector  p_old =  first->m_parameter;
-                    first->m_parameter += first->m_diffparam.col(i)*1e-3;
-                    first->normalize();
-                    //with this changed geometrie we test if a gradient exist now
-                    typename Kernel::VectorMap block(&first->m_diffparam(0,i),first->m_parameterCount,1, DS(1,1));
-                    typename Kernel::number_type res = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                       second->m_parameter, block);
-                    first->m_parameter = p_old;
-
-                    //let's see if the initial LGZ was a real one
-                    if(!Kernel::isSame(res, 0, 1e-7)) {
-
-                        //is a fake zero, let's correct it
-                        val.m_diff_first(first->m_offset_rot+i) = res;
-                    };
-                };
-            };
-        }
-
-        //and the same for the second one too
-        if(second->getClusterMode() && !second->isClusterFixed()) {
-
-            for(int i=0; i<3; i++) {
-
-                //only treat if the gradient realy is zero
-                if(Kernel::isSame(val.m_diff_second(second->m_offset_rot+i), 0, 1e-7)) {
-
-                    //to get the approximated second derivative we need the slightly moved geometrie
-                    const typename Kernel::Vector  p_old =  second->m_parameter;
-                    second->m_parameter += second->m_diffparam.col(i)*1e-3;
-                    second->normalize();
-                    //with this changed geometrie we test if a gradient exist now
-                    typename Kernel::VectorMap block(&second->m_diffparam(0,i),second->m_parameterCount,1, DS(1,1));
-                    typename Kernel::number_type res = val.m_eq.calculateGradientFirst(first->m_parameter,
-                                                       second->m_parameter, block);
-                    second->m_parameter = p_old;
-
-                    //let's see if the initial LGZ was a real one
-                    if(!Kernel::isSame(res, 0, 1e-7)) {
-
-                        //is a fake zero, let's correct it
-                        val.m_diff_second(second->m_offset_rot+i) = res;
-                    };
-                };
-            };
-        };
-    };
-};
-
-template<typename Sys, int Dim>
-template<typename ConstraintVector, typename tag1, typename tag2>
 Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::GenericEquations::GenericEquations(std::vector<boost::any>& v)
     : vec(v) {
 
@@ -362,13 +356,15 @@ template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
 void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::calculate(geom_ptr first, geom_ptr second,
         Scalar scale, AccessType access, GlobalVertex g, int off, int roff) {
-    fusion::for_each(m_sets, Calculater(first, second, scale, access, g, off, roff));
+    Calculater calc(first, second, scale, access, g, off, roff);
+    calc.LGZ = m_lgz;
+    fusion::for_each(m_sets, calc);
 };
 
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
-void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::treatLGZ(geom_ptr first, geom_ptr second) {
-    fusion::for_each(m_sets, LGZ(first, second));
+void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::treatLGZ(bool lgz) {
+    m_lgz = lgz;
 };
 
 template<typename Sys, int Dim>

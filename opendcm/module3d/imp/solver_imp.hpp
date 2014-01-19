@@ -282,7 +282,7 @@ void MES<Sys>::recalculate() {
 };
 
 template<typename Sys>
-void MES<Sys>::removeLocalGradientZeros() {
+void MES<Sys>::removeLocalGradientZeros(bool lgz) {
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "remove local gradient zero";
@@ -299,7 +299,7 @@ void MES<Sys>::removeLocalGradientZeros() {
 
         for(; oit.first != oit.second; oit.first++) {
             if(*oit.first)
-                (*oit.first)->treatLGZ();
+                (*oit.first)->treatLGZ(lgz);
         }
     }
 };

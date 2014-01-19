@@ -113,7 +113,7 @@ public:
 
     int  equationCount();
     void calculate(Scalar scale, AccessType access = general, GlobalVertex g = -1, int off=-1, int roff=-1);
-    void treatLGZ();
+    void treatLGZ(bool on_off);
     void setMaps(MES& mes);
     void collectPseudoPoints(Vec& vec1, Vec& vec2);
 
@@ -139,7 +139,7 @@ public:
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const = 0;
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType access = general,
                                GlobalVertex g = -1, int off=-1, int roff=-1) = 0;
-        virtual void treatLGZ(geom_ptr first, geom_ptr second) = 0;
+        virtual void treatLGZ(bool on_off) = 0;
         virtual int  equationCount() = 0;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second) = 0;
         virtual void collectPseudoPoints(geom_ptr first, geom_ptr second, Vec& vec1, Vec& vec2) = 0;
@@ -204,11 +204,14 @@ public:
             AccessType access;
             GlobalVertex cluster_vertex;
             int offset, rot_offset;
+            bool LGZ;
 
             Calculater(geom_ptr f, geom_ptr s, Scalar sc, AccessType a = general, GlobalVertex g =-1, int o=-1, int ro=-1);
 
             template< typename T >
             void operator()(T& val) const;
+            template< typename T>
+            void treatLGZ(T& val, bool first) const;
         };
 
         struct MapSetter {
@@ -231,16 +234,6 @@ public:
             template< typename T >
             void operator()(T& val) const;
         };
-
-        struct LGZ {
-            geom_ptr first,second;
-
-            LGZ(geom_ptr f, geom_ptr s);
-
-            template< typename T >
-            void operator()(T& val) const;
-        };
-
 
         struct EquationCounter {
             int& count;
@@ -291,7 +284,7 @@ public:
 
         virtual void calculate(geom_ptr first, geom_ptr second, Scalar scale, AccessType a = general,
                                GlobalVertex g = -1, int off=-1, int roff=-1);
-        virtual void treatLGZ(geom_ptr first, geom_ptr second);
+        virtual void treatLGZ(bool lgz);
         virtual placeholder* resetConstraint(geom_ptr first, geom_ptr second) const;
         virtual void setMaps(MES& mes, geom_ptr first, geom_ptr second);
         virtual void collectPseudoPoints(geom_ptr f, geom_ptr s, Vec& vec1, Vec& vec2);
@@ -306,6 +299,7 @@ public:
 
         EquationSets m_sets;
         Objects m_objects;
+        bool m_lgz;
     protected:
         void for_each(EquationSets m_sets, Calculater Calculater);
     };

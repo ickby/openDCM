@@ -148,13 +148,15 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
     g.resize(sys.equationCount());
     J_old.resize(sys.equationCount(), sys.parameterCount());
 
+    sys.removeLocalGradientZeros(true);
     sys.recalculate();
+    sys.removeLocalGradientZeros(false);
+    
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving) << "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
                                 << "residual: "<<sys.Residual.transpose()<<std::endl
                                 << "maximal differential: "<<sys.Jacobi.template lpNorm<Eigen::Infinity>();
 #endif
-    //sys.removeLocalGradientZeros();
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, solving) << "LGZ jacobi: "<<std::endl<<sys.Jacobi<<std::endl

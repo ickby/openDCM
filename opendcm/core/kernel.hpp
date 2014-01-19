@@ -193,7 +193,7 @@ struct Kernel : public PropertyOwner< mpl::vector2<precision, iterations> > {
         bool hasAccessType(AccessType t);
 
         virtual void recalculate() = 0;
-        virtual void removeLocalGradientZeros() = 0;
+        virtual void removeLocalGradientZeros(bool on_off) = 0;
     };
 
 

@@ -164,8 +164,8 @@ void Constraint<Sys, Dim>::calculate(Scalar scale, AccessType access, GlobalVert
 };
 
 template<typename Sys, int Dim>
-void Constraint<Sys, Dim>::treatLGZ() {
-    content->treatLGZ(first, second);
+void Constraint<Sys, Dim>::treatLGZ(bool lgz) {
+    content->treatLGZ(lgz);
 };
 
 template<typename Sys, int Dim>
