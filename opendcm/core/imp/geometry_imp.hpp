@@ -197,6 +197,11 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
         //calculate the gradient vectors and add them to diffparam
         m_diffparam.block(i*Dim,Dim,Dim,Dim) = trans.differential().block(0,9,Dim,Dim);
     }
+    
+    //the rest are parameters, we can use them as they are (new assignement in case they have ben transformed)
+    for(int i=m_rotations*Dim; i!=m_parameterCount; i++) {
+        m_rotated(i) = m_toplocal(i);
+    }
 
 #ifdef USE_LOGGING
 
@@ -229,6 +234,11 @@ void Geometry<Kernel, Dim, TagList>::recalculateInverted(Transform& t, DiffTrans
     for(int i=0; i!=m_translations; i++) {
         //calculate the gradient vectors and add them to diffparam
         m_diffparam.block(i*Dim,Dim,Dim,Dim) = trans.differential().block(0,9,Dim,Dim);
+    }
+    
+    //the rest are parameters, we can use them as they are (new assignement in case they have ben transformed)
+    for(int i=m_rotations*Dim; i!=m_parameterCount; i++) {
+        m_rotated(i) = m_toplocal(i);
     }
 
 #ifdef USE_LOGGING
