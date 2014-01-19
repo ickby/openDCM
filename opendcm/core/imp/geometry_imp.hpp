@@ -214,13 +214,18 @@ void Geometry<Kernel, Dim, TagList>::recalculateInverted(Transform& t, DiffTrans
     if(!m_isInCluster)
         return;
 
-    //translation stay as they are, therefore calculate rotation diffs only
+    //do the rotatons!
     for(int i=0; i!=m_rotations; i++) {
         //calculate the gradient vectors only as the global value has not changed
         for(int j=0; j<Dim; j++) {
             typename Kernel::Vector3 vec = m_toplocal.template segment<Dim>(i*Dim);
             m_diffparam.block(i*Dim,j,Dim,1) = trans.differential().block(0,j*3,Dim,Dim) * (t.transform(vec));
         };
+    }
+    //after rotating the needed parameters we translate the stuff that needs to be moved
+    for(int i=0; i!=m_translations; i++) {
+        //calculate the gradient vectors and add them to diffparam
+        m_diffparam.block(i*Dim,Dim,Dim,Dim) = trans.differential().block(0,9,Dim,Dim);
     }
 
 #ifdef USE_LOGGING

@@ -111,7 +111,7 @@ public:
 
     typename Kernel::Quaternion calcDiffTransform(typename Kernel::DiffTransform3D& trans);
     void recalculate();
-    void recalculateInverted(typename Kernel::Transform3D& t);
+    void recalculateInverted(typename Kernel::Transform3D& t, typename Kernel::DiffTransform3D& difftrans);
 
     void addGeometry(Geom g);
     void clearGeometry();

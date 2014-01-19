@@ -169,6 +169,8 @@ struct geometry_traits< place > {
 
 }
 
+#define CHECKED_CONSTRAINT 2
+
 //solver for pure differential checking
 template<typename Kernel>
 struct CheckSolver {
@@ -197,25 +199,22 @@ struct CheckSolver {
 
                 //get first new value
                 sys.Parameter(i) += 0.1 - 1e-6;
-                //std::cout <<std::endl << "start -----------------------------------------------------------------------------"<<std::endl<<std::endl;
                 sys.recalculate();
-		//std::cout<<"Jacobi:"<<std::endl<<sys.Jacobi<<std::endl;
-                //std::cout <<std::endl << "end -----------------------------------------------------------------------------"<<std::endl<<std::endl;
-                double dleft = sys.Residual(0);
+                double dleft = sys.Residual(CHECKED_CONSTRAINT);
 
                 //get second new value
                 sys.Parameter(i) += 2e-6;
                 sys.recalculate();
-                double dright = sys.Residual(0);
+                double dright = sys.Residual(CHECKED_CONSTRAINT);
 
                 //get the residual diff between the last two calculations
                 double rdiff = (dright - dleft)/2e-6;
 
-                diffmax = std::max(sys.Jacobi(0,i), diffmax);
+                diffmax = std::max(sys.Jacobi(CHECKED_CONSTRAINT,i), diffmax);
 
                 //compare with the algeraic caclculated diff
-                if(std::abs(sys.Jacobi(0,i) - rdiff) > 1e-2) {
-                    std::cout<<"iter: "<<j<<", parameter: "<<i<<", calc: "<<sys.Jacobi(0,i)<<" vs real: "<<rdiff<<std::endl;
+                if(std::abs(sys.Jacobi(CHECKED_CONSTRAINT,i) - rdiff) > 1e-2) {
+                    std::cout<<"iter: "<<j<<", parameter: "<<i<<", calc: "<<sys.Jacobi(CHECKED_CONSTRAINT,i)<<" vs real: "<<rdiff<<std::endl;
                     fails++;
 
                     if(fails>3)
@@ -388,66 +387,66 @@ struct constraint_checker_orientation  {
     };
 };
 
-
+/*
 BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     System sys;
     constraint_checker<point_t, point_t, dcm::Distance> checker(sys);
     BOOST_CHECK(checker.check_normal(2., notype()));
     BOOST_CHECK(checker.check_cluster(2., notype()));
-    
-        constraint_checker<point_t, line_t, dcm::Distance> checker2(sys);
-        BOOST_CHECK(checker2.check_normal(2., notype()));
-        BOOST_CHECK(checker2.check_cluster(2., notype()));
 
-        constraint_checker<point_t, plane_t, dcm::Distance> checker3(sys);
-        BOOST_CHECK(checker3.check_normal(2., notype()));
-        BOOST_CHECK(checker3.check_cluster(2., notype()));
+    constraint_checker<point_t, line_t, dcm::Distance> checker2(sys);
+    BOOST_CHECK(checker2.check_normal(2., notype()));
+    BOOST_CHECK(checker2.check_cluster(2., notype()));
 
-        constraint_checker<point_t, cylinder_t, dcm::Distance> checker4(sys);
-        BOOST_CHECK(checker4.check_normal(2., notype()));
-        BOOST_CHECK(checker4.check_cluster(2., notype()));
+    constraint_checker<point_t, plane_t, dcm::Distance> checker3(sys);
+    BOOST_CHECK(checker3.check_normal(2., notype()));
+    BOOST_CHECK(checker3.check_cluster(2., notype()));
 
-        constraint_checker<line_t, line_t, dcm::Distance> checker5(sys);
-        BOOST_CHECK(checker5.check_normal(2., notype()));
-        BOOST_CHECK(checker5.check_cluster(2., notype()));
+    constraint_checker<point_t, cylinder_t, dcm::Distance> checker4(sys);
+    BOOST_CHECK(checker4.check_normal(2., notype()));
+    BOOST_CHECK(checker4.check_cluster(2., notype()));
 
-        constraint_checker<line_t, plane_t, dcm::Distance> checker6(sys);
-        BOOST_CHECK(checker6.check_normal(2., notype()));
-        BOOST_CHECK(checker6.check_cluster(2., notype()));
+    constraint_checker<line_t, line_t, dcm::Distance> checker5(sys);
+    BOOST_CHECK(checker5.check_normal(2., notype()));
+    BOOST_CHECK(checker5.check_cluster(2., notype()));
 
-        constraint_checker<line_t, cylinder_t, dcm::Distance> checker7(sys);
-        BOOST_CHECK(checker7.check_normal(2., notype()));
-        BOOST_CHECK(checker7.check_cluster(2., notype()));
+    constraint_checker<line_t, plane_t, dcm::Distance> checker6(sys);
+    BOOST_CHECK(checker6.check_normal(2., notype()));
+    BOOST_CHECK(checker6.check_cluster(2., notype()));
 
-        constraint_checker<plane_t, plane_t, dcm::Distance> checker8(sys);
-        BOOST_CHECK(checker8.check_normal(2., notype()));
-        BOOST_CHECK(checker8.check_cluster(2., notype()));
+    constraint_checker<line_t, cylinder_t, dcm::Distance> checker7(sys);
+    BOOST_CHECK(checker7.check_normal(2., notype()));
+    BOOST_CHECK(checker7.check_cluster(2., notype()));
 
-        constraint_checker<plane_t, cylinder_t, dcm::Distance> checker9(sys);
-        BOOST_CHECK(checker9.check_normal(2., notype()));
-        BOOST_CHECK(checker9.check_cluster(2., notype()));
+    constraint_checker<plane_t, plane_t, dcm::Distance> checker8(sys);
+    BOOST_CHECK(checker8.check_normal(2., notype()));
+    BOOST_CHECK(checker8.check_cluster(2., notype()));
 
-        constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
-        BOOST_CHECK(checker10.check_normal(2., notype()));
-        BOOST_CHECK(checker10.check_cluster(2., notype()));
+    constraint_checker<plane_t, cylinder_t, dcm::Distance> checker9(sys);
+    BOOST_CHECK(checker9.check_normal(2., notype()));
+    BOOST_CHECK(checker9.check_cluster(2., notype()));
 
-        //check different solution spaces where possible
-        constraint_checker<point_t, plane_t, dcm::Distance> checker11(sys);
-        BOOST_CHECK(checker11.check_normal(2., dcm::positiv_directional));
-        BOOST_CHECK(checker11.check_cluster(2., dcm::positiv_directional));
+    constraint_checker<cylinder_t, cylinder_t, dcm::Distance> checker10(sys);
+    BOOST_CHECK(checker10.check_normal(2., notype()));
+    BOOST_CHECK(checker10.check_cluster(2., notype()));
 
-        constraint_checker<point_t, plane_t, dcm::Distance> checker12(sys);
-        BOOST_CHECK(checker12.check_normal(2., dcm::negative_directional));
-        BOOST_CHECK(checker12.check_cluster(2., dcm::negative_directional));
+    //check different solution spaces where possible
+    constraint_checker<point_t, plane_t, dcm::Distance> checker11(sys);
+    BOOST_CHECK(checker11.check_normal(2., dcm::positiv_directional));
+    BOOST_CHECK(checker11.check_cluster(2., dcm::positiv_directional));
 
-        constraint_checker<point_t, cylinder_t, dcm::Distance> checker13(sys);
-        BOOST_CHECK(checker13.check_normal(2., dcm::positiv_directional));
-        BOOST_CHECK(checker13.check_cluster(2., dcm::positiv_directional));
+    constraint_checker<point_t, plane_t, dcm::Distance> checker12(sys);
+    BOOST_CHECK(checker12.check_normal(2., dcm::negative_directional));
+    BOOST_CHECK(checker12.check_cluster(2., dcm::negative_directional));
 
-        constraint_checker<point_t, cylinder_t, dcm::Distance> checker14(sys);
-        BOOST_CHECK(checker14.check_normal(2., dcm::negative_directional));
-        BOOST_CHECK(checker14.check_cluster(2., dcm::negative_directional));
+    constraint_checker<point_t, cylinder_t, dcm::Distance> checker13(sys);
+    BOOST_CHECK(checker13.check_normal(2., dcm::positiv_directional));
+    BOOST_CHECK(checker13.check_cluster(2., dcm::positiv_directional));
+
+    constraint_checker<point_t, cylinder_t, dcm::Distance> checker14(sys);
+    BOOST_CHECK(checker14.check_normal(2., dcm::negative_directional));
+    BOOST_CHECK(checker14.check_cluster(2., dcm::negative_directional));
 }
 
 BOOST_AUTO_TEST_CASE(constraint3d_orientation) {
@@ -506,6 +505,47 @@ BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
     constraint_checker<point_t, segment_t, dcm::Distance> checker(sys);
     BOOST_CHECK(checker.check_normal(2., notype()));
     BOOST_CHECK(checker.check_cluster(2., notype()));
+}*/
+
+BOOST_AUTO_TEST_CASE(constraint3d_check_backedge) {
+
+    System sys;
+
+    place pl1, pl2, pl3;
+    pl1.trans *= 100;
+    part_ptr p1 = sys.createPart(pl1);
+    part_ptr p2 = sys.createPart(pl2);
+    part_ptr p3 = sys.createPart(pl3);
+
+    //create the geometries
+    geom_ptr g1, g2, g3;
+    point_t t1, t2, t3;
+    t1.setRandom();
+    t2.setRandom();
+    t3.setRandom();
+
+    g1 = p1->addGeometry3D(t1);
+    g2 = p2->addGeometry3D(t2);
+    g3 = p3->addGeometry3D(t3);
+
+    //create the constraint and set the wanted value
+    sys.createConstraint3D(g1,g2,dcm::distance=5.);
+    sys.createConstraint3D(g2,g3,dcm::distance=5.);
+    sys.createConstraint3D(g3,g1,dcm::distance=5.);
+
+    try {
+        sys.solve();
+    }
+    catch(const std::exception&) {
+        BOOST_FAIL("Too many errors in derivative");
+        return;
+    }
+    catch(const boost::exception& e) {
+        std::cout<<"unexpected error " << *boost::get_error_info<boost::errinfo_errno>(e)
+                 << " raised: " << boost::get_error_info<dcm::error_message>(e)->c_str()<<std::endl;
+        BOOST_FAIL("Unexpected boost exception");
+        return;
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END();

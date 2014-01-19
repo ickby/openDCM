@@ -110,6 +110,7 @@ struct recalculater : public dfs_tree<Sys> {
     boost::shared_ptr<ClusterGraph> m_cluster;
     Scalar scaling;
     AccessType access;
+    LocalEdge leading_edge;
 
     recalculater(boost::shared_ptr<ClusterGraph> cg, Scalar sc, AccessType ac) : dfs_tree<Sys>(cg),
         scaling(sc), access(ac) {};
@@ -135,52 +136,34 @@ struct recalculater : public dfs_tree<Sys> {
                 g->template getProperty<typename module3d::math_prop>().recalculate();
             }
         }
+
+        //now we can calculate the edge that was leading to this vertex
+        if(dfs_tree<Sys>::tree.size()>1)
+            calc_edge(leading_edge, graph);
     };
 
-    //simulate finish_edge callback
-    void finish_vertex(LocalVertex u, const ClusterGraph& g) {
-
-        LocalVertex old = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
-        dfs_tree<Sys>::finish_vertex(u,g);
-
-        if(dfs_tree<Sys>::tree.empty())
-            return;
-
-        LocalVertex newe = fusion::at_c<0>(dfs_tree<Sys>::tree.back());
-        finish_edge_tmp(boost::edge(old, newe, g).first, g);
-    }
-
-    //recalculate constraints after all vertices are initialised. the finish_edge callback is introduced
-    //to boost bgl from version 1.55 on, so currently we have to simulate this behaviour from within
-    //finish vertex. Change that if we can use boost 1.55 on standart ubuntu platform
-    void finish_edge_tmp(LocalEdge u, const ClusterGraph& graph) {
+    //recalculate constraints after all vertices this edge connects are initialised.
+    void calc_edge(LocalEdge u, const ClusterGraph& graph) {
 
         typedef typename ClusterGraph::template object_iterator<Constraint3D> oiter;
-        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > vec = dfs_tree<Sys>::tree.back();
+        typename dfs_tree<Sys>::TreeType::iterator it = dfs_tree<Sys>::tree.end();
+        fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > target = *(--it);
 
         //one side is a cluster for sure
-        if(fusion::at_c<1>(vec)) {
+        if(fusion::at_c<1>(target)) {
 
-            LocalVertex popped;
-
-            //get the vertex which was popped right before this edge was called
-            if(fusion::at_c<0>(vec)==boost::source(u, graph)) {
-                popped = boost::target(u, graph);
-            }
-            else
-                popped = boost::source(u, graph);
-
-            boost::shared_ptr<ClusterGraph> second = dfs_tree<Sys>::parent->getVertexCluster(popped);
+            fusion::vector<LocalVertex, boost::shared_ptr<ClusterGraph> > source = *(--it);
+            assert(boost::edge(fusion::at_c<0>(source), fusion::at_c<0>(target), graph).first == u);
 
             //lets see if we are a edge between clusters
-            if(second) {
+            if(fusion::at_c<1>(source)) {
 
                 //yay! we only need to calculate the popped cluster
                 std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
 
                 for(; oit.first != oit.second; oit.first++) {
                     if(*oit.first)
-                        (*oit.first)->calculate(scaling, access, dfs_tree<Sys>::parent->getGlobalVertex(popped));
+                        (*oit.first)->calculate(scaling, access, dfs_tree<Sys>::parent->getGlobalVertex(fusion::at_c<0>(target)));
                 }
 
                 return;
@@ -196,6 +179,15 @@ struct recalculater : public dfs_tree<Sys> {
             if(*oit.first)
                 (*oit.first)->calculate(scaling, access);
         }
+    };
+
+    //we need to calculate the edge while we go forward, because once a back-edge is found all geometrie
+    //diffparams get changed. we need to calculate the constraints before that hapens
+    void tree_edge(LocalEdge u, const ClusterGraph& graph) {
+
+        //we cant calculate now as the cluster we want to calculate has not been initialised yet, so just store this
+        //edge
+        leading_edge = u;
     };
 
     //back edges are special. if we are in clusters, all backedge constraints depend on all clusters
@@ -228,16 +220,19 @@ struct recalculater : public dfs_tree<Sys> {
             typename dfs_tree<Sys>::Transform trans;
             GlobalVertex calc_cluster_global = dfs_tree<Sys>::parent->getGlobalVertex(fusion::at_c<0>(current));
             std::pair< oiter, oiter > oit = dfs_tree<Sys>::parent->template getObjects<Constraint3D>(u);
+            details::ClusterMath<Sys>& cm = fusion::at_c<1>(current)->template getProperty<typename module3d::math_prop>();
 
-            while(fusion::at_c<0>(current) && fusion::at_c<1>(current) != fusion::at_c<1>(initial)) {
+
+            while(fusion::at_c<1>(current) && (fusion::at_c<0>(current) != fusion::at_c<0>(initial))) {
 
                 //calculate the cluster, which then updates the geometries
-                details::ClusterMath<Sys>& cm = fusion::at_c<1>(current)->template getProperty<typename module3d::math_prop>();
-                cm.recalculateInverted(trans);
+                details::ClusterMath<Sys>& ccm = fusion::at_c<1>(current)->template getProperty<typename module3d::math_prop>();
+
+                cm.recalculateInverted(trans, ccm.m_diffTrans);
 
                 //all geometries are updated again, calculate the constraints
-                int offset = cm.getParameterOffset(general);
-                int rot_offset = cm.getParameterOffset(rotation);
+                int offset = ccm.getParameterOffset(general);
+                int rot_offset = ccm.getParameterOffset(rotation);
 
                 for(oiter it = oit.first; it != oit.second; it++) {
                     if(*it) {
@@ -247,9 +242,11 @@ struct recalculater : public dfs_tree<Sys> {
                 }
 
                 //lets go the next step
-                trans *= cm.getClusterPathTransform();
+                trans *= ccm.getClusterPathTransform();
                 current = *(--path_iter);
             };
+
+            return;
         }
 
         //lucky bastart! treat it as normal edge
@@ -704,6 +701,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         mes.recalculate();
 
         Rescaler re(cluster, mes);
+        //DummyScaler re;
         re();
         sys.kernel().solve(mes, re);
 #ifdef USE_LOGGING

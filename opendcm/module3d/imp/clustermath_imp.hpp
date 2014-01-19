@@ -361,12 +361,12 @@ void ClusterMath<Sys>::recalculate() {
 };
 
 template<typename Sys>
-void ClusterMath<Sys>::recalculateInverted(typename Kernel::Transform3D& t) {
+void ClusterMath<Sys>::recalculateInverted(typename Kernel::Transform3D& t, typename Kernel::DiffTransform3D& difftrans) {
 
     typedef typename std::vector<Geom>::iterator iter;
 
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
-        (*it)->recalculateInverted(t, m_diffTrans);
+        (*it)->recalculateInverted(t, difftrans);
 }
 
 template<typename Sys>
