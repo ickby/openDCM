@@ -77,7 +77,7 @@ public:
     Vec m_points, m_pseudo;
 
 #ifdef USE_LOGGING
-    src::logger log;
+    dcm_logger log;
 #endif
 
 public:

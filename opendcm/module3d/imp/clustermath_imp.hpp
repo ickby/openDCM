@@ -80,7 +80,7 @@ void ClusterMath<Sys>::initMaps() {
     m_diffTrans = typename Kernel::DiffTransform3D(m_transform);
     fix=false;
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Init transform: "<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Init transform: "<<m_transform;
 #endif
 };
 
@@ -97,7 +97,7 @@ void ClusterMath<Sys>::initFixMaps() {
     m_diffTrans = m_transform;
     fix=true;
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Init fix transform: "<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Init fix transform: "<<m_transform;
 #endif
 };
 
@@ -179,7 +179,7 @@ template<typename Sys>
 void ClusterMath<Sys>::finishCalculation() {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Finish calculation";
+    BOOST_LOG_SEV(log, information) << "Finish calculation";
 #endif
 
     //reads value from difftransform, therefore it includes successive transform!
@@ -196,14 +196,14 @@ void ClusterMath<Sys>::finishCalculation() {
         (*it)->recalculate(m_diffTrans);
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Finish transform:"<<std::endl<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Finish transform:"<<std::endl<<m_transform;
 #endif
 };
 
 template<typename Sys>
 void ClusterMath<Sys>::finishFixCalculation() {
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Finish fix calculation";
+    BOOST_LOG_SEV(log, information) << "Finish fix calculation";
 #endif
     typedef typename std::vector<Geom>::iterator iter;
     m_transform *= m_ssrTransform.inverse();
@@ -213,7 +213,7 @@ void ClusterMath<Sys>::finishFixCalculation() {
         (*it)->recalculate(diff);
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Finish fix transform:"<<std::endl<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Finish fix transform:"<<std::endl<<m_transform;
 #endif
 };
 
@@ -221,7 +221,7 @@ template<typename Sys>
 void ClusterMath<Sys>::resetClusterRotation(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Reset cluster rotation:"<<std::endl<<m_diffTrans;
+    BOOST_LOG_SEV(log, information) << "Reset cluster rotation:"<<std::endl<<m_diffTrans;
 #endif
 
     trans  = m_resetTransform.inverse()*trans;
@@ -419,7 +419,7 @@ template<typename Sys>
 void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster, GlobalVertex v) {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Map downstream geometry";
+    BOOST_LOG_SEV(log, information) << "Map downstream geometry";
 #endif
 
     map_downstream down(cluster->template getProperty<math_prop>(),
@@ -433,7 +433,7 @@ template<typename Sys>
 typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
 #endif
 
     //ensure the usage of the right transformation (inlcudes successive)
@@ -442,7 +442,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
 #endif
 
     //collect all local points together
@@ -601,8 +601,8 @@ template<typename Sys>
 void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "Apply cluster scale: "<<scale;
-    BOOST_LOG(log) << "initial transform scale: "<<m_transform.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "Apply cluster scale: "<<scale;
+    BOOST_LOG_SEV(log, information) << "initial transform scale: "<<m_transform.scaling().factor();
 #endif
 
     //ensure the usage of the right transform (includes successive)
@@ -622,7 +622,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
             (*it)->recalculate(diff);
 #ifdef USE_LOGGING
-            BOOST_LOG(log) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
+            BOOST_LOG_SEV(log, information) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
 #endif
         };
 
@@ -714,8 +714,8 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     transformToMaps(m_transform * m_successiveTransform.inverse());
 
 #ifdef USE_LOGGING
-    BOOST_LOG(log) << "sstrans scale: "<<ssTrans.scaling().factor();
-    BOOST_LOG(log) << "finish transform scale: "<<m_transform.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "sstrans scale: "<<ssTrans.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "finish transform scale: "<<m_transform.scaling().factor();
     //we may want to access the scale points for debuging (I mean you, freecad assembly debug!), so
     //it is important to transform them too to ensure the points are in the same coordinate system
     typename Vec::iterator it;
