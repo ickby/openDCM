@@ -134,7 +134,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
 
                     //maybe we need to tread the local gradient zeros
                     if(LGZ & !Sys::Kernel::isSame(val.m_residual(0),0, 1e-7))
-                        treatLGZ(val, true);
+                        treatLGZ(val, true, ro);
                 }
             }
             else {
@@ -164,7 +164,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
 
                     //maybe we need to tread the local gradient zeros
                     if(LGZ & !Sys::Kernel::isSame(val.m_residual(0),0, 1e-7))
-                        treatLGZ(val, false);
+                        treatLGZ(val, false, ro);
                 }
             }
             else {
@@ -178,7 +178,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::ope
 template<typename Sys, int Dim>
 template<typename ConstraintVector, typename tag1, typename tag2>
 template< typename T >
-void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::treatLGZ(T& val, bool exec_first) const {
+void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::treatLGZ(T& val, bool exec_first, int ro) const {
 
     typedef typename Sys::Kernel Kernel;
 
@@ -191,7 +191,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::tre
         for(int i=0; i<3; i++) {
 
             //only treat if the gradient realy is zero
-            if(Kernel::isSame(val.m_diff_first(first->m_offset_rot+i), 0, 1e-7)) {
+            if(Kernel::isSame(val.m_diff_first(ro+i), 0, 1e-7)) {
 
                 //to get the approximated second derivative we need the slightly moved geometrie
                 const typename Kernel::Vector  p_old =  first->m_parameter;
@@ -207,7 +207,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::tre
                 if(!Kernel::isSame(res, 0, 1e-7)) {
 
                     //is a fake zero, let's correct it
-                    val.m_diff_first(first->m_offset_rot+i) = res;
+                    val.m_diff_first(ro+i) = res;
                 };
             };
         };
@@ -217,7 +217,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::tre
         for(int i=0; i<3; i++) {
 
             //only treat if the gradient realy is zero
-            if(Kernel::isSame(val.m_diff_second(second->m_offset_rot+i), 0, 1e-7)) {
+            if(Kernel::isSame(val.m_diff_second(ro+i), 0, 1e-7)) {
 
                 //to get the approximated second derivative we need the slightly moved geometrie
                 const typename Kernel::Vector  p_old =  second->m_parameter;
@@ -233,7 +233,7 @@ void Constraint<Sys, Dim>::holder<ConstraintVector, tag1, tag2>::Calculater::tre
                 if(!Kernel::isSame(res, 0, 1e-7)) {
 
                     //is a fake zero, let's correct it
-                    val.m_diff_second(second->m_offset_rot+i) = res;
+                    val.m_diff_second(ro+i) = res;
                 };
             };
         };

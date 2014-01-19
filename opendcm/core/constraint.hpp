@@ -211,7 +211,7 @@ public:
             template< typename T >
             void operator()(T& val) const;
             template< typename T>
-            void treatLGZ(T& val, bool first) const;
+            void treatLGZ(T& val, bool first, int rot_offset) const;
         };
 
         struct MapSetter {

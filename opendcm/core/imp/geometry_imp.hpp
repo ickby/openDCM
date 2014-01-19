@@ -281,9 +281,15 @@ void Geometry<Kernel, Dim, TagList>::transform(const Transform& t, VectorType& v
         vec.template segment<Dim>(i*Dim) = t*v;
     }
 
+    //the rotations need only to be rotated as we want to have our normals still with length 1
     for(int i=m_translations; i!=m_rotations; i++) {
         typename Kernel::Vector3 v = vec.template segment<Dim>(i*Dim);
         vec.template segment<Dim>(i*Dim) = t.rotate(v);
+    }
+    
+    //the rest are parameters, we need to scale them only
+    for(int i=m_rotations*Dim; i!=m_parameterCount; i++) {
+        vec(i) *= t.scaling().factor();
     }
 
 #ifdef USE_LOGGING

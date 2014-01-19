@@ -169,7 +169,7 @@ struct geometry_traits< place > {
 
 }
 
-#define CHECKED_CONSTRAINT 2
+#define CHECKED_CONSTRAINT 0
 
 //solver for pure differential checking
 template<typename Kernel>
@@ -387,7 +387,7 @@ struct constraint_checker_orientation  {
     };
 };
 
-/*
+
 BOOST_AUTO_TEST_CASE(constraint3d_distance) {
 
     System sys;
@@ -505,7 +505,7 @@ BOOST_AUTO_TEST_CASE(constraint3d_shape_distance) {
     constraint_checker<point_t, segment_t, dcm::Distance> checker(sys);
     BOOST_CHECK(checker.check_normal(2., notype()));
     BOOST_CHECK(checker.check_cluster(2., notype()));
-}*/
+}
 
 BOOST_AUTO_TEST_CASE(constraint3d_check_backedge) {
 
