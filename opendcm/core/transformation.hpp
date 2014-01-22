@@ -51,6 +51,8 @@ public:
     Transform();
 
     Transform(const Rotation& r);
+    Transform(const Translation& t);
+    Transform(const Scaling& s);
     Transform(const Rotation& r, const Translation& t);
     Transform(const Rotation& r, const Translation& t, const Scaling& s);
 

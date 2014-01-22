@@ -105,7 +105,6 @@ public:
     void transformToMaps(const typename Kernel::Transform3D& trans);
 
     void finishCalculation();
-    void finishFixCalculation();
 
     void resetClusterRotation(typename Kernel::Transform3D& trans);
 

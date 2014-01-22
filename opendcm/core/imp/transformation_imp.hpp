@@ -45,6 +45,16 @@ Transform<Scalar, Dim>::Transform(const Rotation& r) : m_rotation(r),
 };
 
 template<typename Scalar, int Dim>
+Transform<Scalar, Dim>::Transform(const Translation& t) : m_rotation(Rotation::Identity()),
+    m_translation(t),
+    m_scale(Scaling(1.)) {};
+
+template<typename Scalar, int Dim>
+Transform<Scalar, Dim>::Transform(const Scaling& s) : m_rotation(Rotation::Identity()),
+    m_translation(Translation::Identity()),
+    m_scale(s) {};
+
+template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform(const Rotation& r, const Translation& t) : m_rotation(r),
     m_translation(t),
     m_scale(Scaling(1.)) {

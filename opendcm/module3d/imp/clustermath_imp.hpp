@@ -200,22 +200,6 @@ void ClusterMath<Sys>::finishCalculation() {
 #endif
 };
 
-template<typename Sys>
-void ClusterMath<Sys>::finishFixCalculation() {
-#ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, information) << "Finish fix calculation";
-#endif
-    typedef typename std::vector<Geom>::iterator iter;
-    m_transform *= m_ssrTransform.inverse();
-    typename Kernel::DiffTransform3D diff(m_transform);
-
-    for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
-        (*it)->recalculate(diff);
-
-#ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, information) << "Finish fix transform:"<<std::endl<<m_transform;
-#endif
-};
 
 template<typename Sys>
 void ClusterMath<Sys>::resetClusterRotation(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
@@ -612,15 +596,16 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
     //to alow the adoption of the scale. and no shift should been set.
     if(isFixed) {
-        m_transform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
-        m_ssrTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
-        //m_successiveTransform*=typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
-        typename Kernel::DiffTransform3D diff(m_transform);
+	typename Kernel::Transform3D ssTrans(typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR)));
+        m_transform = ssTrans.inverse()*m_transform; //TODO: should this be inverted?
+        m_ssrTransform*=ssTrans;
+	//use the transform without scaling as we want to downscale the geometry
+        m_diffTrans = typename Kernel::DiffTransform3D(m_transform.rotation(), m_transform.translation());
         //now calculate the scaled geometrys
         typedef typename std::vector<Geom>::iterator iter;
 
         for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-            (*it)->recalculate(diff);
+            (*it)->recalculate(m_diffTrans);
 #ifdef USE_LOGGING
             BOOST_LOG_SEV(log, information) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
 #endif

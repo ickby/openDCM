@@ -735,11 +735,7 @@ void SystemSolver<Sys>::finish(boost::shared_ptr<Cluster> cluster, Sys& sys, Mes
         if(cluster->isCluster(*it.first)) {
             boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
 
-            if(!cluster->template getSubclusterProperty<fix_prop>(*it.first))
-                c->template getProperty<math_prop>().finishCalculation();
-            else
-                c->template getProperty<math_prop>().finishFixCalculation();
-
+            c->template getProperty<math_prop>().finishCalculation();
             std::vector<Geom>& vec = c->template getProperty<math_prop>().getGeometry();
 
             for(typename std::vector<Geom>::iterator vit = vec.begin(); vit != vec.end(); vit++)

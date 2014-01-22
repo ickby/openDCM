@@ -200,7 +200,7 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
     
     //the rest are parameters, we can use them as they are (new assignement in case they have ben transformed)
     for(int i=m_rotations*Dim; i!=m_parameterCount; i++) {
-        m_rotated(i) = m_toplocal(i);
+        m_rotated(i) = m_toplocal(i) *= trans.scaling().factor();
     }
 
 #ifdef USE_LOGGING
