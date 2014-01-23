@@ -91,7 +91,7 @@ public:
     void initMaps();
     void initFixMaps();
 
-    typename Kernel::Transform3D& getTransform();
+    typename Kernel::Transform3D  getTransform();
     typename Kernel::Transform3D  getClusterPathTransform();
     typename Kernel::Transform3D& getSuccessiveTransform();
     typename Kernel::Transform3D::Translation const& getTranslation() const;

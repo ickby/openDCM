@@ -102,9 +102,9 @@ void ClusterMath<Sys>::initFixMaps() {
 };
 
 template<typename Sys>
-typename ClusterMath<Sys>::Kernel::Transform3D& ClusterMath<Sys>::getTransform() {
+typename ClusterMath<Sys>::Kernel::Transform3D ClusterMath<Sys>::getTransform() {
     if(init)
-        m_transform = typename Kernel::Transform3D(m_diffTrans.rotation(), m_diffTrans.translation());
+        return typename Kernel::Transform3D(m_diffTrans.rotation(), m_diffTrans.translation());
 
     return m_transform;
 };

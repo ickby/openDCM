@@ -187,8 +187,9 @@ struct ModulePart {
                 typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
                 details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getProperty<typename module3d::math_prop>();
 
+                typename Sys::Kernel::Transform3D t = cm.getTransform();
                 (typename geometry_traits<T>::modell()).template extract<typename Sys::Kernel,
-                typename geometry_traits<T>::accessor >(geom, cm.getTransform());
+                typename geometry_traits<T>::accessor >(geom, t);
             };
 
             template<typename T>
@@ -204,8 +205,10 @@ struct ModulePart {
                 typedef typename system_traits<Sys>::template getModule<details::m3d>::type module3d;
                 details::ClusterMath<Sys>& cm = ((Sys*)this)->m_cluster->template getProperty<typename module3d::math_prop>();
 
+                typename Sys::Kernel::Transform3D t;
                 (typename geometry_traits<T>::modell()).template inject<typename Sys::Kernel,
-                typename geometry_traits<T>::accessor >(geom, cm.getTransform());
+                typename geometry_traits<T>::accessor >(geom, t);
+                cm.setTransform(t);
             };
 
             //needed system functions
