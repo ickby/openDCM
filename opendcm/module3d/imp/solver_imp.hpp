@@ -284,16 +284,14 @@ struct rescale_visitor : public dfs_tree<Sys> {
 
         //only calculate clusters
         if(g) {
-            //and only those which are not fixed
-            if(! g->template getProperty<typename module3d::fix_prop>()) {
-                //if the vertex before wth transform of the earlier cluster has changed
-                if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
-                    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
-                    g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
-                }
 
-                g->template getProperty<typename module3d::math_prop>().applyClusterScale(scaling*SKALEFAKTOR, g->template getProperty<typename module3d::fix_prop>());
+            //if the vertex before wth transform of the earlier cluster has changed
+            if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
+                details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
+                g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
             }
+
+            g->template getProperty<typename module3d::math_prop>().applyClusterScale(scaling*SKALEFAKTOR, g->template getProperty<typename module3d::fix_prop>());
         }
         else {
             boost::shared_ptr<Geometry3D> g = dfs_tree<Sys>::parent->template getObject<Geometry3D>(u);
@@ -371,7 +369,6 @@ struct init_mes : public dfs_tree<Sys> {
         typename dfs_tree<Sys>::TreeType::iterator it = --dfs_tree<Sys>::tree.end();
         boost::shared_ptr<ClusterGraph> c = fusion::at_c<1>(*it);
 
-//	std::cout<<"init vertex"<<std::endl;
         if(c) {
             details::ClusterMath<Sys>& cm =  c->template getProperty<typename module3d::math_prop>();
 
@@ -394,8 +391,6 @@ struct init_mes : public dfs_tree<Sys> {
 
                 //wirte initial values
                 cm.initMaps();
-                Transform d;
-                cm.mapsToTransform(d);
             }
             else
                 cm.initFixMaps();
@@ -453,8 +448,8 @@ struct init_mes : public dfs_tree<Sys> {
 };
 
 template<typename Sys>
-SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr< Cluster > c, Mes& m, dcm::LocalVertex s) : cluster(c), 
-      mes(m), rescales(0), start(s) {
+SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr< Cluster > c, Mes& m, dcm::LocalVertex s) : cluster(c),
+    mes(m), rescales(0), start(s) {
 
 };
 
@@ -828,4 +823,5 @@ LocalVertex SystemSolver<Sys>::getStartingVertex(boost::shared_ptr<Cluster> clus
 }//dcm
 
 #endif //DCM_SOLVER_3D_HPP
+
 

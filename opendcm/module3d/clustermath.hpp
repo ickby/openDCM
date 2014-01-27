@@ -68,7 +68,7 @@ struct ClusterMath : public boost::noncopyable {
 
     typename Kernel::Vector3Map m_translation;
     //shift scale stuff
-    typename Kernel::Vector3 midpoint, m_shift, scale_dir, maxm, minm, max, fixtrans;
+    typename Kernel::Vector3 midpoint, scale_dir, maxm, minm, max, fixtrans;
     Scalemode mode;
     Scalar m_scale;
 

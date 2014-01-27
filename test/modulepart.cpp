@@ -168,7 +168,7 @@ typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;
 
-
+/*
 BOOST_AUTO_TEST_CASE(modulepart_basics) {
 
     try {
@@ -331,52 +331,58 @@ BOOST_AUTO_TEST_CASE(modulepart_combined) {
     BOOST_CHECK(Kernel::isSame((v1-v3).norm(), 5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v2-v4).norm(), 5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 7., 1e-6));
-}
+}*/
 
 BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
 
-    plane_t p1,p2,p3,p4, v1, v2, v3, v4;
-    p1 << 7, -0.5, 0.3, 1,0,0;
-    p2 << 0.2, 0.5, -0.1, 0,1,0;
-    p3 << 0.2, -0.5, 1.2, 0,1,0;
-    p4 << -2, -1.3, -2.8, 1,0,0;
+    try {
+        plane_t p1,p2,p3,p4, v1, v2, v3, v4;
+        p1 << 7, -0.5, 0.3, 1,0,0;
+        p2 << 0.2, 0.5, -0.1, 0,1,0;
+        p3 << 0.2, -0.5, 1.2, 0,1,0;
+        p4 << -2, -1.3, -2.8, 1,0,0;
 
-    SystemID sys;
+        SystemID sys;
 
-    Partid_ptr part1 = sys.createPart(place(), "part1");
-    part1->fix(true);
+        Partid_ptr part1 = sys.createPart(place(), "part1");
+        part1->fix(true);
 
-    GeomID g1 = part1->addGeometry3D(p1, "g1");
-    GeomID g2 = part1->addGeometry3D(p2, "g2");
+        GeomID g1 = part1->addGeometry3D(p1, "g1");
+        GeomID g2 = part1->addGeometry3D(p2, "g2");
 
-    Partid_ptr part2 = sys.createPart(place(), "part2");
-    GeomID g3 = part2->addGeometry3D(p3 , "g3");
-    GeomID g4 = part2->addGeometry3D(p4 , "g4");
+        Partid_ptr part2 = sys.createPart(place(), "part2");
+        GeomID g3 = part2->addGeometry3D(p3 , "g3");
+        GeomID g4 = part2->addGeometry3D(p4 , "g4");
 
-    ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=0.);
-    ConsID c2 =  sys.createConstraint3D("c2",g1,g3,dcm::orientation=dcm::equal);
-    ConsID c3 =  sys.createConstraint3D("c3",g2,g4,dcm::distance=0.);
-    ConsID c4 =  sys.createConstraint3D("c4",g2,g4,dcm::orientation=dcm::equal);
+        ConsID c1 =  sys.createConstraint3D("c1",g1,g3,dcm::distance=0.);
+        ConsID c2 =  sys.createConstraint3D("c2",g1,g3,dcm::orientation=dcm::equal);
+        ConsID c3 =  sys.createConstraint3D("c3",g2,g4,dcm::distance=0.);
+        ConsID c4 =  sys.createConstraint3D("c4",g2,g4,dcm::orientation=dcm::equal);
 
-    sys.solve();
+        sys.solve();
 
-    v1 = get<plane_t>(g1);
-    v2 = get<plane_t>(g2);
-    v3 = get<plane_t>(g3);
-    v4 = get<plane_t>(g4);
+        v1 = get<plane_t>(g1);
+        v2 = get<plane_t>(g2);
+        v3 = get<plane_t>(g3);
+        v4 = get<plane_t>(g4);
 
-    place pl1 = get<place>(part1);
+        place pl1 = get<place>(part1);
 
-    BOOST_CHECK(Kernel::isSame((v1-p1).norm(),0, 1e-6));
-    BOOST_CHECK(Kernel::isSame((v2-p2).norm(),0, 1e-6));
-    BOOST_CHECK(place().quat.isApprox(pl1.quat, 1e-10));
-    BOOST_CHECK(place().trans.isApprox(pl1.trans, 1e-10));
+        BOOST_CHECK(Kernel::isSame((v1-p1).norm(),0, 1e-6));
+        BOOST_CHECK(Kernel::isSame((v2-p2).norm(),0, 1e-6));
+        BOOST_CHECK(place().quat.isApprox(pl1.quat, 1e-10));
+        BOOST_CHECK(place().trans.isApprox(pl1.trans, 1e-10));
 
-    BOOST_CHECK(Kernel::isSame((v1.tail(3)-v3.tail(3)).norm(),0, 1e-6));
-    BOOST_CHECK(Kernel::isSame((v2.tail(3)-v4.tail(3)).norm(),0, 1e-6));
-    BOOST_CHECK(Kernel::isSame((v1.head(3)-v3.head(3)).dot(v3.tail(3)) / v3.tail(3).norm(), 0., 1e-6));
-    BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0., 1e-6));
-
+        BOOST_CHECK(Kernel::isSame((v1.tail(3)-v3.tail(3)).norm(),0, 1e-6));
+        BOOST_CHECK(Kernel::isSame((v2.tail(3)-v4.tail(3)).norm(),0, 1e-6));
+        BOOST_CHECK(Kernel::isSame((v1.head(3)-v3.head(3)).dot(v3.tail(3)) / v3.tail(3).norm(), 0., 1e-6));
+        BOOST_CHECK(Kernel::isSame((v2.head(3)-v4.head(3)).dot(v4.tail(3)) / v4.tail(3).norm(), 0., 1e-6));
+    }
+    catch(boost::exception& e) {
+        std::cout << "Error Nr. " << *boost::get_error_info<boost::errinfo_errno>(e)
+                  << ": " << *boost::get_error_info<dcm::error_message>(e)<<std::endl;
+        BOOST_FAIL("Exception not expected");
+    };
 }
 
 BOOST_AUTO_TEST_CASE(modulepart_idendityquaternion) {

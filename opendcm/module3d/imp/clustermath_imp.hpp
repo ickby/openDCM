@@ -36,7 +36,6 @@ template<typename Sys>
 ClusterMath<Sys>::ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false) {
 
     m_resetTransform = Eigen::AngleAxisd(M_PI*2./3., Eigen::Vector3d(1,1,1).normalized());
-    m_shift.setZero();
 
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Clustermath3D"));
@@ -75,9 +74,8 @@ void ClusterMath<Sys>::initMaps() {
     transformToMaps(m_transform*m_successiveTransform.inverse());
     init = true;
     midpoint.setZero();
-    m_shift.setZero();
     m_ssrTransform.setIdentity();
-    m_diffTrans = typename Kernel::DiffTransform3D(m_transform);
+    m_diffTrans = m_transform;
     fix=false;
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init transform: "<<m_transform;
@@ -92,7 +90,6 @@ void ClusterMath<Sys>::initFixMaps() {
     m_translation = m_transform.translation().vector();
     init = true;
     midpoint.setZero();
-    m_shift.setZero();
     m_ssrTransform.setIdentity();
     m_successiveTransform.setIdentity();
     m_diffTrans = m_transform;
@@ -185,7 +182,7 @@ void ClusterMath<Sys>::finishCalculation() {
 #endif
 
     //reads value from difftransform, therefore it includes successive transform!
-    mapsToTransform(m_transform);        
+    mapsToTransform(m_transform);
     init=false;
     m_transform = m_ssrTransform*m_transform;
 
@@ -599,86 +596,73 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     //when fixed, the geometries never get recalculated. therefore we have to do a calculate now
     //to alow the adoption of the scale. and no shift should been set.
     if(isFixed) {
-	typename Kernel::Transform3D ssTrans(typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR)));
-        m_transform = ssTrans.inverse()*m_transform; //TODO: should this be inverted?
-        m_ssrTransform*=ssTrans;
-	//use the transform without scaling as we want to downscale the geometry
-        m_diffTrans = typename Kernel::DiffTransform3D(m_transform.rotation(), m_transform.translation());
-        //now calculate the scaled geometrys
-        typedef typename std::vector<Geom>::iterator iter;
-
-        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
-            (*it)->recalculate(m_diffTrans);
-#ifdef USE_LOGGING
-            BOOST_LOG_SEV(log, information) << "Fixed cluster geometry value:" << (*it)->m_rotated.transpose();
-#endif
-        };
-
-        return;
-    }
-
-    //if this is our scale then just applie the midpoint as shift
-    if(Kernel::isSame(scale, m_scale, 1e-10)) {
-
-    }
-    //if only one point exists we extend the origin-point-line to match the scale
-    else if(mode==details::one) {
-        if(Kernel::isSame(midpoint.norm(),0, 1e-10))
-            midpoint << scale, 0, 0;
-        else midpoint += scale*scale_dir;
-    }
-    //two and three points form a rectangular triangle, so same procedure
-    else if(mode==details::two || mode==details::three) {
-
-        midpoint+= scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2));
-    }
-    //multiple points
-    else if(mode==details::multiple_outrange) {
-
-        if(scale_dir(0)) {
-            Scalar d = std::pow(maxm(1),2) + std::pow(maxm(2),2);
-            Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
-            midpoint(0) += maxm(0) + h;
-        }
-        else if(scale_dir(1)) {
-            Scalar d = std::pow(maxm(0),2) + std::pow(maxm(2),2);
-            Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
-            midpoint(1) += maxm(1) + h;
-        }
-        else {
-            Scalar d = std::pow(maxm(0),2) + std::pow(maxm(1),2);
-            Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
-            midpoint(2) += maxm(2) + h;
-        }
+        midpoint.setZero();
     }
     else {
 
-        //TODO: it's possible that for this case we get too far away from the outer points.
-        //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
-        //      scale to applie, so it results in an error.
-        //get the closest point
-        typedef typename Vec::iterator iter;
+        //if this is our scale then just applie the midpoint as shift
+        if(Kernel::isSame(scale, m_scale, 1e-10)) {
 
-        for(iter it = m_points.begin(); it != m_points.end(); it++) {
+        }
+        //if only one point exists we extend the origin-point-line to match the scale
+        else if(mode==details::one) {
+            if(Kernel::isSame(midpoint.norm(),0, 1e-10))
+                midpoint << scale, 0, 0;
+            else midpoint += scale*scale_dir;
+        }
+        //two and three points form a rectangular triangle, so same procedure
+        else if(mode==details::two || mode==details::three) {
 
-            const Eigen::Vector3d point = (*it)-midpoint;
+            midpoint+= scale_dir*std::sqrt(std::pow(scale,2) - std::pow(m_scale,2));
+        }
+        //multiple points
+        else if(mode==details::multiple_outrange) {
 
-            if(point.norm()<MINFAKTOR*scale) {
+            if(scale_dir(0)) {
+                Scalar d = std::pow(maxm(1),2) + std::pow(maxm(2),2);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
+                midpoint(0) += maxm(0) + h;
+            }
+            else if(scale_dir(1)) {
+                Scalar d = std::pow(maxm(0),2) + std::pow(maxm(2),2);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
+                midpoint(1) += maxm(1) + h;
+            }
+            else {
+                Scalar d = std::pow(maxm(0),2) + std::pow(maxm(1),2);
+                Scalar h = std::sqrt(std::pow(MAXFAKTOR*scale,2)-d);
+                midpoint(2) += maxm(2) + h;
+            }
+        }
+        else {
 
-                if(scale_dir(0)) {
-                    Scalar d = std::pow(point(1),2) + std::pow(point(2),2);
-                    Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
-                    midpoint(0) += point(0) + h;
-                }
-                else if(scale_dir(1)) {
-                    Scalar d = std::pow(point(0),2) + std::pow(point(2),2);
-                    Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
-                    midpoint(1) += point(1) + h;
-                }
-                else {
-                    Scalar d = std::pow(point(0),2) + std::pow(point(1),2);
-                    Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
-                    midpoint(2) += point(2) + h;
+            //TODO: it's possible that for this case we get too far away from the outer points.
+            //	    The m_scale for "midpoint outside the bounding box" may be bigger than the
+            //      scale to applie, so it results in an error.
+            //get the closest point
+            typedef typename Vec::iterator iter;
+
+            for(iter it = m_points.begin(); it != m_points.end(); it++) {
+
+                const Eigen::Vector3d point = (*it)-midpoint;
+
+                if(point.norm()<MINFAKTOR*scale) {
+
+                    if(scale_dir(0)) {
+                        Scalar d = std::pow(point(1),2) + std::pow(point(2),2);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
+                        midpoint(0) += point(0) + h;
+                    }
+                    else if(scale_dir(1)) {
+                        Scalar d = std::pow(point(0),2) + std::pow(point(2),2);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
+                        midpoint(1) += point(1) + h;
+                    }
+                    else {
+                        Scalar d = std::pow(point(0),2) + std::pow(point(1),2);
+                        Scalar h = std::sqrt(std::pow(MINFAKTOR*scale,2)-d);
+                        midpoint(2) += point(2) + h;
+                    }
                 }
             }
         }
@@ -688,19 +672,26 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     ssTrans = typename Kernel::Transform3D::Translation(-midpoint);
     ssTrans *= typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
 
-    //recalculate all geometries
-    typedef typename std::vector<Geom>::iterator iter;
-
-    for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
-        (*it)->transform(ssTrans);
-
     //set the new rotation and translation
     m_transform = ssTrans.inverse()*m_transform;
     m_ssrTransform *= ssTrans;
-    //m_successiveTransform *= typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
-
     m_diffTrans = typename Kernel::Transform3D(m_transform.rotation(), m_transform.translation());
-    transformToMaps(m_diffTrans * m_successiveTransform.inverse());
+
+    //and change the geometry accordingly
+    typedef typename std::vector<Geom>::iterator iter;
+
+    if(!isFixed) {
+        transformToMaps(m_diffTrans * m_successiveTransform.inverse());
+
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
+            (*it)->transform(ssTrans);
+    }
+    else {
+        for(iter it = m_geometry.begin(); it != m_geometry.end(); it++) {
+            (*it)->transform(ssTrans);
+            (*it)->recalculate(m_diffTrans);
+        }
+    }
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "sstrans: "<<ssTrans;

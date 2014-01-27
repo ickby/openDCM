@@ -168,7 +168,7 @@ typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;
 
-/*
+
 BOOST_AUTO_TEST_CASE(modulepart_cyclic) {
 
     try {
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(modulepart_cyclic) {
         BOOST_FAIL("Exception not expected");
     };
 
-}*/
+}
 
 BOOST_AUTO_TEST_CASE(modulepart_rescaletransform) {
 
