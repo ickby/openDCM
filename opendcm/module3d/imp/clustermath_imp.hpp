@@ -81,6 +81,7 @@ void ClusterMath<Sys>::initMaps() {
     fix=false;
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init transform: "<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Init sucessive transform: "<<m_successiveTransform;
 #endif
 };
 
@@ -98,6 +99,7 @@ void ClusterMath<Sys>::initFixMaps() {
     fix=true;
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init fix transform: "<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Init fix suc transform: "<<m_successiveTransform;
 #endif
 };
 
@@ -183,9 +185,8 @@ void ClusterMath<Sys>::finishCalculation() {
 #endif
 
     //reads value from difftransform, therefore it includes successive transform!
-    mapsToTransform(m_transform);
+    mapsToTransform(m_transform);        
     init=false;
-
     m_transform = m_ssrTransform*m_transform;
 
     //scale all geometries back to the original size
@@ -197,6 +198,8 @@ void ClusterMath<Sys>::finishCalculation() {
 
 #ifdef USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Finish transform:"<<std::endl<<m_transform;
+    BOOST_LOG_SEV(log, information) << "Finish ssr transform:"<<std::endl<<m_ssrTransform;
+    BOOST_LOG_SEV(log, information) << "Finish suc transform:"<<std::endl<<m_successiveTransform;
 #endif
 };
 
@@ -696,11 +699,12 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
     m_ssrTransform *= ssTrans;
     //m_successiveTransform *= typename Kernel::Transform3D::Scaling(1./(scale*SKALEFAKTOR));
 
-    transformToMaps(m_transform * m_successiveTransform.inverse());
+    m_diffTrans = typename Kernel::Transform3D(m_transform.rotation(), m_transform.translation());
+    transformToMaps(m_diffTrans * m_successiveTransform.inverse());
 
 #ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, information) << "sstrans scale: "<<ssTrans.scaling().factor();
-    BOOST_LOG_SEV(log, information) << "finish transform scale: "<<m_transform.scaling().factor();
+    BOOST_LOG_SEV(log, information) << "sstrans: "<<ssTrans;
+    BOOST_LOG_SEV(log, information) << "finish transform: "<<m_transform;
     //we may want to access the scale points for debuging (I mean you, freecad assembly debug!), so
     //it is important to transform them too to ensure the points are in the same coordinate system
     typename Vec::iterator it;

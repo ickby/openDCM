@@ -47,7 +47,6 @@ enum Scalemode {
 template<typename Sys>
 struct ClusterMath : public boost::noncopyable {
 
-public:
     typedef typename Sys::Kernel Kernel;
     typedef typename Sys::Cluster Cluster;
     typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;

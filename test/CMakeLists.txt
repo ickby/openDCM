@@ -44,10 +44,11 @@ set(test_SRC  define.cpp
 	      #sys_and_obj.cpp
 	      #geometry.cpp
 	      #clustermath.cpp
-	      constraints3d.cpp
-	      ${module3d_SRC}
+	      #constraints3d.cpp
+	      #${module3d_SRC}
 	      #dof.cpp
-	      modulepart.cpp
+	      #modulepart.cpp
+	      modulepart2.cpp
 	      #modulehl3d.cpp
 	      #misc.cpp
 	      #userbugs.cpp

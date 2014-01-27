@@ -82,8 +82,9 @@ struct SystemSolver : public Job<Sys> {
         boost::shared_ptr<Cluster> cluster;
         Mes& mes;
         int rescales;
+	LocalVertex start;
 
-        Rescaler(boost::shared_ptr<Cluster> c, Mes& m);
+        Rescaler(boost::shared_ptr<Cluster> c, Mes& m, LocalVertex s);
 
         void operator()();
 

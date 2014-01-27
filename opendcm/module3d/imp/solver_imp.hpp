@@ -260,6 +260,49 @@ struct recalculater : public dfs_tree<Sys> {
 };
 
 template<typename Sys>
+struct rescale_visitor : public dfs_tree<Sys> {
+
+    typedef typename Sys::Cluster ClusterGraph;
+    typedef typename Sys::Kernel Kernel;
+    typedef typename Kernel::number_type Scalar;
+    typedef typename system_traits<Sys>::template getModule<m3d>::type module3d;
+    typedef typename module3d::Geometry3D Geometry3D;
+    typedef typename module3d::Constraint3D Constraint3D;
+
+    Scalar scaling;
+
+    rescale_visitor(boost::shared_ptr<ClusterGraph> cg, Scalar sc) : dfs_tree<Sys>(cg),
+        scaling(sc) {};
+
+    //recalculate clusters
+    void discover_vertex(LocalVertex u, const ClusterGraph& graph) {
+
+        dfs_tree<Sys>::discover_vertex(u, graph);
+
+        typename dfs_tree<Sys>::TreeType::iterator it = --dfs_tree<Sys>::tree.end();
+        boost::shared_ptr<ClusterGraph> g = fusion::at_c<1>(*it);
+
+        //only calculate clusters
+        if(g) {
+            //and only those which are not fixed
+            if(! g->template getProperty<typename module3d::fix_prop>()) {
+                //if the vertex before wth transform of the earlier cluster has changed
+                if(it != dfs_tree<Sys>::tree.begin() && fusion::at_c<1>(*(--it))) {
+                    details::ClusterMath<Sys>& cm_s =  fusion::at_c<1>(*it)->template getProperty<typename module3d::math_prop>();
+                    g->template getProperty<typename module3d::math_prop>().setSuccessiveTransform(cm_s.getTransform());
+                }
+
+                g->template getProperty<typename module3d::math_prop>().applyClusterScale(scaling*SKALEFAKTOR, g->template getProperty<typename module3d::fix_prop>());
+            }
+        }
+        else {
+            boost::shared_ptr<Geometry3D> g = dfs_tree<Sys>::parent->template getObject<Geometry3D>(u);
+            g->scale(scaling*SKALEFAKTOR);
+        };
+    };
+};
+
+template<typename Sys>
 MES<Sys>::MES(boost::shared_ptr<Cluster> cl, int par, int eqn) : Base(par, eqn), m_cluster(cl) {
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("MES3D"));
@@ -410,7 +453,8 @@ struct init_mes : public dfs_tree<Sys> {
 };
 
 template<typename Sys>
-SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr<Cluster> c, Mes& m) : cluster(c), mes(m), rescales(0) {
+SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr< Cluster > c, Mes& m, dcm::LocalVertex s) : cluster(c), 
+      mes(m), rescales(0), start(s) {
 
 };
 
@@ -456,21 +500,17 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters(Sc
     //if no scaling-value returned we can use 1
     sc = (Kernel::isSame(sc,0, 1e-10)) ? 1. : sc;
 
-    typedef typename boost::graph_traits<Cluster>::vertex_iterator iter;
-    std::pair<iter, iter>  it = boost::vertices(*cluster);
+    rescale_visitor<Sys> visitor(cluster, sc);
+    //create te needed property maps and fill it
+    property_map<vertex_index_prop, Cluster> vi_map(cluster);
+    typedef std::map< LocalVertex, boost::default_color_type> vcmap;
+    typedef std::map< LocalEdge, boost::default_color_type> ecmap;
+    vcmap v_cm;
+    ecmap e_cm;
+    boost::associative_property_map< vcmap > v_cpm(v_cm);
+    boost::associative_property_map< ecmap > e_cpm(e_cm);
+    boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
 
-    for(; it.first != it.second; it.first++) {
-
-        if(cluster->isCluster(*it.first)) {
-            boost::shared_ptr<Cluster> c = cluster->getVertexCluster(*it.first);
-            c->template getProperty<math_prop>().applyClusterScale(sc,
-                    c->template getProperty<fix_prop>());
-        }
-        else {
-            Geom g = cluster->template getObject<Geometry3D>(*it.first);
-            g->scale(sc*SKALEFAKTOR);
-        }
-    }
 
     return 1./(sc*SKALEFAKTOR);
 };
@@ -700,7 +740,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         mes.setAccess(complete);
         mes.recalculate();
 
-        Rescaler re(cluster, mes);
+        Rescaler re(cluster, mes, start);
         //DummyScaler re;
         re();
         sys.kernel().solve(mes, re);
