@@ -35,6 +35,23 @@
 namespace dcm {
 namespace details {
 
+//all the property maps for the graph dfs should only be initialised once per solving, not every recalculation
+template<typename Sys>
+graph_algo<Sys>::graph_algo(boost::shared_ptr<Cluster> c) : m_cluster(c), vi_map(c) {
+
+    vi_map = property_map<vertex_index_prop, Cluster>(m_cluster);
+    m_cluster->initIndexMaps();
+
+    v_cpm = boost::associative_property_map< vcmap >(v_cm);
+    e_cpm = boost::associative_property_map< ecmap >(e_cm);
+}
+
+template<typename Sys>
+template<typename Visitor>
+void graph_algo<Sys>::dfs(const Visitor& v, LocalVertex start) {
+    boost::undirected_dfs(*m_cluster.get(), boost::visitor(v).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+};
+
 //the dfs_tree is used to detect the cluster connections in the dcm system. We search for all connected
 //clusters (and all groups of connected clusters if there exist multiple ones devided by non cluster vertices)
 //and need to hold the order the individual clusters appear in the cluster group.
@@ -301,7 +318,7 @@ struct rescale_visitor : public dfs_tree<Sys> {
 };
 
 template<typename Sys>
-MES<Sys>::MES(boost::shared_ptr<Cluster> cl, int par, int eqn) : Base(par, eqn), m_cluster(cl) {
+MES<Sys>::MES(boost::shared_ptr< Cluster > cl, int par, int eqn, graph_algo< Sys >& a) : Base(par, eqn), m_cluster(cl), g_algo(a) {
 #ifdef USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("MES3D"));
 #endif
@@ -311,15 +328,7 @@ template<typename Sys>
 void MES<Sys>::recalculate() {
 
     recalculater<Sys> visitor(m_cluster, Base::Scaling, Base::m_access);
-    //create te needed property maps and fill it
-    property_map<vertex_index_prop, Cluster> vi_map(m_cluster);
-    typedef std::map< LocalVertex, boost::default_color_type> vcmap;
-    typedef std::map< LocalEdge, boost::default_color_type> ecmap;
-    vcmap v_cm;
-    ecmap e_cm;
-    boost::associative_property_map< vcmap > v_cpm(v_cm);
-    boost::associative_property_map< ecmap > e_cpm(e_cm);
-    boost::undirected_dfs(*m_cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
+    g_algo.dfs(visitor, start);
 };
 
 template<typename Sys>
@@ -448,8 +457,8 @@ struct init_mes : public dfs_tree<Sys> {
 };
 
 template<typename Sys>
-SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr< Cluster > c, Mes& m, dcm::LocalVertex s) : cluster(c),
-    mes(m), rescales(0), start(s) {
+SystemSolver<Sys>::Rescaler::Rescaler(boost::shared_ptr< Cluster > c, Mes& m, dcm::LocalVertex s, graph_algo< Sys >& g) : cluster(c),
+    mes(m), rescales(0), start(s), g_algo(g) {
 
 };
 
@@ -494,19 +503,8 @@ typename SystemSolver<Sys>::Scalar SystemSolver<Sys>::Rescaler::scaleClusters(Sc
 
     //if no scaling-value returned we can use 1
     sc = (Kernel::isSame(sc,0, 1e-10)) ? 1. : sc;
-
     rescale_visitor<Sys> visitor(cluster, sc);
-    //create te needed property maps and fill it
-    property_map<vertex_index_prop, Cluster> vi_map(cluster);
-    typedef std::map< LocalVertex, boost::default_color_type> vcmap;
-    typedef std::map< LocalEdge, boost::default_color_type> ecmap;
-    vcmap v_cm;
-    ecmap e_cm;
-    boost::associative_property_map< vcmap > v_cpm(v_cm);
-    boost::associative_property_map< ecmap > e_cpm(e_cm);
-    boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
-
-
+    g_algo.dfs(visitor, start);
     return 1./(sc*SKALEFAKTOR);
 };
 
@@ -619,7 +617,8 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
     }
 
     //initialise the system with now known size
-    Mes mes(cluster, params, constraints);
+    graph_algo<Sys> g_algo(cluster);
+    Mes mes(cluster, params, constraints, g_algo);
 
     //get recalculate starting position
     LocalVertex start = getStartingVertex(cluster);
@@ -720,22 +719,12 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
         init_mes<Sys> visitor(mes, cluster);
         //create te needed property maps and fill it
-        property_map<vertex_index_prop, Cluster> vi_map(cluster);
-        cluster->initIndexMaps();
-        typedef std::map< LocalVertex, boost::default_color_type> vcmap;
-        typedef std::map< LocalEdge, boost::default_color_type> ecmap;
-        vcmap v_cm;
-        ecmap e_cm;
-        boost::associative_property_map< vcmap > v_cpm(v_cm);
-        boost::associative_property_map< ecmap > e_cpm(e_cm);
-
-        boost::undirected_dfs(*cluster.get(), boost::visitor(visitor).root_vertex(start).vertex_index_map(vi_map).vertex_color_map(v_cpm).edge_color_map(e_cpm));
-
+        g_algo.dfs(visitor, start);
 
         mes.setAccess(complete);
         mes.recalculate();
 
-        Rescaler re(cluster, mes, start);
+        Rescaler re(cluster, mes, start, g_algo);
         //DummyScaler re;
         re();
         sys.kernel().solve(mes, re);

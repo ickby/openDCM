@@ -168,7 +168,7 @@ typedef boost::shared_ptr<Geometry3D> Geom;
 typedef boost::shared_ptr<Geometry3DID> GeomID;
 typedef boost::shared_ptr<Constraint3DID> ConsID;
 
-/*
+
 BOOST_AUTO_TEST_CASE(modulepart_basics) {
 
     try {
@@ -331,7 +331,7 @@ BOOST_AUTO_TEST_CASE(modulepart_combined) {
     BOOST_CHECK(Kernel::isSame((v1-v3).norm(), 5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v2-v4).norm(), 5., 1e-6));
     BOOST_CHECK(Kernel::isSame((v3-v4).norm(), 7., 1e-6));
-}*/
+}
 
 BOOST_AUTO_TEST_CASE(modulepart_fixpart) {
 

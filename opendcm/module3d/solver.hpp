@@ -28,6 +28,25 @@
 
 namespace dcm {
 namespace details {
+  
+template<typename Sys>
+struct graph_algo {
+
+    typedef typename Sys::Cluster Cluster;
+    typedef std::map< LocalVertex, boost::default_color_type> vcmap;
+    typedef std::map< LocalEdge, boost::default_color_type> ecmap;
+
+    boost::shared_ptr<Cluster> m_cluster;
+    property_map<vertex_index_prop, Cluster> vi_map;
+    vcmap v_cm;
+    ecmap e_cm;
+    boost::associative_property_map< vcmap > v_cpm;
+    boost::associative_property_map< ecmap > e_cpm;
+
+    graph_algo(boost::shared_ptr<Cluster> c);
+    template<typename Visitor>
+    void dfs(const Visitor& v, LocalVertex start);
+};
 
 template<typename Sys>
 struct MES  : public Sys::Kernel::MappedEquationSystem {
@@ -45,13 +64,14 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     typedef typename Sys::Kernel::MappedEquationSystem Base;
 
     LocalVertex start;
+    graph_algo<Sys>& g_algo;
     boost::shared_ptr<Cluster> m_cluster;
 
 #ifdef USE_LOGGING
     dcm_logger log;
 #endif
 
-    MES(boost::shared_ptr<Cluster> cl, int par, int eqn);
+    MES(boost::shared_ptr<Cluster> cl, int par, int eqn, graph_algo<Sys>& a);
     virtual void recalculate();
     virtual void removeLocalGradientZeros(bool lgz);
     void setStart(LocalVertex v) {start = v;};
@@ -83,8 +103,9 @@ struct SystemSolver : public Job<Sys> {
         Mes& mes;
         int rescales;
 	LocalVertex start;
+	graph_algo<Sys>& g_algo;
 
-        Rescaler(boost::shared_ptr<Cluster> c, Mes& m, LocalVertex s);
+        Rescaler(boost::shared_ptr<Cluster> c, Mes& m, LocalVertex s, graph_algo<Sys>& g);
 
         void operator()();
 
