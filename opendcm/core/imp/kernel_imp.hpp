@@ -62,30 +62,37 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
     const double eigen_error = (jacobi*h_gn + residual).norm();
 #ifdef USE_LOGGING
-
+    if(eigen_error>1e-9)
+	BOOST_LOG_SEV(log, error) << "Linear system solved incorrect: "<<eigen_error;
+    
     if(!boost::math::isfinite(h_gn.norm())) {
         BOOST_LOG_SEV(log, error) << "Unnormal gauss-newton detected: "<<h_gn.norm();
     }
-
-    if(!boost::math::isfinite(h_sd.norm())) {
+    else if(!boost::math::isfinite(h_sd.norm())) {
         BOOST_LOG_SEV(log, error) << "Unnormal steepest descent detected: "<<h_sd.norm();
     }
-
-    if(!boost::math::isfinite(alpha)) {
+    else if(!boost::math::isfinite(alpha)) {
         BOOST_LOG_SEV(log, error) << "Unnormal alpha detected: "<<alpha;
-    }
+    } 
+    else {
+          BOOST_LOG_SEV(log, iteration) << "Steepest descent: "<<h_sd.transpose();
+	  BOOST_LOG_SEV(log, iteration) << "Gauss-N  descent: "<<h_gn.transpose();
+    };
 
 #endif
 
     // compute the dogleg step
     if(h_gn.norm() <= delta) {
         h_dl = h_gn;
+#ifdef USE_LOGGING
+	BOOST_LOG_SEV(log, iteration) << "Gauss-Newton step"; 
+#endif
     }
     else if((alpha*h_sd).norm() >= delta) {
         //h_dl = alpha*h_sd;
         h_dl = (delta/(h_sd.norm()))*h_sd;
 #ifdef USE_LOGGING
-
+	BOOST_LOG_SEV(log, iteration) << "steepest descent step"; 
         if(!boost::math::isfinite(h_dl.norm())) {
             BOOST_LOG_SEV(log, error) << "Unnormal dogleg descent detected: "<<h_dl.norm();
         }
@@ -113,6 +120,7 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         h_dl = alpha*h_sd + beta*(b-a);
 
 #ifdef USE_LOGGING
+	BOOST_LOG_SEV(log, iteration) << "Dogleg step"; 
         if(!boost::math::isfinite(c)) {
             BOOST_LOG_SEV(log, error) << "Unnormal dogleg c detected: "<<c;
         }
