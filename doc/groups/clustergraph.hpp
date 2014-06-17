@@ -28,7 +28,7 @@
  * \section graph Intruducing the ClusterGraph
  * 
  * To allow advanced processing of a given geometric constellation a modell is needed which holds all the
- * information in a accessible manner and allows fast and complex interaction. A graph is perfectöy suited 
+ * information in a accessible manner and allows fast and complex interaction. A graph is perfectly suited 
  * for such a task and therefore used to represent the users geometric problem.
  * 
  * In the scope of this library vertices are used as geometry and edges as the constraint's between them.
@@ -97,7 +97,7 @@
  * local edges, local vertices and clusters. The vertex and edge properties are intended to be used in boost graph algorithms and 
  * shall be used in combination with the \ref property_map interface. They allow to store algorithmic information  at a
  * convienient place for later evaluation. Global edges don't have properties as they are not used in boost 
- * algorithms. It's also possible to add properties to a hole clustergraph. This is needed to give the subclusters
+ * algorithms. It's also possible to add properties to a whole clustergraph. This is needed to give the subclusters
  * a meaning of some kind. With attached properties it's possible to differentiate diffrent use cases and distuingish
  * the relevant cluster.
  * 
