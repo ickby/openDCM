@@ -55,6 +55,9 @@ namespace dcm {
  * @{*/
 
 namespace details {
+  
+//we need a way to store a pointer to a graph in a type independend way
+struct ClusterGraphBase {};
 
 /** @addtogroup Metafunctions
  * @{*/
@@ -232,6 +235,7 @@ class ClusterGraph : public boost::adjacency_list < boost::listS, boost::listS,
     fusion::vector < typename details::pts< typename details::ensure_properties<edge_prop, details::bgl_e_props>::type >::type,
     std::vector< fusion::vector< typename details::sps<objects>::type, GlobalEdge > > > > ,
 public PropertyOwner<typename details::ensure_property<cluster_prop, changed_prop>::type>,
+public details::ClusterGraphBase,
 public boost::noncopyable,
     public boost::enable_shared_from_this<ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> > {
 

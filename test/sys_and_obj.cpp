@@ -18,6 +18,7 @@
 */
 
 #include "opendcm/core.hpp"
+/*
 #include "opendcm/core/object.hpp"
 
 #include <boost/function.hpp>
@@ -30,11 +31,11 @@
 #include "opendcm/core/imp/clustergraph_imp.hpp"
 #include "opendcm/core/imp/object_imp.hpp"
 #endif
-
+*/
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(system_and_object);
-
+/*
 struct test_edge_property1 {
     typedef dcm::edge_property kind;
     typedef int type;
@@ -54,127 +55,55 @@ struct test_vertex_property2 {
 struct test_signal1 {};
 struct test_signal2 {};
 struct test_signal3 {};
-
+*/
 struct TestModule1 {
 
-    template<typename Sys>
-    struct type {
-        typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
-                mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
+    typedef boost::mpl::int_<1> ID;
 
-        typedef dcm::Unspecified_Identifier Identifier;
+    template<typename Final, typename Stacked>
+    struct type : public Stacked {
 
-        template<typename Syst, typename Derived>
-        struct test_object1_base : public dcm::Object<Syst, Derived, signal_map > {
-            test_object1_base(Syst& system) : dcm::Object<Syst, Derived, signal_map >(system) { };
-            int value;
-
-            void emit_test_void() {
-                dcm::Object<Syst, test_object1, signal_map >::template emitSignal<test_signal1>();
-            };
-            void emit_test_double(const double& d1, const double& d2) {
-                dcm::Object<Syst, test_object1, signal_map >::template emitSignal<test_signal2>(d1, d2);
-            };
-        };
-
-        struct test_object1 : public test_object1_base<Sys, test_object1> {
-            test_object1(Sys& system) : test_object1_base<Sys, test_object1>(system) { };
-        };
-
-        struct inheriter {
-            int test_inherit1() {
+	int module_function1() {return 1;};
+      
+        struct TestType1 {
+            int value1;
+            int function1() {
                 return 1;
             };
-            int test_inherit2(int f, int s) {
-                return f+s;
-            };
-            void emit_signal_3() {
-                ((Sys*)this)->template emitSignal<test_signal3>();
-            };
-            void system_sub(Sys* subsys) {};
         };
-
-        struct test_object1_prop {
-            typedef int type;
-            typedef test_object1 kind;
-            struct default_value {
-                int operator()() {
-                    return 3;
-                };
-            };
-        };
-
-        struct setting1_prop {
-            typedef bool type;
-            typedef dcm::setting_property kind;
-            struct default_value {
-                bool operator()() {
-                    return true;
-                };
-            };
-        };
-
-        typedef mpl::vector0<> geometries;
-        typedef mpl::vector1<test_object1> objects;
-        typedef mpl::vector4<test_edge_property1, test_vertex_property1, test_object1_prop, setting1_prop>   properties;
-        typedef mpl::map< mpl::pair<test_signal3, boost::function<void ()> > > signals;
-
-        template<typename System>
-        static void system_init(System& sys) {};
     };
 };
-
 struct TestModule2 {
 
-    template<typename Sys>
-    struct type {
-        typedef mpl::map< mpl::pair<test_signal1, boost::function<void ()> >,
-                mpl::pair<test_signal2, boost::function<void (double, double)> > > signal_map;
+    typedef boost::mpl::int_<2> ID;
 
-        struct test_object2 : public dcm::Object<Sys, test_object2, signal_map > {
-            test_object2(Sys& system) : dcm::Object<Sys, test_object2, signal_map >(system) { };
-            int value;
-        };
+    template<typename Final, typename Stacked>
+    struct type : public Stacked {
 
-        struct inheriter {
-            template<typename T1>
-            int test_inherit3(T1 f, T1 s) {
-                return ((Sys*)this)->test_inherit2(f,s);
+	int module_function2() {return 2;};
+      
+        struct TestType1 : public Stacked::TestType1 {
+            int value2;
+            int function2() {
+                return 2;
             };
-            void system_sub(Sys* subsys) {};
         };
-
-        struct test_object1_external_prop {
-            typedef int type;
-            typedef typename TestModule1::type<Sys>::test_object1 kind;
-        };
-        struct test_object2_prop {
-            typedef int type;
-            typedef test_object2 kind;
-        };
-
-        typedef mpl::vector1<test_object2>  	objects;
-        typedef mpl::vector0<> geometries;
-        typedef mpl::vector4<test_edge_property2, test_vertex_property2,
-                test_object2_prop, test_object1_external_prop> properties;
-        typedef dcm::Unspecified_Identifier Identifier;
-        typedef mpl::map0<> signals;
-
-        template<typename System>
-        static void system_init(System& sys) {};
     };
 };
 
-typedef dcm::System<dcm::Kernel<double>, TestModule1, TestModule2> System;
+typedef dcm::System<TestModule2, TestModule1> System;
 
-BOOST_AUTO_TEST_CASE(inherit_functions) {
+
+
+BOOST_AUTO_TEST_CASE(inherit_functions_types) {
 
     System sys;
-    BOOST_CHECK(sys.test_inherit1() == 1);
-    BOOST_CHECK(sys.test_inherit2(2,3) == 5);
-    BOOST_CHECK(sys.test_inherit3(2,3) == 5);
-};
+    
+    BOOST_CHECK(sys.module_function1() == 1);
+    BOOST_CHECK(sys.module_function2() == 2);
 
+};
+/*
 BOOST_AUTO_TEST_CASE(graph_properties) {
 
     System sys;
@@ -292,7 +221,7 @@ BOOST_AUTO_TEST_CASE(signals) {
     sys.emit_signal_3();
 
     BOOST_CHECK(s3.counter == 2);
-};
+};*/
 
 BOOST_AUTO_TEST_SUITE_END();
 

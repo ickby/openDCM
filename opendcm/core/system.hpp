@@ -17,9 +17,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_SYSTEM_H
-#define GCM_SYSTEM_H
+#ifndef DCM_SYSTEM_H
+#define DCM_SYSTEM_H
 
+#include <boost/mpl/less_equal.hpp>
+
+#include "module.hpp"
+/*
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/map.hpp>
 #include <boost/mpl/vector/vector0.hpp>
@@ -50,9 +54,9 @@ struct Unspecified_Identifier {}; //struct to show that it dosen't matter which 
 struct solved {}; //signal emitted when solving is done
 
 namespace details {
-  
-enum { subcluster = 10};
 
+enum { subcluster = 10};
+*/
 /**
  * @brief Appends a mpl sequences to another
  *
@@ -62,11 +66,11 @@ enum { subcluster = 10};
  *
  * @tparam state the mpl sequence which will be expanded
  * @tparam seq the mpl sequence which will be appended
- **/
+ **//*
 template<typename seq, typename state>
 struct vector_fold : mpl::fold < seq, state,
         mpl::push_back<mpl::_1, mpl::_2> > {};
-	
+
 template<typename seq, typename state>
 struct edge_fold : mpl::fold< seq, state,
         mpl::if_< is_edge_property<mpl::_2>,
@@ -133,7 +137,7 @@ struct is_shared_ptr<boost::shared_ptr<T> > : boost::mpl::true_ {};
 
 template<typename Sys, typename M1, typename M2, typename  M3>
 struct inheriter : public M1::inheriter, public M2::inheriter, public M3::inheriter,
-		   dcm::SignalOwner<typename details::map_fold_3< mpl::map<mpl::pair<solved, boost::function<void (Sys*)> > >, 
+		   dcm::SignalOwner<typename details::map_fold_3< mpl::map<mpl::pair<solved, boost::function<void (Sys*)> > >,
 		   typename M1::signals, typename M2::signals, typename M3::signals>::type> {};
 }
 
@@ -147,7 +151,7 @@ class System : 	public details::inheriter<System<KernelType,T1,T2,T3>, typename 
 
     typedef System<KernelType,T1,T2,T3> BaseType;
 public:
-  
+
     typedef T1 Module1;
     typedef T2 Module2;
     typedef T3 Module3;
@@ -183,7 +187,7 @@ public:
             typename details::vector_fold<typename Type2::properties,
             typename details::vector_fold<typename Type1::properties,
             mpl::vector<id_prop<Identifier> > >::type >::type>::type properties;
-	    
+
     //get all geometries we support
     typedef typename details::vector_fold<typename Type3::geometries,
             typename details::vector_fold<typename Type2::geometries,
@@ -191,14 +195,14 @@ public:
             mpl::vector<> >::type >::type>::type geometries;
 
     //make the subcomponent lists of objects and properties
-    typedef typename details::edge_fold< properties, 
+    typedef typename details::edge_fold< properties,
 	    mpl::vector1<edge_index_prop> >::type 	edge_properties;
-    typedef typename details::vertex_fold< properties, 
+    typedef typename details::vertex_fold< properties,
 	    mpl::vector1<vertex_index_prop> >::type 	vertex_properties;
     typedef typename details::cluster_fold< properties,
             mpl::vector2<changed_prop, type_prop>  >::type cluster_properties;
-	    
-    //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user 
+
+    //we hold our own PropertyOwner which we use for system settings. Don't inherit it as the user
     //should not access the settings via the proeprty getter and setter functions.
     typedef PropertyOwner<typename details::properties_by_kind<properties, setting_property>::type> OptionOwner;
     boost::shared_ptr<OptionOwner> m_options;
@@ -245,32 +249,32 @@ public:
     void erase(boost::shared_ptr<Object> ptr);
 
     SolverInfo solve();
-    
+
     boost::shared_ptr< System > createSubsystem();
     typename std::vector< boost::shared_ptr<System> >::iterator beginSubsystems();
     typename std::vector< boost::shared_ptr<System> >::iterator endSubsystems();
-    
+
     //a kernel has it's own settings, therefore we need to decide which is accessed
     template<typename Option>
     typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
     typename mpl::end<typename Kernel::PropertySequence>::type >, typename Option::type& >::type getOption();
-    
+
     template<typename Option>
     typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
     typename mpl::end<typename Kernel::PropertySequence>::type >, typename Option::type& >::type getOption();
-    
+
     template<typename Option>
     typename boost::enable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
     typename mpl::end<typename Kernel::PropertySequence>::type >, void >::type setOption(typename Option::type value);
-    
+
     template<typename Option>
     typename boost::disable_if< boost::is_same< typename mpl::find<typename Kernel::PropertySequence, Option>::type,
     typename mpl::end<typename Kernel::PropertySequence>::type >, void >::type setOption(typename Option::type value);
-    
+
     //convinience function
     template<typename Option>
     typename Option::type& option();
-    
+
     //let evryone access and use our math kernel
     Kernel& kernel();
 
@@ -378,12 +382,42 @@ System<KernelType, T1, T2, T3>::option() {
     return getOption<Option>();
 };
 
-}
+}*/
 
+namespace dcm {
+
+namespace details {
+
+template<typename Final, typename M1>
+struct module_inheriter1 {
+    typedef ModuleCoreFinish<Final, typename M1::template type<Final, ModuleCoreInit<Final> > > type;
+};
+
+template<typename Final, typename M1, typename M2>
+struct module_inheriter2 {
+    typedef typename mpl::if_< mpl::less_equal<typename M1::ID, typename M2::ID>,
+            ModuleCoreFinish<Final, typename M2::template type<Final, typename M1::template type<Final, ModuleCoreInit<Final> > > >,
+            ModuleCoreFinish<Final, typename M1::template type<Final, typename M2::template type<Final, ModuleCoreInit<Final> > > > >::type type;
+};
+
+}; //details
+/*
+template<typename M1>
+class System : public details::module_inheriter1<System<M1>, M1>::type {
+
+};*/
+
+template<typename M1, typename M2>
+class System : public details::module_inheriter2<System<M1, M2>, M1, M2>::type {
+
+};
+
+}; //dcm
+/*
 #ifndef DCM_EXTERNAL_CORE
 #include "imp/system_imp.hpp"
 #endif
-
+*/
 #endif //GCM_SYSTEM_H
 
 

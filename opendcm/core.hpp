@@ -38,12 +38,12 @@
 
 #endif
 
-#include "core/defines.hpp"
-#include "core/geometry.hpp"
-#include "core/kernel.hpp"
+//#include "core/defines.hpp"
+//#include "core/geometry.hpp"
+//#include "core/kernel.hpp"
 #include "core/system.hpp"
 
-
+/*
 #ifdef DCM_EXTERNAL_CORE
 
 #define DCM_EXTERNAL_CORE_INCLUDE_01 "opendcm/core/imp/system_imp.hpp"
@@ -54,6 +54,6 @@
     template struct dcm::Equation<dcm::Angle, mpl::vector2<double, dcm::SolutionSpace>, 3, dcm::rotation>; 
 
 #endif //external
-
+*/
 #endif //DCM_CORE_H
 
