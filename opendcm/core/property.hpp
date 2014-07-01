@@ -49,7 +49,7 @@ namespace dcm {
 
 /** @defgroup Property Properties
  *
- * @brief Concept and handling of properties for generic data storage and type extension.
+ * @brief Concept and handling of properties for generic data storage.
  *
  * Properties are a basic building block of the dcm and fullfill two essential tasks: First, build a
  * infrastructure for storing data in any kind of object and second, make this data universally accessible.
@@ -62,7 +62,7 @@ namespace dcm {
  * The connection of data type and identifier is achieved through the property structs, which all follow
  * the same concept: Identifier is the struct type, the stored data is exposed as 'type' typedef. The data
  * type can be every c++ type (including classes and structs) which is default constructable. They don't need
- * to be assignable or copyable by default, thats only nesseccary if you want to change the hole stored
+ * to be assignable or copyable by default, thats only nesseccary if you want to change the whole stored
  * object by assigning. If not, the data object can be uncopyable and it should be used by
  * retrieving it's reference with get-methods.
  *
@@ -203,9 +203,13 @@ struct edge_selector {
  * a specific selector type ( @ref vertex_selector or @ref edge_selector ) dependend on the supplied
  * property.
  **/
-template< typename Kind, typename Graph>
-struct property_selector : public mpl::if_ < boost::is_same<Kind, vertex_property>,
-        vertex_selector<Graph>, edge_selector<Graph> >::type {};
+template< typename Prop, typename Graph>
+struct property_selector :  mpl::if_ <
+        boost::is_same <
+        typename mpl::find<typename Graph::edge_properties, Prop>::type,
+        typename mpl::end<typename Graph::edge_properties>::type > ,
+        vertex_selector<Graph>,
+        edge_selector<Graph> >::type {};
 
 /**
  * @brief Metafunction to expose the property storage type
@@ -332,24 +336,31 @@ struct apply_default {
 /**
  * @brief Expose if this is a edge property
  **/
-template<typename T>
-struct is_edge_property : boost::is_same<typename T::kind, edge_property> {};
+template<typename T, typename Graph>
+struct is_edge_property : boost::is_same <
+        typename mpl::find<typename Graph::vertex_properties, T>::type,
+        typename mpl::end<typename Graph::vertex_properties>::type > {};
+/**
+ * @brief Expose if this is a global edge property
+ **/
+template<typename T, typename Graph>
+struct is_globaledge_property : boost::is_same <
+        typename mpl::find<typename Graph::globaledge_properties, T>::type,
+        typename mpl::end<typename Graph::globaledge_properties>::type > {};
 /**
  * @brief Expose if this is a vertex property
  **/
-template<typename T>
-struct is_vertex_property : boost::is_same<typename T::kind, vertex_property> {};
+template<typename T, typename Graph>
+struct is_vertex_property : boost::is_same <
+        typename mpl::find<typename Graph::edge_properties, T>::type,
+        typename mpl::end<typename Graph::edge_properties>::type > {};
 /**
  * @brief Expose if this is a cluster property
  **/
-template<typename T>
-struct is_cluster_property : boost::is_same<typename T::kind, cluster_property> {};
-/**
- * @brief Expose if this is a general object property
- **/
-template<typename T>
-struct is_object_property : boost::is_same<typename T::kind, object_property> {};
-/**@}*/
+template<typename T, typename Graph>
+struct is_cluster_property : boost::is_same <
+        typename mpl::find<typename Graph::cluster_properties, T>::type,
+        typename mpl::end<typename Graph::cluster_properties>::type > {};
 
 /**
  * @brief Adapter to use dcm vertex and edge properties as boost property_maps in bgl algorithms
@@ -367,15 +378,15 @@ class property_map  {
 
 public:
     //expose boost property map interface types
-    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::key_type key_type;
+    typedef typename dcm::details::property_selector<Property, Graph>::key_type key_type;
     typedef typename Property::type value_type;
     typedef typename Property::type&  reference;
     typedef boost::lvalue_property_map_tag category;
 
     //expose cutom types for easy access
     typedef Property property;
-    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::sequence_type sequence;
-    typedef typename dcm::details::property_selector<typename Property::kind, Graph>::property_distance distance;
+    typedef typename dcm::details::property_selector<Property, Graph>::sequence_type sequence;
+    typedef typename dcm::details::property_selector<Property, Graph>::property_distance distance;
 
     /**
      * @brief Links property map with the ClusterGraph which shall be accessed
@@ -579,10 +590,7 @@ typename dcm::property_map<P, G>::value_type	get(const dcm::property_map<P, G>& 
 {
 
     typedef dcm::property_map<P, G> map_t;
-    typedef typename mpl::find<typename map_t::sequence, typename map_t::property>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<typename map_t::sequence>::type, iterator>::type distance;
-
-    return  fusion::at<distance> (fusion::at<typename dcm::property_map<P, G>::distance> (map.m_graph->operator[](key)));
+    return  fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getProperty<P>();
 };
 
 template <typename P, typename G>
@@ -592,9 +600,7 @@ void  put(const dcm::property_map<P, G>& map,
 {
 
     typedef dcm::property_map<P, G> map_t;
-    typedef typename mpl::find<typename map_t::sequence, typename map_t::property>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<typename map_t::sequence>::type, iterator>::type distance;
-    fusion::at<distance> (fusion::at<typename dcm::property_map<P, G>::distance> (map.m_graph->operator[](key))) = value;
+    fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template setProperty<P>(value);
 };
 
 
@@ -603,9 +609,7 @@ typename dcm::property_map<P, G>::reference at(const dcm::property_map<P, G>& ma
         typename dcm::property_map<P, G>::key_type key)
 {
     typedef dcm::property_map<P, G> map_t;
-    typedef typename mpl::find<typename map_t::sequence, typename map_t::property>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<typename map_t::sequence>::type, iterator>::type distance;
-    return fusion::at<distance> (fusion::at<typename dcm::property_map<P, G>::distance> (map.m_graph->operator[](key)));
+    return fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getProperty<P>();
 }
 }
 

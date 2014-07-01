@@ -81,14 +81,11 @@ struct property_extractor  {
     typedef typename prop::type base_type;
     typedef base_type& result_type;
 
-    typedef typename mpl::if_< is_edge_property<prop>, typename Graph::edge_properties, typename Graph::vertex_properties >::type sequence;
-    typedef typename mpl::find<sequence, prop>::type iterator;
-    typedef typename mpl::distance<typename mpl::begin<sequence>::type, iterator>::type distance;
-    typedef typename mpl::if_< is_edge_property<prop>, mpl::int_<0>, mpl::int_<1> >::type pos;
+    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
     template< typename seq>
     result_type operator()(seq& b) const {
-        return fusion::at<distance> (fusion::at<pos> (b));
+        return fusion::at<pos>(b).template getProperty<prop>();
     };
 };
 
@@ -107,87 +104,15 @@ struct apply_remove_prediacte {
         //this predicate can be used to compare the edge itself or the vertives it connects. See
         //if we are a relevant edge
         if(isEdge)
-            res = (edge == fusion::at_c<1> (e));
+            res = (edge == fusion::at_c<0> (e));
         else
-            res = (vert == fusion::at_c<1> (e).source) || (vert == fusion::at_c<1> (e).target);
+            res = (vert == fusion::at_c<0> (e).source) || (vert == fusion::at_c<0> (e).target);
 
         //we are a hit, invoke the functor.
         if(res || vert < 0)
-            func(fusion::at_c<1> (e));
+            func(fusion::at_c<0> (e));
 
         return res || vert < 0;
-    }
-};
-
-//types needed to distinguish when objects need to be reset
-namespace details {
-struct get : public boost::false_type {};
-struct set : public boost::true_type {};
-}
-
-template<typename Type, typename Obj, typename key, typename Graph>
-struct obj_helper {
-
-    typedef typename Graph::template object_extractor<Obj>::result_type result_type;
-
-    obj_helper(key k) : m_key(k) {};
-
-    //used with vertex bundle type
-    template<typename bundle>
-    typename boost::enable_if < boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>, result_type >::type
-    operator()(bundle& p) {
-
-        if(Type::value)
-            fusion::for_each(fusion::at_c<2> (p), clear_ptr());
-
-        return (typename Graph::template object_extractor<Obj>()).operator()(p);
-    }
-
-    //used with edge bundle type and global edge descriptor
-    template<typename bundle>
-    typename boost::enable_if < mpl::and_ < boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-    boost::is_same<key, GlobalEdge> > , result_type >::type operator()(bundle& p) {
-
-        typename Graph::edge_single_iterator e;
-        //need to search the edge_bundle for the global descriptor
-        std::vector<typename Graph::edge_bundle_single>& ebsv = fusion::at_c<1> (p);
-
-        for(typename Graph::edge_single_iterator it = ebsv.begin(); it != ebsv.end(); it++) {
-            if(typename Graph::global_extractor()(*it) == m_key) {
-                if(Type::value)
-                    fusion::for_each(fusion::at_c<0> (*it), clear_ptr());
-
-                e = it;
-                break;
-            }
-        }
-
-        return (typename Graph::template object_extractor<Obj>()).operator()(*e);
-    }
-
-    //used with edge bundle type and local edge descriptor
-    template<typename bundle>
-    typename boost::enable_if < mpl::and_ < boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-    boost::is_same<key, LocalEdge> > , result_type >::type operator()(bundle& p) {
-        if(Type::value)
-            fusion::for_each(fusion::at_c<0> (fusion::at_c<1> (p).front()), clear_ptr());
-
-        return typename Graph::template object_extractor<Obj>()(fusion::at_c<1> (p).front());
-    }
-
-    key m_key;
-};
-
-template<typename Functor>
-struct valid_ptr_apply {
-
-    Functor& func;
-    valid_ptr_apply(Functor& f) : func(f) {};
-
-    template<typename Ptr>
-    void operator()(Ptr& p) const {
-        if(p)
-            func(p);
     }
 };
 
@@ -198,23 +123,9 @@ struct get_prop_helper {
 
     typedef typename prop::type base_type;
     typedef base_type& result_type;
-    typedef typename mpl::find<typename Graph::vertex_properties, prop>::type vertex_iterator;
-    typedef typename mpl::find<typename Graph::edge_properties, prop>::type edge_iterator;
-    typedef typename mpl::if_ < boost::is_same<vertex_iterator, typename mpl::end<typename Graph::vertex_properties>::type >,
-            edge_iterator, vertex_iterator >::type iterator;
-    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<typename Graph::edge_properties>::type > >));
 
-    //used with vertex bundle type
     template<typename bundle>
-    typename boost::enable_if < boost::is_same<bundle, typename boost::vertex_bundle_type<Graph>::type>,
-    result_type >::type operator()(bundle& p) {
-        return property_extractor<prop, Graph>()(p);
-    }
-
-    //used with edge bundle type
-    template<typename bundle>
-    typename boost::enable_if < boost::is_same<bundle, typename boost::edge_bundle_type<Graph>::type>,
-    result_type >::type operator()(bundle& p) {
+    result_type operator()(bundle& p) {
         return property_extractor<prop, Graph>()(p);
     }
 
@@ -225,39 +136,25 @@ struct get_prop_helper {
 //Function implementation
 //***********************
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename T>
-typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_extractor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_extractor::operator()(T& bundle) const {
-    return fusion::at_c<1> (bundle);
+typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_extractor::result_type
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_extractor::operator()(T& bundle) const {
+    return fusion::at_c<0> (bundle);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_vertex_extractor::global_vertex_extractor(ClusterGraph& g) : graph(g) {};
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_vertex_extractor::global_vertex_extractor(ClusterGraph& g) : graph(g) {};
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_vertex_extractor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_vertex_extractor::operator()(LocalVertex& v) const {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_vertex_extractor::result_type
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_vertex_extractor::operator()(LocalVertex& v) const {
     return graph.getGlobalVertex(v);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj>
-typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::template object_extractor<Obj>::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::object_extractor<Obj>::operator()(vertex_bundle& bundle) const {
-    return fusion::at<distance> (fusion::at_c<2> (bundle));
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj>
-typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::template object_extractor<Obj>::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::object_extractor<Obj>::operator()(edge_bundle_single& bundle) const {
-    return fusion::at<distance> (fusion::at_c<0> (bundle));
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::copyInto(boost::shared_ptr<ClusterGraph> into, Functor& functor) const {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::copyInto(boost::shared_ptr<ClusterGraph> into, Functor& functor) const {
 
     //lists does not provide vertex index, so we have to build our own (cant use the internal
     //vertex_index_property as we would need to reset the indices and that's not possible in const graph)
@@ -304,107 +201,107 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::copyInto(boost
     into->for_each_object(functor, false);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename T>
-bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::operator== (const T& other) const {
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::operator== (const T& other) const {
     return this == &other;
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename T>
-bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::operator!= (const T& other) const {
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::operator!= (const T& other) const {
     return !(this == &other);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::setCopyMode(bool on) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setCopyMode(bool on) {
     copy_mode = on;
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename P>
-typename P::type& ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getSubclusterProperty(LocalVertex v) {
+typename P::type& ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getSubclusterProperty(LocalVertex v) {
     return getVertexCluster(v)->template getProperty<P>();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::setChanged() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setChanged() {
     if(!copy_mode)
         PropertyOwner<cluster_properties>::template setProperty<changed_prop> (true);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-std::pair<boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >, LocalVertex> ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::createCluster() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >, LocalVertex> ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::createCluster() {
     vertex_bundle vp;
     fusion::at_c<0> (vp) = m_id->generate();
     LocalVertex v = boost::add_vertex(vp, *this);
     return std::pair<boost::shared_ptr<ClusterGraph>, LocalVertex> (m_clusters[v] = boost::shared_ptr<ClusterGraph> (new ClusterGraph(sp_base::shared_from_this())), v);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-inline boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>:: parent() 	{
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+inline boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>:: parent() 	{
     return boost::shared_ptr<ClusterGraph> (m_parent);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-inline const boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::parent() const 	{
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+inline const boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::parent() const 	{
     return boost::shared_ptr<ClusterGraph> (m_parent);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::isRoot() const {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::isRoot() const {
     return m_parent.expired();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::root()		{
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::root()		{
     return isRoot() ? sp_base::shared_from_this() : parent()->root();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-const boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::root() const    {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+const boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::root() const    {
     return isRoot() ? sp_base::shared_from_this() : parent()->root();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-std::pair<typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::cluster_iterator, typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::cluster_iterator>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::clusters() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::cluster_iterator, typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::cluster_iterator>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::clusters() {
     return std::make_pair(m_clusters.begin(), m_clusters.end());
 }
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-std::pair<typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::const_cluster_iterator, typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::const_cluster_iterator>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::clusters() const {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::const_cluster_iterator, typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::const_cluster_iterator>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::clusters() const {
     return std::make_pair(m_clusters.begin(), m_clusters.end());
 }
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::size_t
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::numClusters() const {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::numClusters() const {
     return m_clusters.size();
 }
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-bool ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::isCluster(const LocalVertex v) const {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::isCluster(const LocalVertex v) const {
     return (m_clusters.find(v) != m_clusters.end());
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getVertexCluster(LocalVertex v) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getVertexCluster(LocalVertex v) {
     if(isCluster(v))
         return m_clusters[v];
 
     //TODO:throw if not a cluster
-    return boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >();//sp_base::shared_from_this();
+    return boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >();//sp_base::shared_from_this();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-LocalVertex	ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getClusterVertex(boost::shared_ptr<ClusterGraph> g) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+LocalVertex	ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getClusterVertex(boost::shared_ptr<ClusterGraph> g) {
     std::pair<cluster_iterator, cluster_iterator> it = clusters();
 
     for(; it.first != it.second; it.first++) {
@@ -415,26 +312,26 @@ LocalVertex	ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getClus
     throw details::cluster_error() <<  boost::errinfo_errno(12) << error_message("Cluster is not part of this graph");
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeCluster(boost::shared_ptr<ClusterGraph> g, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeCluster(boost::shared_ptr<ClusterGraph> g, Functor& f) {
     removeCluster(getClusterVertex(g), f);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeCluster(boost::shared_ptr<ClusterGraph> g) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeCluster(boost::shared_ptr<ClusterGraph> g) {
     placehoder p;
     removeCluster(getClusterVertex(g), p);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::clearClusters() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::clearClusters() {
     m_clusters.clear();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeCluster(LocalVertex v, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeCluster(LocalVertex v, Functor& f) {
 
     typename ClusterMap::iterator it = m_clusters.find(v);
 
@@ -453,15 +350,15 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeCluster(
     boost::remove_vertex(v, *this);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeCluster(LocalVertex v) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeCluster(LocalVertex v) {
     placehoder p;
     removeCluster(v, p);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::remove_vertices(Functor& f, bool recursive) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::remove_vertices(Functor& f, bool recursive) {
 
     std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
 
@@ -488,9 +385,9 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::remove_vertice
     }
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 fusion::vector<LocalVertex, GlobalVertex>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex() {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addVertex() {
 
     vertex_bundle vp;
     fusion::at_c<0> (vp) = m_id->generate();
@@ -500,9 +397,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex() {
     return fusion::make_vector(v, m_id->count());
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 fusion::vector<LocalVertex, GlobalVertex>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex(GlobalVertex gv) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addVertex(GlobalVertex gv) {
 
     setChanged();
     std::pair<LocalVertex, bool> res = getLocalVertex(gv);
@@ -522,9 +419,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addVertex(GlobalVer
     return fusion::make_vector(res.first, gv);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-std::pair<typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_vertex_iterator, typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_vertex_iterator>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::globalVertices() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_vertex_iterator, typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_vertex_iterator>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::globalVertices() {
     std::pair<local_vertex_iterator, local_vertex_iterator> res = boost::vertices(*this);
     global_vertex_iterator begin = boost::make_transform_iterator(res.first, global_vertex_extractor(*this));
     global_vertex_iterator end   = boost::make_transform_iterator(res.second, global_vertex_extractor(*this));
@@ -532,15 +429,15 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::globalVertices() {
     return std::pair<global_vertex_iterator, global_vertex_iterator> (begin, end);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::pair<LocalEdge, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::edge(LocalVertex source, LocalVertex target) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::edge(LocalVertex source, LocalVertex target) {
     return boost::edge(source, target, *this);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 fusion::vector<LocalEdge, GlobalEdge, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdge(LocalVertex source, LocalVertex target) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addEdge(LocalVertex source, LocalVertex target) {
 
     //manual edge creation with cluster is not allowed
     if((source == target) || isCluster(source) || isCluster(target))
@@ -560,16 +457,16 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdge(LocalVertex
     //init the bundle corecctly for new edge
     GlobalEdge global = { fusion::at_c<0> ((*this) [source]), fusion::at_c<0> ((*this) [target]), m_id->generate() };
     edge_bundle_single s;
-    fusion::at_c<1> (s) = global;
+    fusion::at_c<0> (s) = global;
     fusion::at_c<1> ((*this) [e]).push_back(s);
 
     setChanged();
     return fusion::make_vector(e, global, true);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 fusion::vector<LocalEdge, GlobalEdge, bool, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdge(GlobalVertex source, GlobalVertex target) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addEdge(GlobalVertex source, GlobalVertex target) {
 
     LocalVertex v1, v2;
     LocalEdge e;
@@ -600,7 +497,7 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdge(GlobalVerte
     //init the bundle corectly for new edge
     GlobalEdge global = { source, target, m_id->generate() };
     edge_bundle_single s;
-    fusion::at_c<1> (s) = global;
+    fusion::at_c<0> (s) = global;
     fusion::at_c<1> ((*this) [e]).push_back(s);
 
     setChanged();
@@ -608,15 +505,15 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdge(GlobalVerte
 
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 fusion::vector<LocalEdge, GlobalEdge, bool, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::addEdgeGlobal(GlobalVertex source, GlobalVertex target) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addEdgeGlobal(GlobalVertex source, GlobalVertex target) {
     return addEdge(source, target);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-std::pair<typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_edge_iterator, typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::global_edge_iterator>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getGlobalEdges(LocalEdge e) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_edge_iterator, typename ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::global_edge_iterator>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getGlobalEdges(LocalEdge e) {
 
     std::vector<edge_bundle_single>& vec = fusion::at_c<1> ((*this) [e]);
     global_edge_iterator begin = boost::make_transform_iterator(vec.begin(), global_extractor());
@@ -626,45 +523,45 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getGlobalEdges(Loca
     return std::pair<global_edge_iterator, global_edge_iterator> (begin, end);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-int ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getGlobalEdgeCount(LocalEdge e) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+int ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getGlobalEdgeCount(LocalEdge e) {
 
     return fusion::at_c<1> ((*this) [e]).size();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::pair<LocalEdge, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getLocalEdge(GlobalEdge e) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getLocalEdge(GlobalEdge e) {
     return getContainingEdge(e);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-fusion::vector<LocalEdge, ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>*, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getLocalEdgeGraph(GlobalEdge e) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+fusion::vector<LocalEdge, ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>*, bool>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getLocalEdgeGraph(GlobalEdge e) {
     return getContainingEdgeGraph(e);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 GlobalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getGlobalVertex(LocalVertex v) const {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getGlobalVertex(LocalVertex v) const {
     return fusion::at_c<0> ((*this) [v]);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::pair<LocalVertex, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getLocalVertex(GlobalVertex vertex) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getLocalVertex(GlobalVertex vertex) {
     return getContainingVertex(vertex);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-fusion::vector<LocalVertex, boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getLocalVertexGraph(GlobalVertex v) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+fusion::vector<LocalVertex, boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >, bool>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getLocalVertexGraph(GlobalVertex v) {
     return getContainingVertexGraph(v);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::downstreamRemoveVertex(GlobalVertex v, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::downstreamRemoveVertex(GlobalVertex v, Functor& f) {
 
     std::pair<LocalVertex, bool> res = getContainingVertex(v);
 
@@ -699,40 +596,40 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::downstreamRemo
         ((*it).second)->downstreamRemoveVertex(v, f);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::simpleRemoveEdge(LocalEdge e) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::simpleRemoveEdge(LocalEdge e) {
     boost::remove_edge(e, *this);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeVertex(LocalVertex id, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeVertex(LocalVertex id, Functor& f) {
     //it is important to delete the global vertex, not the only local one as it's possible that
     //we are in a subcluster and there are connections to the global vertex in the parent. They
     //need to be deleted too.
     removeVertex(getGlobalVertex(id), f);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeVertex(LocalVertex id) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeVertex(LocalVertex id) {
     placehoder p;
     removeVertex(getGlobalVertex(id), p);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeVertex(GlobalVertex id, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeVertex(GlobalVertex id, Functor& f) {
     root()->downstreamRemoveVertex(id, f);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeVertex(GlobalVertex id) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeVertex(GlobalVertex id) {
     placehoder p;
     removeVertex(id, p);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeEdge(GlobalEdge id) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeEdge(GlobalEdge id) {
     fusion::vector<LocalEdge, ClusterGraph*, bool> res = getContainingEdgeGraph(id);
 
     if(!fusion::at_c<2> (res))
@@ -746,127 +643,32 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeEdge(Glo
         boost::remove_edge(fusion::at_c<0> (res), *fusion::at_c<1> (res));
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::removeEdge(LocalEdge id, Functor& f) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::removeEdge(LocalEdge id, Functor& f) {
 
     std::vector<edge_bundle_single>& vec = fusion::at_c<1> ((*this) [id]);
     std::for_each(vec.begin(), vec.end(), boost::bind<void> (boost::ref(apply_remove_prediacte<placehoder, ClusterGraph> (f, -1)), _1));
     boost::remove_edge(id, *this);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj, typename key>
-boost::shared_ptr<Obj>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getObject(key k) {
-    return apply_to_bundle(k, obj_helper<details::get, Obj, key, ClusterGraph> (k));
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj, typename key>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::setObject(key k, boost::shared_ptr<Obj> val) {
-    apply_to_bundle(k, obj_helper<details::set, Obj, key, ClusterGraph> (k)) = val;
-
-    setChanged();
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj>
-std::pair< typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::template object_iterator<Obj>, typename ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::template object_iterator<Obj> >
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getObjects(LocalEdge k) {
-
-    std::vector<edge_bundle_single>& vec = fusion::at_c<1> ((*this) [k]);
-    object_iterator<Obj> begin(vec.begin(), object_extractor<Obj>());
-    object_iterator<Obj> end(vec.end(), object_extractor<Obj>());
-    return std::pair< object_iterator<Obj>, object_iterator<Obj> > (begin, end);
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Obj, typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::for_each(Functor& f, bool recursive) {
-
-    std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
-
-    for(; it.first != it.second; it.first++) {
-        boost::shared_ptr<Obj> ptr =  getObject<Obj> (* (it.first)) ;
-
-        if(ptr)
-            f(ptr);
-    }
-
-    std::pair<local_edge_iterator, local_edge_iterator> eit = boost::edges(*this);
-
-    for(; eit.first != eit.second; eit.first++) {
-        std::pair< object_iterator< Obj >, object_iterator< Obj > > goit =  getObjects<Obj> (* (eit.first));
-
-        for(; goit.first != goit.second; goit.first++) {
-            if(*goit.first)
-                f(*goit.first);
-        }
-    }
-
-    if(recursive) {
-        cluster_iterator cit;
-
-        for(cit = m_clusters.begin(); cit != m_clusters.end(); cit++) {
-            f((*cit).second);
-            (*cit).second->template for_each<Obj> (f, recursive);
-        }
-    }
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-template<typename Functor>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::for_each_object(Functor& f, bool recursive) {
-
-    valid_ptr_apply<Functor> func(f);
-
-    std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
-
-    for(; it.first != it.second; it.first++) {
-        typename details::sps<objects>::type& seq = fusion::at_c<2> ((*this) [*it.first]);
-        fusion::for_each(seq, func);
-    }
-
-    typedef typename std::vector<edge_bundle_single>::iterator iter;
-    std::pair<local_edge_iterator, local_edge_iterator> eit = boost::edges(*this);
-
-    for(; eit.first != eit.second; eit.first++) {
-        std::vector<edge_bundle_single>& vec = fusion::at_c<1> ((*this) [*eit.first]);
-
-        for(iter git = vec.begin(); git != vec.end(); git++) {
-            typename details::sps<objects>::type& seq = fusion::at_c<0> (*git);
-            fusion::for_each(seq, func);
-        }
-    }
-
-    if(recursive) {
-        cluster_iterator cit;
-
-        for(cit = m_clusters.begin(); cit != m_clusters.end(); cit++) {
-            f((*cit).second);
-            (*cit).second->for_each_object(f, recursive);
-        }
-    }
-};
-
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename property, typename key>
 typename property::type&
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getProperty(key k) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getProperty(key k) {
     return apply_to_bundle(k, get_prop_helper<property, key, ClusterGraph> (k));
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename property, typename key>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::setProperty(key k, typename property::type val) {
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setProperty(key k, typename property::type val) {
     apply_to_bundle(k, get_prop_helper<property, key, ClusterGraph> (k)) = val;
 
     setChanged();
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::initIndexMaps() {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::initIndexMaps() {
 
     //just iterate over all edges and vertices and give them all a unique index
     std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
@@ -880,25 +682,25 @@ void ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::initIndexMaps(
         setProperty<edge_index_prop>(*eit.first, c);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToSubcluster(LocalVertex v, boost::shared_ptr<ClusterGraph> cg) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, boost::shared_ptr<ClusterGraph> cg) {
 
     LocalVertex cv = getClusterVertex(cg);
     return moveToSubcluster(v, cv, cg);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToSubcluster(LocalVertex v, LocalVertex Cluster) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, LocalVertex Cluster) {
 
     boost::shared_ptr<ClusterGraph> cg = getVertexCluster(Cluster);
     return moveToSubcluster(v, Cluster, cg);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToSubcluster(LocalVertex v, LocalVertex Cluster, boost::shared_ptr<ClusterGraph> cg) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, LocalVertex Cluster, boost::shared_ptr<ClusterGraph> cg) {
 
     std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, *this);
 
@@ -981,9 +783,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToSubcluster(Lo
     return nv;
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToParent(LocalVertex v) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToParent(LocalVertex v) {
 
     //if(isRoot()) TODO:throw
 
@@ -1074,9 +876,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::moveToParent(LocalV
     return nv;
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::pair<LocalVertex, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingVertex(GlobalVertex id, bool recursive) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getContainingVertex(GlobalVertex id, bool recursive) {
 
     //check all vertices if they are the id
     std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
@@ -1099,9 +901,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingVertex
     return std::make_pair((LocalVertex) NULL, false);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-fusion::vector<LocalVertex, boost::shared_ptr< ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects> >, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingVertexGraph(GlobalVertex id) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+fusion::vector<LocalVertex, boost::shared_ptr< ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> >, bool>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getContainingVertexGraph(GlobalVertex id) {
 
     LocalVertex v;
     bool done;
@@ -1116,9 +918,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingVertex
         return fusion::make_vector(v, sp_base::shared_from_this(), true);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 std::pair<LocalEdge, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingEdge(GlobalEdge id) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getContainingEdge(GlobalEdge id) {
 
     LocalVertex v1, v2;
     bool d1, d2;
@@ -1131,9 +933,9 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingEdge(G
     return boost::edge(v1, v2, *this);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
-fusion::vector<LocalEdge, ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>*, bool>
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingEdgeGraph(GlobalEdge id) {
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+fusion::vector<LocalEdge, ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>*, bool>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getContainingEdgeGraph(GlobalEdge id) {
 
     LocalVertex v1, v2;
     bool d1, d2;
@@ -1149,24 +951,24 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::getContainingEdgeGr
     return fusion::make_vector(boost::edge(v1, v2, *this).first, this, true);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename functor>
 typename functor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::apply_to_bundle(LocalVertex k, functor f) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bundle(LocalVertex k, functor f) {
     return f((*this) [k]);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename functor>
 typename functor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::apply_to_bundle(LocalEdge k, functor f) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bundle(LocalEdge k, functor f) {
     return f((*this) [k]);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename functor>
 typename functor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::apply_to_bundle(GlobalVertex k, functor f) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bundle(GlobalVertex k, functor f) {
 
     //check all vertices if they are the id
     std::pair<local_vertex_iterator, local_vertex_iterator>  it = boost::vertices(*this);
@@ -1188,10 +990,10 @@ ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::apply_to_bundle(Glo
     return fusion::at_c<1> (res)->template apply_to_bundle<functor> (k, f);
 };
 
-template< typename edge_prop, typename vertex_prop, typename cluster_prop, typename objects>
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename functor>
 typename functor::result_type
-ClusterGraph<edge_prop, vertex_prop, cluster_prop, objects>::apply_to_bundle(GlobalEdge k, functor f) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bundle(GlobalEdge k, functor f) {
 
     LocalVertex v1, v2;
     bool d1, d2;

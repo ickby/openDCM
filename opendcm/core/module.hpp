@@ -40,9 +40,9 @@ struct ModuleCoreInit {
 
 protected:
     typedef mpl::vector0<> EdgeProperties;
+    typedef mpl::vector0<> GlobalEdgeProperties;
     typedef mpl::vector0<> VertexProperties;
-    typedef mpl::vector0<> ClusterProperties;
-    typedef mpl::vector0<> Objects;
+    typedef mpl::vector0<> ClusterProperties;    
 
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
     ClusterGraphBase* getGraph() {
@@ -59,7 +59,7 @@ struct ModuleCoreFinish : public Stacked {
 
 protected:
     typedef ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::VertexProperties,
-            typename Stacked::ClusterProperties, typename Stacked::Objects> Graph;
+            typename Stacked::ClusterProperties, typename Stacked::GlobalEdgeProperties> Graph;
 };
 
 } //details

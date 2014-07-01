@@ -37,34 +37,27 @@ namespace mpl = boost::mpl;
 BOOST_AUTO_TEST_SUITE(ClusterGraph_test_suit);
 
 struct test_edge_property {
-    typedef dcm::edge_property kind;
     typedef int type;
 };
 
 struct test_edge_property2 {
-    typedef dcm::edge_property kind;
+    typedef int type;
+};
+
+struct test_globaledge_property {
     typedef int type;
 };
 
 struct test_vertex_property {
-    typedef dcm::vertex_property kind;
     typedef int type;
 };
 
 struct test_cluster_property {
-    typedef dcm::cluster_property kind;
     typedef int type;
 };
 
-struct test_object1 {
-    int value;
-};
-struct test_object2 {
-    int value;
-};
-
-typedef ClusterGraph<mpl::vector2<test_edge_property, test_edge_property2>,
-        mpl::vector1<test_vertex_property>, mpl::vector1<test_cluster_property>, mpl::vector2<test_object1, test_object2> > Graph;
+typedef ClusterGraph<mpl::vector2<test_edge_property, test_edge_property2>, mpl::vector1<test_globaledge_property>,
+        mpl::vector1<test_vertex_property>, mpl::vector1<test_cluster_property> > Graph;
 
 struct delete_functor {
     std::stringstream stream;
@@ -79,7 +72,7 @@ struct delete_functor {
       stream<<"c";
     }
 };
-	
+
 BOOST_AUTO_TEST_CASE(subclustering) {
 	
     boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
@@ -217,56 +210,6 @@ BOOST_AUTO_TEST_CASE(removing) {
     
 };
 
-BOOST_AUTO_TEST_CASE(object_handling) {
-
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
-    fusion::vector<LocalVertex, GlobalVertex> v1c = g1->addVertex();
-    fusion::vector<LocalVertex, GlobalVertex> v2c = g1->addVertex();
-    LocalVertex v1 = fusion::at_c<0>(v1c);
-    LocalVertex v2 = fusion::at_c<0>(v2c);
-
-    fusion::vector<LocalEdge, GlobalEdge, bool> seq = g1->addEdge(v1,v2);
-    LocalEdge e1 = fusion::at_c<0>(seq);
-    bool inserted = fusion::at_c<2>(seq);
-    BOOST_CHECK(inserted);
-
-    boost::shared_ptr<test_object1> o1(new test_object1);
-    boost::shared_ptr<test_object2> o2(new test_object2);
-    o1->value = 1;
-
-    BOOST_CHECK(!g1->getObject<test_object1>(v1));
-    BOOST_CHECK(!g1->getObject<test_object2>(v1));
-
-    g1->setObject(v1, o1);
-    BOOST_CHECK(g1->getObject<test_object1>(v1));
-    BOOST_CHECK(!g1->getObject<test_object2>(v1));
-    BOOST_CHECK(o1 == g1->getObject<test_object1>(v1));
-    BOOST_CHECK(o1->value == g1->getObject<test_object1>(v1)->value);
-
-    g1->setObject(v1,o2);
-    BOOST_CHECK(!g1->getObject<test_object1>(v1));
-    BOOST_CHECK(g1->getObject<test_object2>(v1));
-    BOOST_CHECK(o2 == g1->getObject<test_object2>(v1));
-
-
-    BOOST_CHECK(!g1->getObject<test_object1>(e1));
-    BOOST_CHECK(!g1->getObject<test_object2>(e1));
-
-    g1->setObject(e1, o1);
-    BOOST_CHECK(g1->getObject<test_object1>(e1));
-    BOOST_CHECK(!g1->getObject<test_object2>(e1));
-    BOOST_CHECK(o1 == g1->getObject<test_object1>(e1));
-    BOOST_CHECK(o1->value == g1->getObject<test_object1>(e1)->value);
-
-    g1->setObject(e1,o2);
-    BOOST_CHECK(!g1->getObject<test_object1>(e1));
-    BOOST_CHECK(g1->getObject<test_object2>(e1));
-    BOOST_CHECK(o2 == g1->getObject<test_object2>(e1));
-
-    BOOST_CHECK(o2 == *g1->getObjects<test_object2>(e1).first);
-    BOOST_CHECK(g1->getObjects<test_object2>(e1).first != g1->getObjects<test_object2>(e1).second);
-    BOOST_CHECK(++g1->getObjects<test_object2>(e1).first == g1->getObjects<test_object2>(e1).second);
-}
 
 BOOST_AUTO_TEST_CASE(property_handling) {
 
