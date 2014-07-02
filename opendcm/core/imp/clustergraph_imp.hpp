@@ -35,16 +35,6 @@ namespace dcm {
 //functors needed for implementation only
 //***************************************
 
-/* All objects are boost::shared_ptr, therefore they can be cleared by calling the reset() method. As
- * objects are stored within fusion::sequences a functor is needed to clear all of them.
- **/
-struct clear_ptr {
-    template<typename T>
-    void operator()(T& t) const {
-        t.reset();
-    };
-};
-
 template<typename Graph>
 struct edge_copier {
     edge_copier(const Graph& g1, Graph& g2)
@@ -72,21 +62,6 @@ struct vertex_copier {
 struct placehoder {
     template<typename T>
     void operator()(T t) {};
-};
-
-
-template<typename prop, typename Graph>
-struct property_extractor  {
-
-    typedef typename prop::type base_type;
-    typedef base_type& result_type;
-
-    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
-
-    template< typename seq>
-    result_type operator()(seq& b) const {
-        return fusion::at<pos>(b).template getProperty<prop>();
-    };
 };
 
 template<typename Functor, typename Graph>
@@ -117,19 +92,39 @@ struct apply_remove_prediacte {
 };
 
 template<typename prop, typename key, typename Graph>
-struct get_prop_helper {
+struct get_property_helper {
 
-    get_prop_helper(key k) : m_key(k) {};
+    get_property_helper(key k) : m_key(k) {};
 
     typedef typename prop::type base_type;
-    typedef base_type& result_type;
+    typedef const base_type& result_type;
+    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
     template<typename bundle>
     result_type operator()(bundle& p) {
-        return property_extractor<prop, Graph>()(p);
+        return fusion::at<pos>(p).template getProperty<prop>();
     }
+    
+    key m_key;
+};
+
+template<typename prop, typename key, typename Graph>
+struct set_property_helper {
+
+    typedef typename prop::type base_type;
+    typedef const base_type& value_type;
+    typedef void result_type;
+    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
+
+    set_property_helper(key k, value_type v) : m_key(k), value(v) {};
+    
+    template<typename bundle>
+    result_type operator()(bundle& p) {
+        fusion::at<pos>(p).template setProperty<prop>(value);
+    };
 
     key m_key;
+    value_type value;
 };
 
 
@@ -157,7 +152,7 @@ template<typename Functor>
 void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::copyInto(boost::shared_ptr<ClusterGraph> into, Functor& functor) const {
 
     //lists does not provide vertex index, so we have to build our own (cant use the internal
-    //vertex_index_property as we would need to reset the indices and that's not possible in const graph)
+    //vertex_indexerty as we would need to reset the indices and that's not possible in const graph)
     typedef std::map<LocalVertex, int> IndexMap;
     IndexMap mapIndex;
     boost::associative_property_map<IndexMap> propmapIndex(mapIndex);
@@ -227,7 +222,7 @@ typename P::type& ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setChanged() {
     if(!copy_mode)
-        PropertyOwner<cluster_properties>::template setProperty<changed_prop> (true);
+        PropertyOwner<cluster_properties>::template setProperty<changed> (true);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
@@ -654,15 +649,15 @@ void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::remove
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename property, typename key>
-typename property::type&
+const typename property::type&
 ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getProperty(key k) {
-    return apply_to_bundle(k, get_prop_helper<property, key, ClusterGraph> (k));
+    return apply_to_bundle(k, get_property_helper<property, key, ClusterGraph> (k));
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename property, typename key>
-void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setProperty(key k, typename property::type val) {
-    apply_to_bundle(k, get_prop_helper<property, key, ClusterGraph> (k)) = val;
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setProperty(key k, const typename property::type& val) {
+    apply_to_bundle(k, set_property_helper<property, key, ClusterGraph> (k, val));
 
     setChanged();
 };
@@ -674,12 +669,12 @@ void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::initIn
     std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(*this);
 
     for(int c = 0; vit.first != vit.second; vit.first++, c++)
-        setProperty<vertex_index_prop>(*vit.first, c);
+        setProperty<vertex_index>(*vit.first, c);
 
     std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(*this);
 
     for(int c = 0; eit.first != eit.second; eit.first++, c++)
-        setProperty<edge_index_prop>(*eit.first, c);
+        setProperty<edge_index>(*eit.first, c);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>

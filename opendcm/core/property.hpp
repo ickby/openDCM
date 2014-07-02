@@ -85,7 +85,6 @@ namespace dcm {
  * 'test'property' may look like that:
  * @code
  * struct test_property {
- * 	typedef int type;
  * 	typedef edge_property kind;
  * }
  * @endcode
@@ -93,7 +92,6 @@ namespace dcm {
  * The same property with a default value would be implemented like this:
  * @code
  * struct test_property {
- * 	typedef int type;
  * 	typedef edge_property kind;
  * 	struct default_value {
  *           int operator()() {
@@ -116,53 +114,6 @@ namespace dcm {
  * property which it does not own. This exceptions own the error-code range from 300-399.
  **/
 struct property_error : virtual boost::exception { };
-
-/**
- * @brief Identifier for vertex properties
- *
- * This is a identifier structure for vertex properties. Every property with this struct as 'kind' type
- * will be added to all vertices of a cluster. It is accessible through global and local vertex
- * descriptors. These properties are intended for use in boost algorithms in combination with
- * \ref property_map .
- */
-struct vertex_property {};
-/**
- * @brief Identifier for edge properties
- *
- * This is a identifier structure for edge properties. Every property with this struct as 'kind' type
- * will be added to all local edges of a cluster. It is accessible through local edge
- * descriptors, or global one by getting it's holding local edge first. Note that global edges don't
- * have properties, as the properties are intended for use inside boost graph algorithms and therefore
- * only needed in local edges. @see property_map
- */
-struct edge_property {};
-
-/**
- * @brief Identifier for cluster properties
- *
- * A ClusterGraph has it's own properties, and ever property with this identifier as 'kind' type will be
- * added to it. This is intended for internal dcm usage, its possible to give the abstract cluster a meaning
- * by adding special properties to it. It can be accessed by special ClusterGraph functions designed for this
- * purpose.
- **/
-struct cluster_property {};
-
-/**
- *@brief Identifier for general object properties
- *
- * Aproperty with this struct as 'kind' type will be added to all existing objects, no matter of individual
- * type. Use this only for general, sharable properties. To add a property to a single object, use it's
- * type as 'kind'.
- **/
-struct object_property {};
-
-/**
- *@brief Identifier for system setting properties
- *
- * Aproperty with this struct as 'kind' type will be added to the system class. Use this for user settings,
- * which are just properties which are accessed horugh "setting" functions.
- **/
-struct setting_property {};
 
 namespace details {
 
@@ -217,40 +168,6 @@ struct property_selector :  mpl::if_ <
 template<typename T>
 struct property_type {
     typedef typename T::type type;
-};
-/**
- * @brief Metafunction to expose which kid of property this is
- **/
-template<typename T>
-struct property_kind {
-    typedef typename T::kind type;
-};
-
-/**
- * @brief Metafunction to get all properties for a given kind from a property sequence
- **/
-template<typename Sequence, typename Kind>
-struct properties_by_kind {
-
-    typedef typename mpl::fold<Sequence, mpl::vector<>,
-            mpl::if_<
-            boost::is_same<Kind, property_kind<mpl::_2> >,
-            mpl::push_back<mpl::_1, mpl::_2>,
-            mpl::_1
-            >
-            >::type type;
-};
-
-/**
- * @brief Metafunction to get all properties for a given object from a property sequence. This includes
- * 	  the properties with the object types and all general object properties
- **/
-template<typename Sequence, typename object>
-struct properties_by_object {
-
-    typedef typename properties_by_kind<Sequence, object>::type object_props;
-    typedef typename properties_by_kind<Sequence, object_property>::type general_props;
-    typedef typename mpl::fold< object_props, general_props, mpl::push_back<mpl::_1,mpl::_2> >::type type;
 };
 
 /**
@@ -428,10 +345,10 @@ struct PropertyOwner {
     * Returns a reference to the propertys actual value. The property type has to be owned by this class,
     * which means it needs to be in the typelist that was given as template parameter to this class.
     * @tparam Prop property type which should be accessed
-    * @return Prop::type& a reference to the properties actual value.
+    * @return const Prop::type& a reference to the properties actual value.
     **/
     template<typename Prop>
-    typename Prop::type& getProperty();
+    const typename Prop::type& getProperty();
 
     /**
        * @brief Set properties
@@ -443,14 +360,24 @@ struct PropertyOwner {
        * @param value value of type Prop::type which should be set in this object
        **/
     template<typename Prop>
-    void setProperty(typename Prop::type value);
+    void setProperty(const typename Prop::type& value);
+    
+    /**
+    * @brief Access properties non-const
+    *
+    * Don't use this when you are not 100% sure you can manage the property change notifications yourself!
+    * @tparam Prop property type which should be accessed
+    * @return Prop::type& a reference to the properties actual value.
+    **/
+    template<typename Prop>
+    typename Prop::type& getPropertyAccessible();
 
     /* It's imortant to not store the properties but their types. These types are
      * stored and accessed as fusion vector.
      * */
     typedef PropertyList PropertySequence;
     typedef typename details::pts<PropertyList>::type Properties;
-
+    
     Properties m_properties;
 };
 
@@ -490,7 +417,7 @@ struct PropertyOwner<mpl::void_> {
 
 template<typename PropertyList>
 template<typename Prop>
-typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
+const typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
@@ -500,7 +427,17 @@ typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
 
 template<typename PropertyList>
 template<typename Prop>
-void PropertyOwner<PropertyList>::setProperty(typename Prop::type value) {
+typename Prop::type& PropertyOwner<PropertyList>::getPropertyAccessible() {
+
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    return fusion::at<distance> (m_properties);
+};
+
+template<typename PropertyList>
+template<typename Prop>
+void PropertyOwner<PropertyList>::setProperty(const typename Prop::type& value) {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
@@ -517,7 +454,6 @@ void PropertyOwner<PropertyList>::setProperty(typename Prop::type value) {
  * @brief Dummy property
  **/
 struct empty_prop {
-    typedef int kind;
     typedef int type;
 };
 //type of a graph cluster
@@ -527,9 +463,8 @@ struct empty_prop {
  * Allows to specify special types to ClusterGraphs and make a it possibe to distuingish between
  * diffrent purposes. The cluster types need to be int.
  **/
-struct type_prop {
+struct type_info {
     //states the type of a cluster
-    typedef cluster_property kind;
     typedef int type;
 };
 //cluster in graph changed?
@@ -540,8 +475,7 @@ struct type_prop {
  * processing. It should be set to true if vertices and edges were added or removed, Subclusters
  * created or deleted and so on.
  **/
-struct changed_prop {
-    typedef cluster_property kind;
+struct changed {
     typedef bool type;
 };
 /**
@@ -550,8 +484,7 @@ struct changed_prop {
  * Most boost graph algorithms need a index for vertices, ranging from 0 to vertex count. As this can
  * be useful for many other things it is added as vertex property.
  **/
-struct vertex_index_prop {
-    typedef vertex_property kind;
+struct vertex_index {
     typedef int type;
 };
 /**
@@ -560,22 +493,8 @@ struct vertex_index_prop {
  * Most boost graph algorithms need a index for edges, ranging from 0 to edge count. As this can
  * be useful for many other things it is added as edge property.
  **/
-struct edge_index_prop {
-    typedef edge_property kind;
+struct edge_index {
     typedef int type;
-};
-/**
- * @brief Add an ID to objects
- *
- * It may be wanted to add identification markers to objects, this property can be used for that. It
- * is special, as it takes its storage type as template parameter. This property can therefore not be
- * directly accessed with this struct, the template parameter has to be known.
- * @tparam T the identifier type
- **/
-template<typename T>
-struct id_prop {
-    typedef object_property kind;
-    typedef T type;
 };
 
 /**@}*/ //Property
@@ -609,7 +528,7 @@ typename dcm::property_map<P, G>::reference at(const dcm::property_map<P, G>& ma
         typename dcm::property_map<P, G>::key_type key)
 {
     typedef dcm::property_map<P, G> map_t;
-    return fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getProperty<P>();
+    return fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getPropertyAccessible<P>();
 }
 }
 

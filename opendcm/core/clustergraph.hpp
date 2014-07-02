@@ -61,8 +61,8 @@ struct ClusterGraphBase {};
 
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 //which are used in the ClusterGraph implementation
-typedef mpl::vector1<vertex_index_prop> bgl_v_props;
-typedef mpl::vector1<edge_index_prop> bgl_e_props;
+typedef mpl::vector1<vertex_index> bgl_v_props;
+typedef mpl::vector1<edge_index> bgl_e_props;
 
 typedef boost::adjacency_list_traits<boost::listS, boost::listS, boost::undirectedS> list_traits;
 
@@ -213,7 +213,7 @@ class ClusterGraph :
     fusion::vector<GlobalVertex, PropertyOwner< typename details::ensure_properties<vertex_prop, details::bgl_v_props>::type > >,
     fusion::vector<PropertyOwner< typename details::ensure_properties<edge_prop, details::bgl_e_props>::type >,
     std::vector< fusion::vector<GlobalEdge, PropertyOwner<globaledge_prop> > > > >,
-public PropertyOwner<typename details::ensure_property<cluster_prop, changed_prop>::type>,
+public PropertyOwner<typename details::ensure_property<cluster_prop, changed>::type>,
 public details::ClusterGraphBase,
 public boost::noncopyable,
     public boost::enable_shared_from_this<ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> > {
@@ -288,7 +288,7 @@ public:
     typedef boost::enable_shared_from_this<ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> > sp_base;
 
     //if changed_prop is not a property we have to add it now
-    typedef typename details::ensure_property<cluster_prop, changed_prop>::type cluster_properties;
+    typedef typename details::ensure_property<cluster_prop, changed>::type cluster_properties;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;
@@ -360,11 +360,11 @@ public:
      * @brief Copys the Clustergraph into a new one
      *
      * Copys this cluster and all subclusters into the give one, which is cleared bevore copying. Be
-     * aware that all objects and properties are only copied, and as some are shared pointers (namely
-     * all objects) you may have to clone them. If needed this can be done with the supplied functor,
-     * which receives all copied objects to his function operator which returns the new object.
+     * aware that all properties are only copied, and as some may hold shared pointers you may have to 
+     * clone them. If needed this can be done with the supplied functor, which receives all copied objects
+     * to his function operator which returns the new value.
      * @param into The Graph that should be a copy of this
-     * @param functor The function objects which gets the graph objects and returns the ones for the
+     * @param functor The function objects which gets the graph properties and returns the ones for the
      * copied graph
      */
     template<typename Functor>
@@ -817,14 +817,12 @@ public:
     * @return property::type& the reference to the desired property
     **/
     template<typename property, typename key>
-    typename property::type& getProperty(key k);
+    const typename property::type& getProperty(key k);
 
     /**
      * @brief Set a property at the specified vertex or edge
      *
-     * Sets the given value at the given key. Note that every entity can hold one of each property, as opposed
-     * to objects. Setting the property at a local edge is a special case, as it can hold many global edges,
-     * each with it's own propertys. Using a LocalEdge as key will always set the property for the first GlobalEdge.
+     * Sets the given value at the given key. Note that every entity can hold one of each property
      *
      * @tparam property the property type which shall be set
      * @param k local or global Vertex/Edge descriptor for which the property should be set
@@ -832,7 +830,7 @@ public:
      * @return void
      **/
     template<typename property, typename key>
-    void setProperty(key k, typename property::type val);
+    void setProperty(key k, const typename property::type& val);
 
     /**
      * @brief recreate the internal index maps for edges and vertices
@@ -960,7 +958,7 @@ protected:
     typename functor::result_type apply_to_bundle(GlobalEdge k, functor f);
 
 public:
-    //may hold cluster properties which have Eigen3 objects and therefore need alignment
+    //may hold properties which have Eigen3 objects and therefore need alignment
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
