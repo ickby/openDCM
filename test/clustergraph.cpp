@@ -38,6 +38,12 @@ BOOST_AUTO_TEST_SUITE(ClusterGraph_test_suit);
 
 struct test_edge_property {
     typedef int type;
+    struct default_value {
+	int operator()() {
+	  return 2;
+	};
+    };
+    struct change_tracking {};
 };
 
 struct test_edge_property2 {
@@ -50,6 +56,7 @@ struct test_globaledge_property {
 
 struct test_vertex_property {
     typedef int type;
+    struct change_tracking {};
 };
 
 struct test_cluster_property {
@@ -236,13 +243,16 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     g1->setProperty<test_vertex_property>(fusion::at_c<1>(v1c), 2);
     BOOST_CHECK(g1->getProperty<test_vertex_property>(v1) == 2);
 
-    g1->setProperty<test_edge_property>(e1, 3);
-    BOOST_CHECK(g1->getProperty<test_edge_property>(e1) == 3);
-    BOOST_CHECK(g1->getProperty<test_edge_property>(g1->getLocalEdge(e1).first) == 3);
+    BOOST_CHECK(g1->getProperty<test_edge_property>(e) == 2);
+    g1->setProperty<test_edge_property>(e, 3);
+    BOOST_CHECK(g1->getProperty<test_edge_property>(e) == 3);
+    
+    g1->setProperty<test_globaledge_property>(e1, 5);
+    BOOST_CHECK(g1->getProperty<test_globaledge_property>(e1) == 5);
 
-    g1->setProperty<test_edge_property2>(e1, 2);
-    BOOST_CHECK(g1->getProperty<test_edge_property>(e1) == 3);
-    BOOST_CHECK(g1->getProperty<test_edge_property2>(e1) == 2);
+    g1->setProperty<test_edge_property2>(e, 2);
+    BOOST_CHECK(g1->getProperty<test_edge_property>(e) == 3);
+    BOOST_CHECK(g1->getProperty<test_edge_property2>(e) == 2);
 
     //test property maps
     property_map<test_edge_property2, Graph> pmap(g1);

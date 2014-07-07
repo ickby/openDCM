@@ -32,7 +32,10 @@
 #include <boost/fusion/mpl.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/at.hpp>
+#include <boost/fusion/include/for_each.hpp>
 
+#include <boost/phoenix/phoenix.hpp>
+#include <boost/phoenix/fusion.hpp>
 #include <boost/type_traits/is_same.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -119,6 +122,25 @@ namespace details {
 
 /** @addtogroup Metafunctions
  * @{
+ * @brief Type traits to detect if the property has a default value
+ *
+ * If the user want to provide a default value for a property than he adds a default_value struct with a
+ * operator() which returns the default value. To check if the this struct is available we add a type traits
+ * which searches for this special struct.
+ */
+BOOST_MPL_HAS_XXX_TRAIT_DEF(default_value)
+
+/**
+ * @brief Type traits to detect if the property shall be under change control
+ *
+ * If the user want to detect property changes and connect signals on such an event he need to specify it by
+ * adding a typedef or a struct called change_tracking to the property. To check if the such a type is
+ * available we add a type traits which searches for this special type.
+ */
+BOOST_MPL_HAS_XXX_TRAIT_DEF(change_tracking)
+
+
+/**
  * @brief Get vertex property information
  *
  * This traits struct is used to get property information regarding ClusterGraph vertices. It
@@ -221,12 +243,22 @@ struct pts { //property type sequence
 };
 
 /**
- * @brief Type traits to detect if the property has a default value
+ * @brief Property vector to a fusion sequence of bools
  *
- * If the user want to provide a default value for a property than he adds a default_value static function.
- * To check if the this function is available we add a type traits which searches for this special function.
- */
-BOOST_MPL_HAS_XXX_TRAIT_DEF(default_value)
+ * If we want to track changes to a property we need a bool value to store the current state. Basicly we
+ * only need the state for propertys with "chenge_control", but to keep the order for easy accessing we
+ * genereate one state for every proeprty
+ **/
+template<typename T>
+struct bs { //bool sequence
+    template<typename T2>
+    struct state_type {
+        typedef bool type;
+    };
+    typedef typename mpl::transform<T, state_type<mpl::_1> >::type bv;
+    typedef typename fusion::result_of::as_vector< bv >::type type;
+};
+
 
 /**@}*/
 
@@ -243,7 +275,7 @@ struct apply_default {
     apply_default(PropertyOwner* o) : owner(o) {};
     template<typename T>
     void operator()(const T& t) {
-        owner->template getProperty<T>() = typename T::default_value()();
+        owner->template setProperty<T>(typename T::default_value()());
     };
 };
 }
@@ -254,31 +286,33 @@ struct apply_default {
  * @brief Expose if this is a edge property
  **/
 template<typename T, typename Graph>
-struct is_edge_property : boost::is_same <
-        typename mpl::find<typename Graph::vertex_properties, T>::type,
-        typename mpl::end<typename Graph::vertex_properties>::type > {};
+struct is_edge_property : mpl::not_< boost::is_same <
+        typename mpl::find<typename Graph::edge_properties, T>::type,
+        typename mpl::end<typename Graph::edge_properties>::type > >{};
 /**
  * @brief Expose if this is a global edge property
  **/
 template<typename T, typename Graph>
-struct is_globaledge_property : boost::is_same <
+struct is_globaledge_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::globaledge_properties, T>::type,
-        typename mpl::end<typename Graph::globaledge_properties>::type > {};
+        typename mpl::end<typename Graph::globaledge_properties>::type > >{};
 /**
  * @brief Expose if this is a vertex property
  **/
 template<typename T, typename Graph>
-struct is_vertex_property : boost::is_same <
-        typename mpl::find<typename Graph::edge_properties, T>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > {};
+struct is_vertex_property : mpl::not_< boost::is_same <
+        typename mpl::find<typename Graph::vertvertexex_properties, T>::type,
+        typename mpl::end<typename Graph::vertex_properties>::type > >{};
 /**
  * @brief Expose if this is a cluster property
  **/
 template<typename T, typename Graph>
-struct is_cluster_property : boost::is_same <
+struct is_cluster_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::cluster_properties, T>::type,
-        typename mpl::end<typename Graph::cluster_properties>::type > {};
+        typename mpl::end<typename Graph::cluster_properties>::type > >{};
 
+/**@}*/
+	
 /**
  * @brief Adapter to use dcm vertex and edge properties as boost property_maps in bgl algorithms
  *
@@ -354,31 +388,78 @@ struct PropertyOwner {
        * @brief Set properties
        *
        * Sets the value of a specified property. The property type has to be owned by this class,
-       * which means it needs to be in the typelist that was given as template parameter to this class.
-       * Note that setProperty(value) is equivalent to getProperty() = value.
+       * which means it needs to be in the typelist that was given as template parameter to this class. This
+       * function is used
        * @tparam Prop property type which should be setProperty
        * @param value value of type Prop::type which should be set in this object
        **/
     template<typename Prop>
-    void setProperty(const typename Prop::type& value);
-    
+    typename boost::disable_if<details::has_change_tracking<Prop> >::type setProperty(const typename Prop::type& value);
+    template<typename Prop>
+    typename boost::enable_if<details::has_change_tracking<Prop> >::type setProperty(const typename Prop::type& value);
+
     /**
     * @brief Access properties non-const
     *
-    * Don't use this when you are not 100% sure you can manage the property change notifications yourself!
+    * Don't use this unless abselutly nesseccary. It sets the property to changed, no matter if you realy
+    * change it or not. This is needed as it is impossible to detect if the reference was changed outside
+    * of the owner. Furthermore you should never ever store a refence to a property, as changes can't be
+    * tracked either. This function is only available to comply with boost graph property maps
     * @tparam Prop property type which should be accessed
     * @return Prop::type& a reference to the properties actual value.
     **/
     template<typename Prop>
     typename Prop::type& getPropertyAccessible();
+    
+    //*********************************//
+    // Functions for change management //
+    //*********************************//
+    
+    /**
+    * @brief Check if the property was changed after the last change acknowledgement
+    *
+    * If the property has been initiaised with a default value or any change was acknowledged it counts
+    * as unchanged. However, if the property value was set before and not acknowledged it returns false
+    * @tparam Prop property type which should checked for change
+    * @return bool true if the property was changed after the last acknowledgement
+    **/
+    template<typename Prop>
+    bool isPropertyChanged();    
 
+    /**
+     * @brief Acknowledge property change
+     * 
+     * Marks the property as unchanged. This can be used to notice that the change was processed.
+     **/
+    template<typename Prop>
+    void acknowledgePropertyChange();
+    
+    /**
+     * @brief Check if any proeprty was changed
+     * 
+     * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
+     */
+    bool hasPropertyChanges();
+    
+    /**
+     * @brief Acknowledge every property 
+     *  
+     * Sets the change flag for every property to false
+     */
+    void acknowledgePropertyChanges();
+
+private:
     /* It's imortant to not store the properties but their types. These types are
      * stored and accessed as fusion vector.
      * */
-    typedef PropertyList PropertySequence;
     typedef typename details::pts<PropertyList>::type Properties;
-    
-    Properties m_properties;
+
+    /* To trackchanges to properties we store boolean state variables
+     * */
+    typedef typename details::bs<PropertyList>::type States;
+
+    Properties 	m_properties;
+    States 	m_states;
 };
 
 template<typename PropertyList>
@@ -389,29 +470,30 @@ PropertyOwner<PropertyList>::PropertyOwner() {
     //set the default value
     details::apply_default<PropertyOwner> func(this);
     mpl::for_each<view>(func);
+    //set all change states to false initialy
+    fusion::for_each(m_states, boost::phoenix::arg_names::arg1 = false);
 
 #if defined(BOOST_MPL_CFG_NO_HAS_XXX)
-    throw property_error() <<  boost::errinfo_errno(301) << error_message("no default values supported");
+    throw property_error() <<  boost::errinfo_errno(1) << error_message("no default values supported");
 #endif
 };
 
 /**
  * @brief Convienience spezialisation to ease interaction with system class
  *
- * Normaly property lists are retrieved from the system class, however, there are no empty lists. If no
- * property is supplied for a PropertyOwner derived class, a mpl::void_ type will be retrieved. To
+ * If no property is supplied for a PropertyOwner derived class, a mpl::void_ type will be retrieved. To
  * remove the burdon of checking for that type in the class definition this spezialisation is supplied.
  **/
 template<>
 struct PropertyOwner<mpl::void_> {
     template<typename Prop>
     typename Prop::type& getProperty() {
-        throw property_error() <<  boost::errinfo_errno(300) << error_message("unknown property type");
+        throw property_error() <<  boost::errinfo_errno(2) << error_message("unknown property type");
     };
 
     template<typename Prop>
     void setProperty(typename Prop::type value) {
-        throw property_error() <<  boost::errinfo_errno(300) << error_message("unknown property type");
+        throw property_error() <<  boost::errinfo_errno(2) << error_message("unknown property type");
     };
 };
 
@@ -437,7 +519,7 @@ typename Prop::type& PropertyOwner<PropertyList>::getPropertyAccessible() {
 
 template<typename PropertyList>
 template<typename Prop>
-void PropertyOwner<PropertyList>::setProperty(const typename Prop::type& value) {
+typename boost::disable_if<details::has_change_tracking<Prop> >::type PropertyOwner<PropertyList>::setProperty(const typename Prop::type& value) {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
@@ -445,7 +527,17 @@ void PropertyOwner<PropertyList>::setProperty(const typename Prop::type& value) 
     fusion::at<distance> (m_properties) = value;
 };
 
+template<typename PropertyList>
+template<typename Prop>
+typename boost::enable_if<details::has_change_tracking<Prop> >::type PropertyOwner<PropertyList>::setProperty(const typename Prop::type& value) {
 
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    fusion::at<distance>(m_properties) = value;
+    //keep track of the changes
+    fusion::at<distance>(m_states) = true;
+};
 
 //now create some standart properties
 //***********************************

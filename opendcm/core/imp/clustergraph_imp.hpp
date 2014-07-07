@@ -1006,7 +1006,18 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bu
         bool done;
         boost::tie(e, done) = boost::edge(v1, v2, *this);
         //if(!done) TODO: throw, as there has to be a edge!
-        return f((*this) [e]);
+        
+        //search the global one in the local edge
+        std::vector< edge_bundle_single >& vec = fusion::at_c<1>((*this) [e]);
+        edge_single_iterator it;
+
+        for(it = vec.begin(); it != vec.end(); it++) {
+            if(fusion::at_c<0>(*it) == k)
+                return f(*it);
+        };
+
+        //TODO: throw, as there has to be a global edge and the following return statement is illegal
+        return f(*it);
     };
 
 
