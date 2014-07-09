@@ -91,10 +91,8 @@ struct apply_remove_prediacte {
     }
 };
 
-template<typename prop, typename key, typename Graph>
+template<typename prop, typename Graph>
 struct get_property_helper {
-
-    get_property_helper(key k) : m_key(k) {};
 
     typedef typename prop::type base_type;
     typedef const base_type& result_type;
@@ -104,11 +102,9 @@ struct get_property_helper {
     result_type operator()(bundle& p) {
         return fusion::at<pos>(p).template getProperty<prop>();
     }
-    
-    key m_key;
 };
 
-template<typename prop, typename key, typename Graph>
+template<typename prop, typename Graph>
 struct set_property_helper {
 
     typedef typename prop::type base_type;
@@ -116,15 +112,62 @@ struct set_property_helper {
     typedef void result_type;
     typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
-    set_property_helper(key k, value_type v) : m_key(k), value(v) {};
+    set_property_helper(value_type v) :  value(v) {};
     
     template<typename bundle>
     result_type operator()(bundle& p) {
         fusion::at<pos>(p).template setProperty<prop>(value);
     };
 
-    key m_key;
     value_type value;
+};
+
+template<typename prop, typename Graph>
+struct change_property_helper {
+
+    typedef bool result_type;
+    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
+
+    template<typename bundle>
+    result_type operator()(bundle& p) {
+        return fusion::at<pos>(p).template isPropertyChanged<prop>();
+    }
+};
+
+template<typename prop, typename Graph>
+struct acknowledge_property_helper {
+
+    typedef void result_type;
+    typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
+
+    template<typename bundle>
+    result_type operator()(bundle& p) {
+        fusion::at<pos>(p).template acknowledgePropertyChange<prop>();
+    }
+};
+
+template<typename Graph, typename Key>
+struct changes_property_helper {
+
+    typedef bool result_type;
+    typedef typename mpl::if_< boost::is_same<Key, typename Graph::LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
+
+    template<typename bundle>
+    result_type operator()(bundle& p) {
+        return fusion::at<pos>(p).template hasPropertyChanges();
+    }
+};
+
+template<typename Graph, typename Key>
+struct ack_changes_property_helper {
+
+    typedef void result_type;
+    typedef typename mpl::if_< boost::is_same<Key, typename Graph::LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
+
+    template<typename bundle>
+    result_type operator()(bundle& p) {
+        fusion::at<pos>(p).template acknowledgePropertyChanges();
+    }
 };
 
 
@@ -651,15 +694,39 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 template<typename property, typename key>
 const typename property::type&
 ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getProperty(key k) {
-    return apply_to_bundle(k, get_property_helper<property, key, ClusterGraph> (k));
+    return apply_to_bundle(k, get_property_helper<property, ClusterGraph>());
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 template<typename property, typename key>
 void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setProperty(key k, const typename property::type& val) {
-    apply_to_bundle(k, set_property_helper<property, key, ClusterGraph> (k, val));
+    apply_to_bundle(k, set_property_helper<property, ClusterGraph>(val));
 
     setChanged();
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+template<typename property, typename key>
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::isPropertyChanged(key k) {
+    return apply_to_bundle(k, change_property_helper<property, ClusterGraph>());
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+template<typename property, typename key>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::acknowledgePropertyChange(key k) {
+    apply_to_bundle(k, acknowledge_property_helper<property, ClusterGraph>());
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+template<typename key>
+bool ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::hasPropertyChanges(key k) {
+    return apply_to_bundle(k, changes_property_helper<ClusterGraph, key>());
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+template<typename key>
+void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::acknowledgePropertyChanges(key k) {
+    apply_to_bundle(k, ack_changes_property_helper<ClusterGraph, key>());
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>

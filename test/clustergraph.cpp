@@ -237,8 +237,12 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     BOOST_CHECK(inserted);
 
 
+    BOOST_CHECK(!g1->isPropertyChanged<test_vertex_property>(v1));
     g1->setProperty<test_vertex_property>(v1, 7);
+    BOOST_CHECK(g1->isPropertyChanged<test_vertex_property>(v1));
     BOOST_CHECK(g1->getProperty<test_vertex_property>(v1) == 7);
+    g1->acknowledgePropertyChange<test_vertex_property>(v1);
+    BOOST_CHECK(!g1->isPropertyChanged<test_vertex_property>(v1));
 
     g1->setProperty<test_vertex_property>(fusion::at_c<1>(v1c), 2);
     BOOST_CHECK(g1->getProperty<test_vertex_property>(v1) == 2);

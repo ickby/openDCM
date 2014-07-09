@@ -400,6 +400,10 @@ public:
     //Make sure the compiler finds the base class setters even with equal named functions in this class
     using PropertyOwner<cluster_properties>::getProperty;
     using PropertyOwner<cluster_properties>::setProperty;
+    using PropertyOwner<cluster_properties>::isPropertyChanged;
+    using PropertyOwner<cluster_properties>::acknowledgePropertyChange;
+    using PropertyOwner<cluster_properties>::hasPropertyChanges;
+    using PropertyOwner<cluster_properties>::acknowledgePropertyChanges;
 
     /**
      * @brief Set the property of a owned cluster
@@ -832,6 +836,48 @@ public:
     template<typename property, typename key>
     void setProperty(key k, const typename property::type& val);
 
+    /**
+     * @brief Set a property at the specified vertex or edge
+     *
+     * Sets the given value at the given key. Note that every entity can hold one of each property
+     *
+     * @tparam property the property type which shall be queried
+     * @param k local or global Vertex/Edge descriptor which should be accessed
+     * @return bool true if the proeprty was changed after the last acknowledgement
+     **/
+    template<typename property, typename key>
+    bool isPropertyChanged(key k);
+    
+    /**
+     * @brief Acknowledge property change
+     * 
+     * Marks the property as unchanged. This can be used to notice that the change was processed.
+     * 
+     * @tparam property the property type which shall be queried
+     * @param k local or global Vertex/Edge descriptor which should be accessed
+     * @return bool true if the proeprty was changed after the last acknowledgement
+     **/
+    template<typename property, typename key>
+    void acknowledgePropertyChange(key k);
+    
+    /**
+     * @brief Check if any property was changed
+     * 
+     * @param k local or global Vertex/Edge descriptor which should be accessed
+     * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
+     */
+    template<typename key>
+    bool hasPropertyChanges(key k);
+    
+    /**
+     * @brief Acknowledge every property 
+     *  
+     * Sets the change flag for every property to false
+     * @param k local or global Vertex/Edge descriptor which should be accessed
+     */
+    template<typename key>
+    void acknowledgePropertyChanges(key k);
+    
     /**
      * @brief recreate the internal index maps for edges and vertices
      *

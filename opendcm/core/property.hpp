@@ -288,31 +288,31 @@ struct apply_default {
 template<typename T, typename Graph>
 struct is_edge_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::edge_properties, T>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > >{};
+        typename mpl::end<typename Graph::edge_properties>::type > > {};
 /**
  * @brief Expose if this is a global edge property
  **/
 template<typename T, typename Graph>
 struct is_globaledge_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::globaledge_properties, T>::type,
-        typename mpl::end<typename Graph::globaledge_properties>::type > >{};
+        typename mpl::end<typename Graph::globaledge_properties>::type > > {};
 /**
  * @brief Expose if this is a vertex property
  **/
 template<typename T, typename Graph>
 struct is_vertex_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::vertvertexex_properties, T>::type,
-        typename mpl::end<typename Graph::vertex_properties>::type > >{};
+        typename mpl::end<typename Graph::vertex_properties>::type > > {};
 /**
  * @brief Expose if this is a cluster property
  **/
 template<typename T, typename Graph>
 struct is_cluster_property : mpl::not_< boost::is_same <
         typename mpl::find<typename Graph::cluster_properties, T>::type,
-        typename mpl::end<typename Graph::cluster_properties>::type > >{};
+        typename mpl::end<typename Graph::cluster_properties>::type > > {};
 
 /**@}*/
-	
+
 /**
  * @brief Adapter to use dcm vertex and edge properties as boost property_maps in bgl algorithms
  *
@@ -410,11 +410,11 @@ struct PropertyOwner {
     **/
     template<typename Prop>
     typename Prop::type& getPropertyAccessible();
-    
+
     //*********************************//
     // Functions for change management //
     //*********************************//
-    
+
     /**
     * @brief Check if the property was changed after the last change acknowledgement
     *
@@ -424,26 +424,26 @@ struct PropertyOwner {
     * @return bool true if the property was changed after the last acknowledgement
     **/
     template<typename Prop>
-    bool isPropertyChanged();    
+    bool isPropertyChanged();
 
     /**
      * @brief Acknowledge property change
-     * 
+     *
      * Marks the property as unchanged. This can be used to notice that the change was processed.
      **/
     template<typename Prop>
     void acknowledgePropertyChange();
-    
+
     /**
-     * @brief Check if any proeprty was changed
-     * 
+     * @brief Check if any property was changed
+     *
      * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
      */
     bool hasPropertyChanges();
-    
+
     /**
-     * @brief Acknowledge every property 
-     *  
+     * @brief Acknowledge every property
+     *
      * Sets the change flag for every property to false
      */
     void acknowledgePropertyChanges();
@@ -537,6 +537,41 @@ typename boost::enable_if<details::has_change_tracking<Prop> >::type PropertyOwn
     fusion::at<distance>(m_properties) = value;
     //keep track of the changes
     fusion::at<distance>(m_states) = true;
+};
+
+template<typename PropertyList>
+template<typename Prop>
+bool PropertyOwner<PropertyList>::isPropertyChanged() {
+
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    return fusion::at<distance>(m_states);
+};
+
+template<typename PropertyList>
+template<typename Prop>
+void PropertyOwner<PropertyList>::acknowledgePropertyChange() {
+
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    fusion::at<distance>(m_states) = false;
+};
+
+template<typename PropertyList>
+bool PropertyOwner<PropertyList>::hasPropertyChanges() {
+
+    bool res = false;
+    fusion::for_each(m_states, boost::phoenix::ref(res) = boost::phoenix::ref(res) || boost::phoenix::arg_names::arg1);
+    return res;
+};
+
+template<typename PropertyList>
+void PropertyOwner<PropertyList>::acknowledgePropertyChanges() {
+
+    fusion::for_each(m_states, boost::phoenix::arg_names::arg1 == false);
+
 };
 
 //now create some standart properties
