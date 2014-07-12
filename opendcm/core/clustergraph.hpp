@@ -31,6 +31,7 @@
 #include <boost/mpl/find.hpp>
 
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/iterator/filter_iterator.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
@@ -229,16 +230,16 @@ public:
      * of the given property sequence, nothing happens, they are not added twice.
      **/
     typedef typename details::ensure_properties<edge_prop, details::bgl_e_props>::type   edge_properties;
-    
+
     /**
      * @brief mpl::vector with all global edge properties
      *
      * The global edge properties supplied as template argument to the ClusterGraph are only exposed to ensure
-     * a consistent interface. Global edges are not used by any graph algorithm, so we don#t need any properties 
+     * a consistent interface. Global edges are not used by any graph algorithm, so we don#t need any properties
      * here
      **/
     typedef typename details::ensure_properties<edge_prop, details::bgl_e_props>::type   globaledge_properties;
-    
+
     /**
      * @brief mpl::vector with all vertex properties
      *
@@ -274,7 +275,7 @@ public:
      * @brief Property bundle for local vertices
      *
      * This bundle is simpler than the edge one, as every vertex has on single bundle. We therefore
-     * store the global descriptor for identification andthe fusion sequence with the properties all in one 
+     * store the global descriptor for identification andthe fusion sequence with the properties all in one
      * bundle.
      **/
     typedef fusion::vector < GlobalVertex, PropertyOwner<vertex_properties> > vertex_bundle;
@@ -360,7 +361,7 @@ public:
      * @brief Copys the Clustergraph into a new one
      *
      * Copys this cluster and all subclusters into the give one, which is cleared bevore copying. Be
-     * aware that all properties are only copied, and as some may hold shared pointers you may have to 
+     * aware that all properties are only copied, and as some may hold shared pointers you may have to
      * clone them. If needed this can be done with the supplied functor, which receives all copied objects
      * to his function operator which returns the new value.
      * @param into The Graph that should be a copy of this
@@ -416,13 +417,27 @@ public:
     template<typename P>
     typename P::type& getSubclusterProperty(LocalVertex v);
 
-    /**
-    * @brief Mark if the cluster was changed
-    *
-    * @return void
-    **/
-    void setChanged();
-
+     /**
+     * @brief Creates filtered iterator ranges dependend on predicate
+     * 
+     * Often you want only iterate over a subset of graph elements dependend on some kind of predicate. This
+     * function allows you to specify a user defined predicate and returns new iterators which represent only 
+     * the elements of the input range for which the predicate returns true. You can easily construct such
+     * filter iterators yourself, but this functionr educes the amount of code needed. The predicate needs to 
+     * be a function object which gets the graph object as contructor parameter. The operator() is called with
+     * the objects the iterator type gives when dereferenced.
+     * 
+     * Don't use this method when you want to filter by properties and then access those properties, as this 
+     * means to access them twice and can be done more efficient.
+     * 
+     * @tparam Predicate a predicate function object which returns true or false, dependend if the given
+     * 		object shall be used in the sequence
+     * @param range a std::pair of iterators as returned by boos graph iteration functions
+     * @return std::pair of new iterators which represent the a subset of range
+     */
+    template<typename Predicate, typename Iterator>
+    std::pair<boost::filter_iterator<Predicate, Iterator>, boost::filter_iterator<Predicate, Iterator> >
+    filterRange(std::pair<Iterator, Iterator> range);
 
     /* *******************************************************
      * Subclustering
@@ -847,37 +862,37 @@ public:
      **/
     template<typename property, typename key>
     bool isPropertyChanged(key k);
-    
+
     /**
      * @brief Acknowledge property change
-     * 
+     *
      * Marks the property as unchanged. This can be used to notice that the change was processed.
-     * 
+     *
      * @tparam property the property type which shall be queried
      * @param k local or global Vertex/Edge descriptor which should be accessed
      * @return bool true if the proeprty was changed after the last acknowledgement
      **/
     template<typename property, typename key>
     void acknowledgePropertyChange(key k);
-    
+
     /**
      * @brief Check if any property was changed
-     * 
+     *
      * @param k local or global Vertex/Edge descriptor which should be accessed
      * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
      */
     template<typename key>
     bool hasPropertyChanges(key k);
-    
+
     /**
-     * @brief Acknowledge every property 
-     *  
+     * @brief Acknowledge every property
+     *
      * Sets the change flag for every property to false
      * @param k local or global Vertex/Edge descriptor which should be accessed
      */
     template<typename key>
     void acknowledgePropertyChanges(key k);
-    
+
     /**
      * @brief recreate the internal index maps for edges and vertices
      *
@@ -889,6 +904,51 @@ public:
      * @return void
      **/
     void initIndexMaps();
+
+    //possible predicates based on properties to filter the graph iteration
+    //can be used together with filter_iterator
+    template<typename Property>
+    struct property_changed {
+        boost::shared_ptr<ClusterGraph> graph;
+        property_changed(boost::shared_ptr<ClusterGraph> g) : graph(g) {};
+
+        template<typename It>
+        bool operator()(It it) {
+            return graph->template isPropertyChanged<Property>(it);
+        };
+    };
+
+    template<typename Property>
+    struct property_unchanged {
+        boost::shared_ptr<ClusterGraph> graph;
+        property_unchanged(boost::shared_ptr<ClusterGraph> g) : graph(g) {};
+
+        template<typename It>
+        bool operator()(It it) {
+            return !(graph->template isPropertyChanged<Property>(it));
+        };
+    };
+
+    struct property_changes {
+        boost::shared_ptr<ClusterGraph> graph;
+        property_changes(boost::shared_ptr<ClusterGraph> g) : graph(g) {};
+
+        template<typename It>
+        bool operator()(It it) {
+            return graph->template hasPropertyChanges(it);
+        };
+    };
+    
+    template<typename Property, typename Property::type value>
+    struct property_value {
+        boost::shared_ptr<ClusterGraph> graph;
+        property_value(boost::shared_ptr<ClusterGraph> g) : graph(g) {};
+
+        template<typename It>
+        bool operator()(It it) {
+            return (graph->template getProperty<Property>(it) == value);
+        };
+    };
 
 
 

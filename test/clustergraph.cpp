@@ -52,6 +52,7 @@ struct test_edge_property2 {
 
 struct test_globaledge_property {
     typedef int type;
+    struct change_tracking {};
 };
 
 struct test_vertex_property {
@@ -266,6 +267,45 @@ BOOST_AUTO_TEST_CASE(property_handling) {
     BOOST_CHECK(at(pmap, e) == 7);
     at(pmap, e) = 5;
     BOOST_CHECK(get(pmap, e) == 5);
+
+}
+
+BOOST_AUTO_TEST_CASE(property_iterating) {
+
+    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+ 
+    fusion::vector<LocalVertex, GlobalVertex> v1c = g1->addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v2c = g1->addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v3c = g1->addVertex();
+
+    fusion::vector<LocalEdge, GlobalEdge, bool> e1c = g1->addEdge(fusion::at_c<0>(v1c),fusion::at_c<0>(v2c));
+    fusion::vector<LocalEdge, GlobalEdge, bool> e2c = g1->addEdge(fusion::at_c<0>(v2c),fusion::at_c<0>(v3c));
+    fusion::vector<LocalEdge, GlobalEdge, bool> e3c = g1->addEdge(fusion::at_c<0>(v3c),fusion::at_c<0>(v1c));
+
+    //at the begining every edge and vertex should be filtered out 
+    typedef boost::filter_iterator<Graph::property_changes, Graph::local_edge_iterator> eit1;
+    std::pair<eit1, eit1> p = g1->filterRange<Graph::property_changes>(boost::edges(*g1));
+    BOOST_CHECK( p.first == p.second );
+    
+    typedef boost::filter_iterator<Graph::property_changes, Graph::local_vertex_iterator> vit1;
+    std::pair<vit1, vit1> v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    BOOST_CHECK( v.first == v.second );
+    
+    g1->setProperty<test_vertex_property>(fusion::at_c<1>(v2c), 5);
+    
+    v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    BOOST_CHECK( *v.first == fusion::at_c<0>(v2c) );
+    BOOST_CHECK( ++v.first == v.second );
+    
+    typedef boost::filter_iterator<Graph::property_changed<test_vertex_property>, Graph::local_vertex_iterator> vit2;
+    std::pair<vit2, vit2> v2 = g1->filterRange<Graph::property_changed<test_vertex_property> >(boost::vertices(*g1));
+    BOOST_CHECK( *v2.first == fusion::at_c<0>(v2c) );
+    BOOST_CHECK( ++v2.first == v2.second );
+    
+    typedef boost::filter_iterator<Graph::property_value<test_vertex_property, 5>, Graph::local_vertex_iterator> vit3;
+    std::pair<vit3, vit3> v3 = g1->filterRange<Graph::property_value<test_vertex_property, 5> >(boost::vertices(*g1));
+    BOOST_CHECK( *v3.first == fusion::at_c<0>(v2c) );
+    BOOST_CHECK( ++v3.first == v3.second );
 
 }
 

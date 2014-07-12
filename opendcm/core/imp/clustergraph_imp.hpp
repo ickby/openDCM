@@ -113,7 +113,7 @@ struct set_property_helper {
     typedef typename mpl::if_< is_edge_property<prop, Graph>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
     set_property_helper(value_type v) :  value(v) {};
-    
+
     template<typename bundle>
     result_type operator()(bundle& p) {
         fusion::at<pos>(p).template setProperty<prop>(value);
@@ -150,7 +150,7 @@ template<typename Graph, typename Key>
 struct changes_property_helper {
 
     typedef bool result_type;
-    typedef typename mpl::if_< boost::is_same<Key, typename Graph::LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
+    typedef typename mpl::if_< boost::is_same<Key, LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
     template<typename bundle>
     result_type operator()(bundle& p) {
@@ -162,14 +162,13 @@ template<typename Graph, typename Key>
 struct ack_changes_property_helper {
 
     typedef void result_type;
-    typedef typename mpl::if_< boost::is_same<Key, typename Graph::LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
+    typedef typename mpl::if_< boost::is_same<Key, LocalEdge>, mpl::int_<0>, mpl::int_<1> >::type pos;
 
     template<typename bundle>
     result_type operator()(bundle& p) {
         fusion::at<pos>(p).template acknowledgePropertyChanges();
     }
 };
-
 
 //Function implementation
 //***********************
@@ -260,12 +259,6 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 template<typename P>
 typename P::type& ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getSubclusterProperty(LocalVertex v) {
     return getVertexCluster(v)->template getProperty<P>();
-};
-
-template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
-void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setChanged() {
-    if(!copy_mode)
-        PropertyOwner<cluster_properties>::template setProperty<changed> (true);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
@@ -431,7 +424,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addVertex()
     fusion::at_c<0> (vp) = m_id->generate();
     LocalVertex v = boost::add_vertex(vp, *this);
 
-    setChanged();
     return fusion::make_vector(v, m_id->count());
 };
 
@@ -439,7 +431,6 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 fusion::vector<LocalVertex, GlobalVertex>
 ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addVertex(GlobalVertex gv) {
 
-    setChanged();
     std::pair<LocalVertex, bool> res = getLocalVertex(gv);
 
     if(!res.second) {
@@ -498,7 +489,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addEdge(Loc
     fusion::at_c<0> (s) = global;
     fusion::at_c<1> ((*this) [e]).push_back(s);
 
-    setChanged();
     return fusion::make_vector(e, global, true);
 };
 
@@ -538,7 +528,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::addEdge(Glo
     fusion::at_c<0> (s) = global;
     fusion::at_c<1> ((*this) [e]).push_back(s);
 
-    setChanged();
     return fusion::make_vector(e, global, true, true);
 
 };
@@ -557,7 +546,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getGlobalEd
     global_edge_iterator begin = boost::make_transform_iterator(vec.begin(), global_extractor());
     global_edge_iterator end   = boost::make_transform_iterator(vec.end(), global_extractor());
 
-    setChanged();
     return std::pair<global_edge_iterator, global_edge_iterator> (begin, end);
 };
 
@@ -701,8 +689,6 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 template<typename property, typename key>
 void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::setProperty(key k, const typename property::type& val) {
     apply_to_bundle(k, set_property_helper<property, ClusterGraph>(val));
-
-    setChanged();
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
@@ -839,9 +825,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcl
     boost::clear_vertex(v, *this);
     boost::remove_vertex(v, *this);
 
-    setChanged();
-    cg->setChanged();
-
     return nv;
 };
 
@@ -933,8 +916,6 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToParen
     for(std::vector<LocalEdge>::iterator it = edge_vec.begin(); it != edge_vec.end(); it++)
         boost::remove_edge(*it, *parent());
 
-    setChanged();
-    parent()->setChanged();
     return nv;
 };
 
@@ -1073,7 +1054,7 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bu
         bool done;
         boost::tie(e, done) = boost::edge(v1, v2, *this);
         //if(!done) TODO: throw, as there has to be a edge!
-        
+
         //search the global one in the local edge
         std::vector< edge_bundle_single >& vec = fusion::at_c<1>((*this) [e]);
         edge_single_iterator it;
@@ -1088,6 +1069,16 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::apply_to_bu
     };
 
 
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+template<typename Predicate, typename Iterator>
+std::pair<boost::filter_iterator<Predicate, Iterator>, boost::filter_iterator<Predicate, Iterator> >
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::filterRange(std::pair<Iterator, Iterator> range) {
+
+    Predicate p = Predicate(sp_base::shared_from_this());
+    return std::make_pair(boost::make_filter_iterator(p, range.first, range.second),
+                          boost::make_filter_iterator(p, range.second, range.second));
 };
 
 } //namespace dcm
