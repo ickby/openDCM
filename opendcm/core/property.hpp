@@ -39,8 +39,10 @@
 #include <boost/type_traits/is_same.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/exception/errinfo_errno.hpp>
+#include <boost/function.hpp>
 
 #include "defines.hpp"
+#include "signal.hpp"
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
@@ -117,6 +119,14 @@ namespace dcm {
  * property which it does not own. This exceptions own the error-code range from 300-399.
  **/
 struct property_error : virtual boost::exception { };
+
+/**
+ * @brief Signal for change of a property
+ *
+ * This signal is emmited when the property given as template parameter is changed. 
+ **/
+template<typename Property>
+struct onChange {};
 
 namespace details {
 
@@ -259,6 +269,18 @@ struct bs { //bool sequence
     typedef typename fusion::result_of::as_vector< bv >::type type;
 };
 
+/**
+ * @brief Property vector to a fusion signal map of change events
+ *
+ * It creates a signal map which can be uses as input for SignalOwner class. Each proeprty gets a 
+ * onChange<Propert> signal
+ **/
+template<typename T>
+struct sm { //signal map
+    typedef typename mpl::fold<T, mpl::map<>, mpl::insert<mpl::_1, mpl::pair<onChange<mpl::_2>,
+      boost::function1<void, property_type<mpl::_2> > > > >::type type;
+};
+
 
 /**@}*/
 
@@ -355,15 +377,16 @@ public:
 };
 
 /**
- * @brief Parent class for all property holding classes in the dcm
+ * @brief Class for property handling in dcm
  *
  * To ease the work with properties this class is provided. It receives all the properties, which shall be
  * handled, in a mpl::vector typelist as its template argument. Than easy access to all properties by get
- * and set functions is achieved.
+ * and set functions is achieved. Furthermore change tracking is available for individual properties and the 
+ * whole set. On changes a signal is emmited to whcih one can connect arbitrary functions.
  *
  **/
 template<typename PropertyList>
-struct PropertyOwner {
+struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::type> {
 
     /**
     * @brief Constructor assigning default values
@@ -447,6 +470,7 @@ struct PropertyOwner {
      * Sets the change flag for every property to false
      */
     void acknowledgePropertyChanges();
+    
 
 private:
     /* It's imortant to not store the properties but their types. These types are
@@ -454,10 +478,10 @@ private:
      * */
     typedef typename details::pts<PropertyList>::type Properties;
 
-    /* To trackchanges to properties we store boolean state variables
+    /* To track changes to properties we store boolean state variables
      * */
     typedef typename details::bs<PropertyList>::type States;
-
+    
     Properties 	m_properties;
     States 	m_states;
 };
@@ -537,6 +561,8 @@ typename boost::enable_if<details::has_change_tracking<Prop> >::type PropertyOwn
     fusion::at<distance>(m_properties) = value;
     //keep track of the changes
     fusion::at<distance>(m_states) = true;
+    //emit signal to notify of the change
+    SignalOwner<typename details::sm<PropertyList>::type>::template emitSignal< onChange<Prop> >(value);
 };
 
 template<typename PropertyList>
@@ -571,7 +597,6 @@ template<typename PropertyList>
 void PropertyOwner<PropertyList>::acknowledgePropertyChanges() {
 
     fusion::for_each(m_states, boost::phoenix::arg_names::arg1 == false);
-
 };
 
 //now create some standart properties
