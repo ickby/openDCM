@@ -23,6 +23,7 @@
 #include <boost/mpl/int.hpp>
 
 #include "clustergraph.hpp"
+#include "logging.hpp"
 
 namespace dcm {
 namespace details {
@@ -32,26 +33,48 @@ namespace mpl = boost::mpl;
 template<typename Final>
 struct ModuleCoreInit {
 
-    ModuleCoreInit() : graph(NULL) {};
+    ModuleCoreInit() : graph(NULL)
+#ifdef USE_LOGGING
+        , sink(init_log())
+#endif
+    {};
+
     ~ModuleCoreInit() {
         if(graph)
             delete graph;
+
+#ifdef USE_LOGGING
+        stop_log(sink);
+#endif
     };
+
+#ifdef USE_LOGGING
+    template<typename Expr>
+    void setLoggingFilter(const Expr& ex) {
+        sink->set_filter(ex);
+    }
+#endif
 
 protected:
     typedef mpl::vector0<> EdgeProperties;
     typedef mpl::vector0<> GlobalEdgeProperties;
     typedef mpl::vector0<> VertexProperties;
-    typedef mpl::vector0<> ClusterProperties;    
+    typedef mpl::vector0<> ClusterProperties;
 
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
     ClusterGraphBase* getGraph() {
         if(!graph)
             graph = new typename Final::Graph();
+
+        return graph;
     };
 
 private:
     ClusterGraphBase* graph;
+#ifdef USE_LOGGING
+    boost::shared_ptr< sink_t > sink;
+#endif
+
 };
 
 template<typename Final, typename Stacked>

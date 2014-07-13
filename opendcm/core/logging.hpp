@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_LOGGING_H
-#define GCM_LOGGING_H
+#ifndef DCM_LOGGING_H
+#define DCM_LOGGING_H
 
 #ifdef USE_LOGGING
 
@@ -102,4 +102,4 @@ inline void stop_log(boost::shared_ptr< sink_t >& sink) {
 
 #endif //USE_LOGGING
 
-#endif //GCM_LOGGING_H
+#endif //DCM_LOGGING_H
