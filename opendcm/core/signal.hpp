@@ -25,6 +25,7 @@
 
 #include <boost/mpl/at.hpp>
 #include <boost/mpl/vector.hpp>
+#include <boost/mpl/map.hpp>
 #include <boost/mpl/key_type.hpp>
 #include <boost/mpl/value_type.hpp>
 
@@ -53,29 +54,28 @@ namespace fusion = boost::fusion;
 #define EMIT_ARGUMENTS(z, n, data) \
     BOOST_PP_CAT(data, n)
 
-#define EMIT_CALL_DEF(z, n, data) \
+#define EMIT_SIGNAL_CALL_DEF(z, n, data) \
     template < \
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    void emitSignal( \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::Type \
+    emitSignal( \
                      BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                    );
 
 namespace dcm {
-
-/** @defgroup Objects Objects
- *
- * @brief Concept and functionality of the dcm objects
- *
- *
- **/
 
 //few standart signal names
 struct remove {};
 
 typedef int Connection;
 
+namespace details {
+
+/** @brief Class to handle signal management
+ * 
+ * **/
 template<typename SigMap>
 struct SignalOwner {
   
@@ -108,20 +108,8 @@ struct SignalOwner {
     template<typename S>
     void disconnectSignal(Connection c);
 
-
-    /**
-     * @brief Enable or disable signal emittion
-     *
-     * If you want to supress all signals emitted by a object you can do this by calling this function.
-     * All calls to emitSignal() will be blocked until signals aer reenabled by using this function with
-     * onoff = true. Note that signals are not queued, if emitting is disabled all signals are lost.
-     *
-     * @param onoff bool value if signals shall be emitted or if they are disabled
-     */
-    void enableSignals(bool onoff);
-
     //with no vararg templates before c++11 we need preprocessor to create the overloads of emit signal we need
-    BOOST_PP_REPEAT(5, EMIT_CALL_DEF, ~)
+    BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEF, ~)
 
 protected:
     /*signal handling
@@ -138,10 +126,10 @@ protected:
     typedef typename fusion::result_of::as_vector<sig_vectors>::type Signals;
 
     Signals m_signals;
-    bool m_emit_signals;
     int  m_signal_count;
 };
 
+}; //details
 }; //dcm
 
 #ifndef DCM_EXTERNAL_CORE

@@ -39,27 +39,27 @@
 
 #include "../property.hpp"
 
-#define EMIT_CALL_DEC(z, n, data) \
+#define EMIT_SIGNAL_CALL_DEC(z, n, data) \
     template<typename SigMap> \
     template < \
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    void SignalOwner<SigMap>::emitSignal( \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::Type \
+    SignalOwner<SigMap>::emitSignal( \
             BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                                               ) \
     { \
-      if(m_emit_signals) {\
-          typedef typename mpl::find<sig_name, S>::type iterator; \
-          typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
-          typedef typename fusion::result_of::value_at<Signals, distance>::type map_type; \
-          map_type& map = fusion::at<distance>(m_signals); \
-          for (typename map_type::iterator it=map.begin(); it != map.end(); it++) \
-              (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
-      }\
+        typedef typename mpl::find<sig_name, S>::type iterator; \
+        typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
+        typedef typename fusion::result_of::value_at<Signals, distance>::type map_type; \
+        map_type& map = fusion::at<distance>(m_signals); \
+        for (typename map_type::iterator it=map.begin(); it != map.end(); it++) \
+            (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
     };
 
 namespace dcm {
+namespace details {
 
 template<typename SigMap>
 SignalOwner<SigMap>::SignalOwner() : m_emit_signals(true), m_signal_count(0) {};
@@ -88,15 +88,10 @@ void SignalOwner<SigMap>::disconnectSignal(Connection c)
     map.erase(c);
 };
 
-template<typename SigMap>
-void SignalOwner<SigMap>::enableSignals(bool onoff)
-{
-    m_emit_signals = onoff;
-};
+BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEC, ~)
 
-BOOST_PP_REPEAT(5, EMIT_CALL_DEC, ~)
-
-}
+}; //details
+}; //dcm
 
 #endif //DCM_SIGNAL_IMP_H
 

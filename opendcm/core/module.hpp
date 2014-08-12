@@ -24,6 +24,7 @@
 
 #include "clustergraph.hpp"
 #include "logging.hpp"
+#include "object.hpp"
 
 namespace dcm {
 namespace details {
@@ -54,6 +55,9 @@ struct ModuleCoreInit {
         sink->set_filter(ex);
     }
 #endif
+
+    //initialize the objectbase for unified object handling
+    typedef Object<Final> ObjectBase;
 
 protected:
     typedef mpl::vector0<> EdgeProperties;

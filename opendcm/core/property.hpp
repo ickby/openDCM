@@ -90,15 +90,15 @@ namespace dcm {
  * 'test'property' may look like that:
  * @code
  * struct test_property {
- * 	typedef edge_property kind;
+ *  typedef edge_property kind;
  * }
  * @endcode
  *
  * The same property with a default value would be implemented like this:
  * @code
  * struct test_property {
- * 	typedef edge_property kind;
- * 	struct default_value {
+ *  typedef edge_property kind;
+ *  struct default_value {
  *           int operator()() {
  *               return 3;
  *           };
@@ -123,7 +123,7 @@ struct property_error : virtual boost::exception { };
 /**
  * @brief Signal for change of a property
  *
- * This signal is emmited when the property given as template parameter is changed. 
+ * This signal is emmited when the property given as template parameter is changed.
  **/
 template<typename Property>
 struct onChange {};
@@ -202,6 +202,12 @@ struct property_type {
     typedef typename T::type type;
 };
 
+template<typename Prop, typename PropertyList>
+struct has_property {
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename boost::is_same<iterator, typename mpl::end<PropertyList>::type> type;
+};
+
 /**
  * @brief Metafunction to ensures that a property is in a lists
  *
@@ -272,13 +278,13 @@ struct bs { //bool sequence
 /**
  * @brief Property vector to a fusion signal map of change events
  *
- * It creates a signal map which can be uses as input for SignalOwner class. Each proeprty gets a 
+ * It creates a signal map which can be uses as input for SignalOwner class. Each proeprty gets a
  * onChange<Propert> signal
  **/
 template<typename T>
 struct sm { //signal map
     typedef typename mpl::fold<T, mpl::map<>, mpl::insert<mpl::_1, mpl::pair<onChange<mpl::_2>,
-      boost::function1<void, property_type<mpl::_2> > > > >::type type;
+            boost::function1<void, property_type<mpl::_2> > > > >::type type;
 };
 
 
@@ -381,7 +387,7 @@ public:
  *
  * To ease the work with properties this class is provided. It receives all the properties, which shall be
  * handled, in a mpl::vector typelist as its template argument. Than easy access to all properties by get
- * and set functions is achieved. Furthermore change tracking is available for individual properties and the 
+ * and set functions is achieved. Furthermore change tracking is available for individual properties and the
  * whole set. On changes a signal is emmited to whcih one can connect arbitrary functions.
  *
  **/
@@ -470,7 +476,7 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
      * Sets the change flag for every property to false
      */
     void acknowledgePropertyChanges();
-    
+
 
 private:
     /* It's imortant to not store the properties but their types. These types are
@@ -481,9 +487,9 @@ private:
     /* To track changes to properties we store boolean state variables
      * */
     typedef typename details::bs<PropertyList>::type States;
-    
-    Properties 	m_properties;
-    States 	m_states;
+
+    Properties  m_properties;
+    States  m_states;
 };
 
 template<typename PropertyList>
@@ -599,6 +605,7 @@ void PropertyOwner<PropertyList>::acknowledgePropertyChanges() {
     fusion::for_each(m_states, boost::phoenix::arg_names::arg1 == false);
 };
 
+
 //now create some standart properties
 //***********************************
 
@@ -656,7 +663,7 @@ struct edge_index {
 namespace boost {
 //access the propertymap needs to be boost visable
 template<typename P, typename G>
-typename dcm::property_map<P, G>::value_type	get(const dcm::property_map<P, G>& map,
+typename dcm::property_map<P, G>::value_type    get(const dcm::property_map<P, G>& map,
         typename dcm::property_map<P, G>::key_type key)
 {
 

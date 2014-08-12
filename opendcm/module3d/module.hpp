@@ -32,7 +32,6 @@
 #include "opendcm/core/object.hpp"
 #include "opendcm/core/geometry.hpp"
 #include "opendcm/core/clustergraph.hpp"
-#include "opendcm/core/sheduler.hpp"
 #include "opendcm/core/traits.hpp"
 #include "geometry.hpp"
 #include "distance.hpp"
