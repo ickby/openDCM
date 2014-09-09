@@ -306,7 +306,6 @@ struct apply_default {
         owner->template setProperty<T>(typename T::default_value()());
     };
 };
-}
 
 /** @addtogroup Metafunctions
  * @{*/
@@ -489,7 +488,7 @@ private:
     typedef typename details::bs<PropertyList>::type States;
 
     Properties  m_properties;
-    States  m_states;
+    States      m_states;
 };
 
 template<typename PropertyList>
@@ -500,6 +499,7 @@ PropertyOwner<PropertyList>::PropertyOwner() {
     //set the default value
     details::apply_default<PropertyOwner> func(this);
     mpl::for_each<view>(func);
+
     //set all change states to false initialy
     fusion::for_each(m_states, boost::phoenix::arg_names::arg1 = false);
 
@@ -658,35 +658,37 @@ struct edge_index {
 
 /**@}*/ //Property
 /**@}*/ //Core
-}
+
+}//details
+}//dcm
 
 namespace boost {
 //access the propertymap needs to be boost visable
 template<typename P, typename G>
-typename dcm::property_map<P, G>::value_type    get(const dcm::property_map<P, G>& map,
-        typename dcm::property_map<P, G>::key_type key)
+typename dcm::details::property_map<P, G>::value_type    get(const dcm::details::property_map<P, G>& map,
+        typename dcm::details::property_map<P, G>::key_type key)
 {
 
-    typedef dcm::property_map<P, G> map_t;
+    typedef dcm::details::property_map<P, G> map_t;
     return  fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getProperty<P>();
 };
 
 template <typename P, typename G>
-void  put(const dcm::property_map<P, G>& map,
-          typename dcm::property_map<P, G>::key_type key,
-          const typename dcm::property_map<P, G>::value_type& value)
+void  put(const dcm::details::property_map<P, G>& map,
+          typename dcm::details::property_map<P, G>::key_type key,
+          const typename dcm::details::property_map<P, G>::value_type& value)
 {
 
-    typedef dcm::property_map<P, G> map_t;
+    typedef dcm::details::property_map<P, G> map_t;
     fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template setProperty<P>(value);
 };
 
 
 template <typename P, typename G>
-typename dcm::property_map<P, G>::reference at(const dcm::property_map<P, G>& map,
-        typename dcm::property_map<P, G>::key_type key)
+typename dcm::details::property_map<P, G>::reference at(const dcm::details::property_map<P, G>& map,
+        typename dcm::details::property_map<P, G>::key_type key)
 {
-    typedef dcm::property_map<P, G> map_t;
+    typedef dcm::details::property_map<P, G> map_t;
     return fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getPropertyAccessible<P>();
 }
 }

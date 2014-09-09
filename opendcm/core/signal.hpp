@@ -41,9 +41,6 @@
 
 #include <boost/enable_shared_from_this.hpp>
 
-#include "property.hpp"
-
-
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -51,23 +48,17 @@ namespace fusion = boost::fusion;
  * templated parameters we use boost preprocessor to do the hard repetive work. The definition and
  * implementation are definded first as they need to be known before usage
  * */
-#define EMIT_ARGUMENTS(z, n, data) \
-    BOOST_PP_CAT(data, n)
-
 #define EMIT_SIGNAL_CALL_DEF(z, n, data) \
     template < \
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::Type \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
     emitSignal( \
                      BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                    );
 
 namespace dcm {
-
-//few standart signal names
-struct remove {};
 
 typedef int Connection;
 

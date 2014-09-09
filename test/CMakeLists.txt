@@ -40,9 +40,9 @@ endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
 	      #kernel.cpp
-	      clustergraph.cpp
+	      #clustergraph.cpp
 	      system.cpp
-	      analyse.cpp
+	      #analyse.cpp
 	      #geometry.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp

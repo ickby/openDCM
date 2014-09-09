@@ -30,7 +30,7 @@
 #include <boost/bind.hpp>
 
 namespace dcm {
-
+namespace details {
 
 //functors needed for implementation only
 //***************************************
@@ -1081,6 +1081,7 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::filterRange
                           boost::make_filter_iterator(p, range.second, range.second));
 };
 
+} //namespace details
 } //namespace dcm
 
 

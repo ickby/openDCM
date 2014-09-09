@@ -39,13 +39,16 @@
 
 #include "../property.hpp"
 
+#define EMIT_ARGUMENTS(z, n, data) \
+    BOOST_PP_CAT(data, n)
+    
 #define EMIT_SIGNAL_CALL_DEC(z, n, data) \
     template<typename SigMap> \
     template < \
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::Type \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
     SignalOwner<SigMap>::emitSignal( \
             BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                                               ) \
@@ -62,7 +65,7 @@ namespace dcm {
 namespace details {
 
 template<typename SigMap>
-SignalOwner<SigMap>::SignalOwner() : m_emit_signals(true), m_signal_count(0) {};
+SignalOwner<SigMap>::SignalOwner() : m_signal_count(0) {};
 
 template<typename SigMap>
 template<typename S>

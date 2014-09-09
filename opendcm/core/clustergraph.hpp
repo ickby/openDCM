@@ -47,15 +47,14 @@ namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
 namespace dcm {
-
+namespace details {
+    
 /** @addtogroup Core
  * @{
  * */
 
 /** @addtogroup ClusterGraph
  * @{*/
-
-namespace details {
 
 //we need a way to store a pointer to a graph in a type independend way
 struct ClusterGraphBase {};
@@ -100,7 +99,7 @@ struct IDgen {
     /**
      * @brief Generates a new unique ID
      *
-     * @return :details::universalID
+     * @return :universalID
      **/
     universalID generate() {
         return ++ (*counter);
@@ -111,7 +110,7 @@ struct IDgen {
      * As universalID's are integers the returned count is a ID and can therefore also be used as the last
      * created ID.
      *
-     * @return :details::universalID
+     * @return :universalID
      **/
     universalID count() {
         return (*counter);
@@ -140,7 +139,6 @@ struct cluster_error : virtual boost::exception {};
  **/
 typedef boost::shared_ptr<IDgen> IDpointer;
 
-}
 
 /** @name Descriptors */
 /**@{
@@ -150,7 +148,7 @@ typedef boost::shared_ptr<IDgen> IDpointer;
  * Therefore they can be used only in the relevant cluster, they are local. These are the descriptors
  * which need to be used for all bgl algorithms.
  **/
-typedef details::list_traits::vertex_descriptor 	LocalVertex;
+typedef list_traits::vertex_descriptor 	LocalVertex;
 
 /**
  * @brief Indentifier for local edge
@@ -159,7 +157,7 @@ typedef details::list_traits::vertex_descriptor 	LocalVertex;
  * Therefore they can be used only in the relevant cluster, they are local. These are the descriptors
  * which need to be used for all bgl algorithms.
  **/
-typedef details::list_traits::edge_descriptor 		LocalEdge;
+typedef list_traits::edge_descriptor 		LocalEdge;
 
 /**
  * @brief Identifier for global vertex
@@ -167,7 +165,7 @@ typedef details::list_traits::edge_descriptor 		LocalEdge;
  * To overcome the locality of the bgl vertex descriptors a global alternative is introduced. This descriptor
  * is unique over clusters and stable on moves and clones.
  **/
-typedef details::universalID 				GlobalVertex;
+typedef universalID 				GlobalVertex;
 
 /**
  * @brief Identifier for global edge
@@ -179,7 +177,7 @@ typedef details::universalID 				GlobalVertex;
 struct 	GlobalEdge {
     GlobalVertex source;
     GlobalVertex target;
-    details::universalID ID;
+    universalID ID;
 
     bool operator== (const GlobalEdge& second) const {
         return ID == second.ID;
@@ -211,11 +209,11 @@ struct 	GlobalEdge {
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 class ClusterGraph :
     public boost::adjacency_list < boost::listS, boost::listS, boost::undirectedS,
-    fusion::vector<GlobalVertex, PropertyOwner< typename details::ensure_properties<vertex_prop, details::bgl_v_props>::type > >,
-    fusion::vector<PropertyOwner< typename details::ensure_properties<edge_prop, details::bgl_e_props>::type >,
+    fusion::vector<GlobalVertex, PropertyOwner< typename ensure_properties<vertex_prop, bgl_v_props>::type > >,
+    fusion::vector<PropertyOwner< typename ensure_properties<edge_prop, bgl_e_props>::type >,
     std::vector< fusion::vector<GlobalEdge, PropertyOwner<globaledge_prop> > > > >,
-public PropertyOwner<typename details::ensure_property<cluster_prop, changed>::type>,
-public details::ClusterGraphBase,
+public PropertyOwner<typename ensure_property<cluster_prop, changed>::type>,
+public ClusterGraphBase,
 public boost::noncopyable,
     public boost::enable_shared_from_this<ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> > {
 
@@ -229,7 +227,7 @@ public:
      * as they are used within it's implementation. If the graph specific properties are already a part
      * of the given property sequence, nothing happens, they are not added twice.
      **/
-    typedef typename details::ensure_properties<edge_prop, details::bgl_e_props>::type   edge_properties;
+    typedef typename ensure_properties<edge_prop, bgl_e_props>::type   edge_properties;
 
     /**
      * @brief mpl::vector with all global edge properties
@@ -238,7 +236,7 @@ public:
      * a consistent interface. Global edges are not used by any graph algorithm, so we don#t need any properties
      * here
      **/
-    typedef typename details::ensure_properties<edge_prop, details::bgl_e_props>::type   globaledge_properties;
+    typedef typename ensure_properties<edge_prop, bgl_e_props>::type   globaledge_properties;
 
     /**
      * @brief mpl::vector with all vertex properties
@@ -249,7 +247,7 @@ public:
      * as they are used within it's implementation.If the graph specific properties are already a part
      * of the given property sequence, nothing happens, they are not added twice.
      **/
-    typedef typename details::ensure_properties<vertex_prop, details::bgl_v_props>::type vertex_properties;
+    typedef typename ensure_properties<vertex_prop, bgl_v_props>::type vertex_properties;
 
     /**
      * @brief The property bundle for GlobalEdges
@@ -289,7 +287,7 @@ public:
     typedef boost::enable_shared_from_this<ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop> > sp_base;
 
     //if changed_prop is not a property we have to add it now
-    typedef typename details::ensure_property<cluster_prop, changed>::type cluster_properties;
+    typedef typename ensure_property<cluster_prop, changed>::type cluster_properties;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;
@@ -339,7 +337,7 @@ public:
      * This constructor creates a empty cluster with a new ID generator. This is to be used on initial
      * clustergraph creation, so only for the very first cluster.
      **/
-    ClusterGraph() : m_id(new details::IDgen) {};
+    ClusterGraph() : m_id(new IDgen) {};
 
     /**
      * @brief Dependent constructor
@@ -350,7 +348,7 @@ public:
      *
      * @param g the parent cluster graph
      **/
-    ClusterGraph(boost::shared_ptr<ClusterGraph> g) : m_parent(g), m_id(new details::IDgen) {
+    ClusterGraph(boost::shared_ptr<ClusterGraph> g) : m_parent(g), m_id(new IDgen) {
         if(g)
             m_id = g->m_id;
     };
@@ -528,7 +526,7 @@ public:
      * @param v The vertex to be checked
      * @return bool is cluster or not
      **/
-    bool isCluster(const dcm::LocalVertex v) const;
+    bool isCluster(const LocalVertex v) const;
 
     /**
      * @brief Get the cluster corresponding the discriptor
@@ -1022,7 +1020,7 @@ public:
 
 protected:
     boost::weak_ptr<ClusterGraph> m_parent;
-    details::IDpointer 	  m_id;
+    IDpointer 	  m_id;
     bool copy_mode; //no changing itself when copying
 
 
@@ -1070,6 +1068,7 @@ public:
 /** @} */
 /** @} */
 
+} //namespace details
 } //namespace dcm
 
 

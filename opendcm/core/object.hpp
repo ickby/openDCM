@@ -23,10 +23,22 @@
 #include "signal.hpp"
 #include "property.hpp"
 
+#include <boost/mpl/equal_to.hpp>
+#include <boost/preprocessor.hpp>
+#include <boost/preprocessor/repetition/repeat.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
+#include <boost/preprocessor/tuple/size.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/seq/enum.hpp>
+#include <boost/preprocessor/cat.hpp>
+
+#ifndef DCM_MAX_OBJECTS
+#define DCM_MAX_OBJECTS 10
+#endif
 
 namespace dcm {
 
-typedef int ObjectTypeID;    
+typedef int ObjectTypeID;
 //few standart signal names
 struct remove {};
 
@@ -38,7 +50,7 @@ namespace details {
     typename S  \
     BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
     > \
-    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::Type \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
     SignalOwner<SigMap>::emitSignal( \
             BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
                                               ) \
@@ -51,55 +63,138 @@ namespace details {
             (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
     };
 
-    /** @defgroup Objects Objects
- *
- * @brief Concept and functionality of the dcm objects
- *
- *
- **/
+#define CHECK_TYPE(z, n, data) \
+    case n :\
+        return mpl::contains< Filtered, typename mpl::at<List, mpl::int_<n> >::type >::value;\
+        break;
+    
+#define CHECK_TYPE_DEF(z, n, data) \
+    template <typename List, typename Filtered> \
+    typename boost::enable_if<mpl::equal_to<mpl::size<List>, mpl::int_<n> >, bool>::type \
+    isOneOfTypes() \
+    { \
+        switch(m_id) { \
+        BOOST_PP_REPEAT(n, CHECK_TYPE, ~); \
+            default: \
+                return false; \
+        }; \
+    };
+    
+    
+//macros to ease the handling of object handling
+#define PROPERTY_HANDLING_FUNCTIONS(r, data, elem) \
+    public: \
+        const typename elem::type& BOOST_PP_CAT(get, elem)() { \
+            return m_properties.getProperty< elem >(); \
+        }; \
+        void BOOST_PP_CAT(set, elem)(const typename elem::type& value) { \
+            m_properties.setProperty< elem >(value); \
+        };
+    
+#define DCM_OBJECT_ADD_PROPERTIES(final, seq) \
+    BOOST_PP_SEQ_FOR_EACH(PROPERTY_HANDLING_FUNCTIONS, _, seq ) \
+    typedef mpl::vector< \
+        BOOST_PP_SEQ_ENUM( seq ) \
+        > Properties; \
+    protected: \
+        friend struct dcm::details::Object<final>; \
+        dcm::details::PropertyOwner< Properties > m_properties;
+
+template<typename Obj, typename Prop>        
+struct object_has_property : public mpl::contains<typename Obj::Properties, Prop> {};
+        
+/** @defgroup Objects Objects
+*
+* @brief Concept and functionality of the dcm objects
+*
+*
+**/
 template<typename Final>
 struct Object {
-  
-    Object();
-    
+
+    Object(int ID);
+
     //functions for accessing stacked properties. we basicly mirror the PropertyOwner interface
-    //so that it looks to the user like we actually are a propertyowner but then access the propertyowner 
+    //so that it looks to the user like we actually are a propertyowner but then access the propertyowner
     //which holds the property for query
     template<typename Prop>
-    const typename Prop::type& getProperty();    
+    const typename Prop::type& getProperty();
     template<typename Prop>
-    typename boost::disable_if<details::has_change_tracking<Prop> >::type setProperty(const typename Prop::type& value);
-    template<typename Prop>
-    typename boost::enable_if<details::has_change_tracking<Prop> >::type setProperty(const typename Prop::type& value);
-    
-    template<typename S>
+    void setProperty(const typename Prop::type& value);
+ 
+    /*template<typename S>
     Connection connectSignal(typename mpl::at<SigMap, S>::type function);
     template<typename S>
-    void disconnectSignal(Connection c);
-    
-    //object identification 
+    void disconnectSignal(Connection c);*/
+
+    //object identification
     const ObjectTypeID getTypeID();
     template<typename Object>
-    bool isObject();
-    
-protected:
+    bool isType();
+
+protected:    
     //with no vararg templates before c++11 we need preprocessor to create the overloads of emit signal we need
-    BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEF, ~)
-    
+    //BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEF, ~)
+
+    BOOST_PP_REPEAT(DCM_MAX_OBJECTS, CHECK_TYPE_DEF, ~)
+
     const ObjectTypeID m_id;
+};
+
+template<typename Final>
+Object<Final>::Object(int ID) : m_id(ID) {
+
+};
+template<typename T>
+void pretty(T t) {
+    std::cout<<__PRETTY_FUNCTION__<<std::endl;
 };
 
 template<typename Final>
 template<typename Prop>
 const typename Prop::type& Object<Final>::getProperty() {
-    
-       typedef mpl::at_key<Prop, typename Final::PropertyMap>::type Object;
-       
-       if( Final::ObjectTypeID<Object>::value == m_id ) 
-           return static_cast<Object*>(this)->m_properties->getProperty<Prop>();
-       //else 
-           //TODO: throw
+   
+    typedef typename Final::template objectByProperty<Prop>::type Object;
+    //filteres list of all types inheriting from Object
+    typedef typename mpl::remove_if<
+    typename Final::ObjectList,
+             mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
+                     
+    if(isOneOfTypes<typename Final::ObjectList, Filtered>())
+        return static_cast<Object*>(this)->m_properties.getProperty<Prop>();
+    else
+        throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
+
+template<typename Final>
+template<typename Prop>
+void Object<Final>::setProperty(const typename Prop::type& value) {
+    
+    typedef typename Final::template objectByProperty<Prop>::type Object;
+    //filteres list of all types inheriting from Object
+    typedef typename mpl::remove_if<
+    typename Final::ObjectList,
+             mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
+            
+    if(isOneOfTypes<typename Final::ObjectList, Filtered>())
+        static_cast<Object*>(this)->m_properties.setProperty<Prop>(value);
+    else
+        throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
+};
+
+template<typename Final>
+const ObjectTypeID Object<Final>::getTypeID() {
+    
+    return m_id;
+}
+
+template<typename Final>
+template<typename Obj>
+bool Object<Final>::isType() {
+    
+    return Final::template objectTypeID<Obj>::ID::value == m_id;
+}
+
 
 }; //details
 }; //dcm

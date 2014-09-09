@@ -18,44 +18,47 @@
 */
 
 #include "opendcm/core.hpp"
-/*
-#include "opendcm/core/object.hpp"
+
 
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
 #include <boost/mpl/map.hpp>
+#include <boost/mpl/replace_if.hpp>
 
 #ifdef DCM_EXTERNAL_CORE
 #include "opendcm/core/imp/system_imp.hpp"
 #include "opendcm/core/imp/clustergraph_imp.hpp"
 #include "opendcm/core/imp/object_imp.hpp"
 #endif
-*/
+
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(system_and_object);
-/*
-struct test_edge_property1 {
-    typedef dcm::edge_property kind;
+
+struct TestProperty1 {
+    typedef int type;
+    struct default_value {
+        int operator()() {
+            return 3;
+        }
+    };
+};
+struct TestProperty2 {
+    typedef int type;
+    struct change_tracking {};
+};
+struct TestProperty3 {
     typedef int type;
 };
-struct test_vertex_property1 {
-    typedef dcm::vertex_property kind;
-    typedef int type;
+struct TestProperty4 {
+    typedef bool type;
 };
-struct test_edge_property2 {
-    typedef dcm::edge_property kind;
-    typedef int type;
-};
-struct test_vertex_property2 {
-    typedef dcm::vertex_property kind;
-    typedef int type;
-};
+
 struct test_signal1 {};
 struct test_signal2 {};
 struct test_signal3 {};
-*/
+
 struct TestModule1 {
 
     typedef boost::mpl::int_<1> ID;
@@ -63,16 +66,31 @@ struct TestModule1 {
     template<typename Final, typename Stacked>
     struct type : public Stacked {
 
-	int module_function1() {return 1;};
-      
-        struct TestType1 {
-            int value1;
+        int module_function1() {
+            return 1;
+        };
+
+        struct TestType1 : public Stacked::ObjectBase {
+
+            TestType1() : Stacked::ObjectBase( Final::template objectTypeID<typename Final::TestType1>::ID::value ) {};
             int function1() {
                 return 1;
             };
+            
+            DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty1)(TestProperty2) )
         };
+        
+        struct TestType2 : public Stacked::ObjectBase {
+                    
+            TestType2() : Stacked::ObjectBase( Final::template objectTypeID<typename Final::TestType2>::ID::value ) {};
+                        
+            DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty3) )
+        };
+
+        DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1)(TestType2))
     };
 };
+
 struct TestModule2 {
 
     typedef boost::mpl::int_<2> ID;
@@ -80,14 +98,19 @@ struct TestModule2 {
     template<typename Final, typename Stacked>
     struct type : public Stacked {
 
-	int module_function2() {return 2;};
-      
+        int module_function2() {
+            return 2;
+        };
+
         struct TestType1 : public Stacked::TestType1 {
-            int value2;
             int function2() {
                 return 2;
             };
+            
+            DCM_OBJECT_ADD_PROPERTIES(Final, (TestProperty4))
         };
+        
+        DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1))
     };
 };
 
@@ -98,10 +121,40 @@ typedef dcm::System<TestModule2, TestModule1> System;
 BOOST_AUTO_TEST_CASE(inherit_functions_types) {
 
     System sys;
-    
+
     BOOST_CHECK(sys.module_function1() == 1);
     BOOST_CHECK(sys.module_function2() == 2);
 
+};
+
+BOOST_AUTO_TEST_CASE(object_handling) {
+
+    boost::shared_ptr<System::TestType1>  t(new System::TestType1);
+    boost::shared_ptr<System::ObjectBase> b(t);
+    
+    //test the type ID stuff
+    BOOST_CHECK(t->isType<System::TestType1>());
+    BOOST_CHECK(!t->isType<System::TestType2>());
+    
+    //test the property stuff
+    BOOST_CHECK(b->isType<System::TestType1>());
+    BOOST_CHECK(!b->isType<System::TestType2>());
+
+    BOOST_CHECK(t->getProperty<TestProperty1>() == 3);
+    t->setProperty<TestProperty1>(2);
+    BOOST_CHECK(t->getProperty<TestProperty1>() == 2);
+    t->setProperty<TestProperty4>(true);
+    BOOST_CHECK(t->getProperty<TestProperty4>());
+
+    b->setProperty<TestProperty1>(5);
+    BOOST_CHECK(b->getProperty<TestProperty1>() == 5);
+    b->setProperty<TestProperty4>(false);
+    BOOST_CHECK(!b->getProperty<TestProperty4>());
+    
+    t->setTestProperty1(2);
+    BOOST_CHECK(t->getTestProperty1());
+    t->setTestProperty4(true);
+    BOOST_CHECK(t->getTestProperty4());
 };
 /*
 BOOST_AUTO_TEST_CASE(graph_properties) {
