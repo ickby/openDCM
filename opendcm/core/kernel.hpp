@@ -25,57 +25,20 @@
 #include <Eigen/Geometry>
 
 #include "transformation.hpp"
-#include "logging.hpp"
-#include "defines.hpp"
-#include "property.hpp"
-
-namespace E = Eigen;
-namespace mpl= boost::mpl;
 
 namespace dcm {
 
-struct nothing {
-    void operator()() {};
+namespace details {
+namespace numeric {
+    
+template< typename Kernel >
+struct Parameter {
+    
+    int                 Index;
+    Kernel::Scalar*     Value;
 };
-
-//information about solving
-struct SolverInfo {
-    int iterations;
-    double error;
-    double time;
-};
-
-//the parameter types
-enum AccessType {
-    general,  //every non-rotation parameter, therefore every translation and non transformed parameter
-    rotation, //all rotation parameters
-    complete  //all parameter
-};
-
-//solver settings
-struct precision {
-
-    typedef double type;
-    typedef setting_property kind;
-    struct default_value {
-        double operator()() {
-            return 1e-6;
-        };
-    };
-};
-
-struct iterations {
-
-    typedef int type;
-    typedef setting_property kind;
-    struct default_value {
-        int operator()() {
-            return 5e3;
-        };
-    };
-};
-
-//and the solver itself
+    
+//the standart solverS
 template<typename Kernel>
 struct Dogleg {
 
@@ -105,123 +68,19 @@ struct Dogleg {
     template<typename Functor>
     int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);
 };
+};
 
-template<typename Scalar, template<class> class Nonlinear = Dogleg>
-struct Kernel : public PropertyOwner< mpl::vector2<precision, iterations> > {
+} //details
 
-    //basics
-    typedef Scalar number_type;
+template<typename number_type, template<class> class Nonlinear = details::numeric::Dogleg>
+struct Eigen3Kernel {
 
-    //linear algebra types 2D
-    typedef E::Matrix<Scalar, 2, 1> Vector2;
+    //the number type we use throughout the system
+    typedef number_type                 Scalar;
 
-    //Linear algebra types 3D
-    typedef E::Matrix<Scalar, 3, 1> Vector3;
-    typedef E::Matrix<Scalar, 1, 3> CVector3;
-    typedef E::Matrix<Scalar, 3, 3> Matrix3;
-    typedef E::Matrix<Scalar, E::Dynamic, 1> Vector;
-    typedef E::Matrix<Scalar, 1, E::Dynamic> CVector;
-    typedef E::Matrix<Scalar, E::Dynamic, E::Dynamic> Matrix;
-
-    //mapped types
-    typedef E::Stride<E::Dynamic, E::Dynamic> DynStride;
-    typedef E::Map< Vector3 > Vector3Map;
-    typedef E::Map< CVector3> CVector3Map;
-    typedef E::Map< Matrix3 > Matrix3Map;
-    typedef E::Map< Vector, 0, DynStride > VectorMap;
-    typedef E::Map< CVector, 0, DynStride > CVectorMap;
-    typedef E::Map< Matrix, 0, DynStride > MatrixMap;
-
-    //Special types
-    typedef E::Quaternion<Scalar>   Quaternion;
-    typedef E::Matrix<Scalar, 3, 9> Matrix39;
-    typedef E::Map< Matrix39 >      Matrix39Map;
-    typedef E::Block<Matrix>	    MatrixBlock;
-
-    typedef detail::Transform<Scalar, 3> 	Transform3D;
-    typedef detail::DiffTransform<Scalar, 3> 	DiffTransform3D;
-
-    typedef detail::Transform<Scalar, 2> 	Transform2D;
-    typedef detail::DiffTransform<Scalar, 2> 	DiffTransform2D;
-
-    typedef Nonlinear< Kernel<Scalar, Nonlinear> > NonlinearSolver;
-
-    template<int Dim>
-    struct transform_type {
-        typedef typename boost::mpl::if_c<Dim==2, Transform2D, Transform3D>::type type;
-        typedef typename boost::mpl::if_c<Dim==2, DiffTransform2D, DiffTransform3D>::type diff_type;
-    };
-
-    template<int Dim>
-    struct vector_type {
-        typedef E::Matrix<Scalar, Dim, 1> type;
-    };
-
-    struct MappedEquationSystem {
-
-    //protected:
-        Matrix m_jacobi;
-        Vector m_parameter, m_residual;
-
-        AccessType m_access; //which parameters/equation shall be calculated?
-        int m_params, m_eqns; //total amount
-        int m_param_rot_offset, m_param_trans_offset, m_eqn_rot_offset, m_eqn_trans_offset;   //current positions while creation
-
-    public:
-        MatrixMap Jacobi;
-        VectorMap Parameter;
-        VectorMap Residual;
-
-        number_type Scaling;
-
-        int parameterCount();
-        int equationCount();
-        AccessType access();
-
-        MappedEquationSystem(int params, int equations);
-
-        int setParameterMap(int number, VectorMap& map, AccessType t = general);
-        int setParameterMap(Vector3Map& map, AccessType t = general);
-        int setResidualMap(VectorMap& map, AccessType t = general);
-        void setJacobiMap(int eqn, CVectorMap& map);
-        void setJacobiMap(int eqn, VectorMap& map);
-	void setJacobiMap(int eqn, int offset, int number, VectorMap& map);
-
-        bool isValid();
-
-        void setAccess(AccessType t);
-        bool hasAccessType(AccessType t);
-
-        virtual void recalculate() = 0;
-        virtual void removeLocalGradientZeros(bool on_off) = 0;
-    };
-
-
-    Kernel();
-
-    //static comparison versions
-    template <typename DerivedA,typename DerivedB>
-    static bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission);
-    static bool isSame(number_type t1, number_type t2, number_type precission);
-    template <typename DerivedA,typename DerivedB>
-    static bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission);
-
-    //runtime comparison versions (which use user settings for precission)
-    template <typename DerivedA,typename DerivedB>
-    bool isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2);
-    bool isSame(number_type t1, number_type t2);
-    template <typename DerivedA,typename DerivedB>
-    bool isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2);
-
-    int solve(MappedEquationSystem& mes);
-
-    template<typename Functor>
-    int solve(MappedEquationSystem& mes, Functor& f);
-
-    SolverInfo getSolverInfo();
 
 private:
-    NonlinearSolver m_solver;
+    Nonlinear< Eigen3Kernel<Scalar, Nonlinear> > m_solver;
 
 };
 

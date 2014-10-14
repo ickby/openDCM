@@ -17,46 +17,18 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/core.hpp"
-
-#ifdef DCM_EXTERNAL_CORE
-#include "opendcm/core/imp/kernel_imp.hpp"
-#include "opendcm/core/imp/transformation_imp.hpp"
-#include "opendcm/core/imp/geometry_imp.hpp"
-#endif
+#include "opendcm/core/geometry.hpp"
 
 #include <boost/test/unit_test.hpp>
 
-typedef dcm::Kernel<double> K;
+using namespace dcm;
 
-struct MES  : public K::MappedEquationSystem {
+typedef dcm::Eigen3Kernel<double> K;
 
-    MES(int par, int eqn) : K::MappedEquationSystem(par, eqn) {};
-    virtual void recalculate() {
-        Parameter.setRandom();
-    };
-    virtual void removeLocalGradientZeros(){};
-};
-
-struct Geometry : public dcm::details::Geometry<K, 3> {
+struct Point3d : public details::numeric::Geometry<K> {
  
-    void reset() {};
-    void recalculated() {};
-    void removed() {};
+    
 };
-
-//test tag
-namespace dcm {
-namespace tag {
-
-struct point_t {
-    typedef mpl::int_<3> parameters;
-    typedef mpl::int_<1>  rotations;
-    typedef mpl::int_<1>  translations;
-    typedef weight::point weight;
-};
-}
-}
 
 using namespace dcm;
 
@@ -108,6 +80,7 @@ BOOST_AUTO_TEST_CASE(geometry_order) {
 
 }
 
+/*
 BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
 
     typedef dcm::Kernel<double> Kernel;
@@ -224,6 +197,6 @@ BOOST_AUTO_TEST_CASE(geometry_geometry_link) {
 
     BOOST_CHECK(g1->getValue() == g2->getValue());
 }
-
+*/
 
 BOOST_AUTO_TEST_SUITE_END();

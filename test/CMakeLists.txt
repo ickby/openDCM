@@ -41,9 +41,9 @@ endif(EXTERNALIZE)
 set(test_SRC  define.cpp
 	      #kernel.cpp
 	      #clustergraph.cpp
-	      system.cpp
+	      #system.cpp
 	      #analyse.cpp
-	      #geometry.cpp
+	      numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
 	      #${module3d_SRC}
