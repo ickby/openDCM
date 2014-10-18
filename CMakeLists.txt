@@ -21,13 +21,16 @@ if(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 if(LOGGING)
-  add_definitions( -DUSE_LOGGING )
+  add_definitions( -DDCM_USE_LOGGING )
 ENDIF(LOGGING)
 
 if(GENERATE_DOCS)
   FIND_PACKAGE(Doxygen)
 ENDIF(GENERATE_DOCS)
 
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions( -DDCM_DEBUG )
+ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
 add_subdirectory(test)
 add_subdirectory(doc)

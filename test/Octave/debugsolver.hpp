@@ -35,12 +35,12 @@ struct DebugSolver {
 
     typedef typename Kernel::number_type number_type;
     number_type tolg, tolx, tolf;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     src::logger log;
 #endif
 
     DebugSolver() : tolg(1e-80), tolx(1e-10), tolf(1e-5) {
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
 #endif
     };
@@ -101,7 +101,7 @@ struct DebugSolver {
 
         Original = sys.Parameter;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG(log)<< "initial jacobi: "<<std::endl<<sys.Jacobi<<std::endl
                       << "residual: "<<sys.Residual.transpose();
 #endif
@@ -203,7 +203,7 @@ struct DebugSolver {
         clock_t end = clock();
         double ms = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG(log) <<"Done solving: "<<err<<", iter: "<<iter;
 #endif
 
@@ -215,7 +215,7 @@ struct DebugSolver {
 
             std::ofstream str("/home/stefan/Projects/openDCM/test/Octave/output.m");
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             if(!str.is_open())
                 BOOST_LOG(log)<<"file not opend!"<<std::endl;
 #endif

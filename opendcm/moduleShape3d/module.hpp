@@ -308,7 +308,7 @@ struct ModuleShape3D {
 
         protected:
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             src::logger log;
 #endif
 
@@ -381,7 +381,7 @@ struct ModuleShape3D {
 
             typedef Shape3D_base<Derived> Base;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             attrs::mutable_constant< std::string > log_id;
 #endif
         public:
@@ -496,7 +496,7 @@ template<typename Derived>
 ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::Shape3D_base(Sys& system)
     : Object<Sys, Derived, ShapeSig>(system) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 };
@@ -508,7 +508,7 @@ template<typename T>
 ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_base<Derived>::Shape3D_base(const T& geometry, Sys& system)
     : Object<Sys, Derived, ShapeSig>(system) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
@@ -700,12 +700,12 @@ template<typename Sys>
 template<typename Derived>
 ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::Shape3D_id(Sys& system)
     : ModuleShape3D<Typelist, ID>::template type<Sys>::template Shape3D_base<Derived>(system)
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 , log_id("No ID")
 #endif
 {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     Base::log.add_attribute("ID", log_id);
 #endif
 };
@@ -716,12 +716,12 @@ template<typename Derived>
 template<typename T>
 ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::Shape3D_id(const T& geometry, Sys& system)
     : ModuleShape3D<Typelist, ID>::template type<Sys>::template Shape3D_base<Derived>(geometry, system)
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 , log_id("No ID")
 #endif
 {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     Base::log.add_attribute("ID", log_id);
 #endif
 };
@@ -756,7 +756,7 @@ template<typename Sys>
 template<typename Derived>
 void ModuleShape3D<Typelist, ID>::type<Sys>::Shape3D_id<Derived>::setIdentifier(Identifier id) {
     this->template setProperty<id_prop<Identifier> >(id);
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     std::stringstream str;
     str<<this->template getProperty<id_prop<Identifier> >();
     log_id.set(str.str());

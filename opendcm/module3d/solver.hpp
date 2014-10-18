@@ -67,7 +67,7 @@ struct MES  : public Sys::Kernel::MappedEquationSystem {
     graph_algo<Sys>& g_algo;
     boost::shared_ptr<Cluster> m_cluster;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     dcm_logger log;
 #endif
 
@@ -94,7 +94,7 @@ struct SystemSolver : public Job<Sys> {
 
     typedef MES<Sys> Mes;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     src::logger log;
 #endif
     struct Rescaler {

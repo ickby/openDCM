@@ -63,7 +63,7 @@ template<typename Derived>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::Geometry3D_base(Sys& system)
     : Object<Sys, Derived, GeomSig>(system) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 };
@@ -75,7 +75,7 @@ template<typename T>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::Geometry3D_base(const T& geometry, Sys& system)
     : Object<Sys, Derived, GeomSig>(system) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry3D"));
 #endif
 
@@ -86,7 +86,7 @@ Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::Geometry3D_base(con
     (typename geometry_traits<T>::modell()).template extract<Scalar,
     typename geometry_traits<T>::accessor >(geometry, Base::getValue());
     
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(Base::log, information) << "Set global Value: " << Base::getValue().transpose();
 #endif
 };
@@ -104,7 +104,7 @@ void Module3D<Typelist, ID>::type<Sys>::Geometry3D_base<Derived>::set(const T& g
     (typename geometry_traits<T>::modell()).template extract<Scalar,
     typename geometry_traits<T>::accessor >(geometry, Base::getValue());
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(Base::log, information) << "Set global Value: " << Base::getValue().transpose();
 #endif
     
@@ -176,12 +176,12 @@ template<typename Sys>
 template<typename Derived>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D_id<Derived>::Geometry3D_id(Sys& system)
     : Module3D<Typelist, ID>::template type<Sys>::template Geometry3D_base<Derived>(system)
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 , log_id("No ID")
 #endif
 {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     Base::log.add_attribute("ID", log_id);
 #endif
 };
@@ -192,12 +192,12 @@ template<typename Derived>
 template<typename T>
 Module3D<Typelist, ID>::type<Sys>::Geometry3D_id<Derived>::Geometry3D_id(const T& geometry, Sys& system)
     : Module3D<Typelist, ID>::template type<Sys>::template Geometry3D_base<Derived>(geometry, system)
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 , log_id("No ID")
 #endif
 {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     Base::log.add_attribute("ID", log_id);
 #endif
 };
@@ -232,7 +232,7 @@ template<typename Sys>
 template<typename Derived>
 void Module3D<Typelist, ID>::type<Sys>::Geometry3D_id<Derived>::setIdentifier(Identifier id) {
     this->template setProperty<id_prop<Identifier> >(id);
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     std::stringstream str;
     str<<this->template getProperty<id_prop<Identifier> >();
     log_id.set(str.str());

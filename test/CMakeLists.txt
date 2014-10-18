@@ -39,11 +39,12 @@ else(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
+              sheduler.cpp
 	      #kernel.cpp
 	      #clustergraph.cpp
 	      #system.cpp
 	      #analyse.cpp
-	      numeric.cpp
+	      #numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
 	      #${module3d_SRC}

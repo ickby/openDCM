@@ -57,7 +57,7 @@ struct ModulePart {
         class Part_base : public Object<Sys, Part, PartSignal > {
         protected:
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             dcm_logger log;
 #endif
 
@@ -289,7 +289,7 @@ template<typename T>
 ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(const T& geometry, Sys& system, boost::shared_ptr<Cluster> cluster)
     : Object<Sys, Part, PartSignal>(system), m_geometry(geometry), m_cluster(cluster)  {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Part3D"));
 #endif
 
@@ -301,7 +301,7 @@ ModulePart<Typelist, ID>::type<Sys>::Part_base::Part_base(const T& geometry, Sys
     //the the clustermath transform
     m_cluster->template getProperty<typename module3d::math_prop>().setTransform(m_transform);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init: "<<m_transform;
 #endif
 };
@@ -421,7 +421,7 @@ void ModulePart<Typelist, ID>::type<Sys>::Part_base::finishCalculation() {
     apply_visitor vis(m_transform);
     apply(vis);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, manipulation) << "New Value: "<<m_transform;
 #endif
 

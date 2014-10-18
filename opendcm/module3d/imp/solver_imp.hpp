@@ -319,7 +319,7 @@ struct rescale_visitor : public dfs_tree<Sys> {
 
 template<typename Sys>
 MES<Sys>::MES(boost::shared_ptr< Cluster > cl, int par, int eqn, graph_algo< Sys >& a) : Base(par, eqn), m_cluster(cl), g_algo(a) {
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("MES3D"));
 #endif
 };
@@ -334,7 +334,7 @@ void MES<Sys>::recalculate() {
 template<typename Sys>
 void MES<Sys>::removeLocalGradientZeros(bool lgz) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "remove local gradient zero";
 #endif
     //let the constraints treat the local zeros
@@ -548,7 +548,7 @@ void SystemSolver<Sys>::Rescaler::collectPseudoPoints(
 template<typename Sys>
 SystemSolver<Sys>::SystemSolver() {
     Job<Sys>::priority = 1000;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("SystemSolver3D"));
 #endif
 };
@@ -610,7 +610,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
     if(params <= 0 || constraints <= 0) {
         //TODO:throw
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, error)<< "Error in system counting: params = " << params << " and constraints = "<<constraints;
 #endif
         return;
@@ -628,7 +628,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         /*    //if we don't have rotations we need no expensive scaling code
             if(!mes.hasAccessType(rotation)) {
 
-        #ifdef USE_LOGGING
+        #ifdef DCM_USE_LOGGING
                 BOOST_LOG_SEV(log, solving)<< "No rotation parameters in system, solve without scaling";
         #endif
                 DummyScaler re;
@@ -656,7 +656,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                 bool done = false;
 
                 //if(!has_cycle) {
-        #ifdef USE_LOGGING
+        #ifdef DCM_USE_LOGGING
                 BOOST_LOG_SEV(log, solving)<< "non-cyclic system dedected: solve rotation only";
         #endif
                 //cool, lets do uncylic. first all rotational constraints with rotational parameters
@@ -691,7 +691,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
                     if(sys.kernel().isSame(mes.Residual.template lpNorm<E::Infinity>(),0.))
                         done = true;
                     else {
-        #ifdef USE_LOGGING
+        #ifdef DCM_USE_LOGGING
                         BOOST_LOG_SEV(log, solving)<< "Solve Translation after Rotations are not enough";
         #endif
 
@@ -712,7 +712,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
 
                 //not done already? try it the hard way!
                 if(!done) {*/
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, solving)<< "Full scale solver used";
 #endif
 
@@ -728,7 +728,7 @@ void SystemSolver<Sys>::solveCluster(boost::shared_ptr<Cluster> cluster, Sys& sy
         //DummyScaler re;
         re();
         sys.kernel().solve(mes, re);
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, solving)<< "Numbers of rescale: "<<re.rescales;
 #endif
         /*    };

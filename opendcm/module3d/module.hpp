@@ -110,7 +110,7 @@ struct Module3D {
             typedef typename mpl::push_front<Typelist, boost::blank>::type ExtTypeList;
             typedef typename boost::make_variant_over< ExtTypeList >::type Variant;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             src::logger log;
 #endif
             Variant m_geometry; //Variant holding the real geometry type
@@ -128,7 +128,7 @@ struct Module3D {
 
             typedef Geometry3D_base<Derived> Base;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
             attrs::mutable_constant< std::string > log_id;
 #endif
         public:

@@ -84,7 +84,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
     typename Distance::options values;
     Vector3 diff, n, dist;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     dcm_logger log;
     attrs::mutable_constant< std::string > tag;
 
@@ -96,7 +96,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
     //template definition
     void calculatePseudo(typename Kernel::Vector& point, Vec& v1, typename Kernel::Vector& line, Vec& v2) {
         Vector3 pp = line.head(3) + (line.head(3)-point.head(3)).norm()*line.template segment<3>(3);
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isnormal(pp.norm()))
             BOOST_LOG_SEV(log, error) << "Unnormal pseudopoint detected";
 #endif
@@ -112,7 +112,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
         diff = line.template head<3>() - point.template head<3>();
         dist = diff - diff.dot(n)*n;
         const Scalar res = dist.norm() - sc_value;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal residual detected: "<<res;
 #endif
@@ -129,7 +129,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
         const Vector3 d_diff = -dpoint.template head<3>();
         const Vector3 d_dist = d_diff - d_diff.dot(n)*n;
         const Scalar res = dist.dot(d_dist)/dist.norm();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal first cluster gradient detected: "<<res
                            <<" with point: "<<point.transpose()<<", line: "<<line.transpose()
@@ -149,7 +149,7 @@ struct Distance::type< Kernel, tag::point3D, tag::line3D > {
         const Vector3 d_n  = dline.template segment<3>(3);
         const Vector3 d_dist = d_diff - ((d_diff.dot(n)+diff.dot(d_n))*n + diff.dot(n)*d_n);
         const Scalar res = dist.dot(d_dist)/dist.norm();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal second cluster gradient detected: "<<res
                            <<" with point: "<<point.transpose()<<", line: "<<line.transpose()
@@ -198,7 +198,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
     SolutionSpace sspace;
     typename Distance::options values;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     src::logger log;
     attrs::mutable_constant< std::string > tag;
 
@@ -215,7 +215,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         dir = param2.template segment<3>(3).cross(dir).normalized();
         typename Kernel::Vector3 pp = param2.head(3) + (param1.head(3)-param2.head(3)).norm()*dir;
         v2.push_back(pp);
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isnormal(pp.norm()))
             BOOST_LOG_SEV(log, error) << "Unnormal pseudopoint detected";
 #endif
@@ -237,7 +237,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
 
         if(sspace == negative_directional)
             return result + sc_value;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(result))
             BOOST_LOG_SEV(log, error) << "Unnormal residual detected: " << result;
 #endif
@@ -251,7 +251,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         //dp1°n / |n|
         //if(dparam1.norm()!=1) return 0;
         const Scalar res = (dparam1.head(3)).dot(param2.tail(3)) / param2.tail(3).norm();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal first cluster gradient detected: "<<res;
 #endif
@@ -277,7 +277,7 @@ struct Distance::type< Kernel, tag::point3D, tag::plane3D > {
         const typename Kernel::Vector3 dn = dparam2.tail(3);
         //if(dparam2.norm()!=1) return 0;
         const Scalar res = (((-dp2).dot(n) + (p1-p2).dot(dn)) / n.norm() - (p1-p2).dot(n)* n.dot(dn)/std::pow(n.norm(),3));
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal second cluster gradient detected: "<<res;
 #endif
@@ -322,7 +322,7 @@ struct Distance::type< Kernel, tag::point3D, tag::cylinder3D > : public Distance
     SolutionSpace sspace;
     using Distance::template type<Kernel, tag::point3D, tag::line3D>::sc_value;
     using Distance::template type<Kernel, tag::point3D, tag::line3D>::values;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() {
         Distance::template type< Kernel, tag::point3D, tag::line3D >::tag.set("Distance point3D cylinder3D");
     };
@@ -393,7 +393,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
     //to do this efficently we just hold a point-line distance equation and use it instead
     Distance::type<Kernel, tag::point3D, tag::line3D> pl_eqn;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     src::logger log;
     attrs::mutable_constant< std::string > tag;
 
@@ -421,7 +421,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
         Vector3 pp1 = line1.template head<3>() + r.dot(n2)*n1;
         Vector3 pp2 = line2.template head<3>() + r.dot(n1)*n2;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(pp1.norm()) || !boost::math::isfinite(pp2.norm()))
             BOOST_LOG_SEV(log, error) << "Unnormal pseudopoint detected";
 #endif
@@ -449,7 +449,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
         c = line2.template head<3>() - line1.template head<3>();
         cdn = c.dot(nxn);
         const Scalar res = std::abs(cdn) / nxn.norm();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(res))
             BOOST_LOG_SEV(log, error) << "Unnormal residual detected: "<<res;
 #endif
@@ -473,7 +473,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 
         diff /= std::pow(nxn_n,2);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(diff))
             BOOST_LOG_SEV(log, error) << "Unnormal first cluster gradient detected: "<<diff
                            <<" with line1: "<<line1.transpose()<<", line2: "<<line2.transpose()
@@ -499,7 +499,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 
         diff /= std::pow(nxn_n,2);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         if(!boost::math::isfinite(diff))
             BOOST_LOG_SEV(log, error) << "Unnormal first cluster gradient detected: "<<diff
                            <<" with line1: "<<line1.transpose()<<", line2: "<<line2.transpose()
@@ -551,7 +551,7 @@ struct Distance::type< Kernel, tag::line3D, tag::line3D > {
 template<typename Kernel>
 struct Distance::type< Kernel, tag::line3D, tag::plane3D > : public Distance::type< Kernel, tag::point3D, tag::plane3D > {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() : Distance::type< Kernel, tag::point3D, tag::plane3D >() {
         Distance::type< Kernel, tag::point3D, tag::plane3D >::tag.set("Distance line3D plane3D");
     };
@@ -577,7 +577,7 @@ struct Distance::type< Kernel, tag::line3D, tag::cylinder3D > : public Distance:
     Scalar result;
     SolutionSpace sspace;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() : Distance::type< Kernel, tag::line3D, tag::line3D >() {
         Distance::type< Kernel, tag::line3D, tag::line3D >::tag.set("Distance line3D cylinder3D");
     };
@@ -614,7 +614,7 @@ struct Distance::type< Kernel, tag::line3D, tag::cylinder3D > : public Distance:
 template<typename Kernel>
 struct Distance::type< Kernel, tag::plane3D, tag::plane3D > : public Distance::type< Kernel, tag::point3D, tag::plane3D > {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() : Distance::type< Kernel, tag::point3D, tag::plane3D >() {
         Distance::type< Kernel, tag::point3D, tag::plane3D >::tag.set("Distance plane3D plane3D");
     };
@@ -638,7 +638,7 @@ struct Distance::type< Kernel, tag::plane3D, tag::cylinder3D > : public Distance
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() : Distance::type< Kernel, tag::point3D, tag::plane3D >() {
         Distance::type< Kernel, tag::point3D, tag::plane3D >::tag.set("Distance plane3D cylinder3D");
     };
@@ -697,7 +697,7 @@ struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public Dista
     typedef typename Kernel::number_type Scalar;
     typedef typename Kernel::VectorMap   Vector;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     type() : Distance::type< Kernel, tag::line3D, tag::line3D >() {
         Distance::type< Kernel, tag::line3D, tag::line3D >::tag.set("Distance cylinder3D cylinder3D");
     };

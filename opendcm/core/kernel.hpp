@@ -42,7 +42,7 @@ struct Parameter {
 template<typename Kernel>
 struct Dogleg {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     dcm_logger log;
 #endif
 

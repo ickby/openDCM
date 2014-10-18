@@ -47,7 +47,7 @@
 
 #include <boost/variant.hpp>
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 #include <boost/math/special_functions.hpp>
 #endif
 
@@ -63,7 +63,7 @@ Geometry<Kernel, Dim, TagList>::Geometry()
     : m_isInCluster(false), m_parameter(NULL,0,DS(0,0)),
       m_clusterFixed(false), m_init(false) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Geometry"));
 #endif
 
@@ -105,7 +105,7 @@ void Geometry<Kernel, Dim, TagList>::init() {
     //new value which is not set into parameter, so init is false
     m_init = false;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init";
 #endif
 
@@ -203,7 +203,7 @@ void Geometry<Kernel, Dim, TagList>::recalculate(DiffTransform& trans) {
         m_rotated(i) = m_toplocal(i) *= trans.scaling().factor();
     }
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 
     if(!boost::math::isnormal(m_rotated.norm()) || !boost::math::isnormal(m_diffparam.norm())) {
         if((m_rotated.norm() != 0) && m_diffparam.norm() !=0) {
@@ -241,7 +241,7 @@ void Geometry<Kernel, Dim, TagList>::recalculateInverted(Transform& t, DiffTrans
         m_rotated(i) = m_toplocal(i);
     }
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 
     if(!boost::math::isnormal(m_rotated.norm()) || !boost::math::isnormal(m_diffparam.norm())) {
         if((m_rotated.norm() != 0) && m_diffparam.norm() !=0) {
@@ -261,7 +261,7 @@ void Geometry<Kernel, Dim, TagList>::finishCalculation() {
     if(m_isInCluster) {
         //recalculate(1.); //remove scaling to get right global value
         m_global = m_rotated;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, information) << "Finish cluster calculation";
 #endif
     }
@@ -269,7 +269,7 @@ void Geometry<Kernel, Dim, TagList>::finishCalculation() {
     else {
         m_global = m_parameter;
         normalize();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, information) << "Finish calculation";
 #endif
     };
@@ -302,7 +302,7 @@ void Geometry<Kernel, Dim, TagList>::transform(const Transform& t, VectorType& v
         vec(i) *= t.scaling().factor();
     }
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, manipulation) << "Transformed with cluster: "<<m_isInCluster
                                      << ", init: "<<m_init<<" into: "<< vec.transpose();
 #endif

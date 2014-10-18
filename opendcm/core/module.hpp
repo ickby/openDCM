@@ -52,7 +52,7 @@ template<typename Final>
 struct ModuleCoreInit {
 
     ModuleCoreInit() : graph(NULL)
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         , sink(init_log())
 #endif
     {};
@@ -61,12 +61,12 @@ struct ModuleCoreInit {
         if(graph)
             delete graph;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
         stop_log(sink);
 #endif
     };
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     template<typename Expr>
     void setLoggingFilter(const Expr& ex) {
         sink->set_filter(ex);
@@ -93,7 +93,7 @@ protected:
 
 private:
     ClusterGraphBase* graph;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
 

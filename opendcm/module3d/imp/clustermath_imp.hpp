@@ -37,7 +37,7 @@ ClusterMath<Sys>::ClusterMath() : m_normQ(NULL), m_translation(NULL), init(false
 
     m_resetTransform = Eigen::AngleAxisd(M_PI*2./3., Eigen::Vector3d(1,1,1).normalized());
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Clustermath3D"));
 #endif
 };
@@ -77,7 +77,7 @@ void ClusterMath<Sys>::initMaps() {
     m_ssrTransform.setIdentity();
     m_diffTrans = m_transform;
     fix=false;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init transform: "<<m_transform;
     BOOST_LOG_SEV(log, information) << "Init sucessive transform: "<<m_successiveTransform;
 #endif
@@ -94,7 +94,7 @@ void ClusterMath<Sys>::initFixMaps() {
     m_successiveTransform.setIdentity();
     m_diffTrans = m_transform;
     fix=true;
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Init fix transform: "<<m_transform;
     BOOST_LOG_SEV(log, information) << "Init fix suc transform: "<<m_successiveTransform;
 #endif
@@ -177,7 +177,7 @@ void ClusterMath<Sys>::transformToMaps(const typename Kernel::Transform3D& trans
 template<typename Sys>
 void ClusterMath<Sys>::finishCalculation() {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Finish calculation";
 #endif
 
@@ -193,7 +193,7 @@ void ClusterMath<Sys>::finishCalculation() {
     for(iter it = m_geometry.begin(); it != m_geometry.end(); it++)
         (*it)->recalculate(m_diffTrans);
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Finish transform:"<<std::endl<<m_transform;
     BOOST_LOG_SEV(log, information) << "Finish ssr transform:"<<std::endl<<m_ssrTransform;
     BOOST_LOG_SEV(log, information) << "Finish suc transform:"<<std::endl<<m_successiveTransform;
@@ -204,7 +204,7 @@ void ClusterMath<Sys>::finishCalculation() {
 template<typename Sys>
 void ClusterMath<Sys>::resetClusterRotation(typename ClusterMath<Sys>::Kernel::Transform3D& trans) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Reset cluster rotation:"<<std::endl<<m_diffTrans;
 #endif
 
@@ -402,7 +402,7 @@ void ClusterMath<Sys>::map_downstream::operator()(boost::shared_ptr<Cluster> c) 
 template<typename Sys>
 void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> cluster, GlobalVertex v) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Map downstream geometry";
 #endif
 
@@ -416,7 +416,7 @@ void ClusterMath<Sys>::mapClusterDownstreamGeometry(boost::shared_ptr<Cluster> c
 template<typename Sys>
 typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Calculate cluster scale with transform scale: "<<m_transform.scaling().factor();
 #endif
 
@@ -425,7 +425,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
         mapsToTransform(m_transform);
 
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Calculate cluster scale sec transform scale: "<<m_transform.scaling().factor();
 #endif
 
@@ -584,7 +584,7 @@ typename ClusterMath<Sys>::Scalar ClusterMath<Sys>::calculateClusterScale() {
 template<typename Sys>
 void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "Apply cluster scale: "<<scale;
     BOOST_LOG_SEV(log, information) << "initial transform scale: "<<m_transform.scaling().factor();
 #endif
@@ -693,7 +693,7 @@ void ClusterMath<Sys>::applyClusterScale(Scalar scale, bool isFixed) {
         }
     }
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, information) << "sstrans: "<<ssTrans;
     BOOST_LOG_SEV(log, information) << "finish transform: "<<m_transform;
     //we may want to access the scale points for debuging (I mean you, freecad assembly debug!), so

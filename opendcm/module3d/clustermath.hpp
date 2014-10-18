@@ -75,7 +75,7 @@ struct ClusterMath : public boost::noncopyable {
     typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
     Vec m_points, m_pseudo;
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     dcm_logger log;
 #endif
 

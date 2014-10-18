@@ -20,7 +20,7 @@
 #ifndef DCM_LOGGING_H
 #define DCM_LOGGING_H
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 
 #define BOOST_LOG_DYN_LINK
 
@@ -100,6 +100,6 @@ inline void stop_log(boost::shared_ptr< sink_t >& sink) {
 
 }; //dcm
 
-#endif //USE_LOGGING
+#endif //DCM_USE_LOGGING
 
 #endif //DCM_LOGGING_H
