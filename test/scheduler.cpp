@@ -29,7 +29,7 @@
 
 using namespace dcm::details::shedule;
 
-BOOST_AUTO_TEST_SUITE(Sheduler_test_suit);
+BOOST_AUTO_TEST_SUITE(Scheduler_test_suit);
 
 volatile boost::atomic<int> count;
 volatile boost::atomic<int> dummy;
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(sheduler) {
         
         TestGroup* group = new TestGroup(6);
 
-        Sheduler sh(1);
+        Scheduler sh(1);
         
         boost::chrono::system_clock::time_point start = boost::chrono::system_clock::now();
         sh.execute(group);
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(sheduler) {
         << " with 1 thread" << std::endl;
         loop = count;
          
-        Sheduler sh2(2);
+        Scheduler sh2(2);
         count = 0;
         
         start = boost::chrono::system_clock::now();
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(sheduler) {
         std::cout<<count.load(boost::memory_order_relaxed)<<" counts in " << sec.count() << "s"
         << " with 2 threads" << std::endl;
         
-        Sheduler sh3(3);
+        Scheduler sh3(3);
         count = 0;
         
         start = boost::chrono::system_clock::now();

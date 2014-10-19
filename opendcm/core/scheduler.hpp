@@ -276,10 +276,10 @@ protected:
 };
 
 //thread pool
-class Sheduler {
+class Scheduler {
     
 public:
-    Sheduler(
+    Scheduler(
 #ifdef DCM_USE_MULTITHREADING
         unsigned int n = boost::thread::hardware_concurrency()
 #else
@@ -287,7 +287,7 @@ public:
 #endif
     );
 
-    ~Sheduler();
+    ~Scheduler();
         
     void execute(Node* node);
     void join();
@@ -307,18 +307,18 @@ private:
     void loop();
 };
 
-Sheduler::Sheduler(unsigned int n) 
+Scheduler::Scheduler(unsigned int n) 
 #ifdef DCM_USE_MULTITHREADING
 : m_busy(0), stop() 
 #endif
 {
 #ifdef DCM_USE_MULTITHREADING
     for (unsigned int i=0; i<n; ++i)
-        m_threads.create_thread(boost::bind(&Sheduler::loop, this));
+        m_threads.create_thread(boost::bind(&Scheduler::loop, this));
 #endif
 }
 
-Sheduler::~Sheduler() {
+Scheduler::~Scheduler() {
     
 #ifdef DCM_USE_MULTITHREADING
     // set stop-condition
@@ -332,7 +332,7 @@ Sheduler::~Sheduler() {
 #endif
 }
 
-void Sheduler::loop() {
+void Scheduler::loop() {
     
     while (true) {
         
@@ -387,7 +387,7 @@ void Sheduler::loop() {
 
 }
 
-void Sheduler::execute(Node* node) {
+void Scheduler::execute(Node* node) {
 
 #ifdef DCM_USE_MULTITHREADING
     boost::unique_lock<boost::mutex> lock(m_mutex);
@@ -402,7 +402,7 @@ void Sheduler::execute(Node* node) {
 
 
 // generic function push
-void Sheduler::enqueue(Node* node) {
+void Scheduler::enqueue(Node* node) {
     
 #ifdef DCM_USE_MULTITHREADING    
     boost::unique_lock<boost::mutex> lock(m_mutex);
@@ -414,7 +414,7 @@ void Sheduler::enqueue(Node* node) {
 }
 
 // waits until the queue is empty and all jobs are finished.
-void Sheduler::join() {
+void Scheduler::join() {
 #ifdef DCM_USE_MULTITHREADING    
     boost::unique_lock<boost::mutex> lock(m_mutex);
     while(!m_tasks.empty() || (m_busy != 0))
