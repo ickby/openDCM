@@ -10,7 +10,7 @@ option(LOGGING "Log internals to a file. Warning: serious speed tradeoff" OFF)
 option(EXTERNALIZE "Explicit instantiation of templates to reduce compile time memory" ON)
 
 
-find_package(Boost COMPONENTS unit_test_framework system filesystem thread REQUIRED)
+find_package(Boost COMPONENTS unit_test_framework system filesystem thread chrono REQUIRED)
 find_package(Eigen3)
 
 #check for extern templates

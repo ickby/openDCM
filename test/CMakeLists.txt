@@ -63,6 +63,7 @@ set(log_LIB   boost_log
 	      ${Boost_SYSTEM_LIBRARY}
 	      ${Boost_FILESYSTEM_LIBRARY}
 	      ${Boost_THREAD_LIBRARY}
+	      ${Boost_CHRONO_LIBRARY}
 	      pthread
 )
 endif(LOGGING)
