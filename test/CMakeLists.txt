@@ -39,7 +39,7 @@ else(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
-              sheduler.cpp
+              scheduler.cpp
 	      #kernel.cpp
 	      #clustergraph.cpp
 	      #system.cpp

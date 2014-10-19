@@ -17,14 +17,14 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#define DCM_USE_MULTITHREADING
+//#define DCM_USE_MULTITHREADING
 
-#include "opendcm/core/sheduler.hpp"
+#include "opendcm/core/scheduler.hpp"
 #include <boost/test/unit_test.hpp>
 #include <boost/atomic.hpp>
 #include <boost/chrono.hpp>
 
-#define NUM_SQRT 1000
+#define NUM_SQRT 2000
 #define DCM_DEBUG_THROW_AT_ASSERT
 
 using namespace dcm::details::shedule;
@@ -34,13 +34,9 @@ BOOST_AUTO_TEST_SUITE(Scheduler_test_suit);
 volatile boost::atomic<int> count;
 volatile boost::atomic<int> dummy;
 
-struct TestNode : public Node {
-    bool executed;
-    int num;
-    
-    TestNode(int i) : Node(),executed(false), num(i) {};
-    
-    virtual void execute() {  
+struct Test {
+       
+    void execute() {  
         volatile int c;
         for ( long i = 0; i < NUM_SQRT; ++i )
            c = std::sqrt(125.34L);// burn some time
@@ -49,41 +45,34 @@ struct TestNode : public Node {
     };
 };
 
+Test t;
+
 struct TestGroup : public Group {
-    bool executed;
+
     int  nested;
     
-    TestGroup(int i) : Group(), executed(false), nested(i) {
-        //create some nodes
-        std::vector<TestNode*> nodes;
-        for(int i=0; i<10; i++)
-            nodes.push_back(new TestNode(i));
+    TestGroup(int i) : Group(), nested(i) {
         
-        setupGroupNode(nodes[0]);
-        setupGroupNode(nodes[1]);
-        setupGroupNode(nodes[2], nodes[0]);
-        setupGroupNode(nodes[3], nodes[0]);
-        setupGroupNode(nodes[4], nodes[2]);
-        setupGroupNode(nodes[5], nodes[2]);
-        setupGroupNode(nodes[6], nodes[4]);
-        setupGroupNode(nodes[7], nodes[4]);
-        setupGroupNode(nodes[8], nodes[2]);
-        setupGroupNode(nodes[9], nodes[2]);
+        //create some nodes
+        std::vector<Node*> nodes(10);
+        
+        nodes[0] = createNode(boost::bind(&Test::execute, &t));
+        nodes[1] = createNode(boost::bind(&Test::execute, &t));
+        nodes[2] = createDependendNode(nodes[0], boost::bind(&Test::execute, &t));
+        nodes[3] = createDependendNode(nodes[0], boost::bind(&Test::execute, &t));
+        nodes[4] = createDependendNode(nodes[2], boost::bind(&Test::execute, &t));
+        nodes[5] = createDependendNode(nodes[2], boost::bind(&Test::execute, &t));
+        nodes[6] = createDependendNode(nodes[4], boost::bind(&Test::execute, &t));
+        nodes[7] = createDependendNode(nodes[4], boost::bind(&Test::execute, &t));
+        nodes[8] = createDependendNode(nodes[2], boost::bind(&Test::execute, &t));
+        nodes[9] = createDependendNode(nodes[2], boost::bind(&Test::execute, &t));
         
         if(nested>0) {
             TestGroup* group1 = new TestGroup(nested-1);
             TestGroup* group2 = new TestGroup(nested-1);
-            setupGroupNode(group1, nodes[2]);
-            setupGroupNode(group2, nodes[2]);
+            setupDependendGroupNode(group1, nodes[2]);
+            setupDependendGroupNode(group2, nodes[2]);
         };
-    };
-    
-    virtual void execute() {
-        volatile int c;
-        for ( long i = 0; i < NUM_SQRT; ++i )
-           c = std::sqrt(125.34L);// burn some time
-           
-        count.fetch_add(1, boost::memory_order_relaxed);
     };
 };
 
@@ -102,7 +91,7 @@ BOOST_AUTO_TEST_CASE(sheduler) {
         int loop;
         count = 0;
         
-        TestGroup* group = new TestGroup(6);
+        TestGroup* group = new TestGroup(8);
 
         Scheduler sh(1);
         
@@ -138,7 +127,7 @@ BOOST_AUTO_TEST_CASE(sheduler) {
         << " with 3 threads" << std::endl;
         
         count = 0;
-        Node* der = new TestNode(1);
+        Test* der = new Test;
         start = boost::chrono::system_clock::now();
         for(int i=0; i<loop; i++)
             der->execute();

@@ -23,6 +23,7 @@
 #include <queue>
 #include <valarray>
 
+#include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/foreach.hpp>
@@ -47,9 +48,12 @@ struct shedule_error : virtual boost::exception { };
 
 struct Group;
 
-//nodes are only allowed to be created as part of a group, never standalone!
 struct Node {
 
+    Node(const boost::function<void()>& callable = NULL) 
+        : registeredInput(0), handledInputs(0), m_function(callable) {};
+
+        
     typedef std::vector<Node*>::iterator iterator;
     typedef std::vector<Node*>::const_iterator const_iterator;
 
@@ -89,7 +93,30 @@ struct Node {
         return m_next.end();
     };
 
+  
+    /**
+     * @brief Creates a node from given callable which depends on \a this
+     *
+     * If a certain callable shall only be executed in case that \a this is finished the dependency can
+     * be created with this function. The returned node will only execute if \a this is done.
+     *
+     * @param node The node which depends on \a this
+     * @return void
+     */
+    Node* createDependendNode(const boost::function<void()>& callable) {
 
+        Node* n = new Node(callable);
+        setupDependendNode(n);
+        return n;
+    };
+    
+    inline void execute() {
+        if(m_function)
+            m_function();
+    };
+
+protected:
+    
     /**
      * @brief Connects the given node as dependend on \a this
      *
@@ -112,18 +139,7 @@ struct Node {
         m_next.push_back(node);
         node->registeredInput++;
     };
-
-    /**
-     * @brief Code execution method for derived classes
-     * 
-     * This function gets called when the node gets executed from the sheduler. Override this function
-     * in you base class to do the actual work.
-     */
-    virtual void execute() {};
-
-protected:
-    Node() : registeredInput(0), handledInputs(0) {};
-
+    
 #ifdef DCM_DEBUG
     bool isCyclic(Node* start, int depth) {
         if(depth == 0)
@@ -140,53 +156,139 @@ protected:
 #endif
 
     std::vector<Node*> m_next;
+    boost::function<void()> m_function;
 
     friend struct Group;
 };
 
 struct Group : public Node {
 
-    Group() : Node() {
+    Group(const boost::function<void()>& atStart = NULL,
+          const boost::function<void()>& atFinish = NULL) : Node(atStart) {
 
-        m_final = new Node;
+        m_final = new Node(atFinish);
     };
 
     ~Group() {
-//        if (m_final->handledInputs.load(boost::memory_order_relaxed) != 0) {
-//            throw shedule_error() <<  boost::errinfo_errno(11) << error_message("Group deleted but not all jobs are done");
-//        }
         delete m_final;
     };
 
     /**
-     * @brief Adds a node to this group of connected nodes
+     * @brief Creates a node in this group of connected nodes
      *
-     * This function adds the node to the execution group and ensures that it will be executed after the
-     * group setup and before the group finishes as a whole. 
-     * \note The node is not allowed to already have any dependencys or that any other node depends on 
-     * it. Use this function to setup a newly created node, not to buil dependency chains inside the 
-     * group.
+     * This function adds the callable to the execution group and ensures that it will be executed 
+     * after the group setup and before the group finishes as a whole. 
      *
-     * \param node The node that shall be added to this execution group
+     * \param callable The callable object that shall be added to this execution group
+     * @return The node which describes the callable inside the group
+     */
+    Node* createNode(const boost::function<void()>& callable) {
+
+        Node* node = new Node(callable);
+
+        setupGroupNode(node);        
+        return node;
+    };
+
+    /**
+     * @brief Creates a node in this group of connected nodes as dependend on another node
+     *
+     * This function adds the callable to the execution group and ensures that it will be executed after 
+     * the group setup and before the group finishes as a whole. It furthermore ensures that it is executed 
+     * after the finishing of \a dependsOn. It does however not ensured that \a node is executed directly 
+     * after \a dependsOn. Use this function to build up the group internal dependencies.
+     * \note The node \a dependsOn needs to be already part of the group and not belong to a parent - or
+     * subgroup
+     *
+     * \param callable The callable object that shall be added to this execution group
+     * \param dependsOn The node which describes the callable inside the group \node
      * @return void
      */
+    Node* createDependendNode( Node* dependsOn, const boost::function<void()>& callable) {
+
+        Node* node = new Node(callable);
+        
+        setupDependendGroupNode(node, dependsOn);
+        return node;
+    };
+    
+        /**
+     * @brief Creates a group in this group of connected nodes
+     *
+     * This function creates a group in the execution group and ensures that it will be executed 
+     * after \a this groups setup and before it finishes as a whole. Furthermore it is ensured that
+     * \a atStart is executed before and \a atFinish after any other node in the new group.
+     *
+     * \param atStart The callable object that shall be executed at the new groups startup
+     * \param atFinish The callable object that shall be executed when the new group finishs
+     * @return The node which describes the group inside the group
+     */
+    Group* createGroup(const boost::function<void()>& atStart = NULL,
+                       const boost::function<void()>& atFinish = NULL) {
+
+        Group* node = new Group(atStart, atFinish);
+
+        setupGroupNode(node);
+        return node;
+    };
+
+    /**
+     * @brief Creates a group in \a this group of connected nodes as dependend on another node
+     *
+     * This function adds a new group to the execution group and ensures that it will be executed after 
+     * \a this groups setup and before it finishes as a whole. It furthermore ensures that it is executed 
+     * after the finishing of \a dependsOn. It does however not ensured that it is executed directly 
+     * after \a dependsOn. Use this function to build up the group internal dependencies. It is ensured that
+     * \a atStart is executed before and \a atFinish after any other node in the new group.
+     * 
+     * \note The node \a dependsOn needs to be already part of the group and not belong to a parent - or
+     * subgroup
+     *
+     * \param atStart The callable object that shall be executed at the new groups startup
+     * \param atFinish The callable object that shall be executed when the new group finishs
+     * \param dependsOn The node which describes the callable inside the group \node
+     * @return void
+     */
+    Group* createDependendGroup(Node* dependsOn,
+                                const boost::function<void()>& atStart = NULL,
+                                const boost::function<void()>& atFinish = NULL ) {
+
+        Group* node = new Group(atStart, atFinish);
+
+        setupDependendGroupNode(node, dependsOn);
+        return node;
+    };
+    
+    /**
+     * @brief Sets the callable object which is executed at the groups startup
+     * 
+     * It is ensured that the callable object will be executed before any other group node, however only
+     * after all of the groups dependencys are finished.
+     * 
+     * \param callable The callable object that shall be executed
+     * @return void
+     */
+    void executeAtStart(const boost::function<void()>& callable) {
+       m_function = callable;  
+    };
+    
+    /**
+     * @brief Sets the callable object which is executed when the group finishs
+     * 
+     * It is ensured that the callable object will be executed after any other group node, but before any
+     * node that dependends on \this will be executed
+     * 
+     * \param callable The callable object that shall be executed
+     * @return void
+     */
+    void executeAtFinish(const boost::function<void()>& callable) {
+        m_final->m_function = callable;
+    };
+
+protected:
+    Node* m_final;
+    
     void setupGroupNode(Node* node) {
-
-#ifdef DCM_DEBUG
-        //if any other node depends on this node it is unclear where this connection is leading. As it
-        //is possible that they reach out of the group we would not be able to garantuee that all jobs
-        //are done when the group finishes, therefore this is not allowed
-        dcm_assert(node->begin() == node->end());
-
-        //if any other node depend on this node this connection can reach outside of the group. This
-        //would not break our guarantees, however, would potentially block the group finishing by other
-        //untrackable criterias and therefore introduce complexity without any useful application
-        dcm_assert(node->registeredInput == 0);
-
-        //cyclic dependencies to this group are never allowed
-        dcm_assert(!node->isCyclic(this,-1));
-
-#endif //DCM_DEBUG       
 
         //create a node which is executed after group setup in parallel to all other initial nodes
         //also make sure it is finished before the group is done as a whole by connecting to the
@@ -195,27 +297,9 @@ struct Group : public Node {
         node->setupDependendNode(m_final);
     };
 
-    /**
-     * @brief Adds a node to this group of connected nodes as dependend on another node
-     *
-     * This function adds the node to the execution group and ensures that it will be executed after the
-     * group setup and before the group finishes as a whole. It furthermore ensures that it is executed 
-     * after the finishing of \a dependsOn. It does however not ensure that \a node is executed directly 
-     * after \a dependsOn. Use this function to setup a newly created node
-     * \note The added node is not allowed to already have any dependencys or that any other node depends
-     * on it. Furthermore the \a dependsOn needs to be already part of the group.
-     *
-     * \param node The node that shall be added to this execution group
-     * \param dependsOn The node which must be executed before \node
-     * @return void
-     */
-    void setupGroupNode(Node* node, Node* dependsOn) {
+    void setupDependendGroupNode(Node* node, Node* dependsOn) {
 
-#ifdef DCM_DEBUG
-        //for explanation see setupGroupNode
-        dcm_assert(node->begin() == node->end());
-        dcm_assert(node->registeredInput == 0);
-        dcm_assert(!node->isCyclic(this,-1));
+#ifdef DCM_DEBUG      
         
         //It is only valid to depend on nodes which are inside of this group. If this would not be
         //the case the group execution could be blocked by some unknown dependency which could 
@@ -225,7 +309,7 @@ struct Group : public Node {
         //The node we depend on must already have a dependend node, eiteher the groups final or at
         //least one other node. If this is not true somehow the setup process has gone wrong.
         dcm_assert(dependsOn->begin() != dependsOn->end());
-#endif
+#endif       
         //we have two possible cases: 
         //1. dependsOn has a connection to m_final which needs to be removed
         //2. dependsOn already has a dependend Node and we can simply add annother one
@@ -237,9 +321,6 @@ struct Group : public Node {
         dependsOn->setupDependendNode(node);
         node->setupDependendNode(m_final);
     };
-
-protected:
-    Node* m_final;
 
 #ifdef DCM_DEBUG
     bool isInGroup(Node* searched) {
