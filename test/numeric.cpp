@@ -17,24 +17,61 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "opendcm/core/geometry.hpp"
-
 #include <boost/test/unit_test.hpp>
+
+#include "opendcm/core/geometry.hpp"
 
 using namespace dcm;
 
 typedef dcm::Eigen3Kernel<double> K;
 
-struct Point3d : public details::numeric::Geometry<K> {
- 
+template<typename Kernel, bool MappedType = true>
+struct TDirection3 : public geometry::Geometry<Kernel, MappedType,
+            geometry::storage::Vector<3>> {
+
+    using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>>::m_storage;
     
+    auto value() -> decltype(fusion::at_c<0>(m_storage)){
+        return fusion::at_c<0>(m_storage);
+    };
 };
+ 
+template<typename Kernel, bool MappedType = true>
+struct TLine3 : public geometry::Geometry<Kernel, MappedType,
+            geometry::storage::Vector<3>, geometry::storage::Vector<3>> {
+
+    using geometry::Geometry<Kernel, MappedType, 
+        geometry::storage::Vector<3>, geometry::storage::Vector<3>>::m_storage;
+    
+    auto point() -> decltype(fusion::at_c<0>(m_storage)){
+        return fusion::at_c<0>(m_storage);
+    };
+    
+    auto direction() -> decltype(fusion::at_c<1>(m_storage)){
+        return fusion::at_c<1>(m_storage);
+    };
+};
+ 
 
 using namespace dcm;
 
-BOOST_AUTO_TEST_SUITE(Geometry_test_suit);
+template<typename T>
+void pretty(T t) {
+  std::cout << __PRETTY_FUNCTION__ << std::endl;  
+};
 
+BOOST_AUTO_TEST_SUITE(Numeric_test_suit);
 
+BOOST_AUTO_TEST_CASE(geometry) {
+  
+    TDirection3<K>  basic;
+    TDirection3<K, false> basic_vec;
+    
+    basic_vec.value()[0] = 5;
+    
+};
+    
+/*
 BOOST_AUTO_TEST_CASE(geometry_accessor) {
 
     std::vector<double> vec;
@@ -80,7 +117,7 @@ BOOST_AUTO_TEST_CASE(geometry_order) {
 
 }
 
-/*
+
 BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
 
     typedef dcm::Kernel<double> Kernel;

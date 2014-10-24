@@ -25,17 +25,16 @@
 #include <Eigen/Geometry>
 
 #include "transformation.hpp"
+#include "logging.hpp"
 
 namespace dcm {
-
-namespace details {
 namespace numeric {
     
 template< typename Kernel >
 struct Parameter {
     
-    int                 Index;
-    Kernel::Scalar*     Value;
+    int                         Index;
+    typename Kernel::Scalar*    Value;
 };
     
 //the standart solverS
@@ -46,16 +45,16 @@ struct Dogleg {
     dcm_logger log;
 #endif
 
-    typedef typename Kernel::number_type number_type;
-    number_type tolg, tolx, delta, nu, g_inf, fx_inf, err, time;
+    typedef typename Kernel::Scalar Scalar;
+    Scalar tolg, tolx, delta, nu, g_inf, fx_inf, err, time;
     Kernel* m_kernel;
     int iter, stop, reduce, unused, counter;
-    typename Kernel::Vector h_dl, F_old, g;
-    typename Kernel::Matrix J_old;
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> h_dl, F_old, g;
+    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> J_old;
 
     Dogleg(Kernel* k);
     Dogleg();
-
+/*
     void setKernel(Kernel* k);
 
     template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
@@ -66,17 +65,16 @@ struct Dogleg {
     int solve(typename Kernel::MappedEquationSystem& sys);
 
     template<typename Functor>
-    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);
+    int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);*/
 };
 };
 
-} //details
 
-template<typename number_type, template<class> class Nonlinear = details::numeric::Dogleg>
+template<typename NumericType, template<class> class Nonlinear = numeric::Dogleg>
 struct Eigen3Kernel {
 
     //the number type we use throughout the system
-    typedef number_type                 Scalar;
+    typedef NumericType   Scalar;
 
 
 private:
@@ -84,11 +82,10 @@ private:
 
 };
 
-
 }//dcm
 
 #ifndef DCM_EXTERNAL_CORE
-#include "imp/kernel_imp.hpp"
+//#include "imp/kernel_imp.hpp"
 #endif
 
 #endif //GCM_KERNEL_H

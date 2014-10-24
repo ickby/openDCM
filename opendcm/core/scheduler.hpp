@@ -48,6 +48,18 @@ struct shedule_error : virtual boost::exception { };
 
 struct Group;
 
+/** @addtogroup Core
+ * @{
+ * */
+
+/** @addtogroup Schedule
+ * @{*/
+
+/**
+ * @brief Basic building block of a dependency based execution
+ * 
+ * 
+ */
 struct Node {
 
     Node(const boost::function<void()>& callable = NULL) 
@@ -98,7 +110,12 @@ struct Node {
      * @brief Creates a node from given callable which depends on \a this
      *
      * If a certain callable shall only be executed in case that \a this is finished the dependency can
-     * be created with this function. The returned node will only execute if \a this is done.
+     * be created with this function. The returned node will only execute if \a this is done. 
+     * 
+     * \note Even if \a this is in a group the dependend node will not ne in a group. There is no 
+     * guarante when this noe will be executed in regard to any group. As long as it has no other node 
+     * dependend on itself the only gurantee is that it is executed before the shedulers join() method 
+     * returns
      *
      * @param node The node which depends on \a this
      * @return void
@@ -506,5 +523,8 @@ void Scheduler::join() {
 } //shedule
 } //details
 } //dcm
+
+/**@}*/ //Schedule
+/**@}*/ //Core
 
 #endif //DCM_SHEDULER_HPP

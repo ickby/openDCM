@@ -106,9 +106,6 @@
  * is only based on the template parameter order. However, it's important that the parameters are mpl::vector's and that
  * every type in it is a property as describet in \ref Property .
  * 
- * 
- * 
- *@}/
-
-/**@}*/
+ *@}
+ */
 

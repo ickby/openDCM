@@ -30,7 +30,7 @@
 #include <boost/mpl/if.hpp>
 
 namespace dcm {
-namespace detail {
+namespace details {
 
 template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform() : m_rotation(Rotation::Identity()),
@@ -289,7 +289,7 @@ DiffTransform<Scalar, Dim>::DiffTransform(const Transform<Scalar, Dim>& trans)
  * is the stream and not (usually) the custom class.
 */
 template<typename charT, typename traits, typename Kernel, int Dim>
-std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::detail::Transform<Kernel, Dim>& t) {
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::Transform<Kernel, Dim>& t) {
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
        << "Translation: " << t.translation().vector().transpose() <<std::endl
        << "Scale:       " << t.scaling().factor();
@@ -297,7 +297,7 @@ std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& o
 }
 
 template<typename charT, typename traits,typename Kernel, int Dim>
-std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::detail::DiffTransform<Kernel, Dim>& t) {
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::details::DiffTransform<Kernel, Dim>& t) {
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
        << "Translation: " << t.translation().vector().transpose() <<std::endl
        << "Scale:       " << t.scaling().factor() << std::endl

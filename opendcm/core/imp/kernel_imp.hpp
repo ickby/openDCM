@@ -26,40 +26,40 @@
 
 namespace dcm {
 
-template<typename Kernel>
-Dogleg<Kernel>::Dogleg(Kernel* k) : m_kernel(k), tolg(1e-40), tolx(1e-20) {
+template<typename Eigen3Kernel>
+Dogleg<Eigen3Kernel>::Dogleg(Eigen3Kernel* k) : m_kernel(k), tolg(1e-40), tolx(1e-20) {
 
 #ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
 #endif
 };
 
-template<typename Kernel>
-Dogleg<Kernel>::Dogleg() : tolg(1e-6), tolx(1e-3) {
+template<typename Eigen3Kernel>
+Dogleg<Eigen3Kernel>::Dogleg() : tolg(1e-6), tolx(1e-3) {
 
 #ifdef DCM_USE_LOGGING
     log.add_attribute("Tag", attrs::constant< std::string >("Dogleg"));
 #endif
 };
 
-template<typename Kernel>
-void Dogleg<Kernel>::setKernel(Kernel* k) {
+template<typename Eigen3Kernel>
+void Dogleg<Eigen3Kernel>::setEigen3Kernel(Eigen3Kernel* k) {
 
     m_kernel = k;
 };
 
-template<typename Kernel>
+template<typename Eigen3Kernel>
 template <typename Derived, typename Derived2, typename Derived3, typename Derived4>
-void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
+void Dogleg<Eigen3Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Eigen::MatrixBase<Derived3>& jacobi,
                                    const Eigen::MatrixBase<Derived4>& residual, Eigen::MatrixBase<Derived2>& h_dl,
                                    const double delta) {
 
     // get the steepest descent stepsize and direction
     const double alpha(g.squaredNorm()/(jacobi*g).squaredNorm());
-    const typename Kernel::Vector h_sd  = -g;
+    const typename Eigen3Kernel::Vector h_sd  = -g;
 
     // get the gauss-newton step
-    const typename Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
+    const typename Eigen3Kernel::Vector h_gn = jacobi.fullPivLu().solve(-residual);
     const double eigen_error = (jacobi*h_gn + residual).norm();
 #ifdef DCM_USE_LOGGING
     if(eigen_error>1e-9)
@@ -102,8 +102,8 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     else {
         //compute beta
         number_type beta = 0;
-        typename Kernel::Vector a = alpha*h_sd;
-        typename Kernel::Vector b = h_gn;
+        typename Eigen3Kernel::Vector a = alpha*h_sd;
+        typename Eigen3Kernel::Vector b = h_gn;
         number_type c = a.transpose()*(b-a);
         number_type bas = (b-a).squaredNorm(), as = a.squaredNorm();
 
@@ -137,15 +137,15 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     }
 };
 
-template<typename Kernel>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys)  {
+template<typename Eigen3Kernel>
+int Dogleg<Eigen3Kernel>::solve(typename Eigen3Kernel::MappedEquationSystem& sys)  {
     nothing n;
     return solve(sys, n);
 };
 
-template<typename Kernel>
+template<typename Eigen3Kernel>
 template<typename Functor>
-int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale) {
+int Dogleg<Eigen3Kernel>::solve(typename Eigen3Kernel::MappedEquationSystem& sys, Functor& rescale) {
 
     clock_t start = clock();
 
@@ -331,22 +331,22 @@ int Dogleg<Kernel>::solve(typename Kernel::MappedEquationSystem& sys, Functor& r
 
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::MappedEquationSystem::parameterCount() {
+int Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::parameterCount() {
     return m_params;
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::MappedEquationSystem::equationCount() {
+int Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::equationCount() {
     return m_eqns;
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-AccessType Kernel<Scalar, Nonlinear>::MappedEquationSystem::access() {
+AccessType Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::access() {
     return m_access;
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-Kernel<Scalar, Nonlinear>::MappedEquationSystem::MappedEquationSystem(int params, int equations)
+Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::MappedEquationSystem(int params, int equations)
     : m_access(general), m_jacobi(equations, params),
       m_parameter(params), m_residual(equations),
       m_params(params), m_eqns(equations), Scaling(1.),
@@ -363,7 +363,7 @@ Kernel<Scalar, Nonlinear>::MappedEquationSystem::MappedEquationSystem(int params
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(int number, VectorMap& map, AccessType t) {
+int Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(int number, VectorMap& map, AccessType t) {
 
     if(t == rotation) {
         new(&map) VectorMap(&m_parameter(m_param_rot_offset), number, DynStride(1,1));
@@ -378,7 +378,7 @@ int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(int number,
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(Vector3Map& map, AccessType t) {
+int Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(Vector3Map& map, AccessType t) {
 
     if(t == rotation) {
         new(&map) Vector3Map(&m_parameter(m_param_rot_offset));
@@ -393,7 +393,7 @@ int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setParameterMap(Vector3Map&
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setResidualMap(VectorMap& map, AccessType t) {
+int Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setResidualMap(VectorMap& map, AccessType t) {
 
     if(t == rotation) {
         new(&map) VectorMap(&m_residual(m_eqn_rot_offset), 1, DynStride(1,1));
@@ -406,22 +406,22 @@ int Kernel<Scalar, Nonlinear>::MappedEquationSystem::setResidualMap(VectorMap& m
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, CVectorMap& map) {
+void Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, CVectorMap& map) {
     new(&map) CVectorMap(&m_jacobi(eqn, 0), m_params, DynStride(0,m_eqns));
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, VectorMap& map) {
+void Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, VectorMap& map) {
     new(&map) VectorMap(&m_jacobi(eqn, 0), m_params, DynStride(0,m_eqns));
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, int off, int num, VectorMap& map) {
+void Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setJacobiMap(int eqn, int off, int num, VectorMap& map) {
     new(&map) VectorMap(&m_jacobi(eqn, off), num, DynStride(0,m_eqns));
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::isValid() {
+bool Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::isValid() {
     if(!m_params || !m_eqns)
         return false;
 
@@ -429,7 +429,7 @@ bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::isValid() {
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setAccess(AccessType t) {
+void Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::setAccess(AccessType t) {
 
     if(t==complete) {
         new(&Jacobi) MatrixMap(&m_jacobi(0,0),m_eqns,m_params,DynStride(m_eqns,1));
@@ -454,7 +454,7 @@ void Kernel<Scalar, Nonlinear>::MappedEquationSystem::setAccess(AccessType t) {
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::hasAccessType(AccessType t) {
+bool Eigen3Kernel<Scalar, Nonlinear>::MappedEquationSystem::hasAccessType(AccessType t) {
 
     if(t==rotation)
         return (m_param_rot_offset>0 && m_eqn_rot_offset>0);
@@ -465,13 +465,13 @@ bool Kernel<Scalar, Nonlinear>::MappedEquationSystem::hasAccessType(AccessType t
 };
 
 template<typename Scalar, template<class> class Nonlinear>
-Kernel<Scalar, Nonlinear>::Kernel() {
+Eigen3Kernel<Scalar, Nonlinear>::Eigen3Kernel() {
     //init the solver
-    m_solver.setKernel(this);
+    m_solver.setEigen3Kernel(this);
 }
 
 template<typename Scalar, template<class> class Nonlinear>
-SolverInfo Kernel<Scalar, Nonlinear>::getSolverInfo() {
+SolverInfo Eigen3Kernel<Scalar, Nonlinear>::getSolverInfo() {
 
     SolverInfo info;
     info.iterations = m_solver.iter;
@@ -484,40 +484,40 @@ SolverInfo Kernel<Scalar, Nonlinear>::getSolverInfo() {
 //static comparison versions
 template<typename Scalar, template<class> class Nonlinear>
 template <typename DerivedA,typename DerivedB>
-bool Kernel<Scalar, Nonlinear>::isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission) {
     return ((p1-p2).squaredNorm() < precission);
 }
 
 template<typename Scalar, template<class> class Nonlinear>
-bool Kernel<Scalar, Nonlinear>::isSame(number_type t1, number_type t2, number_type precission) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isSame(number_type t1, number_type t2, number_type precission) {
     return (std::abs(t1-t2) < precission);
 }
 
 template<typename Scalar, template<class> class Nonlinear>
 template <typename DerivedA,typename DerivedB>
-bool Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2, number_type precission) {
     return ((p1+p2).squaredNorm() < precission);
 }
 
 template<typename Scalar, template<class> class Nonlinear>
 template <typename DerivedA,typename DerivedB>
-bool Kernel<Scalar, Nonlinear>::isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isSame(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
     return ((p1-p2).squaredNorm() < getProperty<precision>());
 }
 
 template<typename Scalar, template<class> class Nonlinear>
-bool Kernel<Scalar, Nonlinear>::isSame(number_type t1, number_type t2) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isSame(number_type t1, number_type t2) {
     return (std::abs(t1-t2) < getProperty<precision>());
 }
 
 template<typename Scalar, template<class> class Nonlinear>
 template <typename DerivedA,typename DerivedB>
-bool Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
+bool Eigen3Kernel<Scalar, Nonlinear>::isOpposite(const E::MatrixBase<DerivedA>& p1,const E::MatrixBase<DerivedB>& p2) {
     return ((p1+p2).squaredNorm() < getProperty<precision>());
 }
 
 template<typename Scalar, template<class> class Nonlinear>
-int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
+int Eigen3Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
 
     nothing n;
     return m_solver.solve(mes, n);
@@ -525,7 +525,7 @@ int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes) {
 
 template<typename Scalar, template<class> class Nonlinear>
 template<typename Functor>
-int Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes, Functor& f) {
+int Eigen3Kernel<Scalar, Nonlinear>::solve(MappedEquationSystem& mes, Functor& f) {
 
     return m_solver.solve(mes, f);
 };

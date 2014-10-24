@@ -13,6 +13,9 @@ option(EXTERNALIZE "Explicit instantiation of templates to reduce compile time m
 find_package(Boost COMPONENTS unit_test_framework system filesystem thread chrono REQUIRED)
 find_package(Eigen3)
 
+#we have c++11 code here
+add_definitions(-std=c++11)
+
 #check for extern templates
 if(EXTERNALIZE)
   add_definitions( -DDCM_EXTERNAL_CORE )

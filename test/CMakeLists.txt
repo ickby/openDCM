@@ -39,12 +39,12 @@ else(EXTERNALIZE)
 endif(EXTERNALIZE)
 
 set(test_SRC  define.cpp
-              scheduler.cpp
+              #scheduler.cpp
 	      #kernel.cpp
 	      #clustergraph.cpp
 	      #system.cpp
 	      #analyse.cpp
-	      #numeric.cpp
+	      numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
 	      #${module3d_SRC}
@@ -65,6 +65,7 @@ set(log_LIB   boost_log
 	      ${Boost_THREAD_LIBRARY}
 	      ${Boost_CHRONO_LIBRARY}
 	      pthread
+	      tbb
 )
 endif(LOGGING)
 

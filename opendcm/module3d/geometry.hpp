@@ -17,21 +17,69 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_GEOMETRY_3D_H
-#define GCM_GEOMETRY_3D_H
+#ifndef DCM_GEOMETRY_3D_H
+#define DCM_GEOMETRY_3D_H
 
 #include <opendcm/core/geometry.hpp>
+#include <test/module3d/m3d.hpp>
+
+#include <boost/fusion/include/at_c.hpp>
+
+namespace fusion = boost::fusion;
 
 namespace dcm {
-namespace tag {
+namespace geometry {
+ 
+template<typename Kernel, bool MappedType = true>
+struct Direction3 : public Geometry<Kernel, 3, MappedType> {
+    
+    using Geometry::VectorD;
+    fusion::vector<VectorD> ValueSequence = fusion::make_vector(create<VectorD>());
+    
+    VectorD& value() {
+        return fusion::at_c<0>(ValueSequence);
+    };
+};
+           
 
-struct point3D : details::basic_geometry<weight::point, 3, true, true> {};
-struct direction3D : details::basic_geometry<weight::direction, 3, true, false> {};
-struct line3D : details::stacked2_geometry<weight::line, point3D, direction3D> {};
-struct plane3D : details::stacked2_geometry<weight::plane, point3D, direction3D> {};
-struct cylinder3D : details::stacked3_geometry<weight::cylinder, point3D, direction3D, parameter> {};
+template<typename Kernel, mpl::bool_ MappedType = mpl::false_>
+struct Point3 : Geometry<Kernel, 3, MappedType> {
+               
+    using Geometry::Vector;
+    fusion::vector<Vector> values;
+        
+    Vector& value() {
+        return fusion::at_c<0>(values);
+    };
+};
 
-} //tag
+template<typename Kernel, mpl::bool_ MappedType = mpl::false_>
+struct Line3 : Geometry<Kernel, 3, MappedType> {
+               
+    using Geometry::Vector;
+    fusion::vector<Vector, Vector> values;
+        
+    Vector& point() {
+        return fusion::at_c<0>(values);
+    };
+    Vector& direction() {
+        return fusion::at_c<1>(values);
+    };
+};
+
+} //geometry
+
+namespace numeric {
+    
+    template<typename Kernel>
+    struct Point3 : public Geometry<Kernel, geometry::Point3> {};
+    
+    struct PointOnLine3 : public DependendGeometry<Kernel, geometry::Point3, geometry::Line3> {
+        
+        
+    };
+    
+} //numeric
 
 namespace modell {
   
@@ -153,6 +201,8 @@ struct geometry_traits<boost::blank> {
     typedef dummy_accessor accessor;
 };
 
-}
+} //geometry
+
+
 
 #endif //GCM_GEOMETRY_3D_H

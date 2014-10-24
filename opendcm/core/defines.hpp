@@ -25,7 +25,7 @@
 #include <string>
 
 namespace dcm {
-  
+
 //all solving related errors
 typedef boost::error_info<struct user_message,std::string> error_message;
 typedef boost::error_info<struct first_geom, std::string>  error_type_first_geometry;
@@ -45,7 +45,6 @@ inline void dcm_assert(bool value) {
     assert(value);
 #endif
 };
-
 }; //dcm
 
 #endif //DCM_DEFINES_CORE_H

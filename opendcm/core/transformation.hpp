@@ -28,7 +28,7 @@
 #include <boost/mpl/if.hpp>
 
 namespace dcm {
-namespace detail {
+namespace details {
 
 template<typename Scalar, int Dim>
 class Transform {
@@ -166,26 +166,26 @@ public:
  * is the stream and not (usually) the custom class.
 */
 template<typename charT, typename traits, typename Kernel, int Dim>
-std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::detail::Transform<Kernel, Dim>& t);
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::Transform<Kernel, Dim>& t);
 
 template<typename charT, typename traits,typename Kernel, int Dim>
-std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::detail::DiffTransform<Kernel, Dim>& t);
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::details::DiffTransform<Kernel, Dim>& t);
 
 }//detail
 
 //same for trans*difftras
 template<typename Scalar, int Dim>
-detail::Transform<Scalar, Dim> operator*(const detail::Transform<Scalar, Dim>& t, const detail::DiffTransform<Scalar, Dim>& dt) {
+details::Transform<Scalar, Dim> operator*(const details::Transform<Scalar, Dim>& t, const details::DiffTransform<Scalar, Dim>& dt) {
 
-    detail::Transform<Scalar, Dim> trans(t);
+    details::Transform<Scalar, Dim> trans(t);
     return trans*=dt;
 };
 
 //same for trans*difftras
 template<typename Scalar, int Dim>
-detail::Transform<Scalar, Dim>& operator*=(detail::Transform<Scalar, Dim>& t, detail::DiffTransform<Scalar, Dim>& dt) {
+details::Transform<Scalar, Dim>& operator*=(details::Transform<Scalar, Dim>& t, details::DiffTransform<Scalar, Dim>& dt) {
 
-    return t*=detail::Transform<Scalar, Dim>(dt.rotation(), dt.translation(), dt.scaling());
+    return t*=details::Transform<Scalar, Dim>(dt.rotation(), dt.translation(), dt.scaling());
 };
 
 }//DCM
