@@ -208,6 +208,17 @@ protected:
     typedef typename fusion::result_of::as_vector<StorageSequence>::type               Storage;
 
     Storage m_storage = fusion::make_vector(StorageTypes::template create<Kernel, Map>::build()...);
+    
+    //helper function for parameters: remove the pointer if the parameter is represented as such
+    //and in every case return a reference
+    template<typename T>
+    T& rmPtr(T* t) {
+        return *t;
+    };
+    template<typename T>
+    T& rmPtr(T& t) {
+        return t;
+    };
 };
 
 }//geometry
@@ -241,20 +252,17 @@ struct Geometry : public Base<Kernel, true> {
     typedef typename std::vector<Derivative>::iterator DerivativeIterator;
 
     Geometry(LinearSystem<Kernel>& sys) {
-        if(isIndependend()) {
-            //setup the maps into the LinearSystem
-            fusion::for_each(Inherited::m_storage, MapInitializer(sys, m_parameters));
-            //setup the trival derivatives for each parameter (just in case any equation would
-            //need them...)
-            int c = 0;
-            fusion::for_each(m_derivatives.back().first.m_storage,
-                                DerivativesInitializer(m_derivatives, m_parameters, c));
-        };
+
+        init(sys);
     };
 
     //allow access to parameters and derivatives
-    std::vector< Parameter >&  parameters()   {return m_parameters;};
-    std::vector< Derivative >& derivatives() {return m_derivatives;};
+    std::vector< Parameter >&  parameters()   {
+        return m_parameters;
+    };
+    std::vector< Derivative >& derivatives() {
+        return m_derivatives;
+    };
 
     //sometimes it is possible to optimize constraint derivative calculation when we are
     //a normal geometry (where parameret == value). To enable those optimisations we need
@@ -264,6 +272,18 @@ struct Geometry : public Base<Kernel, true> {
     };
 
 protected:
+    //the assumptions amde here are only valid for pure geometry, so we give the derived
+    //types the chance to override the initialisaion behaviour
+    virtual void init(LinearSystem<Kernel>& sys) {
+        //setup the maps into the LinearSystem
+        fusion::for_each(Inherited::m_storage, MapInitializer(sys, m_parameters));
+        //setup the trival derivatives for each parameter (just in case any equation would
+        //need them...)
+        int c = 0;
+        fusion::for_each(m_derivatives.back().first.m_storage,
+                         DerivativesInitializer(m_derivatives, m_parameters, c));
+    };
+    
     bool m_independent = true;
     std::vector< Parameter >  m_parameters;
     std::vector< Derivative > m_derivatives;
@@ -277,14 +297,14 @@ protected:
             : m_system(s), m_entries(vec) {};
 
         template<typename T>
-        void operator()(Eigen::Map<T>& t) const{
+        void operator()(Eigen::Map<T>& t) const {
 
             std::vector<Parameter> v = m_system.mapParameter(t);
-            std::move(v.begin(), v.end(), std::back_inserter(m_entries)); 
+            std::move(v.begin(), v.end(), std::back_inserter(m_entries));
         }
-        
-        void operator()(Scalar* t) const{
-            m_entries.push_back(m_system.mapParameter(t)); 
+
+        void operator()(Scalar*& t) const {
+            m_entries.push_back(m_system.mapParameter(t));
         }
     };
 
@@ -295,7 +315,7 @@ protected:
         std::vector< Parameter >&   m_parameter;
         std::vector< Derivative >&  m_derivatives;
 
-        DerivativesInitializer(std::vector< Derivative >& vec, std::vector< Parameter >& p, 
+        DerivativesInitializer(std::vector< Derivative >& vec, std::vector< Parameter >& p,
                                int& c, int idx = -1)
             : m_derivatives(vec), m_parameter(p), m_setIdx(idx), m_numberIdx(c) {};
 
@@ -308,7 +328,7 @@ protected:
                 //create the derivative if this is our purpose
                 if(m_setIdx<0) {
                     //standart zero initalized type
-                    m_derivatives.emplace_back( Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]) );
+                    m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]));
                     //set the value
                     int c = 0;
                     fusion::for_each(m_derivatives.back().first.m_storage,
@@ -325,7 +345,7 @@ protected:
         void operator()(Scalar& t) const {
             if(m_setIdx<0) {
                 //create the zero initialized derivative
-                m_derivatives.emplace_back( Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]) );
+                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]));
                 //set the value
                 int c = 0;
                 fusion::for_each(m_derivatives.back().first.m_storage,
@@ -338,7 +358,7 @@ protected:
             ++m_numberIdx;
         };
     };
-    
+
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

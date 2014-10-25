@@ -43,8 +43,9 @@ template<typename Kernel, bool MappedType = true>
 struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
             geometry::storage::Vector<3>, geometry::storage::Parameter, geometry::storage::Vector<3>> {
 
-    using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>, 
-                geometry::storage::Parameter, geometry::storage::Vector<3>>::m_storage;
+    typedef geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>, 
+                geometry::storage::Parameter, geometry::storage::Vector<3>> Inherited;
+    using Inherited::m_storage;
     
     auto point() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
@@ -54,8 +55,8 @@ struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
         return fusion::at_c<2>(m_storage);
     };
     
-    auto radius() -> decltype(fusion::at_c<1>(m_storage)){
-        return fusion::at_c<1>(m_storage);
+    typename Kernel::Scalar& radius() {
+        return Inherited::rmPtr(fusion::at_c<1>(m_storage));
     };
 };
  
@@ -84,7 +85,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_REQUIRE(dirGeom.parameters().size() == 3);
     BOOST_REQUIRE(dirGeom.derivatives().size() == 3);
     
-    typedef numeric::Geometry<K, TDirection3>::Derivative TDir3Derivative;
+    typedef numeric::Geometry<K, TDirection3>::Derivative        TDir3Derivative;
     typedef numeric::Geometry<K, TDirection3>::ParameterIterator TDir3ParIt;
 
     int c = 0;
@@ -121,6 +122,16 @@ BOOST_AUTO_TEST_CASE(geometry) {
         
         c++;
     };
+    
+    //let's see if the mapping works
+    dirGeom.value() = Eigen::Vector3d(7.1,8.2,9.3);
+    BOOST_CHECK(sys.parameter().head<3>().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
+    
+    cylGeom.radius() = 3.3;
+    BOOST_CHECK(sys.parameter()(6) == (3.3));
+    
+    cylGeom.direction() = Eigen::Vector3d(5.5,6.6,7.7);
+    BOOST_CHECK(sys.parameter().tail<3>().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
 };
     
 /*

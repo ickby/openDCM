@@ -59,7 +59,7 @@ struct LinearSystem {
     //map functions. Note that you can't map to a jacobi. This is for the case that we 
     //switch to sparse matrices later.                
                
-    SystemEntry<Kernel> mapParameter(Scalar* s) {
+    SystemEntry<Kernel> mapParameter(Scalar*& s) {
         s = &m_parameters(++m_parameterOffset);
         return {m_parameterOffset, s};
     };
@@ -71,6 +71,8 @@ struct LinearSystem {
         std::vector<SystemEntry<Kernel>> result(map.rows());
         for (int i = 0; i < map.rows(); ++i)
             result[i] = {m_parameterOffset + i, &m_parameters(m_parameterOffset + i)};
+
+        m_parameterOffset+= 2;
                 
         return result;
     };
@@ -88,10 +90,14 @@ struct LinearSystem {
         m_jacobi.setZero();
     };
     
-    Scalar& jacobi(int row, int col) {
+    Scalar& jacobiAt(int row, int col) {
        return m_jacobi(row, col);  
     };
     
+    //access the vectors and matrices
+    VectorX parameter() {return m_parameters;};
+    VectorX residuals() {return m_residuals;};
+    MatrixX jacobi()    {return m_jacobi;};    
     
 private:
     int m_parameterCount, m_equationCount;
