@@ -23,6 +23,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <boost/graph/graph_concepts.hpp>
 
 #include "transformation.hpp"
 #include "logging.hpp"
@@ -31,10 +32,73 @@ namespace dcm {
 namespace numeric {
     
 template< typename Kernel >
-struct Parameter {
+struct SystemEntry {
     
     int                         Index;
     typename Kernel::Scalar*    Value;
+    
+    bool operator==(const SystemEntry& e) {
+        //comparing the value addresses is enough, as if tey point to the same memory they
+        //must be the same system entry
+        return (Value == Value);
+    };
+};
+
+template<typename Kernel> 
+struct LinearSystem {
+    
+    typedef typename Kernel::Scalar                  Scalar;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VectorX;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic,
+                Eigen::Dynamic>                      MatrixX;
+    
+    LinearSystem(int p, int e) : m_parameterCount(p), m_equationCount(e),
+            m_jacobi(e, p), m_parameters(p),  m_residuals(e) {};
+    
+    
+    //map functions. Note that you can't map to a jacobi. This is for the case that we 
+    //switch to sparse matrices later.                
+               
+    SystemEntry<Kernel> mapParameter(Scalar* s) {
+        s = &m_parameters(++m_parameterOffset);
+        return {m_parameterOffset, s};
+    };
+    
+    template<typename Derived>
+    std::vector<SystemEntry<Kernel>> mapParameter(Eigen::Map<Derived>& map) {
+        new(&map) Eigen::Map<Derived>(&m_parameters(++m_parameterOffset));
+        
+        std::vector<SystemEntry<Kernel>> result(map.rows());
+        for (int i = 0; i < map.rows(); ++i)
+            result[i] = {m_parameterOffset + i, &m_parameters(m_parameterOffset + i)};
+                
+        return result;
+    };
+    
+    SystemEntry<Kernel> mapResidual(Scalar* s) {
+        s = &m_residuals(++m_residualOffset);
+        return {m_parameterOffset, s};
+    };
+    
+    void registerJacobiValue(int row, int col, Scalar s) {
+        s = &m_jacobi(row, col);
+    };    
+    
+    void setupJacobi() {
+        m_jacobi.setZero();
+    };
+    
+    Scalar& jacobi(int row, int col) {
+       return m_jacobi(row, col);  
+    };
+    
+    
+private:
+    int m_parameterCount, m_equationCount;
+    int m_parameterOffset = -1, m_residualOffset  = -1;
+    VectorX m_parameters;
+    VectorX m_residuals;
+    MatrixX m_jacobi;
 };
     
 //the standart solverS

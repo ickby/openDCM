@@ -20,6 +20,9 @@
 #include <boost/test/unit_test.hpp>
 
 #include "opendcm/core/geometry.hpp"
+#include "opendcm/core/kernel.hpp"
+
+#include <boost/fusion/include/at.hpp>
 
 using namespace dcm;
 
@@ -37,22 +40,25 @@ struct TDirection3 : public geometry::Geometry<Kernel, MappedType,
 };
  
 template<typename Kernel, bool MappedType = true>
-struct TLine3 : public geometry::Geometry<Kernel, MappedType,
-            geometry::storage::Vector<3>, geometry::storage::Vector<3>> {
+struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
+            geometry::storage::Vector<3>, geometry::storage::Parameter, geometry::storage::Vector<3>> {
 
-    using geometry::Geometry<Kernel, MappedType, 
-        geometry::storage::Vector<3>, geometry::storage::Vector<3>>::m_storage;
+    using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>, 
+                geometry::storage::Parameter, geometry::storage::Vector<3>>::m_storage;
     
     auto point() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
     };
     
-    auto direction() -> decltype(fusion::at_c<1>(m_storage)){
+    auto direction() -> decltype(fusion::at_c<2>(m_storage)){
+        return fusion::at_c<2>(m_storage);
+    };
+    
+    auto radius() -> decltype(fusion::at_c<1>(m_storage)){
         return fusion::at_c<1>(m_storage);
     };
 };
  
-
 using namespace dcm;
 
 template<typename T>
@@ -64,11 +70,57 @@ BOOST_AUTO_TEST_SUITE(Numeric_test_suit);
 
 BOOST_AUTO_TEST_CASE(geometry) {
   
-    TDirection3<K>  basic;
+    TDirection3<K>        basic; //cannot use it as it is a nullptr initialized map
     TDirection3<K, false> basic_vec;
     
-    basic_vec.value()[0] = 5;
+    basic_vec.value()[0] = 5;    
+    BOOST_CHECK(basic_vec.value()[0] == 5);
     
+    basic_vec.value() = Eigen::Vector3d(1,2,3);    
+    BOOST_CHECK(basic_vec.value() == Eigen::Vector3d(1,2,3));
+    
+    numeric::LinearSystem<K> sys(10,10);    
+    numeric::Geometry<K, TDirection3> dirGeom(sys);
+    BOOST_REQUIRE(dirGeom.parameters().size() == 3);
+    BOOST_REQUIRE(dirGeom.derivatives().size() == 3);
+    
+    typedef numeric::Geometry<K, TDirection3>::Derivative TDir3Derivative;
+    typedef numeric::Geometry<K, TDirection3>::ParameterIterator TDir3ParIt;
+
+    int c = 0;
+    TDir3ParIt it = dirGeom.parameters().begin();
+    for(TDir3Derivative& der : dirGeom.derivatives()) {
+        BOOST_CHECK(der.first.value()(c)==1);
+        BOOST_CHECK(der.first.value().sum()==1);
+        BOOST_CHECK(der.second == *(it++));
+        ++c;
+    };
+    
+    numeric::Geometry<K, TCylinder3> cylGeom(sys);
+    BOOST_REQUIRE(cylGeom.parameters().size() == 7);
+    BOOST_REQUIRE(cylGeom.derivatives().size() == 7);
+   
+    typedef numeric::Geometry<K, TCylinder3>::Derivative         TCyl3Derivative;
+    typedef numeric::Geometry<K, TCylinder3>::ParameterIterator  TCyl3ParIt;
+    
+    c=0;
+    Eigen::VectorXd res(7);
+    TCyl3ParIt cylIt = cylGeom.parameters().begin();
+    for(TCyl3Derivative& der : cylGeom.derivatives()) {
+        res.setZero();
+        res(c) = 1;
+        
+        BOOST_CHECK(der.first.point()(0)==res(0));
+        BOOST_CHECK(der.first.point()(1)==res(1));
+        BOOST_CHECK(der.first.point()(2)==res(2));
+        BOOST_CHECK(der.first.radius()==res(3));
+        BOOST_CHECK(der.first.direction()(0)==res(4));
+        BOOST_CHECK(der.first.direction()(1)==res(5));
+        BOOST_CHECK(der.first.direction()(2)==res(6));
+        BOOST_CHECK(der.second == *(cylIt++));
+        
+        c++;
+    };
 };
     
 /*
