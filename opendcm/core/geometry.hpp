@@ -28,6 +28,8 @@
 
 #include <boost/mpl/bool.hpp>
 #include <boost/mpl/vector.hpp>
+#include <boost/mpl/range_c.hpp>
+#include <boost/mpl/for_each.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/make_vector.hpp>
 #include <boost/fusion/include/as_vector.hpp>
@@ -208,7 +210,7 @@ protected:
     typedef typename fusion::result_of::as_vector<StorageSequence>::type               Storage;
 
     Storage m_storage = fusion::make_vector(StorageTypes::template create<Kernel, Map>::build()...);
-    
+
     //helper function for parameters: remove the pointer if the parameter is represented as such
     //and in every case return a reference
     template<typename T>
@@ -224,6 +226,11 @@ protected:
 }//geometry
 
 namespace numeric {
+
+template<typename T>
+void pretty(T t) {
+  std::cout << __PRETTY_FUNCTION__ << std::endl;  
+};
 
 /**
  * @brief Base class for numeric handling of geometry types
@@ -275,87 +282,57 @@ protected:
     //the assumptions amde here are only valid for pure geometry, so we give the derived
     //types the chance to override the initialisaion behaviour
     virtual void init(LinearSystem<Kernel>& sys) {
-        //setup the maps into the LinearSystem
-        fusion::for_each(Inherited::m_storage, MapInitializer(sys, m_parameters));
-        //setup the trival derivatives for each parameter (just in case any equation would
-        //need them...)
-        int c = 0;
-        fusion::for_each(m_derivatives.back().first.m_storage,
-                         DerivativesInitializer(m_derivatives, m_parameters, c));
+
+        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+        typedef mpl::range_c<int,0,
+                mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+        //now iterate that sequence so we can access all storage elements with knowing the position
+        //we are at (that is important to access the correct derivative storage position too)
+        mpl::for_each<StorageRange>(Initializer(sys, Inherited::m_storage, m_parameters, m_derivatives));
     };
-    
+
     bool m_independent = true;
     std::vector< Parameter >  m_parameters;
     std::vector< Derivative > m_derivatives;
 
-    struct MapInitializer {
+    struct Initializer {
 
-        LinearSystem<Kernel>&   m_system;
-        std::vector<Parameter>& m_entries;
+        LinearSystem<Kernel>&        m_system;
+        std::vector<Parameter>&      m_entries;
+        std::vector<Derivative>&     m_derivatives;
+        typename Inherited::Storage& m_storage;
 
-        MapInitializer(LinearSystem<Kernel>& s, std::vector<Parameter>& vec)
-            : m_system(s), m_entries(vec) {};
+        Initializer(LinearSystem<Kernel>& s, typename Inherited::Storage& st, std::vector<Parameter>& vec,
+                    std::vector<Derivative>& der) : m_system(s), m_entries(vec),
+            m_derivatives(der), m_storage(st) {};
 
         template<typename T>
-        void operator()(Eigen::Map<T>& t) const {
+        void operator()(T t) {
+            
+            //get the parameter
+            auto& t1 = fusion::at<T>(m_storage);
+            std::vector<Parameter> v = m_system.mapParameter(t1);
 
-            std::vector<Parameter> v = m_system.mapParameter(t);
+            //create and set derivatives
+            int c = 0;
+            for(Parameter& p : v) {
+                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  p));
+                auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
+                setOne(t2, c);
+                ++c;
+            };
+            
+            //set parameter
             std::move(v.begin(), v.end(), std::back_inserter(m_entries));
         }
 
-        void operator()(Scalar*& t) const {
-            m_entries.push_back(m_system.mapParameter(t));
-        }
-    };
-
-    struct DerivativesInitializer {
-
-        int                         m_setIdx;
-        int&                        m_numberIdx;
-        std::vector< Parameter >&   m_parameter;
-        std::vector< Derivative >&  m_derivatives;
-
-        DerivativesInitializer(std::vector< Derivative >& vec, std::vector< Parameter >& p,
-                               int& c, int idx = -1)
-            : m_derivatives(vec), m_parameter(p), m_setIdx(idx), m_numberIdx(c) {};
-
-        //all eigen based matrices and vectors
         template<typename T>
-        void operator()(Eigen::MatrixBase<T>& t) const {
-            int size = t.rows()*t.cols();
+        void setOne(Eigen::MatrixBase<T>& m, int n) {
+            m(n) = 1;
+        };
 
-            for(int i=0; i<size; i++) {
-                //create the derivative if this is our purpose
-                if(m_setIdx<0) {
-                    //standart zero initalized type
-                    m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]));
-                    //set the value
-                    int c = 0;
-                    fusion::for_each(m_derivatives.back().first.m_storage,
-                                     DerivativesInitializer(m_derivatives, m_parameter, c, m_numberIdx));
-                }
-                //or set the correct value for this parameter
-                else if(m_numberIdx == m_setIdx)
-                    t(i) = 1;
-
-                ++m_numberIdx;
-            }
-        }
-        //only the scalar is left
-        void operator()(Scalar& t) const {
-            if(m_setIdx<0) {
-                //create the zero initialized derivative
-                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  m_parameter[m_derivatives.size()]));
-                //set the value
-                int c = 0;
-                fusion::for_each(m_derivatives.back().first.m_storage,
-                                 DerivativesInitializer(m_derivatives, m_parameter, c, m_numberIdx));
-            }
-            //set the correct value at the correct derivative
-            else if(m_numberIdx == m_setIdx)
-                t = 1;
-
-            ++m_numberIdx;
+        void setOne(Scalar& s, int n) {
+            s = 1;
         };
     };
 
@@ -407,4 +384,4 @@ namespace symbolic {
 #ifndef DCM_EXTERNAL_CORE
 //#include "imp/geometry_imp.hpp"
 #endif
-#endif // GCM_GEOMETRY_H
+#endif // DCM_GEOMETRY_H

@@ -59,9 +59,11 @@ struct LinearSystem {
     //map functions. Note that you can't map to a jacobi. This is for the case that we 
     //switch to sparse matrices later.                
                
-    SystemEntry<Kernel> mapParameter(Scalar*& s) {
+    std::vector<SystemEntry<Kernel>> mapParameter(Scalar*& s) {
         s = &m_parameters(++m_parameterOffset);
-        return {m_parameterOffset, s};
+        std::vector<SystemEntry<Kernel>> result(1);
+        result[0] = {m_parameterOffset, s};
+        return result;
     };
     
     template<typename Derived>

@@ -62,10 +62,7 @@ struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
  
 using namespace dcm;
 
-template<typename T>
-void pretty(T t) {
-  std::cout << __PRETTY_FUNCTION__ << std::endl;  
-};
+
 
 BOOST_AUTO_TEST_SUITE(Numeric_test_suit);
 
@@ -132,33 +129,20 @@ BOOST_AUTO_TEST_CASE(geometry) {
     
     cylGeom.direction() = Eigen::Vector3d(5.5,6.6,7.7);
     BOOST_CHECK(sys.parameter().tail<3>().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
+    
+    //see if anything was overriden
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
+    BOOST_CHECK(cylGeom.radius() == (3.3));
+    BOOST_CHECK(cylGeom.direction().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
+    BOOST_CHECK(cylGeom.point().isApprox(Eigen::Vector3d(0,0,0)));
 };
     
-/*
-BOOST_AUTO_TEST_CASE(geometry_accessor) {
 
-    std::vector<double> vec;
-    vec.push_back(1);
-    vec.push_back(2);
-    vec.push_back(3);
+BOOST_AUTO_TEST_CASE(dependend_geometry) {
 
-    BOOST_CHECK((orderd_bracket_accessor().get<double, 0>(vec) == 1));
-    BOOST_CHECK((orderd_bracket_accessor().get<double, 1>(vec) == 2));
-    BOOST_CHECK((orderd_bracket_accessor().get<double, 2>(vec) == 3));
-    orderd_bracket_accessor().set<double, 2>(4, vec);
-    BOOST_CHECK((orderd_bracket_accessor().get<double, 2>(vec) == 4));
-
-    Eigen::Matrix<double,3,1> evec;
-    evec<<1,2,3;
-
-    BOOST_CHECK((orderd_roundbracket_accessor().get<double, 0>(evec) == 1));
-    BOOST_CHECK((orderd_roundbracket_accessor().get<double, 1>(evec) == 2));
-    BOOST_CHECK((orderd_roundbracket_accessor().get<double, 2>(evec) == 3));
-    orderd_roundbracket_accessor().set<double, 2>(4, evec);
-    BOOST_CHECK((orderd_roundbracket_accessor().get<double, 2>(evec) == 4));
-
+   
 }
-
+/*
 struct test_tag1 {
     typedef dcm::tag::weight::point weight;
 };
