@@ -39,6 +39,10 @@
 #include "kernel.hpp"
 #include "transformation.hpp"
 
+#ifdef DCM_DEBUG
+#include "defines.hpp"
+#endif
+
 namespace mpl    = boost::mpl;
 namespace fusion = boost::fusion;
 
@@ -204,11 +208,11 @@ using Vector = Matrix<Size, 1>;
 template<typename Kernel, bool Map, typename... StorageTypes>
 struct Geometry {
 
-protected:
     typedef mpl::vector<StorageTypes...>                                               StorageTypeSequence;
     typedef mpl::vector< typename StorageTypes::template create<Kernel, Map>::type...> StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type               Storage;
 
+protected:
     Storage m_storage = fusion::make_vector(StorageTypes::template create<Kernel, Map>::build()...);
 
     //helper function for parameters: remove the pointer if the parameter is represented as such
@@ -229,7 +233,7 @@ namespace numeric {
 
 template<typename T>
 void pretty(T t) {
-  std::cout << __PRETTY_FUNCTION__ << std::endl;  
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
 };
 
 /**
@@ -258,11 +262,6 @@ struct Geometry : public Base<Kernel, true> {
     typedef std::pair<Base<Kernel, false>, Parameter>  Derivative;
     typedef typename std::vector<Derivative>::iterator DerivativeIterator;
 
-    Geometry(LinearSystem<Kernel>& sys) {
-
-        init(sys);
-    };
-
     //allow access to parameters and derivatives
     std::vector< Parameter >&  parameters()   {
         return m_parameters;
@@ -278,50 +277,56 @@ struct Geometry : public Base<Kernel, true> {
         return m_independent;
     };
 
-protected:
     //the assumptions amde here are only valid for pure geometry, so we give the derived
     //types the chance to override the initialisaion behaviour
     virtual void init(LinearSystem<Kernel>& sys) {
-
+#ifdef DCM_DEBUG
+        dcm_assert(!m_init)
+        m_init = true;
+#endif
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
         typedef mpl::range_c<int,0,
                 mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(Initializer(sys, Inherited::m_storage, m_parameters, m_derivatives));
+        mpl::for_each<StorageRange>(Initializer<typename Inherited::Storage>(sys,
+                                    Inherited::m_storage, m_parameters, m_derivatives));
     };
 
+protected:
+#ifdef DCM_DEBUG
+    bool m_init = false;
+#endif
     bool m_independent = true;
     std::vector< Parameter >  m_parameters;
     std::vector< Derivative > m_derivatives;
 
+    template<typename StorageType>
     struct Initializer {
 
-        LinearSystem<Kernel>&        m_system;
-        std::vector<Parameter>&      m_entries;
-        std::vector<Derivative>&     m_derivatives;
-        typename Inherited::Storage& m_storage;
+        LinearSystem<Kernel>&    m_system;
+        std::vector<Parameter>&  m_entries;
+        std::vector<Derivative>& m_derivatives;
+        StorageType&             m_storage;
 
-        Initializer(LinearSystem<Kernel>& s, typename Inherited::Storage& st, std::vector<Parameter>& vec,
+        Initializer(LinearSystem<Kernel>& s, StorageType& st, std::vector<Parameter>& vec,
                     std::vector<Derivative>& der) : m_system(s), m_entries(vec),
             m_derivatives(der), m_storage(st) {};
 
         template<typename T>
         void operator()(T t) {
-            
+
             //get the parameter
             auto& t1 = fusion::at<T>(m_storage);
             std::vector<Parameter> v = m_system.mapParameter(t1);
 
             //create and set derivatives
-            int c = 0;
-            for(Parameter& p : v) {
-                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  p));
+            for(int i=0; i<v.size(); ++i) {
+                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  v[i]));
                 auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
-                setOne(t2, c);
-                ++c;
+                setOne(t2, i);
             };
-            
+
             //set parameter
             std::move(v.begin(), v.end(), std::back_inserter(m_entries));
         }
@@ -330,8 +335,7 @@ protected:
         void setOne(Eigen::MatrixBase<T>& m, int n) {
             m(n) = 1;
         };
-
-        void setOne(Scalar& s, int n) {
+        void setOne(Scalar& s, int n)               {
             s = 1;
         };
     };
@@ -340,25 +344,63 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-template< typename Kernel, template<class, bool> class Base, template<class, bool> class DBase >
-struct DependendGeometry : public Geometry<Kernel, Base> {
+template< typename Kernel, template<class, bool> class Base, typename... ParameterStorageTypes>
+struct ParameterGeometry : public Geometry<Kernel, Base> {
 
-    typedef Geometry<Kernel, Base> Inherited;
-    DependendGeometry(Geometry<Kernel, DBase>* dg = nullptr) : Geometry<Kernel, Base>(), m_base(dg) {
+    typedef typename Kernel::Scalar Scalar;
+    typedef Geometry<Kernel, Base>  Inherited;
+    typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
 
-        Inherited::m_independent = false;
-        //automated mapping of the numeric geometry values to the dependend real vectors
-
+    virtual void init(LinearSystem<Kernel>& sys) {
+#ifdef DCM_DEBUG
+        dcm_assert(!Inherited::m_init)
+        Inherited::m_init = true;
+#endif
+        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+        typedef mpl::range_c<int,0,
+                mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+        
+        //now iterate that sequence so we can access all storage elements with knowing the position
+        //we are at (that is important to access the correct derivative storage position too)
+        mpl::for_each<StorageRange>(Remapper(Inherited::m_storage, m_value));
+        
+        //finally map the parameters and create derivatives for them (zero initialized)
+        typedef mpl::range_c<int,0, mpl::size<ParameterStorage>::value> ParameterRange;
+        mpl::for_each<ParameterRange>(typename Inherited::template Initializer<ParameterStorage>(
+                                    sys, m_parameterStorage, Inherited::m_parameters, 
+                                    Inherited::m_derivatives));
     };
 
-    void setBaseGeometry(Geometry<Kernel, DBase>* g);
-
 protected:
-    int                       m_parameterCount; //the amount of extra parameters this type needs
-    Base<Kernel, false>       m_value;
-    Geometry<Kernel, DBase>*  m_base;
-};
+    ParameterStorage     m_parameterStorage = fusion::make_vector(
+                                              ParameterStorageTypes::template create<Kernel, true>::build()...);
+    int                  m_parameterCount; //the amount of extra parameters this type needs
+    Base<Kernel, false>  m_value;
 
+    struct Remapper {
+
+        typename Inherited::Storage& m_map;
+        Base<Kernel, false>&         m_storage;
+
+        Remapper(typename Inherited::Storage& map, Base<Kernel, false>& storage)
+            : m_map(map), m_storage(storage) {};
+
+        template<typename T>
+        void operator()(T t) {
+            remap(fusion::at<T>(m_storage.m_storage), fusion::at<T>(m_map));
+        };
+
+        template<typename T>
+        void remap(T& storage, Eigen::Map<T>& map) {
+            new(&map) Eigen::Map<T>(&storage(0));
+        };
+
+        void remap(Scalar& storage, Scalar*& map) {
+            map = &storage;
+        };
+    };
+};
+/*
 template< typename Kernel, template<class, bool> class Derived,
           template<class, bool> class Base, int Dimension >
 struct ClusterGeometry : DependendGeometry<Kernel, Derived, Base> {
@@ -370,7 +412,7 @@ struct ClusterGeometry : DependendGeometry<Kernel, Derived, Base> {
 
 protected:
     Transformation m_cumulated;
-};
+};*/
 
 } //numeric
 

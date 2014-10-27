@@ -78,7 +78,9 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(basic_vec.value() == Eigen::Vector3d(1,2,3));
     
     numeric::LinearSystem<K> sys(10,10);    
-    numeric::Geometry<K, TDirection3> dirGeom(sys);
+    numeric::Geometry<K, TDirection3> dirGeom;
+    
+    dirGeom.init(sys);
     BOOST_REQUIRE(dirGeom.parameters().size() == 3);
     BOOST_REQUIRE(dirGeom.derivatives().size() == 3);
     
@@ -94,7 +96,9 @@ BOOST_AUTO_TEST_CASE(geometry) {
         ++c;
     };
     
-    numeric::Geometry<K, TCylinder3> cylGeom(sys);
+    numeric::Geometry<K, TCylinder3> cylGeom;
+    
+    cylGeom.init(sys);
     BOOST_REQUIRE(cylGeom.parameters().size() == 7);
     BOOST_REQUIRE(cylGeom.derivatives().size() == 7);
    
@@ -138,10 +142,46 @@ BOOST_AUTO_TEST_CASE(geometry) {
 };
     
 
-BOOST_AUTO_TEST_CASE(dependend_geometry) {
+BOOST_AUTO_TEST_CASE(parameter_geometry) {
 
-   
-}
+    numeric::LinearSystem<K> sys(10,10); 
+    Eigen::VectorXd init = sys.parameter();
+    
+    numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter> cylGeom;
+    
+    cylGeom.init(sys);       
+    
+    //check default constructed derivatives
+    BOOST_CHECK(cylGeom.parameters().size()==1);
+    BOOST_CHECK(cylGeom.derivatives().size()==1);
+    
+    //see if the mapping to the internal storage worked
+    cylGeom.point() = Eigen::Vector3d(1,2,3);    
+    BOOST_CHECK(cylGeom.point().isApprox(Eigen::Vector3d(1,2,3)));
+    BOOST_CHECK(sys.parameter().isApprox(init));
+    
+    numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter, 
+                    dcm::geometry::storage::Vector<3>> cyl2Geom;
+                    
+    cyl2Geom.init(sys);
+    BOOST_CHECK(cyl2Geom.parameters().size()==4);
+    BOOST_CHECK(cyl2Geom.derivatives().size()==4);
+    
+    //check the polymorphism
+    numeric::Geometry<K, TCylinder3>* Geom = &cylGeom;
+    
+    BOOST_CHECK(Geom->point().isApprox(Eigen::Vector3d(1,2,3)));
+    BOOST_CHECK(sys.parameter().isApprox(init));
+    
+    cylGeom.direction() = Eigen::Vector3d(4,5,6);
+    BOOST_CHECK(Geom->direction().isApprox(Eigen::Vector3d(4,5,6)));
+    BOOST_CHECK(sys.parameter().isApprox(init));
+    
+    Geom->radius() = 7;
+    BOOST_CHECK(cylGeom.radius() == 7);
+    BOOST_CHECK(sys.parameter().isApprox(init));
+};
+
 /*
 struct test_tag1 {
     typedef dcm::tag::weight::point weight;
