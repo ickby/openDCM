@@ -241,7 +241,7 @@ void pretty(T t) {
  *
  * This class is the common base for all geometry types when used in numerical calculations. It provides an
  * interface from which all needed numerical data can be accessed. Relevant are the geometry values and the
- * derivatives dependend on the parameters this geometry depends on. This is enopugh for every case, no matter
+ * derivatives dependend on the parameters this geometry depends on. This is enough for every case, no matter
  * if the geometry depends on another one, is in a cluster or if values depend on parameters. Therefore this
  * class is used in equations to do calculations undependend of the actual state of the geometry and only
  * dependend by the type of the provided primitive.
@@ -344,6 +344,22 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+/**
+ * @brief Base class for geometry which calculates its value from a set of parameters
+ * 
+ * Not for every geometry each value is automaticly a system parameter. Often you have the case that certain
+ * values must be calculated from a few parameter. Then the number to variate in numeric solving is not 
+ * anymore the value but the parameters. To ease the handling of such a case this class is given. It allows 
+ * to specify a independent parameter storage and ensures that the values are not mapped into the linear system
+ * but the parameters are. As the values still need to be a map (to enable polymophism with basic \ref Geometry)
+ * a object local storge m_storage has been created which the geometry value maps are mapped to. So if you 
+ * calculate the geometry values from the parameters you can either write to the normal maps or the local 
+ * storage.
+ * 
+ * \tparam Kernel The math \ref Kernel in use
+ * \tparam Base The geometric primitive this numeric geometry represents
+ * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
+ */
 template< typename Kernel, template<class, bool> class Base, typename... ParameterStorageTypes>
 struct ParameterGeometry : public Geometry<Kernel, Base> {
 
@@ -351,6 +367,19 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
     typedef Geometry<Kernel, Base>  Inherited;
     typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
 
+    /**
+     * @brief Initialization of the geometry for calculation
+     * 
+     * This function must be called before any access to the geometry is made. It ensures that all maps are
+     * valid. If the geometry is accessed before calling init a segfault will happen. In debug mode an assert 
+     * is called in this situation, but in release no warning will occure. 
+     * The geometry can only be initialized with a \ref LinearSystem as the parameters of the geometry are maped
+     * into this lienar system. It is therefore highly important that the given \ref LinearSystem is used for
+     * all calculations involing this geometry.
+     * 
+     * @param sys LinearSystem the geometry is initalized with
+     * @return void
+     */
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
         dcm_assert(!Inherited::m_init)
@@ -400,19 +429,47 @@ protected:
         };
     };
 };
-/*
-template< typename Kernel, template<class, bool> class Derived,
-          template<class, bool> class Base, int Dimension >
-struct ClusterGeometry : DependendGeometry<Kernel, Derived, Base> {
 
-    typedef typename Kernel::Scalar               Scalar;
-    typedef details::Transform<Scalar, Dimension> Transformation;
-
-    void transform(const Transformation& transform);
-
+/**
+ * @brief Base class for numeric geometry calculations of interdependend geomtries
+ * 
+ * Often a geometry can be calculated in relation to annother one. This reduces the amount of 
+ * existing parameters. This base class eases the handling of such a case by allowing to specify
+ * the base geometry and holding it for easy access. As it derives from ParameterGeometry the value
+ * of \ref this can be calculated from a certain set of parameters and the other geometry only.
+ * 
+ * \tparam Kernel The math \ref Kenel in use
+ * \tparam Base The geometric primitive this numeric geometry is based in
+ * \tparam DBase The geometric primitive this numeric geometry depends on
+ * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
+ */
+template< typename Kernel, template<class, bool> class Base,
+          template<class, bool> class DBase, typename... ParameterStorageTypes>
+struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStorageTypes...>  {
+    
+    typedef ParameterGeometry<Kernel, Base, ParameterStorageTypes...> Inherited;
+    
+    /**
+     * @brief Setup the geometry \a this depends on
+     * 
+     * Allows to set the base geometry which is needed to calculate \a this geometrys value. It will 
+     * automaticly setup new derivatives dependend on the base derivatives, however, the values are
+     * not quranteed to have any value. They therefore need tobe overridden before use.
+     * 
+     * \param base The base geometry \a this depends on
+     * @return void
+     */
+    void setBaseGeometry(Geometry<Kernel, DBase>* base) {
+        m_base = base;
+        //we are a dependend geometry, therefore our value depends on all parameters of base. This means
+        //we have a derivative for every parameter of base too. Therefore we t adopt the derivatives
+        //vector
+        std::copy(base->derivatives().begin(), base->derivatives().end(), Inherited::m_derivatives().end());
+    };
+    
 protected:
-    Transformation m_cumulated;
-};*/
+    Geometry<Kernel, DBase>* m_base;
+};
 
 } //numeric
 
