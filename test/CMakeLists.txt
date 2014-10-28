@@ -9,35 +9,6 @@ link_directories ( ${Boost_LIBRARY_DIRS} )
 
 set(framework_SRC framework.cpp)
 
-if(EXTERNALIZE)
-
-  set(state_SRC parser/parser.cpp
-		parser/parser_3d_ext1.cpp	
-		parser/parser_3d_ext2.cpp
-		parser/parser_3d_ext3.cpp
-		parser/parser_ext1.cpp
-		parser/parser_ext2.cpp
-		parser/parser_ext3.cpp
-		parser/parser_ext4.cpp
-	        parser/parser_ext5.cpp
-	        parser/parser_ext6.cpp
-	        parser/parser_ext7.cpp
-	        parser/parser_ext8.cpp
-)
- set(module3d_SRC module3d/module3d.cpp
-		  module3d/m3d_ext1.cpp
-		  module3d/m3d_ext2.cpp
-		  module3d/m3d_ext3.cpp
-		  module3d/m3d_ext4.cpp
- )
- 
-else(EXTERNALIZE)
-
-  set(state_SRC parser/parser.cpp)
-  set(module3d_SRC module3d/module3d.cpp)
-  
-endif(EXTERNALIZE)
-
 set(test_SRC  define.cpp
               #scheduler.cpp
 	      #kernel.cpp
@@ -47,7 +18,7 @@ set(test_SRC  define.cpp
 	      numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
-	      #${module3d_SRC}
+	      module3d.cpp
 	      #dof.cpp
 	      #modulepart.cpp
 	      #modulepart2.cpp

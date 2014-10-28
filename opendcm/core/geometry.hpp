@@ -53,13 +53,19 @@ namespace dcm {
  *
  * A geometric primitive is a geometry type like a point in 2D or 3D, a line or whatever. Primitive in this
  * context decribes the fact that such a type is only used to store and access the data needed to fully
- * define the geometry. No data conversion or any calculation can be done. There are however two requirements
- * defined for a geometric primitive: First the values need to be stored in a fusion vector named \a m_storage.
- * This is important for automatic handling of primitives regardless of type. Second it must be possible
- * to initiate a geometric primitive either as storage type (realy holding the values) or as pointer or map
- * type, referencing the data from somewhere else. Furtherore it must comply with the dcm \ref Kernel
- * infrastructure.
- *
+ * define the geometry. The only operation on the data defined here is tranforming. There exist a few
+ * requirements for a geometric primitive: 
+ * First the values need to be stored in a fusion vector named \a m_storage. This is important for automatic 
+ * handling of primitives regardless of type. 
+ * Second it must be possible to initiate a geometric primitive either as storage type (realy holding the values) or as pointer or map
+ * type, referencing the data from somewhere else.
+ * Third it must implement the interface for in place transformation returning a transformed copy. This interface 
+ * consists of two function: 
+ * \code
+ * this_type& transform  (const details::Transform<Scalar,Dim>&) //in place transformation, return reference
+ * this_type  transformed(const details::Transform<Scalar,Dim>&) //return transformed copy
+ *\endcode
+ * 
  * As an example let's create a point2d geometric primitive. We get the \ref Kernel as always template argument.
  * Furthermore we have a bool template parameter which describes if the point shall be a storage or a refernce.
  *
@@ -71,6 +77,9 @@ namespace dcm {
  *
  *      Scalar& x() {return boost::fusion::at_c<0>(m_storage);
  *      Scalar& y() {return boost::fusion::at_c<1>(m_storage);
+ * 
+ *      point2d<Kernel, Map>& transform  (const details::Transform<Scalar,2>& t)...
+ *      point2d<Kernel, Map>  transformed(const details::Transform<Scalar,2>& t)...
  * }
  *
  * template<typename Kernel>
@@ -80,12 +89,16 @@ namespace dcm {
  *
  *      Scalar* x() {return boost::fusion::at_c<0>(m_storage);
  *      Scalar* y() {return boost::fusion::at_c<1>(m_storage);
+ * 
+ *      point2d<Kernel, Map>& transform  (const details::Transform<Scalar,2>& t)...
+ *      point2d<Kernel, Map>  transformed(const details::Transform<Scalar,2>& t)...
  * }
  * \endcode
  *
  * The first requirement has been followed by creating a fusion vector called m_stroage which holds our two
  * data entries. The second requeirement has been fullfilled for specializing the point type if a map type is
- * required and then replacing the Scalar values with pointers to those.
+ * required and then replacing the Scalar values with pointers to those. Number three is also satisfied, both 
+ * spezialisations implement the transform interface.
  *
  * \note The fusion vector must have the same size and order for map and storage type. Furthermore the enries
  * in the map type primitive must be constructible from pointers to the storage type.
@@ -111,7 +124,8 @@ namespace storage  {
  *
  * If you need a storage of one scalar value this is the class to use. For the storage it creates the
  * \ref Kernel defined scalar and for a map it creates a pointer to such a scalar. The pointer will be
- * nullptr initialized.
+ * nullptr initialized. 
+ * \note A parameter will never be transformed
  */
 struct Parameter {
 
@@ -137,6 +151,8 @@ struct Parameter {
  * A stroage for a full matrix, either fixed size (when \a Row or \Column are gives as integers > 0) or
  * dynamical sized (when \a Row or \Column are gives as Eigen::Dynamic). For storage it creates a Eigen::Matrix
  * and for a map a Eigen::Map to such a matrix. The map will be nullptr initialized on construction.
+ * 
+ * \note Matrices can be transformed in multiple ways. A <3,3> matrix can be rotated
  *
  * \tparam Row The matrix's row count, or Eigen::Dynamic for dynamicaly sized rows.
  * \tparam Column The matrix's column count, or Eigen::Dynamic for dynamicaly sized columns.
@@ -168,6 +184,9 @@ struct Matrix {
  * and for a map a Eigen::Map to such a matrix, both with the column size = 1. The map will be
  * nullptr initialized on construction.
  *
+ * \note A vector can be transformed if its \a Size is equal the systems dimension. Three possibilities exist: 
+ * 0 
+ * 
  * \tparam Size The vectors row count, or Eigen::Dynamic for a dynamicaly sized vector.
  */
 template<int Size>
@@ -200,6 +219,10 @@ using Vector = Matrix<Size, 1>;
  *    };
  * };
  * \endcode
+ * 
+ * \note The transform interface is not implemented by this class. Thats because it is impossible to determine
+ * how each storage entry needs to be transformed. Also the space dimension is not known. Therefore it is 
+ * the derived classes responibility to implement that interface. 
  *
  * \tparam Kernel The math \ref Kernel in use
  * \tparam Map boolean which states if this geometric primitive shall be a storage or a map
@@ -250,7 +273,8 @@ void pretty(T t) {
  * are not used as \a Base template parameter.
  *
  * \tparam Kernel The math \ref Kernel in use
- * \tparam Base The geometric primitive on which the numeric geometry is based on as non-specialized template type
+ * \tparam Base The geometric primitive on which the numeric geometry is based on as non-specialized 
+ *              template type
  */
 template< typename Kernel, template<class, bool> class Base >
 struct Geometry : public Base<Kernel, true> {
@@ -281,7 +305,7 @@ struct Geometry : public Base<Kernel, true> {
     //types the chance to override the initialisaion behaviour
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
-        dcm_assert(!m_init)
+        dcm_assert(!m_init);
         m_init = true;
 #endif
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
@@ -366,7 +390,7 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
     typedef typename Kernel::Scalar Scalar;
     typedef Geometry<Kernel, Base>  Inherited;
     typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
-
+    
     /**
      * @brief Initialization of the geometry for calculation
      * 
@@ -382,7 +406,7 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
      */
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
-        dcm_assert(!Inherited::m_init)
+        dcm_assert(!Inherited::m_init);
         Inherited::m_init = true;
 #endif
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
@@ -448,6 +472,7 @@ template< typename Kernel, template<class, bool> class Base,
 struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStorageTypes...>  {
     
     typedef ParameterGeometry<Kernel, Base, ParameterStorageTypes...> Inherited;
+    typedef typename Geometry<Kernel, DBase>::Derivative              DependendDerivative;
     
     /**
      * @brief Setup the geometry \a this depends on
@@ -462,13 +487,13 @@ struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStora
     void setBaseGeometry(Geometry<Kernel, DBase>* base) {
         m_base = base;
         //we are a dependend geometry, therefore our value depends on all parameters of base. This means
-        //we have a derivative for every parameter of base too. Therefore we t adopt the derivatives
+        //we have a derivative for every parameter of base too. Therefore we adopt the derivatives
         //vector
-        std::copy(base->derivatives().begin(), base->derivatives().end(), Inherited::m_derivatives().end());
+        Inherited::m_derivatives.resize(Inherited::m_derivatives.size() + base->derivatives().size());
     };
     
 protected:
-    Geometry<Kernel, DBase>* m_base;
+    Geometry<Kernel, DBase>* m_base = nullptr;
 };
 
 } //numeric

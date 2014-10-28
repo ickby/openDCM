@@ -22,6 +22,7 @@
 
 
 #include <boost/exception/exception.hpp>
+#include <boost/graph/graph_concepts.hpp>
 #include <string>
 
 namespace dcm {
@@ -35,16 +36,22 @@ typedef boost::error_info<struct second_geom, std::string> error_type_second_geo
 struct creation_error : virtual boost::exception {};
 struct solving_error : virtual boost::exception {};
 struct constraint_error : virtual boost::exception {};
+struct general_assert_error : virtual boost::exception {};
 
 //we may need to throw exceptions instead of failing the application in assert as we only can detect
 //exceptions in the testing framework. Therefore we write our own assert
-inline void dcm_assert(bool value) {
+#ifdef DCM_DEBUG 
 #ifdef DCM_DEBUG_THROW_AT_ASSERT
-    throw boost::exception();
-#elseif
-    assert(value);
+#define dcm_assert(exp) \
+if(exp) \
+    throw general_assert_error();
+#else
+#define dcm_assert(exp) \
+    assert(exp);
 #endif
-};
+#else
+#define dcm_assert(exp)
+#endif
 }; //dcm
 
 #endif //DCM_DEFINES_CORE_H

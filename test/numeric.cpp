@@ -33,12 +33,23 @@ struct TDirection3 : public geometry::Geometry<Kernel, MappedType,
             geometry::storage::Vector<3>> {
 
     using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>>::m_storage;
-    
+   
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
     };
 };
  
+template<typename Kernel, bool MappedType = true>
+struct TMatrix3 : public geometry::Geometry<Kernel, MappedType,
+            geometry::storage::Matrix<3,3>> {
+
+    using geometry::Geometry<Kernel, MappedType, geometry::storage::Matrix<3,3>>::m_storage;
+    
+    auto value() -> decltype(fusion::at_c<0>(m_storage)){
+        return fusion::at_c<0>(m_storage);
+    };
+};
+
 template<typename Kernel, bool MappedType = true>
 struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
             geometry::storage::Vector<3>, geometry::storage::Parameter, geometry::storage::Vector<3>> {
@@ -77,7 +88,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     basic_vec.value() = Eigen::Vector3d(1,2,3);    
     BOOST_CHECK(basic_vec.value() == Eigen::Vector3d(1,2,3));
     
-    numeric::LinearSystem<K> sys(10,10);    
+    numeric::LinearSystem<K> sys(20,20);    
     numeric::Geometry<K, TDirection3> dirGeom;
     
     dirGeom.init(sys);
@@ -132,13 +143,23 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(sys.parameter()(6) == (3.3));
     
     cylGeom.direction() = Eigen::Vector3d(5.5,6.6,7.7);
-    BOOST_CHECK(sys.parameter().tail<3>().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
+    BOOST_CHECK(sys.parameter().segment<3>(7).isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
     
     //see if anything was overriden
     BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
     BOOST_CHECK(cylGeom.radius() == (3.3));
     BOOST_CHECK(cylGeom.direction().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
     BOOST_CHECK(cylGeom.point().isApprox(Eigen::Vector3d(0,0,0)));
+    
+    
+    //and check matrix types
+    numeric::Geometry<K, TMatrix3> matGeom;
+    matGeom.init(sys);
+    
+    matGeom.value() << 1,2,3,4,5,6,7,8,9;
+    BOOST_CHECK(matGeom.value().col(0).isApprox(Eigen::Vector3d(1,4,7)));
+    BOOST_CHECK(matGeom.value().col(1).isApprox(Eigen::Vector3d(2,5,8)));
+    BOOST_CHECK(matGeom.value().col(2).isApprox(Eigen::Vector3d(3,6,9)));
 };
     
 
@@ -182,145 +203,5 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     BOOST_CHECK(sys.parameter().isApprox(init));
 };
 
-/*
-struct test_tag1 {
-    typedef dcm::tag::weight::point weight;
-};
-struct test_tag2 {
-    typedef dcm::tag::weight::line weight;
-};
-
-BOOST_AUTO_TEST_CASE(geometry_order) {
-
-    BOOST_CHECK((!dcm::tag_order<test_tag1, test_tag2>::swapt::value));
-    BOOST_CHECK((dcm::tag_order<test_tag2, test_tag1>::swapt::value));
-
-
-    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag1, test_tag2>::first_tag, test_tag1>));
-    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag1, test_tag2>::second_tag, test_tag2>));
-
-    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag2, test_tag1>::first_tag, test_tag1>));
-    BOOST_MPL_ASSERT((boost::is_same<dcm::tag_order<test_tag2, test_tag1>::second_tag, test_tag2>));
-
-}
-
-
-BOOST_AUTO_TEST_CASE(geometry_transformation3d) {
-
-    typedef dcm::Kernel<double> Kernel;
-    typedef Kernel::Transform3D Transform;
-    
-    Kernel k;
-    Transform trans3d;
-
-    //check if initial initialisation is correct
-    BOOST_CHECK(trans3d.rotation().isApprox(Kernel::Quaternion(1,0,0,0), 1e-10));
-    BOOST_CHECK(trans3d.translation().vector().isApprox(Kernel::Vector3(0,0,0), 1e-10));
-    BOOST_CHECK(k.isSame(trans3d.scaling().factor(), 1.));
-
-    //check the transformations
-    Kernel::Vector3 vec(1,2,3);
-    trans3d.scale(Transform::Scaling(0.5));
-    vec = trans3d*vec;
-    BOOST_CHECK((Kernel::Vector3(1,2,3)*0.5).isApprox(vec, 1e-10));
-
-    vec << 1,2,3;
-    trans3d.translate(Transform::Translation(1,2,3));
-    trans3d.transform(vec);
-    BOOST_CHECK((Kernel::Vector3(2,4,6)*0.5).isApprox(vec, 1e-10));
-
-    vec << 1,2,3;
-    trans3d.rotate((Kernel::Quaternion(1,2,3,4)).normalized());
-    trans3d.transform(vec);
-    Kernel::Vector3 res = (Kernel::Quaternion(1,2,3,4)).normalized()._transformVector(Kernel::Vector3(1,2,3));
-    res += Kernel::Vector3(1,2,3);
-    res *= 0.5;
-    BOOST_CHECK(res.isApprox(vec, 1e-10));
-
-    //check the invertion
-    trans3d.invert();
-    trans3d.transform(vec);
-    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
-
-    //check successive transformations
-    trans3d.setIdentity();
-    trans3d *= Transform::Rotation(1,2,3,4);
-    trans3d *= Transform::Translation(1,2,3);
-    trans3d *= Transform::Scaling(2);
-    Transform trans3d_2(trans3d);
-    BOOST_CHECK(trans3d_2.isApprox(trans3d, 1e-10));
-    BOOST_CHECK(k.isSame(trans3d_2.rotation().coeffs().norm(),1));
-
-    trans3d.invert();
-    trans3d_2.transform(vec);
-    trans3d.transform(vec);
-    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
-
-    Transform trans3d_I = trans3d_2 * trans3d;
-    trans3d_I.transform(vec);
-    BOOST_CHECK(vec.isApprox(Kernel::Vector3(1,2,3), 1e-10));
-
-    Transform trans3d_3(Transform::Rotation(4,9,1,2),
-                        Transform::Translation(4,2,-6), Transform::Scaling(2));
-    Transform trans3d_4(Transform::Rotation(1,2,4,3),
-                        Transform::Translation(-4,1,0), Transform::Scaling(3));
-    Transform trans3d_5(Transform::Rotation(4,2,1,3),
-                        Transform::Translation(-4,-1,2), Transform::Scaling(4));
-
-    vec << 1,2,3;
-    trans3d_3.transform(vec);
-    trans3d_4.transform(vec);
-    trans3d_5.transform(vec);
-    Kernel::Vector3 v1 = vec;
-
-    vec << 1,2,3;
-    Transform trans3d_34 = trans3d_3 * trans3d_4;
-    Transform trans3d_345 = trans3d_34  * trans3d_5;
-    trans3d_345.transform(vec);
-    BOOST_CHECK(vec.isApprox(v1, 1e-10));
-
-    vec << 1,2,3;
-    trans3d_34.transform(vec);
-    v1 = vec;
-
-    trans3d_5.transform(vec);
-    Transform trans3d_5I = trans3d_5.inverse();
-    trans3d_5I.transform(vec);
-    BOOST_CHECK(vec.isApprox(v1, 1e-10));
-
-    vec << 1,2,3;
-    trans3d_34.transform(vec);
-    v1 = vec;
-    vec << 1,2,3;
-    Transform trans3d_3455I = trans3d_345 * trans3d_5I;
-    trans3d_3455I.transform(vec);
-    BOOST_CHECK(vec.isApprox(v1, 1e-10));
-
-    vec << 1,2,3;
-    Transform trans3d_345M5 = trans3d_345 * trans3d_5.inverse();
-    trans3d_345M5.transform(vec);
-    BOOST_CHECK(vec.isApprox(v1, 1e-10));
-
-    vec << 1,2,3;
-    trans3d_345 *= trans3d_5.inverse();
-    trans3d_345.transform(vec);
-    BOOST_CHECK(vec.isApprox(v1, 1e-10));
-}
-
-BOOST_AUTO_TEST_CASE(geometry_geometry_link) {
-
-    typedef dcm::Kernel<double> Kernel;
-
-    MES mes(3,1);
-    boost::shared_ptr< Geometry > g1(new Geometry()),
-          g2(new Geometry());
-
-    Eigen::Vector3d v(1,2,3);
-    g1->setValue<dcm::tag::point_t>(v);
-    g2->linkTo<dcm::tag::point_t>(g1, 0);
-
-    BOOST_CHECK(g1->getValue() == g2->getValue());
-}
-*/
 
 BOOST_AUTO_TEST_SUITE_END();

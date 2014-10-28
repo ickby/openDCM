@@ -277,13 +277,6 @@ Transform<Scalar, Dim>& Transform<Scalar, Dim>::normalize() {
 }
 
 
-template<typename Scalar, int Dim>
-DiffTransform<Scalar, Dim>::DiffTransform(const Transform<Scalar, Dim>& trans)
-    : Transform<Scalar, Dim>(trans.rotation(), trans.translation(), trans.scaling()) {
-
-    m_diffMatrix.setZero();
-};
-
 /*When you overload a binary operator as a member function of a class the overload is used
  * when the first operand is of the class type.For stream operators, the first operand
  * is the stream and not (usually) the custom class.
@@ -293,15 +286,6 @@ std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& o
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
        << "Translation: " << t.translation().vector().transpose() <<std::endl
        << "Scale:       " << t.scaling().factor();
-    return os;
-}
-
-template<typename charT, typename traits,typename Kernel, int Dim>
-std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, dcm::details::DiffTransform<Kernel, Dim>& t) {
-    os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
-       << "Translation: " << t.translation().vector().transpose() <<std::endl
-       << "Scale:       " << t.scaling().factor() << std::endl
-       << "Differential:" << std::endl<<t.differential();
     return os;
 }
 
