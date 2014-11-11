@@ -72,6 +72,8 @@ public:
     Transform& setScale(const Scaling& scaling);
     Transform& scale(const Scalar& scaling);
     Transform& scale(const Scaling& scaling);
+    
+    Eigen::Transform<Scalar, Dim, Eigen::AffineCompact> transformation();
 
     Transform& invert();
     Transform inverse();

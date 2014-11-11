@@ -27,7 +27,7 @@
 	#pragma warning( disable : 4503 )
 #endif
 
-#include "module3d/geometry.hpp"
+#include "module3d/cluster.hpp"
 
 
 #endif //DCM_MODULE3D_H

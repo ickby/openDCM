@@ -65,7 +65,7 @@ struct LinearSystem {
         result[0] = {m_parameterOffset, s};
         return result;
     };
-    
+
     template<typename Derived>
     std::vector<SystemEntry<Kernel>> mapParameter(Eigen::Map<Derived>& map) {
         new(&map) Eigen::Map<Derived>(&m_parameters(++m_parameterOffset));

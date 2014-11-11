@@ -104,6 +104,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.value()(c)==1);
         BOOST_CHECK(der.first.value().sum()==1);
         BOOST_CHECK(der.second == *(it++));
+        BOOST_CHECK(der.second.Value != nullptr);
         ++c;
     };
     
@@ -131,6 +132,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.direction()(1)==res(5));
         BOOST_CHECK(der.first.direction()(2)==res(6));
         BOOST_CHECK(der.second == *(cylIt++));
+        BOOST_CHECK(der.second.Value != nullptr);
         
         c++;
     };
@@ -180,7 +182,7 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     cylGeom.point() = Eigen::Vector3d(1,2,3);    
     BOOST_CHECK(cylGeom.point().isApprox(Eigen::Vector3d(1,2,3)));
     BOOST_CHECK(sys.parameter().isApprox(init));
-    
+       
     numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter, 
                     dcm::geometry::storage::Vector<3>> cyl2Geom;
                     
@@ -201,6 +203,12 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     Geom->radius() = 7;
     BOOST_CHECK(cylGeom.radius() == 7);
     BOOST_CHECK(sys.parameter().isApprox(init));
+    
+    //check if the parameter mapping worked
+    BOOST_CHECK(cylGeom.parameters()[0] == cylGeom.derivatives()[0].second);
+    *cylGeom.parameters()[0].Value = 5;
+    BOOST_CHECK(cylGeom.derivatives()[0].second.Value != nullptr);
+    BOOST_CHECK(*cylGeom.derivatives()[0].second.Value == 5);
 };
 
 

@@ -62,8 +62,8 @@ namespace dcm {
  * Third it must implement the interface for in place transformation returning a transformed copy. This interface 
  * consists of two function: 
  * \code
- * this_type& transform  (const details::Transform<Scalar,Dim>&) //in place transformation, return reference
- * this_type  transformed(const details::Transform<Scalar,Dim>&) //return transformed copy
+ * this_type& transform  (const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //in place transformation, return reference
+ * this_type  transformed(const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //return transformed copy
  *\endcode
  * 
  * As an example let's create a point2d geometric primitive. We get the \ref Kernel as always template argument.
@@ -78,8 +78,8 @@ namespace dcm {
  *      Scalar& x() {return boost::fusion::at_c<0>(m_storage);
  *      Scalar& y() {return boost::fusion::at_c<1>(m_storage);
  * 
- *      point2d<Kernel, Map>& transform  (const details::Transform<Scalar,2>& t)...
- *      point2d<Kernel, Map>  transformed(const details::Transform<Scalar,2>& t)...
+ *      point2d<Kernel, Map>& transform  (const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
+ *      point2d<Kernel, Map>  transformed(const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
  * }
  *
  * template<typename Kernel>
@@ -325,7 +325,7 @@ protected:
     std::vector< Parameter >  m_parameters;
     std::vector< Derivative > m_derivatives;
 
-    template<typename StorageType>
+    template<typename StorageType, bool InitDerivative = true>
     struct Initializer {
 
         LinearSystem<Kernel>&    m_system;
@@ -347,8 +347,11 @@ protected:
             //create and set derivatives
             for(int i=0; i<v.size(); ++i) {
                 m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  v[i]));
-                auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
-                setOne(t2, i);
+                
+                if(InitDerivative) {
+                    auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
+                    setOne(t2, i);
+                }
             };
 
             //set parameter
@@ -419,7 +422,7 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
         
         //finally map the parameters and create derivatives for them (zero initialized)
         typedef mpl::range_c<int,0, mpl::size<ParameterStorage>::value> ParameterRange;
-        mpl::for_each<ParameterRange>(typename Inherited::template Initializer<ParameterStorage>(
+        mpl::for_each<ParameterRange>(typename Inherited::template Initializer<ParameterStorage, false>(
                                     sys, m_parameterStorage, Inherited::m_parameters, 
                                     Inherited::m_derivatives));
     };
@@ -480,15 +483,23 @@ struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStora
      * Allows to set the base geometry which is needed to calculate \a this geometrys value. It will 
      * automaticly setup new derivatives dependend on the base derivatives, however, the values are
      * not quranteed to have any value. They therefore need tobe overridden before use.
+     * \note This function should only be called if \a this and \a base have been initialized.
      * 
      * \param base The base geometry \a this depends on
      * @return void
      */
     void setBaseGeometry(Geometry<Kernel, DBase>* base) {
+        
+#ifdef DCM_DEBUG
+        dcm_assert(!Inherited::m_init);
+#endif
+        
         m_base = base;
-        //we are a dependend geometry, therefore our value depends on all parameters of base. This means
-        //we have a derivative for every parameter of base too. Therefore we adopt the derivatives
-        //vector
+        //we are a dependend geometry, therefore our value depends on all parameters of base. 
+        std::copy(base->parameters().begin(), base->parameters().end(), Inherited::m_parameters.end());
+        
+        //This also means that we have a derivative for every parameter of base too. Therefore we 
+        //adopt the derivatives vector
         Inherited::m_derivatives.resize(Inherited::m_derivatives.size() + base->derivatives().size());
     };
     

@@ -125,6 +125,11 @@ Transform<Scalar, Dim>& Transform<Scalar, Dim>::scale(const Scaling& scaling) {
 }
 
 template<typename Scalar, int Dim>
+Eigen::Transform<Scalar, Dim, Eigen::AffineCompact> Transform<Scalar, Dim>::transformation() {
+    return Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>(rotation()) * translation();
+};
+
+template<typename Scalar, int Dim>
 Transform<Scalar, Dim>& Transform<Scalar, Dim>::invert() {
     m_rotation = m_rotation.inverse();
     m_translation.vector() = (m_rotation*m_translation.vector()) * (-m_scale.factor());
