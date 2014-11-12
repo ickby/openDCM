@@ -83,6 +83,7 @@ struct Cluster3Geometry : public DependendGeometry<Kernel, Base, geometry::Clust
         for(typename Inherited::DependendDerivative& d : Inherited::m_base->derivatives()) {
 
             dcm_assert(it != Inherited::derivatives().end());
+            dcm_assert(it->second == d.second)
             it->first = m_local.transformed(d.first.eigenTransform());        
             ++it;
         };
@@ -120,7 +121,6 @@ struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
 
         //calculate the quaternion and rotation matrix from the parameter vector
         const Eigen::Quaternion<Scalar> Q = calculateTransform();
-        std::cout<<"transform: "<<m_transformation<<std::endl;
         Inherited::rotation() = Q.toRotationMatrix();
                 
         const Eigen::Matrix<Scalar, 3, 1>& normQ = pRotation();

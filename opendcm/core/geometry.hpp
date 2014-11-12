@@ -65,6 +65,7 @@ namespace dcm {
  * this_type& transform  (const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //in place transformation, return reference
  * this_type  transformed(const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //return transformed copy
  *\endcode
+ * Finally a geometric primitive must be copy-constructable and assignable by the same type in map and storage form.
  * 
  * As an example let's create a point2d geometric primitive. We get the \ref Kernel as always template argument.
  * Furthermore we have a bool template parameter which describes if the point shall be a storage or a refernce.
@@ -92,6 +93,7 @@ namespace dcm {
  * 
  *      point2d<Kernel, Map>& transform  (const details::Transform<Scalar,2>& t)...
  *      point2d<Kernel, Map>  transformed(const details::Transform<Scalar,2>& t)...
+ * }
  * }
  * \endcode
  *
@@ -197,9 +199,10 @@ using Vector = Matrix<Size, 1>;
 /**
  * @brief Helper base struct for creating primitive gepometry types
  *
- * Primitive geometry has to fullfill two requirements, the storage based on fusion::vector and the possibility
- * to be a map or storage type. To reduce boilerplate this class is given which handles the fusion::vector
- * creation automativ for storage and map types dependend on the template parameter \a Map. To tell the struct
+ * Primitive geometry has to fullfill four requirements: the storage based on fusion::vector, the possibility
+ * to be a map or storage type, the transform interface and the copy-constructability and assignability 
+ * independend of map or storage type. To reduce boilerplate this class is given which handles the fusion::vector
+ * creation automaticly for storage and map types dependend on the template parameter \a Map. To tell the struct
  * which types shall be stored (or mapped) it is possible to pass an arbitrary number of storage types as
  * template parameters. For example a line could be constructed using this class in the following way:
  * \code
@@ -234,7 +237,7 @@ struct Geometry {
     typedef mpl::vector<StorageTypes...>                                               StorageTypeSequence;
     typedef mpl::vector< typename StorageTypes::template create<Kernel, Map>::type...> StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type               Storage;
-
+    
 protected:
     Storage m_storage = fusion::make_vector(StorageTypes::template create<Kernel, Map>::build()...);
 
@@ -490,17 +493,16 @@ struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStora
      */
     void setBaseGeometry(Geometry<Kernel, DBase>* base) {
         
-#ifdef DCM_DEBUG
-        dcm_assert(!Inherited::m_init);
-#endif
+        dcm_assert(Inherited::m_init);
         
         m_base = base;
         //we are a dependend geometry, therefore our value depends on all parameters of base. 
-        std::copy(base->parameters().begin(), base->parameters().end(), Inherited::m_parameters.end());
+        Inherited::m_parameters.insert(Inherited::m_parameters.end(),
+                                       base->parameters().begin(), base->parameters().end());
         
-        //This also means that we have a derivative for every parameter of base too. Therefore we 
-        //adopt the derivatives vector
-        Inherited::m_derivatives.resize(Inherited::m_derivatives.size() + base->derivatives().size());
+        //This also means that we have a derivative for every parameter of base too.
+        for(const typename Geometry<Kernel, DBase>::Derivative& d : base->derivatives())
+                Inherited::m_derivatives.push_back(std::make_pair(Base<Kernel, false>(), d.second));
     };
     
 protected:
@@ -516,7 +518,4 @@ namespace symbolic {
 
 } //dcm
 
-#ifndef DCM_EXTERNAL_CORE
-//#include "imp/geometry_imp.hpp"
-#endif
 #endif // DCM_GEOMETRY_H

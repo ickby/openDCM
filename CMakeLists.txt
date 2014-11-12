@@ -35,5 +35,8 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions( -DDCM_DEBUG )
 ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
+add_definitions(-Wno-deprecated-register)
+
+
 add_subdirectory(test)
 add_subdirectory(doc)

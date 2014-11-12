@@ -105,6 +105,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.value().sum()==1);
         BOOST_CHECK(der.second == *(it++));
         BOOST_CHECK(der.second.Value != nullptr);
+        BOOST_CHECK(der.second.Value != 0);
         ++c;
     };
     
@@ -133,6 +134,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.direction()(2)==res(6));
         BOOST_CHECK(der.second == *(cylIt++));
         BOOST_CHECK(der.second.Value != nullptr);
+        BOOST_CHECK(der.second.Value != 0);
         
         c++;
     };
@@ -162,6 +164,13 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(matGeom.value().col(0).isApprox(Eigen::Vector3d(1,4,7)));
     BOOST_CHECK(matGeom.value().col(1).isApprox(Eigen::Vector3d(2,5,8)));
     BOOST_CHECK(matGeom.value().col(2).isApprox(Eigen::Vector3d(3,6,9)));
+    
+    //check assign and copy-constructability
+    TDirection3<K, false> basic_vec_2(basic_vec);
+    BOOST_CHECK(basic_vec_2.value().isApprox(basic_vec.value()));
+    basic_vec.value() << 5,4,3;
+    basic_vec_2 = basic_vec;
+    BOOST_CHECK(basic_vec_2.value().isApprox(basic_vec.value()));
 };
     
 
@@ -209,6 +218,20 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     *cylGeom.parameters()[0].Value = 5;
     BOOST_CHECK(cylGeom.derivatives()[0].second.Value != nullptr);
     BOOST_CHECK(*cylGeom.derivatives()[0].second.Value == 5);
+    
+    //check assign and copy-constructability
+    numeric::ParameterGeometry<K, TCylinder3, 
+        dcm::geometry::storage::Parameter>  cylGeom2(cylGeom);
+    BOOST_CHECK(cylGeom2.point().isApprox(cylGeom.point()));
+    BOOST_CHECK(cylGeom2.direction().isApprox(cylGeom.direction()));
+    BOOST_CHECK(cylGeom2.radius() == cylGeom.radius());
+    cylGeom.point() << 0,0,3;
+    cylGeom.direction() << -3,6,1;
+    cylGeom.radius() = -7;
+    cylGeom2 = cylGeom;
+    BOOST_CHECK(cylGeom2.point().isApprox(cylGeom.point()));
+    BOOST_CHECK(cylGeom2.direction().isApprox(cylGeom.direction()));
+    BOOST_CHECK(cylGeom2.radius() = cylGeom.radius());
 };
 
 
