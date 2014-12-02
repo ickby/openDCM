@@ -31,6 +31,9 @@
 namespace dcm {
 namespace numeric {
     
+//every kernel needs to be derived from this class
+struct KernelBase {};
+    
 template< typename Kernel >
 struct SystemEntry {
     
@@ -143,7 +146,7 @@ struct Dogleg {
 
 
 template<typename NumericType, template<class> class Nonlinear = numeric::Dogleg>
-struct Eigen3Kernel {
+struct Eigen3Kernel : public numeric::KernelBase {
 
     //the number type we use throughout the system
     typedef NumericType   Scalar;

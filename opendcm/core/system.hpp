@@ -29,16 +29,14 @@
 #include <boost/preprocessor/enum_params_with_a_default.hpp>
 
 #include "module.hpp"
+#include "kernel.hpp"
 
 #define DCM_MAX_MODULE_SIZE 5
 
-namespace dcm {
-
 namespace mpl = boost::mpl;
 
+namespace dcm {
 namespace details {
-
-struct placeholder {};
 
 template<typename M1, typename M2>
 struct module_sort : mpl::less_equal<typename M1::ID, typename M2::ID> {};
@@ -48,18 +46,21 @@ struct module_inheritance {
     typedef typename Module::template type<Final, Stack> type;
 };
 
-template<typename Final, typename Vector>
+template<typename Final, typename ...Modules>
 struct module_inheriter {
 
-    //Remove all placeholders first
-    typedef typename mpl::fold< Vector, mpl::vector<>, mpl::if_<boost::is_same<mpl::_2, placeholder>,
-            mpl::_1, mpl::push_back<mpl::_1, mpl::_2> > >::type modules;
-
+    typedef mpl::vector<Modules...> modules;
+    
+    //find or create the kernel
+    typedef typename mpl::find_if<modules, boost::is_base_of<numeric::KernelBase, mpl::_1> >::type it;
+    typedef typename mpl::if_<boost::is_same<it, typename mpl::end<modules>::type>, Eigen3Kernel<double>, 
+                                typename mpl::deref<it>::type>::type Kernel;   
+    
     //sort according to the modules id
     typedef typename mpl::sort<modules, module_sort<mpl::_1, mpl::_2> >::type sorted_modules;
 
     //initialise the module stack
-    typedef typename mpl::fold<sorted_modules, ModuleCoreInit<Final>,
+    typedef typename mpl::fold<sorted_modules, ModuleCoreInit<Final, Kernel>,
             module_inheritance<Final, mpl::_1, mpl::_2> >::type module_stack;
 
     //and create the finished inheritance type
@@ -69,9 +70,8 @@ struct module_inheriter {
 
 }; //details
 
-template<BOOST_PP_ENUM_PARAMS_WITH_A_DEFAULT(DCM_MAX_MODULE_SIZE, typename M, details::placeholder)>
-class System : public details::module_inheriter< System< BOOST_PP_ENUM_PARAMS(DCM_MAX_MODULE_SIZE, M) >,
-        mpl::vector< BOOST_PP_ENUM_PARAMS(DCM_MAX_MODULE_SIZE, M) > >::type {};
+template<typename ...Modules>
+class System : public details::module_inheriter< System<Modules...>, Modules... >::type {};
 
 }; //dcm
 

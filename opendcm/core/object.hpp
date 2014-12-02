@@ -24,6 +24,7 @@
 #include "property.hpp"
 
 #include <boost/mpl/equal_to.hpp>
+#include <boost/mpl/remove_if.hpp>
 #include <boost/preprocessor.hpp>
 #include <boost/preprocessor/repetition/repeat.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
@@ -36,8 +37,10 @@
 #define DCM_MAX_OBJECTS 10
 #endif
 
-namespace dcm {
+namespace mpl = boost::mpl;
 
+namespace dcm {
+    
 typedef int ObjectTypeID;
 //few standart signal names
 struct remove {};
@@ -161,7 +164,7 @@ const typename Prop::type& Object<Final>::getProperty() {
              mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
                      
     if(isOneOfTypes<typename Final::ObjectList, Filtered>())
-        return static_cast<Object*>(this)->m_properties.getProperty<Prop>();
+        return static_cast<Object*>(this)->m_properties.template getProperty<Prop>();
     else
         throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
@@ -177,7 +180,7 @@ void Object<Final>::setProperty(const typename Prop::type& value) {
              mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
             
     if(isOneOfTypes<typename Final::ObjectList, Filtered>())
-        static_cast<Object*>(this)->m_properties.setProperty<Prop>(value);
+        static_cast<Object*>(this)->m_properties.template setProperty<Prop>(value);
     else
         throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };

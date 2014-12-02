@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         for(clDer& der : clGeom.derivatives())
             BOOST_CHECK(der.second.Value != nullptr);
 
-        //let's test the derivatives and see if we calculate them correct
+        //let's test the derivatives and see if we calculate them correct for 0 values
         DerivativeTest::isCorrect(clGeom, 
                [&]() {
                    cluster.recalculate();
@@ -97,6 +97,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
                }
         );
         
+        //and check the derivatives for an arbitrary value
         clGeom.value() << 1,2,3;
         clGeom.value().normalize();
         DerivativeTest::isCorrect(clGeom, 
@@ -105,6 +106,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
                    clGeom.recalculate();
                }
         );
+
 
     }
     catch(boost::exception& x) {

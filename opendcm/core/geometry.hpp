@@ -513,9 +513,38 @@ protected:
 
 namespace symbolic {
 
+struct Geometry {
+    
+    int type;
+};
+
+template<typename Kernel, template<class, bool> class G>
+struct TypeGeometry : public Geometry {
+
+    typedef G<Kernel, false> PrimitiveGeometry; 
+    
+    PrimitiveGeometry& getPrimitveGeometry() {return m_geometry;};
+    
+    template<bool mapped>
+    void setPrimitiveGeometry(const G<Kernel, mapped>& g, int id) {
+        type = id;
+        m_geometry = g;
+    };    
+    
+protected:   
+    PrimitiveGeometry m_geometry;
+};
+
+struct GeometryProperty {
+    typedef Geometry* type;
+    struct default_value {
+        Geometry* operator()() {
+            return nullptr;
+        };
+    };
+};
 
 } //symbolic
-
 } //dcm
 
 #endif // DCM_GEOMETRY_H

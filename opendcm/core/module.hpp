@@ -21,25 +21,60 @@
 #define DCM_MODULE_CORE_H
 
 #include <boost/mpl/int.hpp>
+#include <boost/multi_array.hpp>
 
 #include "clustergraph.hpp"
 #include "logging.hpp"
 #include "object.hpp"
+#include "analyse.hpp"
 
 #include <boost/preprocessor/seq/for_each_i.hpp>
 #include <boost/preprocessor/seq/enum.hpp>
 #include <boost/preprocessor/seq/size.hpp>
 #include <boost/preprocessor/seq/fold_left.hpp>
+#include <boost/preprocessor/seq/transform.hpp>
+
+namespace mpl = boost::mpl;
 
 #define DCM_MODULE_ADD_OBJECTS(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpFullObjectList;\
     typedef typename mpl::fold<TmpFullObjectList, typename stacked::FullObjectList, \
-        mpl::push_back<mpl::_1, mpl::_2> >::type FullObjectList;
+        mpl::push_back<mpl::_1, mpl::_2>>::type FullObjectList;
+        
+template<template<class, bool> class Base>
+struct geometry_adaptor {};
+
+#define ADD_ADAPTOR(s, data, elem) \
+    geometry_adaptor<elem>
+
+#define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(ADD_ADAPTOR, 0, seq))> TmpGeometryList;\
+    typedef typename mpl::fold<TmpGeometryList, typename stacked::GeometryList, \
+         mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
+                  
+#define DCM_MODULE_ADD_VERTEX_PROPERTIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpVertexProperties;\
+    typedef typename mpl::fold<TmpVertexProperties, typename stacked::VertexProperties, \
+         mpl::push_back<mpl::_1, mpl::_2>>::type VertexProperties;
+         
+#define DCM_MODULE_ADD_LOCAL_EDGE_PROPERTIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpEdgeProperties;\
+    typedef typename mpl::fold<TmpEdgeProperties, typename stacked::EdgeProperties, \
+         mpl::push_back<mpl::_1, mpl::_2>>::type EdgeProperties;
+
+#define DCM_MODULE_ADD_GLOBAL_EDGE_PROPERTIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpGlobalEdgeProperties;\
+    typedef typename mpl::fold<TmpGlobalEdgeProperties, typename stacked::GlobalEdgeProperties, \
+         mpl::push_back<mpl::_1, mpl::_2>>::type GlobalEdgeProperties;
+         
+#define DCM_MODULE_ADD_CLUSTER_PROPERTIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpClusterProperties;\
+    typedef typename mpl::fold<TmpClusterProperties, typename stacked::ClusterProperties, \
+         mpl::push_back<mpl::_1, mpl::_2>>::type ClusterProperties;
+         
 
 namespace dcm {
 namespace details {
-
-namespace mpl = boost::mpl;
 
 template<typename List, typename Obj>
 struct remove_base {
@@ -48,14 +83,17 @@ struct remove_base {
 };
 
 
-template<typename Final>
+template<typename Final, typename MathKernel>
 struct ModuleCoreInit {
 
     ModuleCoreInit() : graph(NULL)
 #ifdef DCM_USE_LOGGING
         , sink(init_log())
 #endif
-    {};
+    {
+        int size = mpl::size<typename Final::GeometryList>::type::value;
+        
+    };
 
     ~ModuleCoreInit() {
         if(graph)
@@ -73,26 +111,35 @@ struct ModuleCoreInit {
     }
 #endif
 
+    //the math Kernel for everyone accessible and the settings hanling needed for it
+    typedef MathKernel Kernel;
+
     //initialize the object handling
     typedef Object<Final>  ObjectBase;
     typedef mpl::vector0<> FullObjectList;
+    
+    //initialize the geometry handling
+    typedef mpl::vector<>  GeometryList;
 
 protected:
-    typedef mpl::vector0<> EdgeProperties;
-    typedef mpl::vector0<> GlobalEdgeProperties;
-    typedef mpl::vector0<> VertexProperties;
-    typedef mpl::vector0<> ClusterProperties;
+    typedef mpl::vector<symbolic::ResultProperty> EdgeProperties;
+    typedef mpl::vector0<>                        GlobalEdgeProperties;
+    typedef mpl::vector0<>                        VertexProperties;
+    typedef mpl::vector0<>                        ClusterProperties;
 
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
-    ClusterGraphBase* getGraph() {
+    graph::ClusterGraphBase* getGraph() {
         if(!graph)
             graph = new typename Final::Graph();
 
         return graph;
     };
+    
+protected:
+    boost::multi_array<symbolic::EdgeReductionTree<Final>*,2> reduction;
 
 private:
-    ClusterGraphBase* graph;
+    graph::ClusterGraphBase* graph;
 #ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
@@ -101,6 +148,10 @@ private:
 
 template<typename Final, typename Stacked>
 struct ModuleCoreFinish : public Stacked {
+    
+    ModuleCoreFinish() {
+      pretty(typename Stacked::VertexProperties());  
+    };
 
     //The FullObjectList holds all created object types, including all "evolution steps", meaning every
     //base class of the final object is represented as well. However, we often want only to habe the user-visible types
@@ -125,10 +176,18 @@ struct ModuleCoreFinish : public Stacked {
         typedef typename mpl::find<ObjectList, Object>::type iterator;
         typedef typename mpl::distance<typename mpl::begin<ObjectList>::type, iterator>::type ID;
     };
+    
+    template<template<class, bool> class G>
+    struct geometryIndex {
+        typedef typename mpl::find<typename Stacked::GeometryList, geometry_adaptor<G>>::type iterator;
+        typedef typename mpl::if_<boost::is_same<iterator, 
+            typename mpl::end<typename Stacked::GeometryList>::type >, mpl::int_<-1>, 
+            typename iterator::pos >::type type;
+        const static long value = type::value;
+    };
 
-protected:
-    typedef ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::VertexProperties,
-            typename Stacked::ClusterProperties, typename Stacked::GlobalEdgeProperties> Graph;
+    typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
+            typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
 };
 
 } //details

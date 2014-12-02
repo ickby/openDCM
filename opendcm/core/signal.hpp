@@ -120,11 +120,68 @@ protected:
     int  m_signal_count;
 };
 
+/***************************************************************************************************************
+ *
+ *                      IMPELEMNTATION
+ * 
+ * *************************************************************************************************************/
+
+#define EMIT_ARGUMENTS(z, n, data) \
+    BOOST_PP_CAT(data, n)
+    
+#define EMIT_SIGNAL_CALL_DEC(z, n, data) \
+    template<typename SigMap> \
+    template < \
+    typename S  \
+    BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
+    > \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
+    SignalOwner<SigMap>::emitSignal( \
+            BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
+                                              ) \
+    { \
+        typedef typename mpl::find<sig_name, S>::type iterator; \
+        typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
+        typedef typename fusion::result_of::value_at<Signals, distance>::type map_type; \
+        map_type& map = fusion::at<distance>(m_signals); \
+        for (typename map_type::iterator it=map.begin(); it != map.end(); it++) \
+            (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
+    };
+
+template<typename SigMap>
+SignalOwner<SigMap>::SignalOwner() : m_signal_count(0) {};
+
+template<typename SigMap>
+template<typename S>
+Connection SignalOwner<SigMap>::connectSignal(typename mpl::at<SigMap, S>::type function)
+{
+    typedef typename mpl::find<sig_name, S>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
+    typedef typename fusion::result_of::value_at<Signals, distance>::type map_type;
+    map_type& map = fusion::at<distance>(m_signals);
+    map[++m_signal_count] = function;
+    return m_signal_count;
+};
+
+template<typename SigMap>
+template<typename S>
+void SignalOwner<SigMap>::disconnectSignal(Connection c)
+{
+    typedef typename mpl::find<sig_name, S>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
+
+    typedef typename fusion::result_of::value_at<Signals, distance>::type map_type;
+    map_type& map = fusion::at<distance>(m_signals);
+    map.erase(c);
+};
+
+BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEC, ~)
+
 }; //details
 }; //dcm
 
 #ifndef DCM_EXTERNAL_CORE
-#include "imp/signal_imp.hpp"
+//#include "imp/signal_imp.hpp"
 #endif
 
 #endif //DCM_SIGNAL_H

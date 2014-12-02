@@ -71,14 +71,6 @@ namespace dcm {
  * object by assigning. If not, the data object can be uncopyable and it should be used by
  * retrieving it's reference with get-methods.
  *
- * Propertys are further designed to fit in the concept of compile-time modularisation. To allow the extension
- * of all data-holding entitys with new data types, propertys store their own purpose. Thats
- * done by extending the property struct with a second typedef which is named kind and which specifies of which
- * kind the property is. That means, that this typedef defines when the property shall be used and for which
- * context it is designed for. Dependend on the propertys kind, it will be added to diffrent places inside the dcm.
- * A property of kind @ref vertex_property will added to vertices, a property of kind @ref object_property to all
- * objects and so on.
- *
  * If the property type is a standart c++ type like int or bool, the defualt value can't be set by using its
  * constructor. Therefore a interface for setting default values is added to the property. If you want
  * to assign a default value you just need to add a struct default_value which returns the wanted default
@@ -90,14 +82,14 @@ namespace dcm {
  * 'test'property' may look like that:
  * @code
  * struct test_property {
- *  typedef edge_property kind;
+ *  typedef int type;
  * }
  * @endcode
  *
  * The same property with a default value would be implemented like this:
  * @code
  * struct test_property {
- *  typedef edge_property kind;
+ *  typedef int type;
  *  struct default_value {
  *           int operator()() {
  *               return 3;
@@ -105,10 +97,29 @@ namespace dcm {
  *      };
  * }
  * @endcode
- *
- *
+ * 
+ * An additional usefull feature is the change tracking. It can be activated for every property individual by
+ * supplying a \a change_tracking type in the property definition (either by typedef or by a new struct).
+ * It is then possible to query if the property was changed (and reset the chang flag) and furthermore one 
+ * can connect to a signal which is emited at property change. Our int property with change tracking enabled
+ * would look like this:
+ * 
+ * @code
+ * struct test_property {
+ *  typedef int type;
+ *  struct change_tracking {};
+ * }
+ * @endcode
+ * 
  * If you want to use properties in your class you should derive from PropertyOwner class, as it doas all the
  * hanling needed and gives you get and set functions which work with the designed identifiers.
+ * 
+ * @code
+ * ProeprtyOwner<mpl::vector<test_property>> owner;
+ * int t = owner->get<test_property>();
+ * owner->setProperty<test_property>(5);
+ * @endcode
+ * 
  *
  * @{ */
 
