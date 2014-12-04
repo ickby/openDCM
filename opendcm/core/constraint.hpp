@@ -20,9 +20,138 @@
 #ifndef DCM_CONSTRAINT_H
 #define DCM_CONSTRAINT_H
 
-namespace dcm {
+#include <boost/utility/enable_if.hpp>
+#include <boost/mpl/contains.hpp>
+#include <boost/fusion/include/vector.hpp>
+#include <boost/fusion/include/find.hpp>
+#include <boost/fusion/include/at.hpp>
+
+#include <iostream>
+
+namespace mpl = boost::mpl;
+namespace fusion = boost::fusion;
+
+namespace dcm { 
     
+//the possible directions
+enum class Direction { Parallel, Equal, Opposite, Perpendicular };
+
+//the possible solution spaces
+enum class SolutionSpace {Bidirectional, Positiv_directional, Negative_directional};
+
+/**
+ * @brief Constraint primitives handling
+ *
+ * Equivalent to the geometric primitives there is a definition for constraint primitives. A constraint 
+ * primitive is a constraint type like distace, primitive in this context means that it holds only its type
+ * and all needed information to fully define it, called option. For a distance constraint this is for 
+ * example the nuemeric distance value. A primitive is used to store and access the type and its data in a
+ * compfortable and user friendly way.
+ * There are a few requirements for primitive constraints. First they must be assignalble and copyconstructible
+ * while preserving their option values. Second all options need to be stored in a  fusion vector called
+ * m_storage. Third it mus be possible to provide options via operator() for one or many options at once 
+ * and furthermore through assigning with operator=, also for single options or multiple ones via initializer
+ * lists. The last requirement regards the default values of the options. It is important to have the possibility
+ * to reset all options to default during the objects lifetime. Therefore the function setDefault() must exist.
+ * An example primitive constraint which holds all requirements could look like this:
+ * @code
+ * struct TestConstraint {
+ *   
+ *  fucion::vector<int, char> m_sequence; //requirement 2
+ *  
+ *  //requirement 3
+ *  void operator()(int);
+ *  void operator()(char);
+ *  void operator()int, char);
+ *  void operator()(int);
+ *  void operator()(char);
+ * 
+ *  void setDefault(); //requirement 4;
+ * };
+ * @endcode
+ * 
+ * Requirement 1 is fullfilled by the standart compiler generated assignement operator and copy constructor. This
+ * also holds for the assignemnd of multiple options via initializer lists.
+ * 
+ * \Note The multiassignement via operator() must not support arbitrary argument ordering. It is sufficient to 
+ * allow the parameter only in the same order as the options are specified.
+ */
+namespace constraint {  
+
+    /**
+     * @brief Herlper class to create primitive constraints
+     * 
+     * The primitive constraint type concept formulates a few requirements on the used types. To achieve a full
+     * compatibility with the concept a certain boilerplate is needed. To circumvent this boilerplate this class
+     * is given. It accepts the option types one ones for its constraint as template arguments and then provides
+     * all needed storages and assignment operators. 
+     * This only works for option types which are default constructible. The only second restriction is that the
+     * option types need to distuinguishable. To use a option type twice is not allowd, for example two times int.
+     * Otherwise the option assignement of single options would be ambigious. 
+     * The default value requirement is achieved through the constructor which acceppts the default values. If 
+     * the standart constructor is used then the default constructed values of the option types are used as 
+     * default values. Note that you must provide the constructors also in your derived class.
+     * An example cosntraint can look like this:
+     * @code
+     * struct TetstConstraint : public constraint::Constraint<int, char> {
+     *  TestConstraint(const int& i, const char& c) : Constraint(i,c) {};
+     * };
+     * TestConstraint test(1,'a');
+     * @endcode
+     */    
+template<typename ...OptionTypes>
+struct Constraint {
+
+    typedef typename fusion::vector<OptionTypes...> Options;
+
+    Constraint(const OptionTypes&... defaults) : m_defaults(defaults...) {
+        m_storage = m_defaults;
+    };
     
+    template<typename T>
+    typename boost::disable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& c) {
+        m_storage = c.m_storage;
+        return *this;
+    };
+
+    //set a single option
+    template<typename T>
+    typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& val) {
+        BOOST_MPL_ASSERT((mpl::contains<Options, T>));
+        *fusion::find<T>(m_storage) = val;
+        return *this;
+    };
+    
+    //set multiple options at once option
+    Constraint& operator()(const OptionTypes&... val) {
+        m_storage = Options(val...);
+        return *this;
+    };
+
+    //assign option
+    template<typename T>
+    typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator=(const T& val) {
+        return operator()(val);
+    };
+    
+    //explicity give copy assignement as it otherwise would be treated as deleted due to the assignend operator
+    //given above. When this one is provided the derived class wil also generate one.
+    Constraint& operator=(const Constraint& val) {
+        m_storage = val.m_storage;
+        return *this;
+    };
+   
+    //set default option values, neeeded for repedability and to prevent unexpected behaviour
+    void setDefault() {
+        m_storage = m_defaults;
+    };
+       
+protected:
+    Options       m_storage;
+    const Options m_defaults;
+};
+
+}//constraint
     
 namespace numeric {
     
@@ -38,16 +167,15 @@ struct Constraint {
     int type;
 };
 
-template<typename Kernel, typename C>
+template<typename C>
 struct TypeConstraint : public Constraint {
 
     typedef C PrimitiveConstraint; 
     
     PrimitiveConstraint& getPrimitveConstraint() {return m_constraint;};
     
-    template<bool mapped>
-    void setPrimitiveGeometry(const C& c, int id) {
-        type = id;
+    void setPrimitiveConstraint(const C& c) {
+        //type = id;
         m_constraint = c;
     };
     
@@ -65,9 +193,22 @@ struct ConstraintProperty {
 };
     
 }//symbolic    
+
+
+
+/*
+//static is needed to restrain the scope of the objects to the current compilation unit. Without it
+//every compiled file including this header would define these as global and the linker would find
+//multiple definitions of the same objects
+static Distance distance;
+static Orientation orientation;
+static Angle    angle;
+*/
 }//dcm
 
 #endif //DCM_CONSTRAINT_H
+
+
 
 
 
