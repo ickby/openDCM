@@ -30,10 +30,37 @@ struct geometry_traits {
     BOOST_MPL_ASSERT_MSG(false, NO_GEOMETRY_TRAITS_SPECIFIED_FOR_TYPE, (T));
 };
 
-template<typename T>
-struct access {
+namespace accessor {
     
+struct OrderdBracket {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        return t[ID];
+    };
+    template<typename Scalar, int ID, typename T>
+    void set(Scalar value, T& t) {
+        t[ID] = value;
+    };
+    template<typename T>
+    void finalize(T& t) {};
 };
+
+struct OrderdRoundbracket {
+
+    template<typename Scalar, int ID, typename T>
+    Scalar get(T& t) {
+        return t(ID);
+    };
+    template<typename Scalar, int ID,  typename T>
+    void set(Scalar value, T& t) {
+        t(ID) = value;
+    };
+    template<typename T>
+    void finalize(T& t) {};
+};
+
+}
     
 }//dcm
 

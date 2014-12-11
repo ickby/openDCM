@@ -57,7 +57,6 @@ struct TestModule1 {
     template<typename Final, typename Stacked>
     struct type : public Stacked {
         DCM_MODULE_ADD_GEOMETRIES(Stacked, (TDirection3) )
-        DCM_MODULE_ADD_VERTEX_PROPERTIES(Stacked, (symbolic::GeometryProperty))
     };
 };
 

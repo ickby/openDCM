@@ -31,7 +31,7 @@ struct Variant {
     //Create the variant. Note that we want to make it possible to detect if the variant
     //holds nothing, for this purpose we add a boost::blank in front of the typelist. The 
     //first type is the one set by default from the variant.
-    typedef typename boost::variant< boost::blank, types... > Variant;
+    typedef boost::variant< boost::blank, types... > VariantType;
     
     template<typename Visitor>
     typename Visitor::result_type apply(Visitor& vis) {
@@ -48,7 +48,7 @@ struct Variant {
     };
     
 protected:
-    Variant m_variant;
+    VariantType m_variant;
 };
     
 }//utilities
@@ -80,7 +80,7 @@ public:
 
 template<typename T, typename Types>
 typename boost::add_reference<T>::type 
-get(boost::shared_ptr<utilities::TypeVariant<Types>> variant) {
+get(std::shared_ptr<utilities::Variant<Types>> variant) {
 
     typedef typename boost::add_pointer<T>::type T_ptr;
     details::get_visitor<T> v;

@@ -68,6 +68,47 @@ using namespace details;
 //we need a way to store a pointer to a graph in a type independend way
 struct ClusterGraphBase {};
 
+//type of a graph cluster
+/**
+ * @brief Add a type to clusters
+ *
+ * Allows to specify special types to ClusterGraphs and make a it possibe to distuingish between
+ * diffrent purposes. The cluster types need to be int.
+ **/
+struct type_info {
+    //states the type of a cluster
+    typedef int type;
+};
+//cluster in graph changed?
+/**
+ * @brief Was the cluster changed?
+ *
+ * Adds a boolean to the cluster which indicates if the cluster was changed since the last
+ * processing. It should be set to true if vertices and edges were added or removed, Subclusters
+ * created or deleted and so on.
+ **/
+struct changed {
+    typedef bool type;
+};
+/**
+ * @brief Add an index to vertices
+ *
+ * Most boost graph algorithms need a index for vertices, ranging from 0 to vertex count. As this can
+ * be useful for many other things it is added as vertex property.
+ **/
+struct vertex_index {
+    typedef int type;
+};
+/**
+ * @brief Add an index to edges
+ *
+ * Most boost graph algorithms need a index for edges, ranging from 0 to edge count. As this can
+ * be useful for many other things it is added as edge property.
+ **/
+struct edge_index {
+    typedef int type;
+};
+
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 //which are used in the ClusterGraph implementation
 typedef mpl::vector1<vertex_index> bgl_v_props;
@@ -198,6 +239,24 @@ struct 	GlobalEdge {
         return ID > 9;
     };
 };
+
+/**
+ * @brief Store a global vertex as proeprty
+ *
+ * Convienience property to store a global vertex
+ **/
+struct VertexProperty {
+    typedef GlobalVertex type;
+};
+/**
+ * @brief Store a global edge as property
+ *
+ * Convienience property to store a global edge
+ **/
+struct EdgeProperty {
+    typedef GlobalEdge type;
+};
+
 /**@}*/
 
 

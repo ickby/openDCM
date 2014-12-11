@@ -32,6 +32,7 @@
 #include <boost/test/unit_test.hpp>
 
 using namespace dcm;
+using namespace graph;
 namespace mpl = boost::mpl;
 
 BOOST_AUTO_TEST_SUITE(ClusterGraph_test_suit);

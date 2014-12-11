@@ -15,11 +15,11 @@ set(test_SRC  define.cpp
 	      #clustergraph.cpp
 	      #system.cpp
 	      #analyse.cpp
-	      constraint.cpp
+	      #constraint.cpp
 	      #numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
-	      #module3d.cpp
+	      module3d.cpp
 	      #dof.cpp
 	      #modulepart.cpp
 	      #modulepart2.cpp

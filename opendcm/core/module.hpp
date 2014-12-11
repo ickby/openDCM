@@ -27,6 +27,8 @@
 #include "logging.hpp"
 #include "object.hpp"
 #include "analyse.hpp"
+#include "constraint.hpp"
+#include "geometry.hpp"
 
 #include <boost/preprocessor/seq/for_each_i.hpp>
 #include <boost/preprocessor/seq/enum.hpp>
@@ -40,12 +42,9 @@ namespace mpl = boost::mpl;
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpFullObjectList;\
     typedef typename mpl::fold<TmpFullObjectList, typename stacked::FullObjectList, \
         mpl::push_back<mpl::_1, mpl::_2>>::type FullObjectList;
-        
-template<template<class, bool> class Base>
-struct geometry_adaptor {};
 
 #define ADD_ADAPTOR(s, data, elem) \
-    geometry_adaptor<elem>
+    geometry::adaptor<elem>
 
 #define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(ADD_ADAPTOR, 0, seq))> TmpGeometryList;\
@@ -122,10 +121,10 @@ struct ModuleCoreInit {
     typedef mpl::vector<>  GeometryList;
 
 protected:
-    typedef mpl::vector<symbolic::ResultProperty> EdgeProperties;
-    typedef mpl::vector0<>                        GlobalEdgeProperties;
-    typedef mpl::vector0<>                        VertexProperties;
-    typedef mpl::vector0<>                        ClusterProperties;
+    typedef mpl::vector<symbolic::ResultProperty>      EdgeProperties;
+    typedef mpl::vector<symbolic::ConstraintProperty>  GlobalEdgeProperties;
+    typedef mpl::vector<symbolic::GeometryProperty>    VertexProperties;
+    typedef mpl::vector0<>                             ClusterProperties;
 
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
     graph::ClusterGraphBase* getGraph() {
@@ -179,7 +178,16 @@ struct ModuleCoreFinish : public Stacked {
     
     template<template<class, bool> class G>
     struct geometryIndex {
-        typedef typename mpl::find<typename Stacked::GeometryList, geometry_adaptor<G>>::type iterator;
+        typedef typename mpl::find<typename Stacked::GeometryList, geometry::adaptor<G>>::type iterator;
+        typedef typename mpl::if_<boost::is_same<iterator, 
+            typename mpl::end<typename Stacked::GeometryList>::type >, mpl::int_<-1>, 
+            typename iterator::pos >::type type;
+        const static long value = type::value;
+    };
+    
+    template<typename G>
+    struct geometryID {
+        typedef typename mpl::find<typename Stacked::GeometryList, G>::type iterator;
         typedef typename mpl::if_<boost::is_same<iterator, 
             typename mpl::end<typename Stacked::GeometryList>::type >, mpl::int_<-1>, 
             typename iterator::pos >::type type;
@@ -188,6 +196,15 @@ struct ModuleCoreFinish : public Stacked {
 
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
+            
+            
+    /**
+     * @brief Solves the constraint geometry system 
+     * 
+     */
+    void solve() {
+        
+    };
 };
 
 } //details

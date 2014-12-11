@@ -98,6 +98,8 @@ namespace constraint {
      * };
      * TestConstraint test(1,'a');
      * @endcode
+     * 
+     * \param OptionTypes a variadic sequence of copy constructable types which describe the stored options
      */    
 template<typename ...OptionTypes>
 struct Constraint {
@@ -108,13 +110,18 @@ struct Constraint {
         m_storage = m_defaults;
     };
     
+    //Copy assign option. We provide this to allow the automatic copy constructor to be generated. 
+    //This gives 2 operators for the price of implementing one, for this base and all derived classes.
+    //As we have only one parameter in this function it would be ambigious with the single option 
+    //operator(), hence we need to activate/deactivate both according to the provided type.
     template<typename T>
     typename boost::disable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& c) {
         m_storage = c.m_storage;
         return *this;
     };
 
-    //set a single option
+    //Set a single option. As we have only one parameter in this function it would be ambigious with the 
+    //copy operator(), hence we need to activate/deactivate both according to the provided type.
     template<typename T>
     typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& val) {
         BOOST_MPL_ASSERT((mpl::contains<Options, T>));
@@ -122,13 +129,13 @@ struct Constraint {
         return *this;
     };
     
-    //set multiple options at once option
+    //set multiple options at once.
     Constraint& operator()(const OptionTypes&... val) {
         m_storage = Options(val...);
         return *this;
     };
 
-    //assign option
+    //Assign option. Disable it to avoid confusion with the copy assignement operator
     template<typename T>
     typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator=(const T& val) {
         return operator()(val);
@@ -156,6 +163,20 @@ protected:
 namespace numeric {
     
 
+/**
+ * @brief Basic numeric class for evaluating primitive constraints
+ * 
+ * Primitive constraints hold only their constraint type and the options to fully define its behaviour. This is
+ * however not enough to calculate the error functions and jacobi entries in a numerical solving context as it 
+ * does not provide any equations. 
+ * 
+ * \param Kernel the math kernel in use
+ * \param PC the primitive constraint in use
+ */
+template<typename Kernel, typename PC>
+struct Constraint : public PC {
+    
+};
     
 }//numeric
     
@@ -190,6 +211,7 @@ struct ConstraintProperty {
             return nullptr;
         };
     };
+    struct change_tracking{};
 };
     
 }//symbolic    

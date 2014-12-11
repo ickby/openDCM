@@ -253,6 +253,22 @@ protected:
     };
 };
 
+/**
+ * @brief Adaptor for easy primitive geometry handling
+ * 
+ * As a primitive geometry is mostly used without the template arguments it may be very cumbersome to use it. 
+ * Especialy if a fully defined type is needed. Therefore this adaptor is provided. It is fully defined by a 
+ * primitive geomerty even without the template arguments and provides template aliases to generate a primtive.
+ * 
+ * \param Base the primitive geometry which should be wrapped
+ */
+template<template<class, bool> class Base>
+struct adaptor {
+    template<typename Kernel, bool b> using type    = Base<Kernel, b>;
+    template<typename Kernel>         using mapped  = Base<Kernel, true>;
+    template<typename Kernel>         using storage = Base<Kernel, false>;
+};
+
 }//geometry
 
 namespace numeric {
@@ -542,6 +558,7 @@ struct GeometryProperty {
             return nullptr;
         };
     };
+    struct change_tracking{};
 };
 
 } //symbolic
