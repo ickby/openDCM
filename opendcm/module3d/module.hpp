@@ -57,6 +57,7 @@ struct Module3D {
                        
             typedef symbolic::GeometryProperty GeometryProperty;
             typedef graph::VertexProperty      VertexProperty;
+            
             DCM_OBJECT_ADD_PROPERTIES( Final, (GeometryProperty)(VertexProperty) )
             
         public:            
@@ -88,21 +89,21 @@ struct Module3D {
                 InheritedV::m_variant = geometry;
                 
                 //ensure correct property initialization
-                symbolic::Geometry* sg = InheritedO::template getProperty<GeometryProperty>();
+                symbolic::Geometry* sg = getGeometryProperty();
                 if(sg) {delete sg;}                
                 sg = new symbolic::TypeGeometry<Kernel, geometry_traits<T>::type::template type>;
-                InheritedO::template setProperty<GeometryProperty>(sg);
+                setGeometryProperty(sg);
 
                 //store the value in internal data structure
                 (typename geometry_traits<T>::modell()).template extract<Scalar,
                 typename geometry_traits<T>::accessor >(geometry, 
                     static_cast<symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template type>*>(sg)->getPrimitveGeometry());
             
-                //setup the tree
+                //setup the graph
                 typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
                 fusion::vector<graph::LocalVertex, graph::GlobalVertex> res = cluster->addVertex();                     
                 cluster->template setProperty<GeometryProperty> (fusion::at_c<0>(res), sg);
-                InheritedO::template setProperty<VertexProperty>(fusion::at_c<1>(res));               
+                setVertexProperty(fusion::at_c<1>(res));               
             };
             
             /**
@@ -158,10 +159,16 @@ struct Module3D {
         };
         
         struct Constraint3D : public Stacked::ObjectBase {
-
-            typedef symbolic::ConstraintProperty ConstraintProperty;
-            DCM_OBJECT_ADD_PROPERTIES( Final, (ConstraintProperty) )
             
+            typedef utilities::Variant<types...> InheritedV;
+            typedef typename Stacked::ObjectBase InheritedO;
+                       
+            typedef symbolic::ConstraintProperty ConstraintProperty;
+            typedef graph::MultiEdgeProperty     MultiEdgeProperty;
+            
+            DCM_OBJECT_ADD_PROPERTIES( Final, (ConstraintProperty)(MultiEdgeProperty) )
+            
+        public:
             Constraint3D(Final* system) 
                 : Stacked::ObjectBase( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
                 m_system(system), m_type(-1){
@@ -169,17 +176,73 @@ struct Module3D {
             };    
             
             template<typename ...Constraints>
-            set(const Constraints&... cons) {
+            void set(Constraints&... cons) {
                 
-                //we create one global edge for each constraint
+                typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
                 
+                if(!m_g1 || !m_g2)
+                    throw creation_error() <<  boost::errinfo_errno(21) << error_message("Geometry was not set before setting constraints types");
+                
+                std::vector<graph::GlobalEdge> vec = getMultiEdgeProperty();
+               
+                //ensure we do not have any constraints left in the graph
+                for(const graph::GlobalEdge& edge : vec) {
+                    symbolic::Constraint* c = cluster->template getProperty<ConstraintProperty>(edge);
+                    if(c)
+                        delete c;
+                    cluster->removeEdge(edge);
+                }
+                             
+                //create a new global edge for every constraint
+                vec.clear();
+                expand(createGraphRepresentation(cons, vec)...);                
+                setMultiEdgeProperty(vec);
+            };
+            
+            void set(std::shared_ptr<Geometry3D> G1, std::shared_ptr<Geometry3D> G2) {
+                
+                //it makes no sense to allow a geometry change, the user shall rather delete this and create a new
+                //constraint
+                if(m_g1 || m_g2)
+                    throw creation_error() <<  boost::errinfo_errno(23) << error_message("Geometries for this constraint are already set");
+                
+                m_g1=G1;
+                m_g2=G2;
             };
             
         protected:
             Final* m_system;
             int    m_type;
+            std::shared_ptr<Geometry3D> m_g1, m_g2;
             
+            template<typename ...Args>
+            void expand(const Args&... args){};
             
+            template<typename T>
+            int createGraphRepresentation(T& t, std::vector<graph::GlobalEdge>& vec) {
+                
+                //let's create a new global edge for this constraint
+                typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
+                fusion::vector<graph::LocalEdge, graph::GlobalEdge, bool, bool> res = 
+                    cluster->addEdge(m_g1->getVertexProperty(), m_g2->getVertexProperty());
+                    
+                //check if we have been successfull
+                if(!fusion::at_c<2>(res))
+                    throw creation_error() <<  boost::errinfo_errno(22) << error_message("Graph representation of constraint could not be created");                
+                
+                //add the primitive constraint to the global edge
+                symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
+                tc->setPrimitiveConstraint(t);
+                cluster->template setProperty<ConstraintProperty>(fusion::at_c<1>(res), tc);
+                
+                t.setDefault();
+                
+                //and remember that this edge/primitive constraint belongs to us
+                vec.push_back(fusion::at_c<1>(res));
+                
+                //return a type needed for expand function to allow to call this function on parameter packs
+                return 0;
+            };
         };
         
         DCM_MODULE_ADD_OBJECTS(Stacked, (Geometry3D)(Constraint3D))
@@ -190,6 +253,17 @@ struct Module3D {
             std::shared_ptr<Geometry3D> g(new Geometry3D(static_cast<Final*>(this)));
             g->set(geom);
             return g;
+        };
+        
+        template<typename ...Constraints>
+        std::shared_ptr<Constraint3D> addConstraint3D(std::shared_ptr<Geometry3D> G1,
+                                                      std::shared_ptr<Geometry3D> G2,
+                                                      Constraints&... cons) { 
+            
+            std::shared_ptr<Constraint3D> c(new Constraint3D(static_cast<Final*>(this)));
+            c->set(G1, G2);
+            c->set(cons...);
+            return c;
         };
     };
     

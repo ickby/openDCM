@@ -257,6 +257,14 @@ struct EdgeProperty {
     typedef GlobalEdge type;
 };
 
+/**
+ * @brief Store multiple global edges as property
+ *
+ * Convienience property to store multiple global edges in a std::vector
+ **/
+struct MultiEdgeProperty {
+    typedef std::vector<GlobalEdge> type;
+};
 /**@}*/
 
 

@@ -147,6 +147,34 @@ BOOST_AUTO_TEST_CASE(geometry) {
     
     Vector3 v3 = g->get<Vector3>();
     BOOST_CHECK(v3.isApprox(v));
+    
 };
+
+BOOST_AUTO_TEST_CASE(constraint) {
+      
+    Vector3 v1, v2;
+    v1<<1,2,3;
+    v2<<4,5,6;
+    
+    try {
+        
+    System s;
+    std::shared_ptr<System::Geometry3D> g1 = s.addGeometry3D(v1);
+    std::shared_ptr<System::Geometry3D> g2 = s.addGeometry3D(v2);
+    
+    std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=2.);
+    std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3., dcm::angle=0.);
+    
+    
+    
+    }
+    catch(boost::exception& x) {
+        BOOST_FAIL(*boost::get_error_info<dcm::error_message>(x));
+    }
+    catch(std::exception& x) {
+        BOOST_FAIL("Unknown exception");
+    }
+};
+
 
 BOOST_AUTO_TEST_SUITE_END();

@@ -34,10 +34,10 @@ namespace fusion = boost::fusion;
 namespace dcm { 
     
 //the possible directions
-enum class Direction { Parallel, Equal, Opposite, Perpendicular };
+enum class Orientations { Parallel, Equal, Opposite, Perpendicular };
 
 //the possible solution spaces
-enum class SolutionSpace {Bidirectional, Positiv_directional, Negative_directional};
+enum class SolutionSpaces {Bidirectional, Positiv_directional, Negative_directional};
 
 /**
  * @brief Constraint primitives handling
@@ -106,6 +106,8 @@ struct Constraint {
 
     typedef typename fusion::vector<OptionTypes...> Options;
 
+    Constraint() {};
+    
     Constraint(const OptionTypes&... defaults) : m_defaults(defaults...) {
         m_storage = m_defaults;
     };
@@ -193,7 +195,9 @@ struct TypeConstraint : public Constraint {
 
     typedef C PrimitiveConstraint; 
     
-    PrimitiveConstraint& getPrimitveConstraint() {return m_constraint;};
+    PrimitiveConstraint& getPrimitveConstraint() {
+        return m_constraint;
+    };
     
     void setPrimitiveConstraint(const C& c) {
         //type = id;
@@ -218,14 +222,37 @@ struct ConstraintProperty {
 
 
 
-/*
+//Provide a few default constraints.
 //static is needed to restrain the scope of the objects to the current compilation unit. Without it
 //every compiled file including this header would define these as global and the linker would find
 //multiple definitions of the same objects
-static Distance distance;
-static Orientation orientation;
-static Angle    angle;
-*/
+
+struct Distance : public dcm::constraint::Constraint<double, SolutionSpaces> {
+    using Constraint::operator=;
+    Distance(const double& i, SolutionSpaces s) : Constraint(i,s) {};
+    
+    double&        value() {return fusion::at_c<0>(m_storage);};
+    SolutionSpaces solutionSpace() {return fusion::at_c<1>(m_storage);};
+};
+
+struct Orientation : public dcm::constraint::Constraint<Orientations> {
+    using Constraint::operator=;
+    Orientation(const Orientations& i) : Constraint(i) {};
+    
+    Orientations& value() {return fusion::at_c<0>(m_storage);};
+};
+
+struct Angle : public dcm::constraint::Constraint<double> {
+    using Constraint::operator=;
+    Angle(const double& i) : Constraint(i) {};
+    
+    double& value() {return fusion::at_c<0>(m_storage);};
+};
+
+static Distance         distance(0, SolutionSpaces::Bidirectional);
+static Orientation      orientation(Orientations::Parallel);
+static Angle            angle(0);
+
 }//dcm
 
 #endif //DCM_CONSTRAINT_H

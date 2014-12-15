@@ -443,7 +443,8 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     * Don't use this unless abselutly nesseccary. It sets the property to changed, no matter if you realy
     * change it or not. This is needed as it is impossible to detect if the reference was changed outside
     * of the owner. Furthermore you should never ever store a refence to a property, as changes can't be
-    * tracked either. This function is only available to comply with boost graph property maps
+    * tracked either. This function is only available to comply with boost graph property maps and for properties
+    * whiche are to big to effieciently be copyed before and after change.
     * @tparam Prop property type which should be accessed
     * @return Prop::type& a reference to the properties actual value.
     **/
