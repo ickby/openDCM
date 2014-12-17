@@ -24,10 +24,17 @@
 
 #include "geometry.hpp"
 #include "clustergraph.hpp"
+#include "constraint.hpp"
 
 namespace dcm {
 namespace symbolic {
     
+/**
+ * @brief Structure to setup the numeric solver from reduction results
+ * 
+ * This struct is the entry point for the numeric solver setup. It has all the functions needed to get the
+ * numeric geometries and constraints.
+ */
 struct ReductionResult {
   
     virtual void getGeometry() {};
@@ -48,6 +55,15 @@ struct Node;
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryTreeWalker;
     
+/**
+ * @brief Connects two nodes and is used to symbolicly solve constraints
+ * 
+ * This class describes the connection between two GeometryNodes. This means it is responsible for the 
+ * transformation of one dof state to annother. For this it access the user constraints and checks if a
+ * dof reduction is possible. Furthermore it is responsible for a redundency and conflict check. To use this 
+ * class derive you custom GeometryEdge and override the \ref apply method. Return true if the processing of the
+ * GeometryTreeWalker was successfull and if we shall proceed to the next node. If not return false.
+ */
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryEdge {
 
@@ -57,9 +73,36 @@ struct GeometryEdge {
     virtual bool apply(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const = 0;
 };
    
+/**
+ * @brief Describes the dof between two geometries
+ * 
+ * A reduction tree node describes how much and which degrees of freedom exist between two geometries. This 
+ * information can be used to create the appropriate numeric depending geometries. 
+ */
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryNode  {
     
+    /**
+     * @brief Connect this node to annother via a specific GeometryEdge
+     * 
+     * This function can be used to connect a node to annother one. As the connections are always conditional 
+     * the GeometryEdge evaluating the condition needs to be supplied. 
+     * 
+     * \param node The node we build a connection to
+     * \param edge The GeometryEdge which evaluates the condition for the transition
+     */
+    void connect(GeometryNode<Kernel, G1, G2>* node, GeometryEdge<Kernel, G1, G2>* edge) {
+        
+        edge->start = this;
+        edge->end   = node;
+        edges.push_back(edge);
+    };
+    
+    /**
+     * @brief Executed to setup the numerical solver
+     * 
+     * @param walker ...
+     */    
     virtual void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const = 0;
     
 protected:    
@@ -83,9 +126,8 @@ struct GeometryTreeWalker : public ReductionResult {
     G1<Kernel, false> geometry1;
     G2<Kernel, false> geometry2;
     
-
-    Node<Kernel, G1, G2>* ResultNode; //the node we stopped at
-    //std::vector<> ConstraintPool; //all remaining constraints
+    Node<Kernel, G1, G2>*               ResultNode; //the node we stopped at
+    std::vector<symbolic::Constraint*>  ConstraintPool; //all remaining constraints
 };
 
 template<typename Final>
@@ -121,17 +163,24 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         const G1<Kernel, false>& tg1 = static_cast<TypeGeometry<Kernel, G1>*>(sg1)->getPrimitveGeometry();
         const G2<Kernel, false>& tg2 = static_cast<TypeGeometry<Kernel, G2>*>(sg2)->getPrimitveGeometry();
         
-        //get or create and apply a treewalker which holds the data and the results
+        //get or create a treewalker which holds the data and the results
         ReductionResult* res = g.template getProperty<symbolic::ResultProperty>(e);
         GeometryTreeWalker<Kernel, G1, G2>* walker;
         if(!res)
             walker = new GeometryTreeWalker<Kernel, G1, G2>;
-        else 
+        else {
             walker = static_cast<GeometryTreeWalker<Kernel, G1, G2>*>(res);
+            walker->ConstraintPool.clear();
+        }
         
-        walker->geometry1 = tg1;
+        walker->ResultNode = this; //ensure default constraint handling when no reduction is possible
+        walker->geometry1 = tg1; 
         walker->geometry2 = tg2;
-        walker->Parameter = Eigen::Matrix<Scalar, 1, 1>::Zero();
+        walker->Parameter = Eigen::Matrix<Scalar, 1, 1>::Zero(); //setup default values
+        
+        //setup the ConstraintPool
+        for(;it.first != it.second; ++it)
+            walker->ConstraintPool.push_back(g->template getProperty<symbolic::ConstraintProperty>(*it));
         
         //calculate and store the result
         GeometryNode<Kernel, G1, G2>::applyWalker(walker);        
@@ -139,7 +188,10 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
     }; 
     
     void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const {
-        std::cout<<"excute tree"<<std::endl;
+       
+        //when this node is executed no reduction was possible. This means we just create numeric constraints
+        //and geometries for everything remaining in the walker
+        
     };
 };
 

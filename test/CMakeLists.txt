@@ -1,5 +1,5 @@
 
-add_definitions(-DTESTING)
+add_definitions(-DDCM_TESTING)
 
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})

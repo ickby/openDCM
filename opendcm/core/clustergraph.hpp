@@ -704,12 +704,24 @@ public:
      *
      * This function is the same as boost::edge(source, target, Graph) and only added for convienience.
      *
-     * @param source LocalEdge as edge source
-     * @param target LocalEdge as edge target
+     * @param source LocalVertex as edge source
+     * @param target LocalVertex as edge target
      * @return std::pair<LocalEdge, bool> with the local edge descriptor if existing. The bool value shows if the
      * edge exists or not
      **/
     std::pair<LocalEdge, bool> edge(LocalVertex source, LocalVertex target);
+    
+    /**
+     * @brief Returns the edge between the global vertices
+     * 
+     * The edge retrievel function for global vertices. Note that the function fails if the global edges are 
+     * not part of the same cluster.
+     * @param r1 GlobalVertex from which the edge starts
+     * @param r2 GlobalVertex where the edge ends
+     * @return std::pair<LocalEdge, bool> with the local edge descriptor if existing and a bool value if the edge
+     * is valid. It is false if the edge does not exist.
+     */
+    std::pair<LocalEdge, bool> edge(GlobalVertex source, GlobalVertex target);
 
     /**
      * @brief Add a edge between two vertices, defined by local descriptors.
@@ -1575,6 +1587,19 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 std::pair<LocalEdge, bool>
 ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::edge(LocalVertex source, LocalVertex target) {
     return boost::edge(source, target, *this);
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
+std::pair<LocalEdge, bool>
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::edge(GlobalVertex source, GlobalVertex target) {
+    
+    std::pair<LocalVertex, bool> r1 = getLocalVertex(source);
+    std::pair<LocalVertex, bool> r2 = getLocalVertex(target);
+      
+    if(!r1.second || !r2.second)
+        return std::make_pair(LocalEdge(), false);
+        
+    return edge(r1.first, r2.first);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>

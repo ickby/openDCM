@@ -24,7 +24,7 @@
 #include "opendcm/core.hpp"
 #include "opendcm/module3d.hpp"
 #include "derivativetest.hpp"
-
+#include "opendcm/core/clustergraph.hpp"
 
 typedef dcm::Eigen3Kernel<double> K;
 
@@ -142,11 +142,17 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(g->holdsGeometryType<Vector3>());
     BOOST_CHECK(g->holdsGeometryType<Direction3>());
     
-    //Vector3 v2 = dcm::get<Vector3>(g);
-    //BOOST_CHECK(v2.isApprox(v));
-    
     Vector3 v3 = g->get<Vector3>();
     BOOST_CHECK(v3.isApprox(v));
+   
+    //have a look if we have the correct information in the graph
+    System::Graph* graph = static_cast<System::Graph*>(s.getGraph());
+    BOOST_CHECK(boost::num_vertices(*graph) == 1);
+    BOOST_CHECK(boost::num_edges(*graph) == 0);
+    BOOST_CHECK(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty())==g->getProperty<dcm::symbolic::GeometryProperty>());
+    
+    dcm::symbolic::TypeGeometry<K,TDirection3>* tg = static_cast<dcm::symbolic::TypeGeometry<K,TDirection3>*>(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty()));
+    BOOST_CHECK(tg->getPrimitveGeometry().direction().isApprox(v));
     
 };
 
@@ -165,6 +171,13 @@ BOOST_AUTO_TEST_CASE(constraint) {
     std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=2.);
     std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3., dcm::angle=0.);
     
+    //have a look if we have the correct information in the graph
+    System::Graph* graph = static_cast<System::Graph*>(s.getGraph());
+    BOOST_CHECK(boost::num_vertices(*graph) == 2);
+    BOOST_CHECK(boost::num_edges(*graph) == 1);
+    std::pair<dcm::graph::LocalEdge, bool> edge = graph->edge(g1->getVertexProperty(), g2->getVertexProperty());
+    BOOST_REQUIRE(edge.second);
+    BOOST_CHECK(graph->getGlobalEdgeCount(edge.first) == 3);
     
     
     }

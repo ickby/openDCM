@@ -126,6 +126,9 @@ protected:
     typedef mpl::vector<symbolic::GeometryProperty>    VertexProperties;
     typedef mpl::vector0<>                             ClusterProperties;
 
+#ifdef DCM_TESTING
+public:
+#endif
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
     graph::ClusterGraphBase* getGraph() {
         if(!graph)
