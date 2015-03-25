@@ -36,6 +36,8 @@
 #include <boost/preprocessor/seq/fold_left.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
 
+#include <tbb/parallel_for_each.h>
+
 namespace mpl = boost::mpl;
 
 #define DCM_MODULE_ADD_OBJECTS(stacked, seq) \
@@ -91,7 +93,7 @@ struct ModuleCoreInit {
 #endif
     {
         int size = mpl::size<typename Final::GeometryList>::type::value;
-        
+        reduction.resize(boost::extents[size][size]);
     };
 
     ~ModuleCoreInit() {
@@ -151,9 +153,7 @@ private:
 template<typename Final, typename Stacked>
 struct ModuleCoreFinish : public Stacked {
     
-    ModuleCoreFinish() {
-      pretty(typename Stacked::VertexProperties());  
-    };
+    ModuleCoreFinish() {};
 
     //The FullObjectList holds all created object types, including all "evolution steps", meaning every
     //base class of the final object is represented as well. However, we often want only to habe the user-visible types
@@ -199,14 +199,33 @@ struct ModuleCoreFinish : public Stacked {
 
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
-            
+         
+    using Stacked::reduction;
             
     /**
      * @brief Solves the constraint geometry system 
      * 
+     * Follow the solve procedure as outlined in the uml files
      */
     void solve() {
         
+        std::cout<<"solve module, reduction size: "<<reduction.shape()[0]<<"x"<<reduction.shape()[1]<<std::endl;
+        //start with edge analysing
+        Graph& g = *static_cast<Graph*>(this->getGraph());
+        auto edges = boost::edges(g);
+        tbb::parallel_for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
+            
+            std::cout<<"process edge"<<std::endl;
+            symbolic::Geometry* g1 = g.template getProperty<symbolic::GeometryProperty>(boost::source(e, g));
+            symbolic::Geometry* g2 = g.template getProperty<symbolic::GeometryProperty>(boost::target(e, g));
+            std::cout<<"Type 1: "<<g1->type<<", Type 2: "<<g2->type<<std::endl;
+            symbolic::EdgeReductionTree<Final>* tree = reduction[g1->type][g2->type];
+            if(tree)
+                tree->apply(g, e);            
+            else 
+                std::cout<<"error: no reduction tree!"<<std::endl;
+        });
+        std::cout<<"done solve module"<<std::endl;
     };
 };
 

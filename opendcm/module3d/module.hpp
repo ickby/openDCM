@@ -27,6 +27,8 @@
 #include "opendcm/core/constraint.hpp"
 #include "opendcm/core/typeadaption.hpp"
 
+#include "geometry.hpp"
+
 #include <type_traits>
 
 struct symbol;
@@ -45,6 +47,11 @@ struct Module3D {
     template<typename Final, typename Stacked>
     struct type : public Stacked {
 
+        type() : Stacked() {
+        
+            //we create our default edge reduction trees
+        };
+        
         /**
          * @brief Container for 3D user geometry
          * 
@@ -79,6 +86,7 @@ struct Module3D {
                 
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
+                typedef symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template type> TypeGeometry;
             
                 BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
                 
@@ -91,13 +99,14 @@ struct Module3D {
                 //ensure correct property initialization
                 symbolic::Geometry* sg = getGeometryProperty();
                 if(sg) {delete sg;}                
-                sg = new symbolic::TypeGeometry<Kernel, geometry_traits<T>::type::template type>;
+                sg = new TypeGeometry;
+                static_cast<TypeGeometry*>(sg)->setGeometryID(m_type);
                 setGeometryProperty(sg);
 
                 //store the value in internal data structure
                 (typename geometry_traits<T>::modell()).template extract<Scalar,
                 typename geometry_traits<T>::accessor >(geometry, 
-                    static_cast<symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template type>*>(sg)->getPrimitveGeometry());
+                    static_cast<TypeGeometry*>(sg)->getPrimitveGeometry());
             
                 //setup the graph
                 typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
@@ -265,6 +274,8 @@ struct Module3D {
             c->set(cons...);
             return c;
         };
+        
+        DCM_MODULE_ADD_GEOMETRIES(Stacked, (geometry::Point3)(geometry::Line3)(geometry::Plane)(geometry::Cylinder))
     };
     
 };

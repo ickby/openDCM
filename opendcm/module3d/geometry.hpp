@@ -39,6 +39,17 @@ struct Point3 : public Geometry<Kernel, MappedType, storage::Vector<3>> {
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
     };
+    
+    Point3<Kernel, MappedType>& transform(const details::Transform<Scalar, 3>& t) {
+        point() = t*point();
+        return *this;
+    };
+
+    Point3<Kernel, MappedType>  transformed(const details::Transform<Scalar, 3>& t) {
+        Point3<Kernel, MappedType> copy(*this);
+        copy.transform(t);
+        return copy;
+    };
 };
 
 template<typename Kernel, bool MappedType = true>

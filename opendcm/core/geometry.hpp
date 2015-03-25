@@ -501,7 +501,7 @@ struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStora
      * 
      * Allows to set the base geometry which is needed to calculate \a this geometrys value. It will 
      * automaticly setup new derivatives dependend on the base derivatives, however, the values are
-     * not quranteed to have any value. They therefore need tobe overridden before use.
+     * not quranteed to have any value. They therefore need to be overridden before use.
      * \note This function should only be called if \a this and \a base have been initialized.
      * 
      * \param base The base geometry \a this depends on
@@ -542,10 +542,13 @@ struct TypeGeometry : public Geometry {
     PrimitiveGeometry& getPrimitveGeometry() {return m_geometry;};
     
     template<bool mapped>
-    void setPrimitiveGeometry(const G<Kernel, mapped>& g, int id) {
-        type = id;
+    void setPrimitiveGeometry(const G<Kernel, mapped>& g) {
         m_geometry = g;
     };    
+    
+    void setGeometryID(int id) {
+        type = id;
+    }
     
 protected:   
     PrimitiveGeometry m_geometry;

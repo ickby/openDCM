@@ -4,8 +4,9 @@ add_definitions(-DDCM_TESTING)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIR})
+include_directories(${TBB_INCLUDE_DIR})
 
-link_directories ( ${Boost_LIBRARY_DIRS} )
+link_directories ( ${Boost_LIBRARY_DIRS} ${TBB_LIBRARY_DIR} )
 
 set(framework_SRC framework.cpp)
 
@@ -30,14 +31,12 @@ set(test_SRC  define.cpp
 )
 
 if(LOGGING)
-set(log_LIB   boost_log
+set(LOG_LIBS      boost_log
 	      rt
 	      ${Boost_SYSTEM_LIBRARY}
 	      ${Boost_FILESYSTEM_LIBRARY}
 	      ${Boost_THREAD_LIBRARY}
 	      ${Boost_CHRONO_LIBRARY}
-	      pthread
-	      tbb
 )
 endif(LOGGING)
 
@@ -50,4 +49,4 @@ IF (MSVC)
 SET_TARGET_PROPERTIES(solvertest PROPERTIES COMPILE_FLAGS "/bigobj")
 ENDIF (MSVC)
 
-target_link_libraries(solvertest framework ${log_LIB})
+target_link_libraries(solvertest framework ${LOG_LIBS} ${TBB_LIBRARY})

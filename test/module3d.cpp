@@ -21,46 +21,23 @@
 #include <boost/exception/get_error_info.hpp>
 
 #include <Eigen/Core>
+
 #include "opendcm/core.hpp"
 #include "opendcm/module3d.hpp"
 #include "derivativetest.hpp"
 #include "opendcm/core/clustergraph.hpp"
 
 typedef dcm::Eigen3Kernel<double> K;
+typedef Eigen::Matrix<double, 3, 1> Vector3;
 
-template<typename Kernel, bool Map = true>
-struct TDirection3 : public dcm::geometry::Geometry<Kernel, Map,
-        dcm::geometry::storage::Vector<3>> {
-
-    typedef typename Kernel::Scalar Scalar;
-    using dcm::geometry::Geometry<Kernel, Map, dcm::geometry::storage::Vector<3>>::m_storage;
-
-    auto direction() -> decltype(fusion::at_c<0>(m_storage)) {
-        return fusion::at_c<0>(m_storage);
-    };
-
-    TDirection3<Kernel, Map>& transform(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
-        direction() = t.rotation()*direction();
-        return *this;
-    };
-
-    TDirection3<Kernel, Map>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
-        TDirection3<Kernel, Map> copy(*this);
-        copy.transform(t);
-        return copy;
-    };
-};
-
-typedef Eigen::Matrix<double, 3,1> Vector3;
-
-
-typedef dcm::geometry::adaptor<TDirection3> Direction3;
+namespace dcm {
 template<>
-struct dcm::geometry_traits<Vector3> {
-    typedef Direction3 type;
-    typedef dcm::modell::CartesianDirection modell;
+struct geometry_traits<Vector3> {
+    typedef dcm::Point3 type;
+    typedef dcm::modell::CartesianPoint     modell;
     typedef dcm::accessor::OrderdBracket    accessor;
 };
+}
 
 typedef dcm::System<dcm::Module3D<Vector3>> System;
 
@@ -70,7 +47,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
 
     typedef dcm::numeric::Cluster3<K>::ParameterIterator  cParIt;
     typedef dcm::numeric::Cluster3<K>::Derivative         cDer;
-    typedef dcm::numeric::Cluster3Geometry<K, TDirection3>::Derivative clDer;
+    typedef dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3>::Derivative clDer;
 
     try {
 
@@ -83,7 +60,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         BOOST_CHECK(cluster.parameters().size()==6);
         BOOST_CHECK(cluster.derivatives().size()==6);
 
-        dcm::numeric::Cluster3Geometry<K, TDirection3> clGeom;
+        dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3> clGeom;
         clGeom.init(sys);
 
         BOOST_CHECK(clGeom.parameters().size()==0);
@@ -105,18 +82,16 @@ BOOST_AUTO_TEST_CASE(cluster) {
         DerivativeTest::isCorrect(clGeom, 
                [&]() {
                    cluster.recalculate();
-                   clGeom.recalculate();
                }
         );
         
         //and check the derivatives for an arbitrary value
-        clGeom.direction() << 1,2,3;
-        clGeom.direction().normalize();
+        clGeom.point() << 1,2,3;
+        clGeom.point().normalize();
         DerivativeTest::isCorrect(clGeom, 
                [&]() {
                    cluster.recalculate();
-                   clGeom.recalculate();
-               }
+                }
         );
 
 
@@ -140,7 +115,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(g->holdsType());
     BOOST_CHECK(g->holdsGeometry());
     BOOST_CHECK(g->holdsGeometryType<Vector3>());
-    BOOST_CHECK(g->holdsGeometryType<Direction3>());
+    BOOST_CHECK(g->holdsGeometryType<dcm::Point3>());
     
     Vector3 v3 = g->get<Vector3>();
     BOOST_CHECK(v3.isApprox(v));
@@ -151,8 +126,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(boost::num_edges(*graph) == 0);
     BOOST_CHECK(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty())==g->getProperty<dcm::symbolic::GeometryProperty>());
     
-    dcm::symbolic::TypeGeometry<K,TDirection3>* tg = static_cast<dcm::symbolic::TypeGeometry<K,TDirection3>*>(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty()));
-    BOOST_CHECK(tg->getPrimitveGeometry().direction().isApprox(v));
+    dcm::symbolic::TypeGeometry<K,dcm::geometry::Point3>* tg = static_cast<dcm::symbolic::TypeGeometry<K,dcm::geometry::Point3>*>(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty()));
+    BOOST_CHECK(tg->getPrimitveGeometry().point().isApprox(v));
     
 };
 
@@ -189,5 +164,37 @@ BOOST_AUTO_TEST_CASE(constraint) {
     }
 };
 
+BOOST_AUTO_TEST_CASE(basic_solve) {
+    
+    Vector3 v1, v2, v3, v4;
+    v1<<1,2,3;
+    v2<<4,5,6;
+    v3<<7,8,9;
+    v4<<10,11,12;
+    
+    try {
+        
+        System s;
+        std::shared_ptr<System::Geometry3D> g1 = s.addGeometry3D(v1);
+        std::shared_ptr<System::Geometry3D> g2 = s.addGeometry3D(v2);
+        std::shared_ptr<System::Geometry3D> g3 = s.addGeometry3D(v3);
+        std::shared_ptr<System::Geometry3D> g4 = s.addGeometry3D(v4);
+        
+        std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=2.);
+        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3., dcm::angle=0.);
+        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g2, g3, dcm::angle=0.);
+        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g3, g4, dcm::distance=3., dcm::angle=0.);
+        std::shared_ptr<System::Constraint3D> c5 = s.addConstraint3D(g1, g4, dcm::distance=3.);
+        
+        s.solve();
+    
+    }
+    catch(boost::exception& x) {
+        BOOST_FAIL(*boost::get_error_info<dcm::error_message>(x));
+    }
+    catch(std::exception& x) {
+        BOOST_FAIL("Unknown exception");
+    }
+}
 
 BOOST_AUTO_TEST_SUITE_END();

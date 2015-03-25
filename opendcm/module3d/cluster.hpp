@@ -50,11 +50,6 @@ struct Cluster3 : public Geometry<Kernel, MappedType,
         return details::Transform<Scalar, 3>(Eigen::Quaternion<Scalar>(rotation()),
                                              Eigen::Translation<Scalar, 3>(translation()));
     };
-    
-    Eigen::Transform<Scalar, 3, Eigen::AffineCompact> eigenTransform() {
-        return Eigen::Transform<Scalar, 3, Eigen::AffineCompact>(rotation())
-                   * Eigen::Translation<Scalar, 3>(translation());
-    };
 };
 
 } //geometry
@@ -70,21 +65,21 @@ struct Cluster3Geometry : public DependendGeometry<Kernel, Base, geometry::Clust
     typedef typename Kernel::Scalar Scalar;
     typedef DependendGeometry<Kernel, Base, geometry::Cluster3> Inherited;
     
-    void transformLocal(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
+    void transformLocal(const details::Transform<Scalar, 3>& t) {
         m_local.transform(t);
     };
     
     void recalculate() {
 
         dcm_assert(Inherited::m_base);
-        Inherited::m_value = m_local.transformed(Inherited::m_base->eigenTransform());
+        Inherited::m_value = m_local.transformed(Inherited::m_base->transform());
         
         typename Inherited::DerivativeIterator it = Inherited::derivatives().begin();
         for(typename Inherited::DependendDerivative& d : Inherited::m_base->derivatives()) {
 
             dcm_assert(it != Inherited::derivatives().end());
             dcm_assert(it->second == d.second)
-            it->first = m_local.transformed(d.first.eigenTransform());        
+            it->first = m_local.transformed(d.first.transform());        
             ++it;
         };
     };
@@ -199,7 +194,7 @@ struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
         //is no more elegant way witout braking the architecture)
         Inherited::translation() = pTranslation();
         //the translation differentials stay fixed, no need to write them every time...
-
+       
         //recalculate all geometries
         for(auto& fct : m_recalculateables)
             fct();
@@ -266,9 +261,8 @@ protected:
 
         trans = m_resetTransform.inverse()*trans;
 
-        const auto& t = m_resetTransform.transformation();
         for(auto& fct : m_transformables)
-            fct(t);
+            fct(m_resetTransform);
     };
 
     void transformToMaps(const details::Transform<Scalar, 3>& trans) {
@@ -293,9 +287,8 @@ protected:
             Eigen::Quaternion<Scalar>(Eigen::AngleAxisd(M_PI*2./3.,
             Eigen::Vector3d(1,1,1).normalized())));
     
-    std::vector<std::function<void()>>                                  m_recalculateables;
-    std::vector<std::function<void(const Eigen::Transform<Scalar,3, 
-                                   Eigen::AffineCompact>&)>>            m_transformables;
+    std::vector<std::function<void()>>                                     m_recalculateables;
+    std::vector<std::function<void(const details::Transform<Scalar, 3>&)>> m_transformables;
 };
 
 } //numeric

@@ -126,7 +126,7 @@ struct GeometryTreeWalker : public ReductionResult {
     G1<Kernel, false> geometry1;
     G2<Kernel, false> geometry2;
     
-    Node<Kernel, G1, G2>*               ResultNode; //the node we stopped at
+    GeometryNode<Kernel, G1, G2>*       ResultNode; //the node we stopped at
     std::vector<symbolic::Constraint*>  ConstraintPool; //all remaining constraints
 };
 
@@ -174,13 +174,13 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         }
         
         walker->ResultNode = this; //ensure default constraint handling when no reduction is possible
-        walker->geometry1 = tg1; 
-        walker->geometry2 = tg2;
-        walker->Parameter = Eigen::Matrix<Scalar, 1, 1>::Zero(); //setup default values
+        walker->geometry1  = tg1; 
+        walker->geometry2  = tg2;
+        walker->Parameter  = Eigen::Matrix<Scalar, 1, 1>::Zero(); //setup default values
         
         //setup the ConstraintPool
-        for(;it.first != it.second; ++it)
-            walker->ConstraintPool.push_back(g->template getProperty<symbolic::ConstraintProperty>(*it));
+        for(;it.first != it.second; ++it.first)
+            walker->ConstraintPool.push_back(g.template getProperty<symbolic::ConstraintProperty>(*it.first));
         
         //calculate and store the result
         GeometryNode<Kernel, G1, G2>::applyWalker(walker);        
