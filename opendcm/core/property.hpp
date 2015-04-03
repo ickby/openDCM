@@ -421,7 +421,7 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     * @return const Prop::type& a reference to the properties actual value.
     **/
     template<typename Prop>
-    const typename Prop::type& getProperty();
+    const typename Prop::type& getProperty() const;
 
     /**
        * @brief Set properties
@@ -445,6 +445,7 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     * of the owner. Furthermore you should never ever store a refence to a property, as changes can't be
     * tracked either. This function is only available to comply with boost graph property maps and for properties
     * whiche are to big to effieciently be copyed before and after change.
+    * @note Note that you can mark a property changed via this function with \ref markPropertyChanged
     * @tparam Prop property type which should be accessed
     * @return Prop::type& a reference to the properties actual value.
     **/
@@ -464,22 +465,24 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     * @return bool true if the property was changed after the last acknowledgement
     **/
     template<typename Prop>
-    bool isPropertyChanged();
+    bool isPropertyChanged() const;
 
     /**
      * @brief Acknowledge property change
      *
      * Marks the property as unchanged. This can be used to notice that the change was processed.
+     * @tparam Prop the property to mar as changed
      **/
     template<typename Prop>
     void acknowledgePropertyChange();
 
     /**
      * @brief Check if any property was changed
-     *
+     * 
+     * @tparam Prop the property to mar as changed
      * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
      */
-    bool hasPropertyChanges();
+    bool hasPropertyChanges() const;
 
     /**
      * @brief Acknowledge every property
@@ -487,6 +490,17 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
      * Sets the change flag for every property to false
      */
     void acknowledgePropertyChanges();
+    
+    /**
+     * @brief Markes a property as changed 
+     * Somesimte it is needed to mark a property as changed regardless of the tracked state. This for example happens
+     * when one changes a property in an untrackable way via \ref getPropertyAccessible . Then the change state can be
+     * manually fixed via this function.
+     * 
+     * @tparam Prop the property to mar as changed
+     */
+    template<typename Prop>
+    void markPropertyChanged();
 
 
 private:
@@ -541,7 +555,7 @@ struct PropertyOwner<mpl::void_> {
 
 template<typename PropertyList>
 template<typename Prop>
-const typename Prop::type& PropertyOwner<PropertyList>::getProperty() {
+const typename Prop::type& PropertyOwner<PropertyList>::getProperty() const {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
@@ -585,7 +599,7 @@ typename boost::enable_if<details::has_change_tracking<Prop> >::type PropertyOwn
 
 template<typename PropertyList>
 template<typename Prop>
-bool PropertyOwner<PropertyList>::isPropertyChanged() {
+bool PropertyOwner<PropertyList>::isPropertyChanged() const {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
@@ -604,7 +618,7 @@ void PropertyOwner<PropertyList>::acknowledgePropertyChange() {
 };
 
 template<typename PropertyList>
-bool PropertyOwner<PropertyList>::hasPropertyChanges() {
+bool PropertyOwner<PropertyList>::hasPropertyChanges() const {
 
     bool res = false;
     fusion::for_each(m_states, boost::phoenix::ref(res) = boost::phoenix::ref(res) || boost::phoenix::arg_names::arg1);
@@ -614,9 +628,18 @@ bool PropertyOwner<PropertyList>::hasPropertyChanges() {
 template<typename PropertyList>
 void PropertyOwner<PropertyList>::acknowledgePropertyChanges() {
 
-    fusion::for_each(m_states, boost::phoenix::arg_names::arg1 == false);
+    fusion::for_each(m_states, boost::phoenix::arg_names::arg1 = false);
 };
 
+template<typename PropertyList>
+template<typename Prop>
+void PropertyOwner<PropertyList>::markPropertyChanged() {
+
+    typedef typename mpl::find<PropertyList, Prop>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;
+    BOOST_MPL_ASSERT((mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type > >));
+    fusion::at<distance>(m_states) = true;
+};
 
 //now create some standart properties
 //***********************************
@@ -642,7 +665,7 @@ typename dcm::details::property_map<P, G>::value_type    get(const dcm::details:
 {
 
     typedef dcm::details::property_map<P, G> map_t;
-    return  fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getProperty<P>();
+    return  (map.m_graph->operator[](key)).template getProperty<P>();
 };
 
 template <typename P, typename G>
@@ -652,7 +675,7 @@ void  put(const dcm::details::property_map<P, G>& map,
 {
 
     typedef dcm::details::property_map<P, G> map_t;
-    fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template setProperty<P>(value);
+    (map.m_graph->operator[](key)).template setProperty<P>(value);
 };
 
 
@@ -661,7 +684,8 @@ typename dcm::details::property_map<P, G>::reference at(const dcm::details::prop
         typename dcm::details::property_map<P, G>::key_type key)
 {
     typedef dcm::details::property_map<P, G> map_t;
-    return fusion::at<typename map_t::distance> (map.m_graph->operator[](key)).template getPropertyAccessible<P>();
+    (map.m_graph->operator[](key)).template markPropertyChanged<P>();
+    return (map.m_graph->operator[](key)).template getPropertyAccessible<P>();
 }
 }
 

@@ -24,11 +24,6 @@
 
 #include "opendcm/core/clustergraph.hpp"
 
-//we don't want a extra external file
-#ifdef DCM_EXTERNAL_CORE
-#include "opendcm/core/imp/clustergraph_imp.hpp"
-#endif
-
 #include <boost/test/unit_test.hpp>
 
 using namespace dcm;
@@ -283,15 +278,35 @@ BOOST_AUTO_TEST_CASE(property_iterating) {
     fusion::vector<LocalEdge, GlobalEdge, bool> e2c = g1->addEdge(fusion::at_c<0>(v2c),fusion::at_c<0>(v3c));
     fusion::vector<LocalEdge, GlobalEdge, bool> e3c = g1->addEdge(fusion::at_c<0>(v3c),fusion::at_c<0>(v1c));
 
-    //at the begining every edge and vertex should be filtered out 
+    //at the begining every edge and vertex should be marked as changed as they are newly created
     typedef boost::filter_iterator<Graph::property_changes, Graph::local_edge_iterator> eit1;
     std::pair<eit1, eit1> p = g1->filterRange<Graph::property_changes>(boost::edges(*g1));
-    BOOST_CHECK( p.first == p.second );
+    int c = 0;
+    for(; p.first != p.second; ++p.first) {
+        BOOST_CHECK(g1->edgeChanged(*p.first));
+        g1->acknowledgeEdgeChanges(*p.first);
+        ++c;
+    }
+    
+    BOOST_CHECK( c == 3 );
     
     typedef boost::filter_iterator<Graph::property_changes, Graph::local_vertex_iterator> vit1;
     std::pair<vit1, vit1> v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
-    BOOST_CHECK( v.first == v.second );
+    c = 0;
+    for(; v.first != v.second; ++v.first) {
+        g1->acknowledgePropertyChanges(*v.first);
+        ++c;
+    }
     
+    BOOST_CHECK( c == 3 );
+    
+    //We acknowledged all changes, lets see if this worked
+    p = g1->filterRange<Graph::property_changes>(boost::edges(*g1));
+    BOOST_CHECK(p.first == p.second);    
+    v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    BOOST_CHECK(v.first == v.second);
+    
+    //see if we track changes correctly
     g1->setProperty<test_vertex_property>(fusion::at_c<1>(v2c), 5);
     
     v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
