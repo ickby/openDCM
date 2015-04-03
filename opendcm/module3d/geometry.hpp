@@ -89,7 +89,7 @@ struct Cylinder : public Geometry<Kernel, MappedType,
     typedef typename Kernel::Scalar Scalar;
     typedef Geometry<Kernel, MappedType,
             storage::Vector<3>, storage::Vector<3>, storage::Parameter> Inherited;
-    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>>::m_storage;
+    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>, storage::Parameter>::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -107,10 +107,10 @@ struct Cylinder : public Geometry<Kernel, MappedType,
 }//geometry
 
 //the user-exposed geometry types for use in the geometry traits
-struct Point3   : public geometry::adaptor<geometry::Point3> {};
-struct Line3    : public geometry::adaptor<geometry::Line3> {};
-struct Plane    : public geometry::adaptor<geometry::Plane> {};
-struct Cylinder : public geometry::adaptor<geometry::Cylinder> {};
+typedef geometry::adaptor<geometry::Point3>  Point3;
+typedef geometry::adaptor<geometry::Line3> Line3;
+typedef geometry::adaptor<geometry::Plane> Plane3;
+typedef geometry::adaptor<geometry::Cylinder> Cylinder3;
 
 namespace modell {
     

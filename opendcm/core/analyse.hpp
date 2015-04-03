@@ -50,7 +50,7 @@ struct ResultProperty {
 };
 
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
-struct Node;
+struct GeometryNode;
 
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryTreeWalker;
@@ -67,8 +67,8 @@ struct GeometryTreeWalker;
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryEdge {
 
-    Node<Kernel, G1, G2>* start;
-    Node<Kernel, G1, G2>* end;
+    GeometryNode<Kernel, G1, G2>* start;
+    GeometryNode<Kernel, G1, G2>* end;
     
     virtual bool apply(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const = 0;
 };
@@ -101,9 +101,14 @@ struct GeometryNode  {
     /**
      * @brief Executed to setup the numerical solver
      * 
+     * This function is responsible for setting up the numerical system by creating 
      * @param walker ...
      */    
-    virtual void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const = 0;
+    virtual void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) {
+        
+        
+        
+    }
     
 protected:    
     bool applyWalker(GeometryTreeWalker<Kernel, G1, G2>* walker) {
@@ -140,12 +145,9 @@ template<typename Final, template<class, bool> class G1, template<class, bool> c
 struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public GeometryNode<typename Final::Kernel, G1, G2> {
     
     typedef typename Final::Kernel  Kernel;
-    typedef typename Kernel::Scalar Scalar;
+    typedef typename Kernel::Scalar Scalar; 
     
     virtual void apply(typename Final::Graph& g, graph::LocalEdge e) {
-        
-        typedef typename Final::Graph::global_edge_iterator iterator;
-        std::pair<iterator, iterator> it = g.getGlobalEdges(e);
         
         //extract the geometry data
         symbolic::Geometry* g1 = g.template getProperty<symbolic::GeometryProperty>(boost::source(e, g));
@@ -179,6 +181,8 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         walker->Parameter  = Eigen::Matrix<Scalar, 1, 1>::Zero(); //setup default values
         
         //setup the ConstraintPool
+        typedef typename Final::Graph::global_edge_iterator iterator;
+        std::pair<iterator, iterator> it = g.getGlobalEdges(e);
         for(;it.first != it.second; ++it.first)
             walker->ConstraintPool.push_back(g.template getProperty<symbolic::ConstraintProperty>(*it.first));
         
@@ -186,13 +190,6 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         GeometryNode<Kernel, G1, G2>::applyWalker(walker);        
         g.template setProperty<symbolic::ResultProperty>(e, walker);
     }; 
-    
-    void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) const {
-       
-        //when this node is executed no reduction was possible. This means we just create numeric constraints
-        //and geometries for everything remaining in the walker
-        
-    };
 };
 
 }//symbolic    

@@ -182,18 +182,22 @@ struct ModuleCoreFinish : public Stacked {
     template<template<class, bool> class G>
     struct geometryIndex {
         typedef typename mpl::find<typename Stacked::GeometryList, geometry::adaptor<G>>::type iterator;
-        typedef typename mpl::if_<boost::is_same<iterator, 
-            typename mpl::end<typename Stacked::GeometryList>::type >, mpl::int_<-1>, 
-            typename iterator::pos >::type type;
+        typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
+        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_TYPE_NOT_REGISTERT, (geometry::adaptor<G>));
+        
+        typedef typename mpl::distance<typename mpl::begin<typename Stacked::GeometryList>::type,
+                            iterator>::type type; 
         const static long value = type::value;
     };
     
     template<typename G>
     struct geometryID {
         typedef typename mpl::find<typename Stacked::GeometryList, G>::type iterator;
-        typedef typename mpl::if_<boost::is_same<iterator, 
-            typename mpl::end<typename Stacked::GeometryList>::type >, mpl::int_<-1>, 
-            typename iterator::pos >::type type;
+        typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
+        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_ADAPTOR_TYPE_NOT_REGISTERT, (G));
+        
+        typedef typename mpl::distance<typename mpl::begin<typename Stacked::GeometryList>::type,
+                            iterator>::type type; 
         const static long value = type::value;
     };
 
@@ -209,7 +213,6 @@ struct ModuleCoreFinish : public Stacked {
      */
     void solve() {
         
-        std::cout<<"solve module, reduction size: "<<reduction.shape()[0]<<"x"<<reduction.shape()[1]<<std::endl;
         //start with edge analysing
         Graph& g = *static_cast<Graph*>(this->getGraph());
         auto edges = boost::edges(g);
@@ -218,12 +221,9 @@ struct ModuleCoreFinish : public Stacked {
             std::cout<<"process edge"<<std::endl;
             symbolic::Geometry* g1 = g.template getProperty<symbolic::GeometryProperty>(boost::source(e, g));
             symbolic::Geometry* g2 = g.template getProperty<symbolic::GeometryProperty>(boost::target(e, g));
-            std::cout<<"Type 1: "<<g1->type<<", Type 2: "<<g2->type<<std::endl;
             symbolic::EdgeReductionTree<Final>* tree = reduction[g1->type][g2->type];
-            if(tree)
-                tree->apply(g, e);            
-            else 
-                std::cout<<"error: no reduction tree!"<<std::endl;
+            dcm_assert(tree)
+            tree->apply(g, e);                        
         });
         std::cout<<"done solve module"<<std::endl;
     };

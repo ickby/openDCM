@@ -181,10 +181,10 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         std::shared_ptr<System::Geometry3D> g4 = s.addGeometry3D(v4);
         
         std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=2.);
-        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3., dcm::angle=0.);
-        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g2, g3, dcm::angle=0.);
-        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g3, g4, dcm::distance=3., dcm::angle=0.);
-        std::shared_ptr<System::Constraint3D> c5 = s.addConstraint3D(g1, g4, dcm::distance=3.);
+        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3.);
+        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g2, g3, dcm::distance=4.);
+        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g3, g4, dcm::distance=5.);
+        std::shared_ptr<System::Constraint3D> c5 = s.addConstraint3D(g1, g4, dcm::distance=6.);
         
         s.solve();
     
