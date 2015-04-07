@@ -49,7 +49,7 @@ enum class SolutionSpaces {Bidirectional, Positiv_directional, Negative_directio
  * compfortable and user friendly way.
  * There are a few requirements for primitive constraints. First they must be assignalble and copyconstructible
  * while preserving their option values. Second all options need to be stored in a  fusion vector called
- * m_storage. Third it mus be possible to provide options via operator() for one or many options at once 
+ * m_storage. Third it must be possible to provide options via operator() for one or many options at once 
  * and furthermore through assigning with operator=, also for single options or multiple ones via initializer
  * lists. The last requirement regards the default values of the options. It is important to have the possibility
  * to reset all options to default during the objects lifetime. Therefore the function setDefault() must exist.
@@ -62,9 +62,10 @@ enum class SolutionSpaces {Bidirectional, Positiv_directional, Negative_directio
  *  //requirement 3
  *  void operator()(int);
  *  void operator()(char);
- *  void operator()int, char);
- *  void operator()(int);
- *  void operator()(char);
+ *  void operator()(int, char);
+ *  void operator=(int);
+ *  void operator=(char);
+ *  void operator=(int, char);
  * 
  *  void setDefault(); //requirement 4;
  * };
@@ -83,7 +84,7 @@ namespace constraint {
      * 
      * The primitive constraint type concept formulates a few requirements on the used types. To achieve a full
      * compatibility with the concept a certain boilerplate is needed. To circumvent this boilerplate this class
-     * is given. It accepts the option types one ones for its constraint as template arguments and then provides
+     * is given. It accepts the option types for the constraint as template arguments and then provides
      * all needed storages and assignment operators. 
      * This only works for option types which are default constructible. The only second restriction is that the
      * option types need to distuinguishable. To use a option type twice is not allowd, for example two times int.
@@ -94,7 +95,7 @@ namespace constraint {
      * An example cosntraint can look like this:
      * @code
      * struct TetstConstraint : public constraint::Constraint<int, char> {
-     *  TestConstraint(const int& i, const char& c) : Constraint(i,c) {};
+     *    TestConstraint(const int& i, const char& c) : Constraint(i,c) {};
      * };
      * TestConstraint test(1,'a');
      * @endcode
@@ -175,9 +176,12 @@ namespace numeric {
  * \param Kernel the math kernel in use
  * \param PC the primitive constraint in use
  */
-template<typename Kernel, typename PC>
-struct Constraint : public PC {
+template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+struct Constraint {
     
+private:
+    numeric::Geometry G1<Kernel, PG1> m_geometry1;
+    numeric::Geometry G2<Kernel, PG2> m_geometry2;
 };
     
 }//numeric
@@ -203,6 +207,10 @@ struct TypeConstraint : public Constraint {
         //type = id;
         m_constraint = c;
     };
+    
+    void setConstraintID(int id) {
+        type = id;
+    }
     
 protected:   
     PrimitiveConstraint m_constraint;

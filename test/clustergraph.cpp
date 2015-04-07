@@ -72,32 +72,32 @@ struct delete_functor {
     void operator()(GlobalEdge e) {
       stream<<"e";
     }
-    void operator()(boost::shared_ptr<Graph> v) {
+    void operator()(std::shared_ptr<Graph> v) {
       stream<<"c";
     }
 };
 
 BOOST_AUTO_TEST_CASE(subclustering) {
 	
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
     BOOST_CHECK(g1->isRoot());
 
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> sub = g1->createCluster();
-    boost::shared_ptr<Graph> g2 = sub.first;
+    std::pair<  std::shared_ptr<Graph>, LocalVertex> sub = g1->createCluster();
+    std::shared_ptr<Graph> g2 = sub.first;
     BOOST_CHECK(!g2->isRoot());
     BOOST_CHECK(g1==g2->parent());
     BOOST_CHECK(g1->numClusters() == 1);
     BOOST_CHECK(g2 == g1->getVertexCluster(sub.second));
     BOOST_CHECK(sub.second == g1->getClusterVertex(sub.first));
 	
-    boost::shared_ptr<Graph> g3 = g2->createCluster().first;
+    std::shared_ptr<Graph> g3 = g2->createCluster().first;
     BOOST_CHECK(g1==g3->root());
     BOOST_CHECK(g3->numClusters() == 0);
     BOOST_CHECK(g3->clusters().first == g3->clusters().second);
     
     g2->addVertex();
 
-    boost::shared_ptr<Graph> g4 = g2->createCluster().first;
+    std::shared_ptr<Graph> g4 = g2->createCluster().first;
     Graph::cluster_iterator it,end;
     boost::tie(it,end) = g2->clusters();
     BOOST_CHECK(it != end);
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(subclustering) {
 
 BOOST_AUTO_TEST_CASE(creation_handling) {
 
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
     fusion::vector<LocalVertex, GlobalVertex> sub1 = g1->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> sub2 = g1->addVertex();
     BOOST_CHECK(fusion::at_c<0>(sub1) != fusion::at_c<0>(sub2));
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
     BOOST_CHECK(fusion::at_c<1>(edge2) != fusion::at_c<1>(edge1));
     
     //check edge creation when 1 vertex is in a cluster
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> nc = g1->createCluster();
+    std::pair<std::shared_ptr<Graph>, LocalVertex> nc = g1->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> sub3 = nc.first->addVertex();
     fusion::vector<LocalEdge, GlobalEdge, bool> edge3 = g1->addEdge(fusion::at_c<1>(sub2), fusion::at_c<1>(sub3));
     BOOST_CHECK( fusion::at_c<2>(edge3) );
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
 
 BOOST_AUTO_TEST_CASE(removing) {
 
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
     fusion::vector<LocalVertex, GlobalVertex> res1 = g1->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> res2 = g1->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> res3 = g1->addVertex();
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(removing) {
     BOOST_CHECK( boost::num_vertices(*g1) == 1 );
     
     //create subcluster with two vertices
-    boost::shared_ptr<Graph> g2 = g1->createCluster().first;
+    std::shared_ptr<Graph> g2 = g1->createCluster().first;
     res1 = g2->addVertex();
     res2 = g2->addVertex();
     
@@ -217,7 +217,7 @@ BOOST_AUTO_TEST_CASE(removing) {
 
 BOOST_AUTO_TEST_CASE(property_handling) {
 
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
     g1->setProperty<test_cluster_property>(5);
     BOOST_CHECK(g1->getProperty<test_cluster_property>() == 5);
 
@@ -268,7 +268,7 @@ BOOST_AUTO_TEST_CASE(property_handling) {
 
 BOOST_AUTO_TEST_CASE(property_iterating) {
 
-    boost::shared_ptr<Graph> g1 = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
  
     fusion::vector<LocalVertex, GlobalVertex> v1c = g1->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v2c = g1->addVertex();
@@ -328,12 +328,12 @@ BOOST_AUTO_TEST_CASE(property_iterating) {
 BOOST_AUTO_TEST_CASE(move_vertex) {
 
     //check vertex reclustering
-    boost::shared_ptr<Graph> g = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g = std::shared_ptr<Graph>(new Graph);
     fusion::vector<LocalVertex, GlobalVertex> v1 = g->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v2 = g->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v3 = g->addVertex();
 
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> sub = g->createCluster();
+    std::pair<std::shared_ptr<Graph>, LocalVertex> sub = g->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> v4 = sub.first->addVertex();
 
     GlobalEdge e1 = fusion::at_c<1>(g->addEdge(fusion::at_c<0>(v1),fusion::at_c<0>(v2)));
@@ -437,15 +437,15 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
 BOOST_AUTO_TEST_CASE(move_cluster) {
 
     //check vertex reclustering
-    boost::shared_ptr<Graph> g = boost::shared_ptr<Graph>(new Graph);
+    std::shared_ptr<Graph> g = std::shared_ptr<Graph>(new Graph);
     fusion::vector<LocalVertex, GlobalVertex> v1 = g->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> v2 = g->addVertex();
 
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> sub1 = g->createCluster();
+    std::pair<std::shared_ptr<Graph>, LocalVertex> sub1 = g->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> v3 = sub1.first->addVertex();
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> sub2 = g->createCluster();
+    std::pair<std::shared_ptr<Graph>, LocalVertex> sub2 = g->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> v4 = sub2.first->addVertex();
-    std::pair<boost::shared_ptr<Graph>, LocalVertex> sub3 = g->createCluster();
+    std::pair<std::shared_ptr<Graph>, LocalVertex> sub3 = g->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> v5 = sub3.first->addVertex();
 
     GlobalEdge e12 = fusion::at_c<1>(g->addEdge(fusion::at_c<0>(v1),fusion::at_c<0>(v2)));

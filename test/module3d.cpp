@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(v3.isApprox(v));
    
     //have a look if we have the correct information in the graph
-    System::Graph* graph = static_cast<System::Graph*>(s.getGraph());
+    std::shared_ptr<System::Graph> graph = std::static_pointer_cast<System::Graph>(s.getGraph());
     BOOST_CHECK(boost::num_vertices(*graph) == 1);
     BOOST_CHECK(boost::num_edges(*graph) == 0);
     BOOST_CHECK(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty())==g->getProperty<dcm::symbolic::GeometryProperty>());
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(constraint) {
     std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3., dcm::angle=0.);
     
     //have a look if we have the correct information in the graph
-    System::Graph* graph = static_cast<System::Graph*>(s.getGraph());
+    std::shared_ptr<System::Graph> graph = std::static_pointer_cast<System::Graph>(s.getGraph());
     BOOST_CHECK(boost::num_vertices(*graph) == 2);
     BOOST_CHECK(boost::num_edges(*graph) == 1);
     std::pair<dcm::graph::LocalEdge, bool> edge = graph->edge(g1->getVertexProperty(), g2->getVertexProperty());
@@ -190,7 +190,11 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
     
     }
     catch(boost::exception& x) {
-        BOOST_FAIL(*boost::get_error_info<dcm::error_message>(x));
+        std::string* message = boost::get_error_info<dcm::error_message>(x);
+        if(message) 
+            BOOST_FAIL(*message);
+        else 
+            BOOST_FAIL("Unknown boost exception");
     }
     catch(std::exception& x) {
         BOOST_FAIL("Unknown exception");

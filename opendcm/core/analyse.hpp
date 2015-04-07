@@ -138,7 +138,16 @@ struct GeometryTreeWalker : public ReductionResult {
 template<typename Final>
 struct EdgeReductionTree {
     
-    virtual void apply(typename Final::Graph& g, graph::LocalEdge e) = 0;
+    /**
+     * @brief Analyses the global edges and finds the best reduction result
+     * 
+     * @remark The function is reentrant but is not safe to be called on the same data from multiple threads
+     * 
+     * @param g The graph the local edge belongs to
+     * @param e The local edge to analyse for reduction
+     * @return void
+     */
+    virtual void apply(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge e) = 0;
 };
 
 template<typename Final, template<class, bool> class G1, template<class, bool> class G2>
@@ -147,11 +156,11 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
     typedef typename Final::Kernel  Kernel;
     typedef typename Kernel::Scalar Scalar; 
     
-    virtual void apply(typename Final::Graph& g, graph::LocalEdge e) {
+    virtual void apply(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge e) {
         
         //extract the geometry data
-        symbolic::Geometry* g1 = g.template getProperty<symbolic::GeometryProperty>(boost::source(e, g));
-        symbolic::Geometry* g2 = g.template getProperty<symbolic::GeometryProperty>(boost::target(e, g));
+        symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(boost::source(e, *g));
+        symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(boost::target(e, *g));
         
         dcm_assert(g1 != nullptr && g2 != nullptr);
         
@@ -166,7 +175,7 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         const G2<Kernel, false>& tg2 = static_cast<TypeGeometry<Kernel, G2>*>(sg2)->getPrimitveGeometry();
         
         //get or create a treewalker which holds the data and the results
-        ReductionResult* res = g.template getProperty<symbolic::ResultProperty>(e);
+        ReductionResult* res = g->template getProperty<symbolic::ResultProperty>(e);
         GeometryTreeWalker<Kernel, G1, G2>* walker;
         if(!res)
             walker = new GeometryTreeWalker<Kernel, G1, G2>;
@@ -182,13 +191,13 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         
         //setup the ConstraintPool
         typedef typename Final::Graph::global_edge_iterator iterator;
-        std::pair<iterator, iterator> it = g.getGlobalEdges(e);
+        std::pair<iterator, iterator> it = g->getGlobalEdges(e);
         for(;it.first != it.second; ++it.first)
-            walker->ConstraintPool.push_back(g.template getProperty<symbolic::ConstraintProperty>(*it.first));
+            walker->ConstraintPool.push_back(g->template getProperty<symbolic::ConstraintProperty>(*it.first));
         
         //calculate and store the result
         GeometryNode<Kernel, G1, G2>::applyWalker(walker);        
-        g.template setProperty<symbolic::ResultProperty>(e, walker);
+        g->template setProperty<symbolic::ResultProperty>(e, walker);
     }; 
 };
 

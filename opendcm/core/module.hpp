@@ -37,6 +37,7 @@
 #include <boost/preprocessor/seq/transform.hpp>
 
 #include <tbb/parallel_for_each.h>
+#include <tbb/flow_graph.h>
 
 namespace mpl = boost::mpl;
 
@@ -97,9 +98,6 @@ struct ModuleCoreInit {
     };
 
     ~ModuleCoreInit() {
-        if(graph)
-            delete graph;
-
 #ifdef DCM_USE_LOGGING
         stop_log(sink);
 #endif
@@ -132,9 +130,9 @@ protected:
 public:
 #endif
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
-    graph::ClusterGraphBase* getGraph() {
+    std::shared_ptr<graph::ClusterGraphBase> getGraph() {
         if(!graph)
-            graph = new typename Final::Graph();
+            graph = std::make_shared<typename Final::Graph>();
 
         return graph;
     };
@@ -143,7 +141,7 @@ protected:
     boost::multi_array<symbolic::EdgeReductionTree<Final>*,2> reduction;
 
 private:
-    graph::ClusterGraphBase* graph;
+    std::shared_ptr<graph::ClusterGraphBase> graph;
 #ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
@@ -214,18 +212,23 @@ struct ModuleCoreFinish : public Stacked {
     void solve() {
         
         //start with edge analysing
-        Graph& g = *static_cast<Graph*>(this->getGraph());
-        auto edges = boost::edges(g);
+        std::shared_ptr<Graph> g = std::static_pointer_cast<typename Final::Graph>(this->getGraph());
+        auto edges = g->template filterRange<typename Graph::edge_changed>(boost::edges(*g));
         tbb::parallel_for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
-            
-            std::cout<<"process edge"<<std::endl;
-            symbolic::Geometry* g1 = g.template getProperty<symbolic::GeometryProperty>(boost::source(e, g));
-            symbolic::Geometry* g2 = g.template getProperty<symbolic::GeometryProperty>(boost::target(e, g));
+            symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(boost::source(e, *g));
+            symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(boost::target(e, *g));
             symbolic::EdgeReductionTree<Final>* tree = reduction[g1->type][g2->type];
             dcm_assert(tree)
-            tree->apply(g, e);                        
+            tree->apply(g, e); 
+            g->acknowledgeEdgeChanges(e);
         });
-        std::cout<<"done solve module"<<std::endl;
+        
+        //next build up the calculation flow graph
+        tbb::flow::graph g;
+        tbb::flow::broadcast_node<tbb::flow::continue_msg> start(g);
+                
+        start.try_put(tbb::flow::continue_msg());
+        g.wait_for_all();
     };
 };
 

@@ -141,7 +141,7 @@ struct Module3D {
                     static_cast<TypeGeometry*>(sg)->getPrimitveGeometry());
             
                 //setup the graph
-                typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 fusion::vector<graph::LocalVertex, graph::GlobalVertex> res = cluster->addVertex();                     
                 cluster->template setProperty<GeometryProperty> (fusion::at_c<0>(res), sg);
                 setVertexProperty(fusion::at_c<1>(res));               
@@ -219,7 +219,7 @@ struct Module3D {
             template<typename ...Constraints>
             void set(Constraints&... cons) {
                 
-                typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 
                 if(!m_g1 || !m_g2)
                     throw creation_error() <<  boost::errinfo_errno(21) << error_message("Geometry was not set before setting constraints types");
@@ -263,7 +263,7 @@ struct Module3D {
             int createGraphRepresentation(T& t, std::vector<graph::GlobalEdge>& vec) {
                 
                 //let's create a new global edge for this constraint
-                typename Final::Graph* cluster = static_cast<typename Final::Graph*>(m_system->getGraph());
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 fusion::vector<graph::LocalEdge, graph::GlobalEdge, bool, bool> res = 
                     cluster->addEdge(m_g1->getVertexProperty(), m_g2->getVertexProperty());
                     
