@@ -548,7 +548,7 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     
     g1->initIndexMaps();
 
-    dcm::graph::FilterGraph<Graph, typename Graph::in_group<0>, typename Graph::in_group<0>> filter(g1);
+    dcm::graph::FilterGraph<Graph, 0> filter(g1);
     //at the begining the default edge and vertex group should be 0 and hence the graphs should be identical
     auto eit = g1->edges();
     auto geit = filter.edges();
@@ -570,7 +570,7 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     g1->setProperty<Group>(fusion::at_c<0>(v3c), 1);
     g1->setProperty<Group>(fusion::at_c<0>(v4c), 1);
       
-    dcm::graph::FilterGraph<Graph, typename Graph::in_group<1>, typename Graph::in_group<1>> filter2(g1);
+    dcm::graph::FilterGraph<Graph, 1> filter2(g1);
  
     auto g2eit = filter2.edges();
     geit = filter.edges();
@@ -593,15 +593,14 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
         c++;
     BOOST_CHECK(c==2); 
     
-    //now change two vertices in a new group
+    //now change an edge to group 1
     filter2.setProperty<Group>(fusion::at_c<0>(e3c), 1);
       
     g2eit = filter2.edges();
     geit = filter.edges();
 
-    //we added two vertices to the new group, so both groups should have two vertices. From the 3 edges we did not
-    //shift any. Edges get filtered for their group and the group of the source and target vertices, hence
-    //group 1 should ony have one edge remaining (the one between v1 and v2) while group two has non.
+    //we added one edge to the second group. as both vertices of this edge are also in this group
+    //it will show up there
     for(c = 0;geit.first != geit.second; ++geit.first)
         c++;
     BOOST_CHECK(c==1);

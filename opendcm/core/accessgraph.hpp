@@ -53,6 +53,15 @@ namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
 
 namespace dcm {
+    
+/**
+ * @brief openDCM constraint system graph handling
+ * 
+ * A general constraint system can be exppressed as graph. This way information regarding the geometry and 
+ * constraint interaction does not get lost. This allows numerous analysis and system reductions to
+ * be performed. For those analysis the graph needs to allow different operations for which a custom graph 
+ * was implementet on top of the boost graph library. For more information see \ref ClusterGraph
+ */
 namespace graph {
     
 using namespace details;
@@ -61,13 +70,16 @@ using namespace details;
  * @{
  * */
 
-/** @addtogroup AccessGraph
- * @{*/
-
 //we need a way to store a pointer to a graph in a type independend way
 struct AccessGraphBase {};
 
-//type of a graph cluster
+/** 
+ * @name Properties
+ * 
+ * Different proeprties used in the graph
+ * @{
+ */
+
 /**
  * @brief Add a type to clusters
  *
@@ -115,6 +127,9 @@ struct Group {
         };
     };
 };
+/**
+ * @}
+ */
 
 typedef boost::adjacency_list_traits<boost::listS, boost::listS, boost::undirectedS> list_traits;
 
@@ -135,8 +150,20 @@ typedef int universalID;
 struct cluster_error : virtual boost::exception {};
 
 
-/** @name Descriptors */
-/**@{
+/** 
+ * @addtogroup ClusterGraph
+ * @{
+ * @name Descriptors
+ * 
+ * Edges and vertices inside the graph are identified by descriptors. As the functionality of the graph
+ * need global and consistent identifiers those are provided with the prefix Global. For the graph 
+ * algorithms and storage internal identifiers are needed, those are prefixed with Local. Local 
+ * descriptors are only valid within a cluster, globals stay valid when the edge or vertex is moved
+ * to annother cluster.
+ * @{
+ */
+
+/** 
  * @brief Identifier for local vertices
  *
  * The boost graph library works with identifiers for vertices which directly relate to there storage.
@@ -152,7 +179,7 @@ typedef list_traits::vertex_descriptor  LocalVertex;
  * Therefore they can be used only in the relevant cluster, they are local. These are the descriptors
  * which need to be used for all bgl algorithms.
  **/
-typedef list_traits::edge_descriptor            LocalEdge;
+typedef list_traits::edge_descriptor LocalEdge;
 
 /**
  * @brief Identifier for global vertex
@@ -160,7 +187,24 @@ typedef list_traits::edge_descriptor            LocalEdge;
  * To overcome the locality of the bgl vertex descriptors a global alternative is introduced. This descriptor
  * is unique over clusters and stable on moves and clones.
  **/
-typedef universalID                             GlobalVertex;
+typedef universalID GlobalVertex;
+
+//we want GlobalEdge to be a typedef to allow grouping in the documentation
+struct GlobalEdge_ {
+    GlobalVertex source;
+    GlobalVertex target;
+    universalID ID;
+
+    bool operator== (const GlobalEdge_& second) const {
+        return ID == second.ID;
+    };
+    bool operator!= (const GlobalEdge_& second) const {
+        return ID != second.ID;
+    };
+    bool valid() {
+        return ID > 9;
+    };
+};
 
 /**
  * @brief Identifier for global edge
@@ -169,21 +213,11 @@ typedef universalID                             GlobalVertex;
  * is unique over clusters and stable on moves and clones. It holds it's source and target also as global
  * descriptors of type GlobalVertex and has a unique ID in form of a universalID assigned.
  **/
-struct  GlobalEdge {
-    GlobalVertex source;
-    GlobalVertex target;
-    universalID ID;
-
-    bool operator== (const GlobalEdge& second) const {
-        return ID == second.ID;
-    };
-    bool operator!= (const GlobalEdge& second) const {
-        return ID != second.ID;
-    };
-    bool valid() {
-        return ID > 9;
-    };
-};
+typedef GlobalEdge_ GlobalEdge;
+/** 
+ * @}
+ * @}
+ */
 
 /**
  * @brief Store a global vertex as proeprty
@@ -213,7 +247,6 @@ struct MultiEdgeProperty {
     typedef std::vector<GlobalEdge> type;
     struct  change_tracking{}; 
 };
-/**@}*/
 
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 //or which are needed in the internal algorithms
@@ -231,21 +264,53 @@ struct GlobalEdgeProperty {
 
 
 /**
- * @brief A graph that can be stacked in a tree-like manner without loosing it connections
+ * @ingroup ClusterGraph
+ * @brief Fixed structure graph accessor
  *
- * This is basicly a boost adjacency_list with single linked lists 'listS' as storage for vertices and
- * edges. The edges are undirected. This allows to use all boost graph algorithms and provides therefore
- * an comprehensive way for analysing and manipulating its content. It further extends the class with the
- * possibility to cluster its content and to add properties to all entitys. For more
- * information, see the module AccessGraph
+ * The \a AccessGraph does not hold a boost graph itself but provides access functions for 
+ * one. The type of the graph to access needs to be defined by the template parameters and
+ * the graph itself be passed to the \a AccessGraph via it's constructor. The purpose of 
+ * this class is to give a unified access api for different boost graph types. The name 
+ * access comes from the fact that it is impossible to change the graph structure via this
+ * api. All that can be dne is to access and change properties as well as using all kinds
+ * of algorithms on the graph. 
+ * 
+ * This unified api allows algorithms nd functions to work on different graph types if 
+ * those are provided via template parameter. This makes the graph storage and 
+ * access highly flexible.
+ * 
+ * Note that the template parameter of the \a AccessGraph fully define the underlying 
+ * boost graph, so all the properties used need to be given and the bosst type need to
+ * be supplied as last template parameter. As boost graphs also need template parameters
+ * supplied the \a AccessGraph gets a template type which itself needs 5 template parameter.
+ * To make this more clear the the following working example. Note that the boost 
+ * adjacency_list normally gets 7 template parameters, thats why we need a template 
+ * typedef
+ * 
+ * @code
+ * typedef boost::mpl::vector0<> no_prop;
+ * 
+ * template<typename T1, typename T2, typename T3, typename T4, typename T5>
+ * using adjacency_list = boost::adjacency_list<T1,T2,T3,T4,T5>;
+ * 
+ * class MyGraph : public AccessGraph<no_prop, no_prop, no_prop, no_prop, adjacency_list> {
+ * 
+ *      typedef AccessGraph<no_prop, no_prop, no_prop, no_prop, adjacency_list> Base;
+ *      typedef typename Base::Graph Graph;
+ *      
+ *      Graph m_graph;
+ * 
+ * public:
+ *      MyGraph() : Base(m_graph) {};
+ * } 
+ * @endcode
  *
  * @tparam edge_prop a mpl::vector with properties which are added to local edges
  * @tparam globaledge_prop a mpl::vector with properties which are added to global edges
  * @tparam vertex_prop a mpl::vector with properties which are added to vertices
  * @tparam cluster_prop a mpl::vector with properties which are added to all clusters
+ * @tparam graph_base a boost graph type which shall be accessed with this class
  **/
-
-
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, 
             template<class, class, class, class, class> class graph_base>
 class  AccessGraph : public AccessGraphBase, public boost::noncopyable, 
@@ -803,7 +868,6 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-/** @} */
 /** @} */
 
 //********************

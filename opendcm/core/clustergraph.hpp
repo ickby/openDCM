@@ -34,9 +34,6 @@ using namespace details;
  * @{
  * */
 
-/** @addtogroup ClusterGraph
- * @{*/
-
 /**
  * @brief Generator for unique identifiers
  *
@@ -98,13 +95,13 @@ template<typename T1, typename T2, typename T3, typename T4, typename T5>
 using adjacency_list = boost::adjacency_list<T1,T2,T3,T4,T5>;
 
 /**
- * @brief A graph that can be stacked in a tree-like manner without loosing it connections
+ * @ingroup ClusterGraph
+ * @brief A graph that can be stacked in a tree-like manner without loosing its connections
  *
- * This is basicly a boost adjacency_list with single linked lists 'listS' as storage for vertices and
- * edges. The edges are undirected. This allows to use all boost graph algorithms and provides therefore
- * an comprehensive way for analysing and manipulating its content. It further extends the class with the
- * possibility to cluster its content and to add properties to all entitys. For more
- * information, see the module ClusterGraph
+ * This graph implements the \ref AccessGraph interface on a boost adjacency_list. It further
+ * extend the api with possibility to change the graph like adding and removing edges/vertices.
+ * Furthermore it adds support for subclusters as described in the overall graph documentation
+ * \ref ClusterGraph
  *
  * @tparam edge_prop a mpl::vector with properties which are added to local edges
  * @tparam globaledge_prop a mpl::vector with properties which are added to global edges
@@ -606,7 +603,6 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-/** @} */
 /** @} */
 
 //***************************************
