@@ -203,6 +203,9 @@ struct ModuleCoreFinish : public Stacked {
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
          
     using Stacked::reduction;
+    
+        
+
             
     /**
      * @brief Solves the constraint geometry system 
@@ -231,6 +234,7 @@ struct ModuleCoreFinish : public Stacked {
         g.wait_for_all();
     };
 };
+
 
 } //details
 } //dcm

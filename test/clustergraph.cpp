@@ -23,6 +23,7 @@
 #endif
 
 #include "opendcm/core/clustergraph.hpp"
+#include "opendcm/core/filtergraph.hpp"
 
 #include <boost/test/unit_test.hpp>
 
@@ -103,14 +104,14 @@ BOOST_AUTO_TEST_CASE(subclustering) {
     BOOST_CHECK(it != end);
     BOOST_CHECK(it->second->parent() == (it++)->second->parent());
     BOOST_CHECK(g2->numClusters() == 2);
-    BOOST_CHECK(boost::num_vertices(*g2)==3);
+    BOOST_CHECK(g2->vertexCount()==3);
     
     delete_functor f;
     g2->removeCluster(g3, f);
     boost::tie(it,end) = g2->clusters();
     BOOST_CHECK(it != end);
     BOOST_CHECK(g2->numClusters() == 1);
-    BOOST_CHECK(boost::num_vertices(*g2)==2);
+    BOOST_CHECK(g2->vertexCount()==2);
     BOOST_CHECK( !f.stream.str().compare("c") );
     
     delete_functor f2;
@@ -149,8 +150,8 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
     fusion::vector<LocalVertex, GlobalVertex> sub3 = nc.first->addVertex();
     fusion::vector<LocalEdge, GlobalEdge, bool> edge3 = g1->addEdge(fusion::at_c<1>(sub2), fusion::at_c<1>(sub3));
     BOOST_CHECK( fusion::at_c<2>(edge3) );
-    BOOST_CHECK( boost::source(fusion::at_c<0>(edge3), *g1) == fusion::at_c<0>(sub2) );
-    BOOST_CHECK( boost::target(fusion::at_c<0>(edge3), *g1) == nc.second );
+    BOOST_CHECK( boost::source(fusion::at_c<0>(edge3), g1->getDirectAccess()) == fusion::at_c<0>(sub2) );
+    BOOST_CHECK( boost::target(fusion::at_c<0>(edge3), g1->getDirectAccess()) == nc.second );
     
 };
 
@@ -165,12 +166,12 @@ BOOST_AUTO_TEST_CASE(removing) {
     fusion::vector<LocalEdge, GlobalEdge, bool> res5 = g1->addEdge(fusion::at_c<0>(res2), fusion::at_c<0>(res3));
     
     g1->removeVertex(fusion::at_c<0>(res1));    
-    BOOST_CHECK( boost::num_edges(*g1) == 1 );
-    BOOST_CHECK( boost::num_vertices(*g1) == 2 );
+    BOOST_CHECK( g1->edgeCount() == 1 );
+    BOOST_CHECK( g1->vertexCount() == 2 );
     
     g1->removeVertex(fusion::at_c<1>(res2));    
-    BOOST_CHECK( boost::num_edges(*g1) == 0 );
-    BOOST_CHECK( boost::num_vertices(*g1) == 1 );
+    BOOST_CHECK( g1->edgeCount() == 0 );
+    BOOST_CHECK( g1->vertexCount() == 1 );
     
     //create subcluster with two vertices
     std::shared_ptr<Graph> g2 = g1->createCluster().first;
@@ -181,17 +182,17 @@ BOOST_AUTO_TEST_CASE(removing) {
     //cluster with to global ones inside
     res4 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res1));
     res5 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
-    BOOST_CHECK( boost::num_edges(*g1) == 1 );
+    BOOST_CHECK( g1->edgeCount() == 1 );
     
     g1->removeVertex(fusion::at_c<1>(res1));
-    BOOST_CHECK( boost::num_vertices(*g1) == 2 ); //one normal one cluster
-    BOOST_CHECK( boost::num_vertices(*g2) == 1 ); //one normal one cluster
-    BOOST_CHECK( boost::num_edges(*g1) == 1 );
+    BOOST_CHECK( g1->vertexCount() == 2 ); //one normal one cluster
+    BOOST_CHECK( g2->vertexCount() == 1 ); //one normal one cluster
+    BOOST_CHECK( g1->edgeCount() == 1 );
     
     g1->removeVertex(fusion::at_c<1>(res2));
-    BOOST_CHECK( boost::num_vertices(*g1) == 2 ); //one normal one cluster
-    BOOST_CHECK( boost::num_vertices(*g2) == 0 ); //one normal one cluster
-    BOOST_CHECK( boost::num_edges(*g1) == 0 );
+    BOOST_CHECK( g1->vertexCount() == 2 ); //one normal one cluster
+    BOOST_CHECK( g2->vertexCount() == 0 ); //one normal one cluster
+    BOOST_CHECK( g1->edgeCount() == 0 );
     
     res1 = g2->addVertex();
     res2 = g2->addVertex();
@@ -199,18 +200,18 @@ BOOST_AUTO_TEST_CASE(removing) {
     res5 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
     fusion::vector<LocalEdge, GlobalEdge, bool> res6 = g2->addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
     
-    BOOST_CHECK( boost::num_edges(*g2) == 1 );
-    BOOST_CHECK( boost::num_edges(*g1) == 1 );
+    BOOST_CHECK( g2->edgeCount() == 1 );
+    BOOST_CHECK( g1->edgeCount() == 1 );
     BOOST_CHECK( g1->getGlobalEdgeCount(fusion::at_c<0>(res4)) == 2);
     
     g1->removeEdge(fusion::at_c<1>(res4));
-    BOOST_CHECK( boost::num_edges(*g2) == 1 );
-    BOOST_CHECK( boost::num_edges(*g1) == 1 );
+    BOOST_CHECK( g2->edgeCount() == 1 );
+    BOOST_CHECK( g1->edgeCount() == 1 );
     BOOST_CHECK( g1->getGlobalEdgeCount(fusion::at_c<0>(res4)) == 1);
     
     g1->removeEdge(fusion::at_c<1>(res5));
-    BOOST_CHECK( boost::num_edges(*g2) == 1 );
-    BOOST_CHECK( boost::num_edges(*g1) == 0 );
+    BOOST_CHECK( g2->edgeCount() == 1 );
+    BOOST_CHECK( g1->edgeCount() == 0 );
     
 };
 
@@ -280,7 +281,7 @@ BOOST_AUTO_TEST_CASE(property_iterating) {
 
     //at the begining every edge and vertex should be marked as changed as they are newly created
     typedef boost::filter_iterator<Graph::property_changes, Graph::local_edge_iterator> eit1;
-    std::pair<eit1, eit1> p = g1->filterRange<Graph::property_changes>(boost::edges(*g1));
+    std::pair<eit1, eit1> p = g1->filterRange<Graph::property_changes>(boost::edges(g1->getDirectAccess()));
     int c = 0;
     for(; p.first != p.second; ++p.first) {
         BOOST_CHECK(g1->edgeChanged(*p.first));
@@ -291,7 +292,7 @@ BOOST_AUTO_TEST_CASE(property_iterating) {
     BOOST_CHECK( c == 3 );
     
     typedef boost::filter_iterator<Graph::property_changes, Graph::local_vertex_iterator> vit1;
-    std::pair<vit1, vit1> v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    std::pair<vit1, vit1> v = g1->filterRange<Graph::property_changes>(boost::vertices(g1->getDirectAccess()));
     c = 0;
     for(; v.first != v.second; ++v.first) {
         g1->acknowledgePropertyChanges(*v.first);
@@ -301,25 +302,25 @@ BOOST_AUTO_TEST_CASE(property_iterating) {
     BOOST_CHECK( c == 3 );
     
     //We acknowledged all changes, lets see if this worked
-    p = g1->filterRange<Graph::property_changes>(boost::edges(*g1));
+    p = g1->filterRange<Graph::property_changes>(boost::edges(g1->getDirectAccess()));
     BOOST_CHECK(p.first == p.second);    
-    v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    v = g1->filterRange<Graph::property_changes>(boost::vertices(g1->getDirectAccess()));
     BOOST_CHECK(v.first == v.second);
     
     //see if we track changes correctly
     g1->setProperty<test_vertex_property>(fusion::at_c<1>(v2c), 5);
     
-    v = g1->filterRange<Graph::property_changes>(boost::vertices(*g1));
+    v = g1->filterRange<Graph::property_changes>(boost::vertices(g1->getDirectAccess()));
     BOOST_CHECK( *v.first == fusion::at_c<0>(v2c) );
     BOOST_CHECK( ++v.first == v.second );
     
     typedef boost::filter_iterator<Graph::property_changed<test_vertex_property>, Graph::local_vertex_iterator> vit2;
-    std::pair<vit2, vit2> v2 = g1->filterRange<Graph::property_changed<test_vertex_property> >(boost::vertices(*g1));
+    std::pair<vit2, vit2> v2 = g1->filterRange<Graph::property_changed<test_vertex_property> >(boost::vertices(g1->getDirectAccess()));
     BOOST_CHECK( *v2.first == fusion::at_c<0>(v2c) );
     BOOST_CHECK( ++v2.first == v2.second );
     
     typedef boost::filter_iterator<Graph::property_value<test_vertex_property, 5>, Graph::local_vertex_iterator> vit3;
-    std::pair<vit3, vit3> v3 = g1->filterRange<Graph::property_value<test_vertex_property, 5> >(boost::vertices(*g1));
+    std::pair<vit3, vit3> v3 = g1->filterRange<Graph::property_value<test_vertex_property, 5> >(boost::vertices(g1->getDirectAccess()));
     BOOST_CHECK( *v3.first == fusion::at_c<0>(v2c) );
     BOOST_CHECK( ++v3.first == v3.second );
 
@@ -352,19 +353,19 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
     BOOST_CHECK(*g->getGlobalEdges(g->edge(fusion::at_c<0>(v3), sub.second).first).first == e5);
 
     //inside subcluster vertex v4 should not have any edges
-    BOOST_CHECK(boost::num_vertices(*sub.first) == 1);
-    BOOST_CHECK(boost::num_edges(*sub.first) == 0);
-    BOOST_CHECK(boost::out_degree(fusion::at_c<0>(v4), *sub.first) == 0);
+    BOOST_CHECK(sub.first->vertexCount() == 1);
+    BOOST_CHECK(sub.first->edgeCount() == 0);
+    BOOST_CHECK(sub.first->outDegree(fusion::at_c<0>(v4)) == 0);
 
     LocalVertex nv = g->moveToSubcluster(fusion::at_c<0>(v1), sub.second);
 
     BOOST_CHECK(sub.first->getProperty<test_vertex_property>(nv) == 25);
     BOOST_CHECK(sub.first->getGlobalVertex(nv) == fusion::at_c<1>(v1));
-    BOOST_CHECK(boost::num_vertices(*sub.first) == 2);
-    BOOST_CHECK(boost::num_edges(*sub.first) == 1);
-    BOOST_CHECK(boost::out_degree(fusion::at_c<0>(v4), *sub.first) == 1);
-    BOOST_CHECK(boost::num_vertices(*g) == 3);
-    BOOST_CHECK(boost::num_edges(*g) == 3);
+    BOOST_CHECK(sub.first->vertexCount() == 2);
+    BOOST_CHECK(sub.first->edgeCount() == 1);
+    BOOST_CHECK(sub.first->outDegree(fusion::at_c<0>(v4)) == 1);
+    BOOST_CHECK(g->vertexCount() == 3);
+    BOOST_CHECK(g->edgeCount() == 3);
 
     //in the local edge between new vertex and v4 should be one global edge
     LocalEdge et0;
@@ -392,16 +393,16 @@ BOOST_AUTO_TEST_CASE(move_vertex) {
     LocalVertex nv1 = sub.first->moveToParent(nv);
 
     //everything should be like in the beginning, first check subcluster
-    BOOST_CHECK(boost::out_degree(fusion::at_c<0>(v4), *sub.first) == 0);
-    BOOST_CHECK(boost::num_vertices(*sub.first) == 1);
+    BOOST_CHECK(sub.first->outDegree(fusion::at_c<0>(v4)) == 0);
+    BOOST_CHECK(sub.first->vertexCount() == 1);
 
-    BOOST_CHECK(boost::num_vertices(*g) == 4);
-    BOOST_CHECK(boost::num_edges(*g) == 5);
-    BOOST_CHECK(boost::out_degree(sub.second, *g) == 2);
-    BOOST_CHECK(boost::out_degree(nv1, *g) == 3);
-    BOOST_CHECK(boost::edge(nv1, sub.second,  *g).second);
-    BOOST_CHECK(!boost::edge(fusion::at_c<0>(v2), sub.second,  *g).second);
-    BOOST_CHECK(boost::edge(fusion::at_c<0>(v3), sub.second,  *g).second);
+    BOOST_CHECK(g->vertexCount() == 4);
+    BOOST_CHECK(g->edgeCount() == 5);
+    BOOST_CHECK(g->outDegree(sub.second) == 2);
+    BOOST_CHECK(g->outDegree(nv1) == 3);
+    BOOST_CHECK(g->edge(nv1, sub.second).second);
+    BOOST_CHECK(!g->edge(fusion::at_c<0>(v2), sub.second).second);
+    BOOST_CHECK(g->edge(fusion::at_c<0>(v3), sub.second).second);
 
     //nv1 to cluster should have one global edge
     LocalEdge et3 = g->edge(nv1, sub.second).first;
@@ -459,8 +460,8 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     LocalVertex nv = g->moveToSubcluster(sub2.second, sub3.second);
 
     //first check local cluster
-    BOOST_CHECK(boost::num_edges(*g) == 5);
-    BOOST_CHECK(boost::num_vertices(*g) == 4);
+    BOOST_CHECK(g->edgeCount() == 5);
+    BOOST_CHECK(g->vertexCount() == 4);
 
     //sub1 to sub2 should have two global edge's
     LocalEdge et1 = g->edge(sub1.second, sub3.second).first;
@@ -477,8 +478,8 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     BOOST_CHECK(++it.first == it.second);
 
     //check subcluster 3
-    BOOST_CHECK(boost::num_edges(*sub3.first) == 1);
-    BOOST_CHECK(boost::num_vertices(*sub3.first) == 2);
+    BOOST_CHECK(sub3.first->edgeCount() == 1);
+    BOOST_CHECK(sub3.first->vertexCount() == 2);
 
     //nv to v5 should have one global edge
     LocalEdge et3 = sub3.first->edge(nv, fusion::at_c<0>(v5)).first;
@@ -490,10 +491,10 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     LocalVertex nc = sub3.first->moveToParent(nv);
 
     //everything need to be like in initial state
-    BOOST_CHECK(boost::num_edges(*g) == 7);
-    BOOST_CHECK(boost::num_vertices(*g) == 5);
-    BOOST_CHECK(boost::num_edges(*sub3.first) == 0);
-    BOOST_CHECK(boost::num_vertices(*sub3.first) == 1);
+    BOOST_CHECK(g->edgeCount() == 7);
+    BOOST_CHECK(g->vertexCount() == 5);
+    BOOST_CHECK(sub3.first->edgeCount() == 0);
+    BOOST_CHECK(sub3.first->vertexCount() == 1);
 
     //nc to sub1 should have one global edge
     std::pair<LocalEdge, bool> res = g->edge(nc, sub1.second);
@@ -530,6 +531,93 @@ BOOST_AUTO_TEST_CASE(move_cluster) {
     it = g->getGlobalEdges(et7);
     BOOST_CHECK(*it.first == e24);
     BOOST_CHECK(++it.first == it.second);
+}
+
+BOOST_AUTO_TEST_CASE(filter_graph) {
+    
+    std::shared_ptr<Graph> g1 = std::shared_ptr<Graph>(new Graph);
+ 
+    fusion::vector<LocalVertex, GlobalVertex> v1c = g1->addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v2c = g1->addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v3c = g1->addVertex();
+    fusion::vector<LocalVertex, GlobalVertex> v4c = g1->addVertex();
+
+    fusion::vector<LocalEdge, GlobalEdge, bool> e1c = g1->addEdge(fusion::at_c<0>(v1c),fusion::at_c<0>(v2c));
+    fusion::vector<LocalEdge, GlobalEdge, bool> e2c = g1->addEdge(fusion::at_c<0>(v2c),fusion::at_c<0>(v3c));
+    fusion::vector<LocalEdge, GlobalEdge, bool> e3c = g1->addEdge(fusion::at_c<0>(v3c),fusion::at_c<0>(v4c));
+    
+    g1->initIndexMaps();
+
+    dcm::graph::FilterGraph<Graph, typename Graph::in_group<0>, typename Graph::in_group<0>> filter(g1);
+    //at the begining the default edge and vertex group should be 0 and hence the graphs should be identical
+    auto eit = g1->edges();
+    auto geit = filter.edges();
+    for(;eit.first != eit.second; ++eit.first) {
+        BOOST_REQUIRE(geit.first != geit.second);
+        BOOST_CHECK(*eit.first == *geit.first);
+        ++geit.first;
+    }
+      
+    auto vit = g1->vertices();
+    auto gvit = filter.vertices();
+    for(;vit.first != vit.second; ++vit.first) {
+        BOOST_REQUIRE(gvit.first != gvit.second);
+        BOOST_CHECK(g1->getProperty<Index>(*vit.first) == filter.getProperty<Index>(*gvit.first));
+        ++gvit.first;
+    }
+   
+    //now change two vertices in a new group
+    g1->setProperty<Group>(fusion::at_c<0>(v3c), 1);
+    g1->setProperty<Group>(fusion::at_c<0>(v4c), 1);
+      
+    dcm::graph::FilterGraph<Graph, typename Graph::in_group<1>, typename Graph::in_group<1>> filter2(g1);
+ 
+    auto g2eit = filter2.edges();
+    geit = filter.edges();
+
+    //we added two vertices to the new group, so both groups should have two vertices. From the 3 edges we did not
+    //shift any. Edges get filtered for their group and the group of the source and target vertices, hence
+    //group 1 should ony have one edge remaining (the one between v1 and v2) while group two has non.
+    int c = 0;
+    for(;geit.first != geit.second; ++geit.first)
+        c++;
+    BOOST_CHECK(c==1);
+    BOOST_CHECK(g2eit.first == g2eit.second);
+    
+    gvit = filter.vertices();
+    auto g2vit = filter2.vertices();
+    for(c=0;gvit.first != gvit.second; ++gvit.first)
+        c++;
+    BOOST_CHECK(c==2);    
+    for(c=0;g2vit.first != g2vit.second; ++g2vit.first)
+        c++;
+    BOOST_CHECK(c==2); 
+    
+    //now change two vertices in a new group
+    filter2.setProperty<Group>(fusion::at_c<0>(e3c), 1);
+      
+    g2eit = filter2.edges();
+    geit = filter.edges();
+
+    //we added two vertices to the new group, so both groups should have two vertices. From the 3 edges we did not
+    //shift any. Edges get filtered for their group and the group of the source and target vertices, hence
+    //group 1 should ony have one edge remaining (the one between v1 and v2) while group two has non.
+    for(c = 0;geit.first != geit.second; ++geit.first)
+        c++;
+    BOOST_CHECK(c==1);
+    for(c=0;g2eit.first != g2eit.second; ++g2eit.first)
+        c++;
+    BOOST_CHECK(c==1);
+    
+    gvit = filter.vertices();
+    g2vit = filter2.vertices();
+    for(c=0;gvit.first != gvit.second; ++gvit.first)
+        c++;
+    BOOST_CHECK(c==2);    
+    for(c=0;g2vit.first != g2vit.second; ++g2vit.first)
+        c++;
+    BOOST_CHECK(c==2); 
+    
 }
 
 BOOST_AUTO_TEST_SUITE_END();

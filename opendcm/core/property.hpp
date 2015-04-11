@@ -17,10 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GCM_PROPERTY_H
-#define GCM_PROPERTY_H
-
-#include <boost/graph/graph_traits.hpp>
+#ifndef DCM_PROPERTY_H
+#define DCM_PROPERTY_H
 
 #include <boost/mpl/find.hpp>
 #include <boost/mpl/void.hpp>
@@ -162,50 +160,6 @@ BOOST_MPL_HAS_XXX_TRAIT_DEF(change_tracking)
 
 
 /**
- * @brief Get vertex property information
- *
- * This traits struct is used to get property information regarding ClusterGraph vertices. It
- * allows access to the local descriptor, the mpl property sequence and the position, at which the
- * fusion property sequence is stored inside the bundle. It's used to allow generic property
- * selection in combination with @ref property_selector
- **/
-template<typename Graph>
-struct vertex_selector {
-    typedef typename boost::graph_traits<Graph>::vertex_descriptor key_type;
-    typedef typename Graph::vertex_properties sequence_type;
-    typedef mpl::int_<1> property_distance;
-};
-
-/** @brief Get edge property information
- *
- * This traits struct is used to get property information regarding ClusterGraph edges. It
- * allows access to the local descriptor, the mpl property sequence and the position, at which the
- * fusion property sequence is stored inside the bundle. It's used to allow generic property
- * selection in combination with @ref property_selector
- **/
-template<typename Graph>
-struct edge_selector {
-    typedef typename boost::graph_traits<Graph>::edge_descriptor key_type;
-    typedef typename Graph::edge_properties sequence_type;
-    typedef mpl::int_<0> property_distance;
-};
-
-/**
- * @brief Select property information trait depending on property type
- *
- * Allows generic access to property information like descriptor or property sequence by exposing
- * a specific selector type ( @ref vertex_selector or @ref edge_selector ) dependend on the supplied
- * property.
- **/
-template< typename Prop, typename Graph>
-struct property_selector :  mpl::if_ <
-        boost::is_same <
-        typename mpl::find<typename Graph::edge_properties, Prop>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > ,
-        vertex_selector<Graph>,
-        edge_selector<Graph> >::type {};
-
-/**
  * @brief Metafunction to expose the property storage type
  **/
 template<typename T>
@@ -318,80 +272,6 @@ struct apply_default {
     };
 };
 
-/** @addtogroup Metafunctions
- * @{*/
-/**
- * @brief Expose if this is a edge property
- **/
-template<typename T, typename Graph>
-struct is_edge_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::edge_properties, T>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > > {};
-/**
- * @brief Expose if this is a global edge property
- **/
-template<typename T, typename Graph>
-struct is_globaledge_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::globaledge_properties, T>::type,
-        typename mpl::end<typename Graph::globaledge_properties>::type > > {};
-/**
- * @brief Expose if this is a vertex property
- **/
-template<typename T, typename Graph>
-struct is_vertex_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::vertvertexex_properties, T>::type,
-        typename mpl::end<typename Graph::vertex_properties>::type > > {};
-/**
- * @brief Expose if this is a cluster property
- **/
-template<typename T, typename Graph>
-struct is_cluster_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::cluster_properties, T>::type,
-        typename mpl::end<typename Graph::cluster_properties>::type > > {};
-
-/**@}*/
-
-/**
- * @brief Adapter to use dcm vertex and edge properties as boost property_maps in bgl algorithms
- *
- * Boost graph algorithms use property maps as generic storage for process data. In most cases the user
- * needs to provide these maps. The simplest way is to create them on the stack right before their
- * usage. If, however, the stored information is of use and one wants to store it permanently, this way
- * is not practical. Therefor vertex and edge properties were introduced, they allow to store arbitrary
- * information at their entity. To use this in combination with boost graph algorithms, this class can
- * be used to expose vertex and edge properties as propertie maps to the boost algorithms. All process
- * information is then stored permanently at the relevant position.
- **/
-template <typename Property, typename Graph>
-class property_map  {
-
-public:
-    //expose boost property map interface types
-    typedef typename dcm::details::property_selector<Property, Graph>::key_type key_type;
-    typedef typename Property::type value_type;
-    typedef typename Property::type&  reference;
-    typedef boost::lvalue_property_map_tag category;
-
-    //expose cutom types for easy access
-    typedef Property property;
-    typedef typename dcm::details::property_selector<Property, Graph>::sequence_type sequence;
-    typedef typename dcm::details::property_selector<Property, Graph>::property_distance distance;
-
-    /**
-     * @brief Links property map with the ClusterGraph which shall be accessed
-     *
-     * As boost graph algorithms work with local descriptors, the property map needs to know in which
-     * graph they are valid. this graph has to be passed to the map. Of course this has to be the one
-     * on which the algorithm is used on
-     *
-     * @param g shared ptr of the cluster graph on which the algorithm is used
-     **/
-    property_map(std::shared_ptr<Graph> g)
-        : m_graph(g) { }
-
-    std::shared_ptr<Graph> m_graph;
-};
-
 /**
  * @brief Class for property handling in dcm
  *
@@ -440,12 +320,11 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     /**
     * @brief Access properties non-const
     *
-    * Don't use this unless abselutly nesseccary. It sets the property to changed, no matter if you realy
-    * change it or not. This is needed as it is impossible to detect if the reference was changed outside
-    * of the owner. Furthermore you should never ever store a refence to a property, as changes can't be
-    * tracked either. This function is only available to comply with boost graph property maps and for properties
-    * whiche are to big to effieciently be copyed before and after change.
-    * @note Note that you can mark a property changed via this function with \ref markPropertyChanged
+    * Don't use this unless abselutly nesseccary. It is impossible to detect if the reference was changed outside
+    * of the owner, hence tracking needs to be updated manual. You should never ever store a refence to a property,
+    * as changes can't be tracked either. This function is only available to comply with boost graph property maps 
+    * and for properties whiche are to big to effieciently be copyed before and after change.
+    * @remark Note that you can mark a property changed via this function with \ref markPropertyChanged
     * @tparam Prop property type which should be accessed
     * @return Prop::type& a reference to the properties actual value.
     **/
@@ -657,36 +536,4 @@ struct empty_prop {
 }//details
 }//dcm
 
-namespace boost {
-//access the propertymap needs to be boost visable
-template<typename P, typename G>
-typename dcm::details::property_map<P, G>::value_type    get(const dcm::details::property_map<P, G>& map,
-        typename dcm::details::property_map<P, G>::key_type key)
-{
-
-    typedef dcm::details::property_map<P, G> map_t;
-    return  (map.m_graph->operator[](key)).template getProperty<P>();
-};
-
-template <typename P, typename G>
-void  put(const dcm::details::property_map<P, G>& map,
-          typename dcm::details::property_map<P, G>::key_type key,
-          const typename dcm::details::property_map<P, G>::value_type& value)
-{
-
-    typedef dcm::details::property_map<P, G> map_t;
-    (map.m_graph->operator[](key)).template setProperty<P>(value);
-};
-
-
-template <typename P, typename G>
-typename dcm::details::property_map<P, G>::reference at(const dcm::details::property_map<P, G>& map,
-        typename dcm::details::property_map<P, G>::key_type key)
-{
-    typedef dcm::details::property_map<P, G> map_t;
-    (map.m_graph->operator[](key)).template markPropertyChanged<P>();
-    return (map.m_graph->operator[](key)).template getPropertyAccessible<P>();
-}
-}
-
-#endif //GCM_PROPERTY_H
+#endif //DCM_PROPERTY_H

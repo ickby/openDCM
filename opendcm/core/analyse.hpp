@@ -99,16 +99,30 @@ struct GeometryNode  {
     };
     
     /**
+     * @brief ${...}
+     * 
+     * @return void
+     */
+    void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) {
+        
+    };
+    
+    /**
      * @brief Executed to setup the numerical solver
      * 
-     * This function is responsible for setting up the numerical system by creating 
-     * @param walker ...
+     * This function is responsible for setting up the numerical system by creating the appropriate calculation 
+     * nodes. The default implementation of this function creates an equation for every remaining constraint. 
+     * Derived classes should always call this base version to ensure that remaining constraints are handled 
+     * properly. 
+     * @param walker The tree walker local storage
      */    
-    virtual void execute(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) {
+    virtual void buildNumeric(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) {
         
+        for(symbolic::Constraint* c : walker->ConstraintPool) {
         
-        
-    }
+            
+        }        
+    };
     
 protected:    
     bool applyWalker(GeometryTreeWalker<Kernel, G1, G2>* walker) {
