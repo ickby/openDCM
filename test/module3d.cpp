@@ -122,8 +122,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
    
     //have a look if we have the correct information in the graph
     std::shared_ptr<System::Graph> graph = std::static_pointer_cast<System::Graph>(s.getGraph());
-    BOOST_CHECK(boost::num_vertices(*graph) == 1);
-    BOOST_CHECK(boost::num_edges(*graph) == 0);
+    BOOST_CHECK(graph->vertexCount() == 1);
+    BOOST_CHECK(graph->edgeCount() == 0);
     BOOST_CHECK(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty())==g->getProperty<dcm::symbolic::GeometryProperty>());
     
     dcm::symbolic::TypeGeometry<K,dcm::geometry::Point3>* tg = static_cast<dcm::symbolic::TypeGeometry<K,dcm::geometry::Point3>*>(graph->getProperty<dcm::symbolic::GeometryProperty>(g->getVertexProperty()));
@@ -148,8 +148,8 @@ BOOST_AUTO_TEST_CASE(constraint) {
     
     //have a look if we have the correct information in the graph
     std::shared_ptr<System::Graph> graph = std::static_pointer_cast<System::Graph>(s.getGraph());
-    BOOST_CHECK(boost::num_vertices(*graph) == 2);
-    BOOST_CHECK(boost::num_edges(*graph) == 1);
+    BOOST_CHECK(graph->vertexCount() == 2);
+    BOOST_CHECK(graph->edgeCount() == 1);
     std::pair<dcm::graph::LocalEdge, bool> edge = graph->edge(g1->getVertexProperty(), g2->getVertexProperty());
     BOOST_REQUIRE(edge.second);
     BOOST_CHECK(graph->getGlobalEdgeCount(edge.first) == 3);

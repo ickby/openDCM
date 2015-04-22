@@ -25,6 +25,8 @@
 #include "opendcm/core/clustergraph.hpp"
 #include "opendcm/core/filtergraph.hpp"
 
+#include <boost/graph/undirected_dfs.hpp>
+
 #include <boost/test/unit_test.hpp>
 
 using namespace dcm;
@@ -215,6 +217,15 @@ BOOST_AUTO_TEST_CASE(removing) {
     
 };
 
+template<typename T>
+void pretty(T t) {
+    std::cout<<__PRETTY_FUNCTION__<<std::endl;
+};
+
+template<typename P, typename G, typename K>
+void prettymap(property_map<P,G,K> map) {
+    std::cout<<__PRETTY_FUNCTION__<<std::endl;
+}    
 
 BOOST_AUTO_TEST_CASE(property_handling) {
 
@@ -258,12 +269,22 @@ BOOST_AUTO_TEST_CASE(property_handling) {
 
     //test property maps
     property_map<test_edge_property2, Graph> pmap(g1);
-    BOOST_CHECK(get(pmap, e) == 2);
-    put(pmap, e, 7);
-    BOOST_CHECK(get(pmap, e) == 7);
-    BOOST_CHECK(at(pmap, e) == 7);
-    at(pmap, e) = 5;
-    BOOST_CHECK(get(pmap, e) == 5);
+    BOOST_CONCEPT_ASSERT(( boost::WritablePropertyMapConcept<property_map<test_edge_property2, Graph>, graph::LocalEdge> ));
+    BOOST_CONCEPT_ASSERT(( boost::ReadWritePropertyMapConcept<property_map<test_edge_property2, Graph>, graph::LocalEdge> ));
+
+    BOOST_CHECK(boost::get(pmap, e) == 2);
+    boost::put(pmap, e, 7);
+    BOOST_CHECK(boost::get(pmap, e) == 7);
+    BOOST_CHECK(boost::at(pmap, e) == 7);
+    boost::at(pmap, e) = 5;
+    BOOST_CHECK(boost::get(pmap, e) == 5);
+    
+    //see it the default properties work in an boost algorithm
+    property_map<Index, Graph, LocalVertex> imap(g1);
+    property_map<Color, Graph, LocalEdge>   ie_cpm(g1);
+    property_map<Color, Graph, LocalVertex> iv_cpm(g1);
+    
+    boost::undirected_dfs(g1->getDirectAccess(), boost::dfs_visitor<boost::null_visitor>(), iv_cpm, ie_cpm, *g1->vertices().first);
 
 }
 
@@ -548,7 +569,7 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     
     g1->initIndexMaps();
 
-    dcm::graph::FilterGraph<Graph, 0> filter(g1);
+    dcm::graph::FilterGraph<Graph> filter(g1, 0);
     //at the begining the default edge and vertex group should be 0 and hence the graphs should be identical
     auto eit = g1->edges();
     auto geit = filter.edges();
@@ -570,7 +591,7 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     g1->setProperty<Group>(fusion::at_c<0>(v3c), 1);
     g1->setProperty<Group>(fusion::at_c<0>(v4c), 1);
       
-    dcm::graph::FilterGraph<Graph, 1> filter2(g1);
+    dcm::graph::FilterGraph<Graph> filter2(g1, 1);
  
     auto g2eit = filter2.edges();
     geit = filter.edges();

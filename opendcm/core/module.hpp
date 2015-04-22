@@ -20,15 +20,15 @@
 #ifndef DCM_MODULE_CORE_H
 #define DCM_MODULE_CORE_H
 
-#include <boost/mpl/int.hpp>
-#include <boost/multi_array.hpp>
-
+#include "accessgraph.hpp"
 #include "clustergraph.hpp"
+#include "filtergraph.hpp"
 #include "logging.hpp"
 #include "object.hpp"
 #include "analyse.hpp"
 #include "constraint.hpp"
 #include "geometry.hpp"
+#include "solver.hpp"
 
 #include <boost/preprocessor/seq/for_each_i.hpp>
 #include <boost/preprocessor/seq/enum.hpp>
@@ -36,8 +36,9 @@
 #include <boost/preprocessor/seq/fold_left.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
 
-#include <tbb/parallel_for_each.h>
-#include <tbb/flow_graph.h>
+#include <boost/mpl/int.hpp>
+#include <boost/multi_array.hpp>
+
 
 namespace mpl = boost::mpl;
 
@@ -130,7 +131,7 @@ protected:
 public:
 #endif
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
-    std::shared_ptr<graph::ClusterGraphBase> getGraph() {
+    std::shared_ptr<graph::AccessGraphBase> getGraph() {
         if(!graph)
             graph = std::make_shared<typename Final::Graph>();
 
@@ -141,7 +142,7 @@ protected:
     boost::multi_array<symbolic::EdgeReductionTree<Final>*,2> reduction;
 
 private:
-    std::shared_ptr<graph::ClusterGraphBase> graph;
+    std::shared_ptr<graph::AccessGraphBase> graph;
 #ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
@@ -214,24 +215,14 @@ struct ModuleCoreFinish : public Stacked {
      */
     void solve() {
         
-        //start with edge analysing
-        std::shared_ptr<Graph> g = std::static_pointer_cast<typename Final::Graph>(this->getGraph());
-        auto edges = g->template filterRange<typename Graph::edge_changed>(boost::edges(*g));
-        tbb::parallel_for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
-            symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(boost::source(e, *g));
-            symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(boost::target(e, *g));
-            symbolic::EdgeReductionTree<Final>* tree = reduction[g1->type][g2->type];
-            dcm_assert(tree)
-            tree->apply(g, e); 
-            g->acknowledgeEdgeChanges(e);
-        });
         
-        //next build up the calculation flow graph
-        tbb::flow::graph g;
-        tbb::flow::broadcast_node<tbb::flow::continue_msg> start(g);
+        
+        //All graph manipulation work has been done, from here on we only access the graph. 
+        //Next find all connected components and build the numeric solving system based on them
+        solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
                 
-        start.try_put(tbb::flow::continue_msg());
-        g.wait_for_all();
+        //post process the finished calculation
+        
     };
 };
 

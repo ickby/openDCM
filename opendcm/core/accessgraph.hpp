@@ -17,11 +17,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef ACCESSGRAPH_HPP
-#define ACCESSGRAPH_HPP
+#ifndef DCM_ACCESSGRAPH_HPP
+#define DCM_ACCESSGRAPH_HPP
 
 #include <map>
 
+#include <boost/graph/properties.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/filtered_graph.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -104,13 +105,22 @@ struct changed {
 /**
  * @brief Add an index to vertices and edges
  *
- * Most boost graph algorithms need a index for verticesand edges, ranging from 0 to count. As this can
+ * Most boost graph algorithms need a index for vertices and edges, ranging from 0 to count. As this can
  * be useful for many other things it is added as property.
  **/
 struct Index {
     typedef int type;
 };
 
+/**
+ * @brief Add a color to vertices and edges
+ *
+ * Most boost graph algorithms need a color for vertices and edges, monitoring algorithm progress. As this can
+ * be useful for many other things it is added as property.
+ **/
+struct Color {
+    typedef boost::default_color_type type;
+};
 
 /**
  * @brief The edge/vertex belongs to a certain group
@@ -250,8 +260,8 @@ struct MultiEdgeProperty {
 
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 //or which are needed in the internal algorithms
-typedef mpl::vector3<Index, Group, VertexProperty> bgl_v_props;
-typedef mpl::vector2<Index, Group> bgl_e_props;
+typedef mpl::vector4<Index, Color, Group, VertexProperty> bgl_v_props;
+typedef mpl::vector3<Index, Color, Group> bgl_e_props;
 typedef mpl::vector1<EdgeProperty> bgl_ge_props;
 
 //allow to hold multiple global edges in a property
@@ -486,6 +496,10 @@ public:
     
     typename boost::graph_traits<Graph>::degree_size_type outDegree(LocalVertex v) const {
         return boost::out_degree(v, m_graph);
+    };    
+        
+    std::pair<local_out_edge_iterator, local_out_edge_iterator> outEdges(LocalVertex v) {
+        return boost::out_edges(v, m_graph);
     };
     
     std::pair<local_edge_iterator, local_edge_iterator> edges() {    
@@ -494,6 +508,15 @@ public:
     
     std::pair<local_vertex_iterator, local_vertex_iterator> vertices() {
         return boost::vertices(m_graph);
+    };
+    
+
+    LocalVertex source(LocalEdge e) {
+        return boost::source(e, m_graph);
+    };
+    
+    LocalVertex target(LocalEdge e) {
+        return boost::target(e, m_graph);
     };
 
     //Make sure the compiler finds the base class setters even with equal named functions in this class
@@ -875,35 +898,6 @@ public:
 //********************
 
 /**
- * @brief Get vertex property information
- *
- * This traits struct is used to get property information regarding AccessGraph vertices. It
- * allows access to the local descriptor, the mpl property sequence and the position, at which the
- * fusion property sequence is stored inside the bundle. It's used to allow generic property
- * selection in combination with @ref property_selector
- **/
-template<typename Graph>
-struct vertex_selector {
-    typedef typename dcm::graph::LocalVertex key_type;
-    typedef typename Graph::vertex_properties sequence_type;
-    typedef mpl::int_<1> property_distance;
-};
-
-/** @brief Get edge property information
- *
- * This traits struct is used to get property information regarding AccessGraph edges. It
- * allows access to the local descriptor, the mpl property sequence and the position, at which the
- * fusion property sequence is stored inside the bundle. It's used to allow generic property
- * selection in combination with @ref property_selector
- **/
-template<typename Graph>
-struct edge_selector {
-    typedef dcm::graph::LocalEdge key_type;
-    typedef typename Graph::edge_properties sequence_type;
-    typedef mpl::int_<0> property_distance;
-};
-
-/**
  * @brief Select property information trait depending on property type
  *
  * Allows generic access to property information like descriptor or property sequence by exposing
@@ -911,46 +905,12 @@ struct edge_selector {
  * property.
  **/
 template< typename Prop, typename Graph>
-struct property_selector :  mpl::if_ <
+struct property_key_selector :  mpl::if_ <
         boost::is_same <
-        typename mpl::find<typename Graph::edge_properties, Prop>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > ,
-        vertex_selector<Graph>,
-        edge_selector<Graph> >::type {};
+        typename mpl::find<typename Graph::vertex_properties, Prop>::type,
+        typename mpl::end<typename Graph::vertex_properties>::type > ,
+        LocalEdge, LocalVertex > {};
 
-        
-/** @addtogroup Metafunctions
- * @{*/
-/**
- * @brief Expose if this is a edge property
- **/
-template<typename T, typename Graph>
-struct is_edge_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::edge_properties, T>::type,
-        typename mpl::end<typename Graph::edge_properties>::type > > {};
-/**
- * @brief Expose if this is a global edge property
- **/
-template<typename T, typename Graph>
-struct is_globaledge_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::globaledge_properties, T>::type,
-        typename mpl::end<typename Graph::globaledge_properties>::type > > {};
-/**
- * @brief Expose if this is a vertex property
- **/
-template<typename T, typename Graph>
-struct is_vertex_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::vertvertexex_properties, T>::type,
-        typename mpl::end<typename Graph::vertex_properties>::type > > {};
-/**
- * @brief Expose if this is a cluster property
- **/
-template<typename T, typename Graph>
-struct is_cluster_property : mpl::not_< boost::is_same <
-        typename mpl::find<typename Graph::cluster_properties, T>::type,
-        typename mpl::end<typename Graph::cluster_properties>::type > > {};
-
-/**@}*/
 
 
 /**
@@ -963,21 +923,27 @@ struct is_cluster_property : mpl::not_< boost::is_same <
  * information at their entity. To use this in combination with boost graph algorithms, this class can
  * be used to expose vertex and edge properties as propertie maps to the boost algorithms. All process
  * information is then stored permanently at the relevant position.
+ * 
+ * @remarks If the used property is stored only at edges or vertices this is automaticly detected. If 
+ * however the property is used for both it cant be detected for which entity, ede or vertex, the map
+ * shall be used. In this case it is needed to provide the access key type (\ref LocalVertex or 
+ * \ref LocalEdge) as third template parameter
+ * 
+ * @tparam Property the property to access for read and write operations
+ * @tparam Graph the graph type for which the property map is created
+ * @tparam Key the descriptor type for which the map shall be valid 
  **/
-template <typename Property, typename Graph>
+template <typename Property, typename Graph, 
+          typename Key = typename dcm::graph::property_key_selector<Property, Graph>::type>
 class property_map  {
 
 public:
     //expose boost property map interface types
-    typedef typename dcm::graph::property_selector<Property, Graph>::key_type key_type;
+    typedef Key key_type;
     typedef typename Property::type value_type;
     typedef typename Property::type&  reference;
     typedef boost::lvalue_property_map_tag category;
 
-    //expose cutom types for easy access
-    typedef Property property;
-    typedef typename dcm::graph::property_selector<Property, Graph>::sequence_type sequence;
-    typedef typename dcm::graph::property_selector<Property, Graph>::property_distance distance;
 
     /**
      * @brief Links property map with the AccessGraph which shall be accessed
@@ -1099,7 +1065,7 @@ struct changes_property_helper {
  
     template<typename bundle>
     result_type operator()(bundle& p) {
-        p.template hasPropertyChanges();
+        return p.template hasPropertyChanges();
     }
 };
 
@@ -1122,7 +1088,7 @@ template< typename edge_prop, typename globaledge_prop, typename vertex_prop, ty
 template<typename T>
 typename AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::global_extractor::result_type
 AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::global_extractor::operator()(T& bundle) const {
-    return bundle.getProperty<EdgeProperty>();
+    return bundle.template getProperty<EdgeProperty>();
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
@@ -1380,40 +1346,52 @@ AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::
                           boost::make_filter_iterator(p, range.second, range.second));
 };
     
+//for some completly not understandable reason the compiler does not find some get/put methods for vertex and color in the boost namespace.
+template<typename G>
+typename dcm::graph::property_map<Color, G, LocalVertex>::value_type    get(const dcm::graph::property_map<Color, G, LocalVertex>& map,
+            const typename dcm::graph::property_map<Color, G, LocalVertex>::key_type& key)
+{
+    return  map.m_graph->template getProperty<Color>(key);
+};
+
+template<typename G>
+void    put(const dcm::graph::property_map<Group, G, LocalVertex>& map,
+            const typename dcm::graph::property_map<Group, G, LocalVertex>::key_type& key,
+            const typename dcm::graph::property_map<Group, G, LocalVertex>::value_type& value)
+{
+    map.m_graph->template setProperty<Group>(key, value);
+};
+
 } //namespace graph
 } //namespace dcm
 
 
 namespace boost {
 //access the propertymap needs to be boost visable
-template<typename P, typename G>
-typename dcm::graph::property_map<P, G>::value_type    get(const dcm::graph::property_map<P, G>& map,
-        typename dcm::graph::property_map<P, G>::key_type key)
+template<typename P, typename G, typename K>
+typename dcm::graph::property_map<P, G, K>::value_type    get(const dcm::graph::property_map<P, G, K>& map,
+            const typename dcm::graph::property_map<P, G, K>::key_type& key)
 {
-
-    typedef dcm::graph::property_map<P, G> map_t;
     return  map.m_graph->template getProperty<P>(key);
 };
 
-template <typename P, typename G>
-void  put(const dcm::graph::property_map<P, G>& map,
-          typename dcm::graph::property_map<P, G>::key_type key,
-          const typename dcm::graph::property_map<P, G>::value_type& value)
+template<typename P, typename G, typename K>
+void  put(const dcm::graph::property_map<P, G, K>& map,
+          const typename dcm::graph::property_map<P, G, K>::key_type& key,
+          const typename dcm::graph::property_map<P, G, K>::value_type& value)
 {
 
-    typedef dcm::graph::property_map<P, G> map_t;
     map.m_graph->template setProperty<P>(key, value);
 };
 
 
-template <typename P, typename G>
-typename dcm::graph::property_map<P, G>::reference at(const dcm::graph::property_map<P, G>& map,
-        typename dcm::graph::property_map<P, G>::key_type key)
+template<typename P, typename G, typename K>
+typename dcm::graph::property_map<P, G, K>::reference at(const dcm::graph::property_map<P, G, K>& map,
+        const typename dcm::graph::property_map<P, G, K>::key_type& key)
 {
-    typedef dcm::graph::property_map<P, G> map_t;
     return map.m_graph->template getPropertyAccessible<P>(key);
 }
-}
+} //boost
 
 
 #endif // ACCESSGRAPH_HPP

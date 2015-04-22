@@ -173,8 +173,8 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
     virtual void apply(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge e) {
         
         //extract the geometry data
-        symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(boost::source(e, *g));
-        symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(boost::target(e, *g));
+        symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
+        symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
         
         dcm_assert(g1 != nullptr && g2 != nullptr);
         

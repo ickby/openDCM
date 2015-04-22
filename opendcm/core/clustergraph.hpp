@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef CLUSTERGRAPH_HPP
-#define CLUSTERGRAPH_HPP
+#ifndef DCM_CLUSTERGRAPH_HPP
+#define DCM_CLUSTERGRAPH_HPP
 
 #include "accessgraph.hpp"
 

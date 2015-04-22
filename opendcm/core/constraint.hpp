@@ -180,8 +180,8 @@ template<typename Kernel, typename PC, template<class, bool> class PG1, template
 struct Constraint {
     
 private:
-    numeric::Geometry G1<Kernel, PG1> m_geometry1;
-    numeric::Geometry G2<Kernel, PG2> m_geometry2;
+    //numeric::Geometry G1<Kernel, PG1> m_geometry1;
+    //numeric::Geometry G2<Kernel, PG2> m_geometry2;
 };
     
 }//numeric
