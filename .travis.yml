@@ -9,8 +9,6 @@ before_script:
   - sudo apt-get install -y libboost-test-dev
   - sudo apt-get install -y libboost-system-dev
   - sudo apt-get install -y libboost-filesystem-dev
-  - sudo apt-get install -y libboost-thread-dev
-  - sudo apt-get install -y libboost-chrono-dev
   - sudo apt-get install -y libtbb-dev
   - mkdir build
   - cd build

@@ -213,9 +213,7 @@ struct ModuleCoreFinish : public Stacked {
      * 
      * Follow the solve procedure as outlined in the uml files
      */
-    void solve() {
-        
-        
+    void solve() {       
         
         //All graph manipulation work has been done, from here on we only access the graph. 
         //Next find all connected components and build the numeric solving system based on them
