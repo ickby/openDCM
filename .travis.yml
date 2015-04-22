@@ -4,7 +4,7 @@ compiler:
   - clang
 
 before_install:
-
+  - sudo add-apt-repository ppa:apokluda/boost1.53 -y
   
   # g++4.8.1
   - if [ "$CXX" == "g++" ]; then sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; fi
@@ -16,6 +16,7 @@ before_install:
 
 install:
   - sudo apt-get install -y libeigen3-dev
+  - sudo apt-get install -y libboost1.53-dev
   - sudo apt-get install -y libtbb-dev
    
   # g++4.8.1 for c++11
@@ -25,15 +26,7 @@ install:
   # clang 3.4 for c++11
   - if [ "$CXX" == "clang++" ]; then sudo apt-get install --allow-unauthenticated -qq clang-3.4; fi
   - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4"; fi
-  
-  #try to install boost
-  - wget --no-verbose --output-document=boost-trunk.tar.bz2 http://sourceforge.net/projects/boost/files/boost/1.55.0/boost_1_55_0.tar.bz2/download
-  - export BOOST_ROOT="$TRAVIS_BUILD_DIR/../boost-trunk"
-  - export CMAKE_MODULE_PATH="$BOOST_ROOT"
-  - mkdir -p $BOOST_ROOT
-  - tar jxf boost-trunk.tar.bz2 --strip-components=1 -C $BOOST_ROOT
-  - (cd $BOOST_ROOT; ./bootstrap.sh --with-libraries=filesystem,system,log,test)
-  - (cd $BOOST_ROOT; ./b2 threading=multi --prefix=$BOOST_ROOT -d0 install)
+
   
 before_script:
   - mkdir build
