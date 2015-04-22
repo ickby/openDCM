@@ -17,7 +17,7 @@ set(test_SRC  define.cpp
 	      #system.cpp
 	      #analyse.cpp
 	      #constraint.cpp
-	      #numeric.cpp
+	      numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
 	      module3d.cpp
@@ -31,7 +31,7 @@ set(test_SRC  define.cpp
 )
 
 if(LOGGING)
-set(LOG_LIBS      boost_log
+set(LOG_LIBS  boost_log
 	      rt
 	      ${Boost_SYSTEM_LIBRARY}
 	      ${Boost_FILESYSTEM_LIBRARY}
