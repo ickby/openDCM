@@ -3,6 +3,10 @@ compiler:
   - gcc
   - clang
 
+env:
+  global:
+   - secure: "H4JJrrsbFcamFrlGBPLXHdKlkt9ufkN2jAxrZ6+hXLuf/AxoYp7tP1F7jWNiELrE5jauiUWzufx+0xrzBzb1Wqr1q1UCFSlYTBr7EEngU8MGbG6QHkZb+Q/1W7WOjvJKCyWXOdhrAsejnE2r/wZwmpZZSDjRyn2AhJ5esQRIzKY="
+   
 before_install:
   - sudo add-apt-repository ppa:apokluda/boost1.53 -y
   - sudo add-apt-repository ppa:danmbox/ppa -y
@@ -35,4 +39,14 @@ before_script:
   - cd build
   - cmake ..
 
+addons:
+  coverity_scan:
+    project:
+      name: "ickby/openDCM"
+      description: "Build submitted via Travis CI"
+    notification_email: stefantroeger@gmx.net
+    build_command_prepend: "mkdir build; cd build; cmake ..;"
+    build_command:   "make -j 4"
+    branch_pattern: master
+    
 script: make
