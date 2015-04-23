@@ -5,6 +5,7 @@ compiler:
 
 before_install:
   - sudo add-apt-repository ppa:apokluda/boost1.53 -y
+  - sudo add-apt-repository ppa:danmbox/ppa -y
   
   # g++4.8.1
   - if [ "$CXX" == "g++" ]; then sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; fi
