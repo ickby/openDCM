@@ -1,4 +1,8 @@
-[![Build Status](https://travis-ci.org/ickby/openDCM.svg?branch=master)](https://travis-ci.org/ickby/openDCM)
+Travis CI: [![Build Status](https://travis-ci.org/ickby/openDCM.svg?branch=master)](https://travis-ci.org/ickby/openDCM)
+Coverty:   <a href="https://scan.coverity.com/projects/4914">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/4914/badge.svg"/>
+</a>
 
 Introduction
 ----------
