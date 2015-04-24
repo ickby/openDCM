@@ -164,8 +164,8 @@ void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node st
     //follow that edge to the adjacent vertices until we find a edge with more than two connections. That is
     //where the leaf ends.
     tbb::task_group leafs;
-    //tbb::concurrent_queue<Solvable> parallel_solvable;
-    //tbb::concurrent_queue<Solvable> end_solvable;
+    tbb::concurrent_queue<tbb::flow::graph_node*> parallel_solvable;
+    tbb::concurrent_queue<tbb::flow::graph_node*> end_solvable;
     
     int leafcount = 1e3;
     auto iter = g->vertices();
@@ -174,10 +174,10 @@ void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node st
         //start the leaf processing if a vertex only has a single edge
         if(g->outDegree(*iter.first) == 1) {
             
-            //doing this in parallel is not error prone: it may happen that certain leafes are not found 
+            //doing this in parallel is not error free: it may happen that certain leafes are not found 
             //for example in a Y topology: when thread one removes one arm and thread two the other, it 
             //is possible that both detect the middle node as having 3 out edges and stop at the same 
-            //position. Then the third arm stays behind as leaf
+            //position. Then the third arm stays behind as leaf.
             leafs.run([iter, g, leafcount, &s]() {                
                 
                 //group all edges and vertices that belong to the leaf
@@ -201,9 +201,9 @@ void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node st
                 //   only the leaf-> main trunk connection needs to be calculated at the end
                 //2. last leaf vertex is a geometry, than the whole leaf needs to be calculated 
                 //   at the end
-                //if(g->template getProperty<graph::type_info>(source) == graph::Cluster) {
+                if(g->template getProperty<graph::Type>(source) == graph::Cluster) {
                     
-                //}
+                }
             });            
         }
     }

@@ -82,15 +82,28 @@ struct AccessGraphBase {};
  */
 
 /**
- * @brief Add a type to clusters
+ * @brief Add a type to vertex / cluster / edge
  *
  * Allows to specify special types to AccessGraphs and make a it possibe to distuingish between
- * diffrent purposes. The cluster types need to be int.
+ * diffrent purposes. 
+ * 
+ * 0 - Geometry
+ * 1 - Cluster
  **/
-struct type_info {
-    //states the type of a cluster
+struct Type {
+    //states the type of a entity
     typedef int type;
+    
+    struct default_value {
+        int operator()() {
+            return 0;
+        };
+    };
 };
+static int Cluster  = 1;
+static int Geometry = 0;
+
+
 //cluster in graph changed?
 /**
  * @brief Was the cluster changed?
@@ -260,9 +273,10 @@ struct MultiEdgeProperty {
 
 //Define vertex and edge properties which are always added for use in the boost graph library algorithms
 //or which are needed in the internal algorithms
-typedef mpl::vector4<Index, Color, Group, VertexProperty> bgl_v_props;
-typedef mpl::vector3<Index, Color, Group> bgl_e_props;
-typedef mpl::vector1<EdgeProperty> bgl_ge_props;
+typedef mpl::vector5<Index, Color, Group, Type, VertexProperty> bgl_v_props;
+typedef mpl::vector4<Index, Color, Group, Type> bgl_e_props;
+typedef mpl::vector1<EdgeProperty>  bgl_ge_props;
+typedef mpl::vector2<Type, changed> bgl_c_props;
 
 //allow to hold multiple global edges in a property
 template<typename ge_props>
@@ -324,7 +338,7 @@ struct GlobalEdgeProperty {
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, 
             template<class, class, class, class, class> class graph_base>
 class  AccessGraph : public AccessGraphBase, public boost::noncopyable, 
-            public PropertyOwner<typename ensure_property<cluster_prop, changed>::type>,
+            public PropertyOwner<typename ensure_property<cluster_prop, bgl_c_props>::type>,
             public std::enable_shared_from_this<AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base> > {
 
 public:
@@ -347,7 +361,7 @@ public:
      * @brief mpl::vector with all edge properties
      *
      * The edge properties supplied as template argument to the AccessGraph are extended with graph
-     * specific properties, for example a Index_prop. These extra properties are intendet to be
+     * specific properties, for example a Index. These extra properties are intendet to be
      * used with boost graph algorithms as property maps. They need to be in specefied by the AccessGraph
      * as they are used within it's implementation. If the graph specific properties are already a part
      * of the given property sequence, nothing happens, they are not added twice.
@@ -368,13 +382,22 @@ public:
      * @brief mpl::vector with all vertex properties
      *
      * The vertex properties supplied as template argument to the AccessGraph are extended with graph
-     * specific properties as Index_prop. These extra properties are intendet to be
+     * specific properties as Index. These extra properties are intendet to be
      * used with boost graph algorithms as property maps. They need to be in specefied by the AccessGraph
      * as they are used within it's implementation.If the graph specific properties are already a part
      * of the given property sequence, nothing happens, they are not added twice.
      **/
     typedef typename ensure_properties<vertex_prop, bgl_v_props>::type vertex_properties;
 
+    /**
+     * @brief mpl::vector with all vertex properties
+     *
+     * The cluster properties supplied as template argument to the AccessGraph are extended with graph
+     * specific properties as Type.
+     **/
+    typedef typename ensure_property<cluster_prop, bgl_c_props>::type cluster_properties;
+    
+    
     /**
      * @brief The property bundle for GlobalEdges
      *
@@ -412,9 +435,6 @@ public:
 
     typedef std::enable_shared_from_this<AccessGraph<edge_prop, globaledge_prop, vertex_prop, 
                                                      cluster_prop, graph_base> > sp_base;
-
-    //if changed_prop is not a property we have to add it now
-    typedef typename ensure_property<cluster_prop, changed>::type cluster_properties;
 
     typedef typename boost::graph_traits<Graph>::vertex_iterator   local_vertex_iterator;
     typedef typename boost::graph_traits<Graph>::edge_iterator     local_edge_iterator;

@@ -11,8 +11,8 @@ option(EXTERNALIZE "Explicit instantiation of templates to reduce compile time m
 
 
 find_package(Boost 1.49.0 COMPONENTS unit_test_framework system filesystem REQUIRED)
-find_package(Eigen3)
-find_package(TBB)
+find_package(Eigen3 3.0 REQUIRED)
+find_package(TBB 4.2 REQUIRED)
 
 #we have c++11 code here
 add_definitions(-std=c++11)
