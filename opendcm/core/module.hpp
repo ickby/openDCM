@@ -48,7 +48,7 @@ namespace mpl = boost::mpl;
         mpl::push_back<mpl::_1, mpl::_2>>::type FullObjectList;
 
 #define ADD_ADAPTOR(s, data, elem) \
-    geometry::adaptor<elem>
+    typename geometry::adaptor<elem>::placeholder
 
 #define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(ADD_ADAPTOR, 0, seq))> TmpGeometryList;\
@@ -96,12 +96,25 @@ struct ModuleCoreInit {
     {
         int size = mpl::size<typename Final::GeometryList>::type::value;
         reduction.resize(boost::extents[size][size]);
+        
+        //build up the default reduction nodes
+        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+        typedef mpl::range_c<int,0,
+                mpl::size<typename Final::GeometryList>::value> StorageRange;
+        //now iterate that sequence so we can access all storage elements with knowing the position
+        //we are at
+        mpl::for_each<StorageRange>(GlobalReductionNodeCreator<typename Final::GeometryList>(reduction));
     };
 
     ~ModuleCoreInit() {
 #ifdef DCM_USE_LOGGING
         stop_log(sink);
 #endif
+        /*
+        //delete all reduction nodes
+        int size = std::pow(mpl::size<typename Final::GeometryList>::value, 2);
+        for(int i=0; i<size; ++i)
+            delete reduction(i);*/
     };
 
 #ifdef DCM_USE_LOGGING
@@ -147,13 +160,52 @@ private:
     boost::shared_ptr< sink_t > sink;
 #endif
 
+    template<typename Sequence, typename Number>
+    struct ReductionNodeCreator {
+    
+        boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction;
+        
+        ReductionNodeCreator(boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& r) 
+            : reduction(r) {};
+            
+        template<typename T>
+        void operator()(const T& t) {
+        
+            typedef typename mpl::at<Sequence, Number>::type t1;
+            typedef typename mpl::at<Sequence, T>::type      t2;
+            
+            auto node = new symbolic::GeometryEdgeReductionTree<Final, 
+                                geometry::extractor<t1>::template primitive,
+                                geometry::extractor<t2>::template primitive >();
+        
+            int idx1 = Final::template geometryIndex<t1>::value;
+            int idx2 = Final::template geometryIndex<t2>::value;
+             
+            reduction[idx1][idx2] = node;
+            reduction[idx2][idx1] = node;
+        };
+    };
+    
+    template<typename Sequence>
+    struct GlobalReductionNodeCreator {
+        
+        boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction;
+        
+        GlobalReductionNodeCreator(boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& r) 
+            : reduction(r) {};
+            
+        template<typename T>
+        void operator()(const T& t) {
+        
+              typedef mpl::range_c<int, T::value, mpl::size<Sequence>::value> StorageRange;
+              mpl::for_each<StorageRange>(ReductionNodeCreator<Sequence, T>(reduction));
+        };
+    };
 };
 
 template<typename Final, typename Stacked>
 struct ModuleCoreFinish : public Stacked {
     
-    ModuleCoreFinish() {};
-
     //The FullObjectList holds all created object types, including all "evolution steps", meaning every
     //base class of the final object is represented as well. However, we often want only to habe the user-visible types
     //without the base classes. Therefore the ObjectList is provided which only holds types which are directly
@@ -178,28 +230,29 @@ struct ModuleCoreFinish : public Stacked {
         typedef typename mpl::distance<typename mpl::begin<ObjectList>::type, iterator>::type ID;
     };
     
-    template<template<class, bool> class G>
-    struct geometryIndex {
-        typedef typename mpl::find<typename Stacked::GeometryList, geometry::adaptor<G>>::type iterator;
-        typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
-        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_TYPE_NOT_REGISTERT, (geometry::adaptor<G>));
-        
-        typedef typename mpl::distance<typename mpl::begin<typename Stacked::GeometryList>::type,
-                            iterator>::type type; 
-        const static long value = type::value;
-    };
-    
     template<typename G>
-    struct geometryID {
+    struct geometryIndex {
         typedef typename mpl::find<typename Stacked::GeometryList, G>::type iterator;
         typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
-        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_ADAPTOR_TYPE_NOT_REGISTERT, (G));
+        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_TYPE_NOT_REGISTERT, (G));
         
         typedef typename mpl::distance<typename mpl::begin<typename Stacked::GeometryList>::type,
                             iterator>::type type; 
         const static long value = type::value;
     };
 
+    template<template<class, bool> class G>
+    struct geometryIndex<geometry::adaptor<G>> {
+        typedef typename geometryIndex<typename geometry::adaptor<G>::placeholder>::type type; 
+        const static long value = type::value;
+    };
+    
+    template<template<class, bool> class G>
+    struct primitiveGeometryIndex {
+        typedef typename geometryIndex<typename geometry::adaptor<G>::placeholder>::type type; 
+        const static long value = type::value;
+    };
+    
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
          

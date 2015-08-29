@@ -38,6 +38,7 @@ namespace symbolic {
 struct ReductionResult {
   
     virtual void getGeometry() {};
+
 };
    
 struct ResultProperty {
@@ -117,11 +118,11 @@ struct GeometryNode  {
      * @param walker The tree walker local storage
      */    
     virtual void buildNumeric(symbolic::GeometryTreeWalker<Kernel, G1, G2>* walker) {
-        
+        /*
         for(symbolic::Constraint* c : walker->ConstraintPool) {
         
             
-        }        
+        } */       
     };
     
 protected:    
@@ -134,23 +135,30 @@ protected:
     };
     
     std::vector<GeometryEdge<Kernel, G1, G2>> edges;
-};
+};   
+
 
 template<typename Kernel, template<class, bool> class G1, template<class, bool> class G2>
 struct GeometryTreeWalker : public ReductionResult {
    
     typedef typename Kernel::Scalar Scalar;
     
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Parameter; //the parameters needed to describe the current dof
-    G1<Kernel, false> geometry1;
-    G2<Kernel, false> geometry2;
+    GeometryTreeWalker(const G1<Kernel, false>& g1, const G2<Kernel, false>& g2) : 
+        geometry1(g1), geometry2(g2) {};
     
-    GeometryNode<Kernel, G1, G2>*       ResultNode; //the node we stopped at
+//protected:
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Parameter; //the parameters needed to describe the current dof
+    const G1<Kernel, false>& geometry1;
+    const G2<Kernel, false>& geometry2;
+    
+    GeometryNode<Kernel, G1, G2>*       ResultNode;     //the node we stopped at
     std::vector<symbolic::Constraint*>  ConstraintPool; //all remaining constraints
 };
 
 template<typename Final>
 struct EdgeReductionTree {
+    
+    virtual ~EdgeReductionTree() {};
     
     /**
      * @brief Analyses the global edges and finds the best reduction result
@@ -170,17 +178,23 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
     typedef typename Final::Kernel  Kernel;
     typedef typename Kernel::Scalar Scalar; 
     
+    virtual ~GeometryEdgeReductionTree() {};
+    
+    template<typename T>
+    void pretty(const T& t) {
+        std::cout<<__PRETTY_FUNCTION__<<std::endl;
+    };
+    
     virtual void apply(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge e) {
-        
+
+
         //extract the geometry data
         symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
         symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
-        
-        dcm_assert(g1 != nullptr && g2 != nullptr);
-        
+              
         //order the symbolic constraints to match the template arguments
-        symbolic::Geometry* sg1 = (Final::template geometryIndex<G1>::value == g1->type) ? g1 : g2;
-        symbolic::Geometry* sg2 = (Final::template geometryIndex<G1>::value == g2->type) ? g2 : g1;
+        symbolic::Geometry* sg1 = (Final::template primitiveGeometryIndex<G1>::value == g1->type) ? g1 : g2;
+        symbolic::Geometry* sg2 = (Final::template primitiveGeometryIndex<G1>::value == g2->type) ? g2 : g1;
         
         dcm_assert(sg1 != sg2); 
         
@@ -192,15 +206,13 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
         ReductionResult* res = g->template getProperty<symbolic::ResultProperty>(e);
         GeometryTreeWalker<Kernel, G1, G2>* walker;
         if(!res)
-            walker = new GeometryTreeWalker<Kernel, G1, G2>;
+            walker = new GeometryTreeWalker<Kernel, G1, G2>(tg1, tg2);
         else {
             walker = static_cast<GeometryTreeWalker<Kernel, G1, G2>*>(res);
             walker->ConstraintPool.clear();
         }
         
         walker->ResultNode = this; //ensure default constraint handling when no reduction is possible
-        walker->geometry1  = tg1; 
-        walker->geometry2  = tg2;
         walker->Parameter  = Eigen::Matrix<Scalar, 1, 1>::Zero(); //setup default values
         
         //setup the ConstraintPool

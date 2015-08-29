@@ -45,14 +45,14 @@ BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 BOOST_AUTO_TEST_CASE(cluster) {
 
-    typedef dcm::numeric::Cluster3<K>::ParameterIterator  cParIt;
-    typedef dcm::numeric::Cluster3<K>::Derivative         cDer;
-    typedef dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3>::Derivative clDer;
+    typedef dcm::numeric::Cluster3d<K>::ParameterIterator  cParIt;
+    typedef dcm::numeric::Cluster3d<K>::Derivative         cDer;
+    typedef dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>::Derivative clDer;
 
     try {
 
         dcm::numeric::LinearSystem<K> sys(10,10);
-        dcm::numeric::Cluster3<K> cluster;
+        dcm::numeric::Cluster3d<K> cluster;
 
         cluster.init(sys);
         cluster.recalculate();
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         BOOST_CHECK(cluster.parameters().size()==6);
         BOOST_CHECK(cluster.derivatives().size()==6);
 
-        dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3> clGeom;
+        dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3> clGeom;
         clGeom.init(sys);
 
         BOOST_CHECK(clGeom.parameters().size()==0);
@@ -180,11 +180,10 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         std::shared_ptr<System::Geometry3D> g3 = s.addGeometry3D(v3);
         std::shared_ptr<System::Geometry3D> g4 = s.addGeometry3D(v4);
         
-        std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=2.);
-        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g1, g2, dcm::distance=3.);
-        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g2, g3, dcm::distance=4.);
-        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g3, g4, dcm::distance=5.);
-        std::shared_ptr<System::Constraint3D> c5 = s.addConstraint3D(g1, g4, dcm::distance=6.);
+        std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=3.);
+        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g2, g3, dcm::distance=4.);
+        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g3, g4, dcm::distance=5.);
+        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g1, g4, dcm::distance=6.);
         
         s.solve();
     

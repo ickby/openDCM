@@ -142,8 +142,13 @@ struct Dogleg {
     template<typename Functor>
     int solve(typename Kernel::MappedEquationSystem& sys, Functor& rescale);*/
 };
+
+struct DummyKernel : public numeric::KernelBase {
+
+    typedef int Scalar;
 };
 
+};
 
 template<typename NumericType, template<class> class Nonlinear = numeric::Dogleg>
 struct Eigen3Kernel : public numeric::KernelBase {

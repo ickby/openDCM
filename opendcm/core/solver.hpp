@@ -154,9 +154,43 @@ private:
     broadcast_node m_start = broadcast_node(m_graph);
 };
 
+
+template<typename Graph>
+struct SizeExtractor : public boost::default_dfs_visitor {
+
+    typedef typename Graph::LocalVertex LocalVertex;
+    typedef typename Graph::LocalEdge   LocalEdge;
+
+    int parameter = 0, equations = 0;
+   
+    void tree_edge(LocalEdge u, const Graph& graph) {
+
+        LocalVertex source = graph->source(u);
+        LocalVertex target = graph->target(u);
+        auto result = graph.template getProperty<symbolic::ResultProperty>(u);
+        
+        //check which vertices need to be processed
+        if( graph->template getProperty<graph::Color>(source) == boost::default_color_type::white_color )  
+            parameter += result->getReducedParameter(graph.template getProperty<symbolic::GeometryProperty>(source));
+        
+        if( graph->template getProperty<graph::Color>(target) == boost::default_color_type::white_color )        
+            parameter += result->getReducedParameter(graph.template getProperty<symbolic::GeometryProperty>(target));
+       
+        equations += result->getReducedEquations();
+    };
+
+    //back edges are special. if we are in clusters, all backedge constraints depend on all clusters
+    //in the cluster cycle
+    void back_edge(LocalEdge u, const Graph& graph) {
+
+    
+    };
+};
+
 template<typename Graph>
 void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node start, flow_node join) {
     
+    /*
     //we build up the numeric system for this graph. This also means finding parts that can be solved 
     //indivudual or simply after the main part (one-connected components)
     
@@ -206,8 +240,15 @@ void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node st
                 }
             });            
         }
-    }
+    }*/
     
+    //iterate over all edges and create the equations for them
+    auto edges = g->edges();
+    for(; edges.first != edges.second; ++edges.first) {
+    
+        auto result = g->template getProperty<symbolic::ResultProperty>(*edges.first);
+        
+    }
 };
     
 template<typename Final, typename Graph>

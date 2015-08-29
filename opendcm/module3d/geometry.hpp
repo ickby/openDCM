@@ -107,10 +107,10 @@ struct Cylinder : public Geometry<Kernel, MappedType,
 }//geometry
 
 //the user-exposed geometry types for use in the geometry traits
-typedef geometry::adaptor<geometry::Point3>  Point3;
-typedef geometry::adaptor<geometry::Line3> Line3;
-typedef geometry::adaptor<geometry::Plane> Plane3;
-typedef geometry::adaptor<geometry::Cylinder> Cylinder3;
+typedef geometry::adaptor<geometry::Point3>     Point3;
+typedef geometry::adaptor<geometry::Line3>      Line3;
+typedef geometry::adaptor<geometry::Plane>      Plane3;
+typedef geometry::adaptor<geometry::Cylinder>   Cylinder3;
 
 namespace modell {
     

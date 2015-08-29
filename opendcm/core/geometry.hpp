@@ -264,9 +264,32 @@ protected:
  */
 template<template<class, bool> class Base>
 struct adaptor {
-    template<typename Kernel, bool b> using type    = Base<Kernel, b>;
+    template<typename Kernel, bool b> using primitive    = Base<Kernel, b>;
     template<typename Kernel>         using mapped  = Base<Kernel, true>;
     template<typename Kernel>         using storage = Base<Kernel, false>;
+    
+    typedef Base<numeric::DummyKernel, true> placeholder;
+};
+
+/**
+ * @brief Extractor of geometry base from initialized type
+ * 
+ * As a primitive geometry is mostly used without the template arguments it may be very cumbersome to use it. 
+ * Especialy if a fully defined type is needed. Therefore this extractor is provided. It allows to extract 
+ * the primitive type from fully initialized ones. This makes it possible to store or handle all primitive
+ * geometries as wanted and still access it's base whenever needed. 
+ * 
+ * \param Base the primitive geometry which should be wrapped
+ */
+template<typename T>
+struct extractor {};
+
+template<template<class, bool> class Base, typename Kernel, bool b>
+struct extractor<Base<Kernel, b>> {
+    
+    template<typename K, bool b_> using primitive = Base<K,b_>;
+    typedef Base<Kernel, true>  mapped;
+    typedef Base<Kernel, false> storage;
 };
 
 }//geometry
@@ -305,12 +328,27 @@ struct Geometry : public Base<Kernel, true> {
     typedef std::pair<Base<Kernel, false>, Parameter>  Derivative;
     typedef typename std::vector<Derivative>::iterator DerivativeIterator;
 
+    //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+    typedef mpl::range_c<int,0,
+            mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+                
+    Geometry() {
+        
+        fusion::for_each(Inherited::m_storage, Counter(m_parameterCount));
+    };
+    
     //allow access to parameters and derivatives
     std::vector< Parameter >&  parameters()   {
         return m_parameters;
     };
     std::vector< Derivative >& derivatives() {
         return m_derivatives;
+    };
+    
+    //allow to get the number of parameters this geometry offers. This function can be called before
+    //the geometry was initialized
+    int parameterCount() {
+        return m_parameterCount;
     };
 
     //sometimes it is possible to optimize constraint derivative calculation when we are
@@ -341,6 +379,7 @@ protected:
     bool m_init = false;
 #endif
     bool m_independent = true;
+    int  m_parameterCount = 0;
     std::vector< Parameter >  m_parameters;
     std::vector< Derivative > m_derivatives;
 
@@ -385,6 +424,34 @@ protected:
             s = 1;
         };
     };
+    
+    struct Counter {
+
+        int& count;
+        Counter(int& c) : count(c) {
+            count = 0;
+        }; 
+
+        template<typename T>
+        void operator()(T& t) const {
+            
+            count += size(t);
+        }
+        
+        template<typename T>
+        void operator()(T*& t) const {
+            
+            count += size(*t);
+        }
+
+        template<typename T>
+        int size(Eigen::MatrixBase<T>& m) const {
+            return m.rows()*m.cols();
+        };
+        int size(Scalar& s) const {
+            return 1;
+        };
+    };
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -412,6 +479,11 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
     typedef typename Kernel::Scalar Scalar;
     typedef Geometry<Kernel, Base>  Inherited;
     typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
+    
+    ParameterGeometry() {
+
+        fusion::for_each(m_parameterStorage, typename Inherited::Counter(Inherited::m_parameterCount));
+    };
     
     /**
      * @brief Initialization of the geometry for calculation
@@ -449,7 +521,6 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
 protected:
     ParameterStorage     m_parameterStorage = fusion::make_vector(
                                               ParameterStorageTypes::template create<Kernel, true>::build()...);
-    int                  m_parameterCount; //the amount of extra parameters this type needs
     Base<Kernel, false>  m_value;
 
     struct Remapper {

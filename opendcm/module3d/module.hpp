@@ -48,39 +48,18 @@ struct Module3D {
     struct type : public Stacked {
 
         typedef typename Stacked::Kernel Kernel;
-        symbolic::GeometryNode<Kernel, geometry::Point3, geometry::Point3>*   nodePoint3Point3;
-        symbolic::GeometryNode<Kernel, geometry::Point3, geometry::Line3>*    nodePoint3Line3;
-        symbolic::GeometryNode<Kernel, geometry::Point3, geometry::Plane>*    nodePoint3Plane;
-        symbolic::GeometryNode<Kernel, geometry::Point3, geometry::Cylinder>* nodePoint3Cylinder;
-        
+      
         type() : Stacked() {
-        
-            nodePoint3Point3   = new symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Point3>;
-            nodePoint3Line3    = new symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Line3>;
-            nodePoint3Plane    = new symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Plane>;
-            nodePoint3Cylinder = new symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Cylinder>;
-            
+                   
             //we create our default edge reduction trees
-            int id_point    = Final::template geometryIndex<geometry::Point3>::value;
-            int id_line     = Final::template geometryIndex<geometry::Line3>::value;
-            int id_plane    = Final::template geometryIndex<geometry::Plane>::value;
-            int id_cylinder = Final::template geometryIndex<geometry::Cylinder>::value;
-            Stacked::reduction[id_point][id_point]    = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Point3);
-            Stacked::reduction[id_point][id_line]     = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Line3);
-            Stacked::reduction[id_line][id_point]     = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Line3);
-            Stacked::reduction[id_point][id_plane]    = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Plane);
-            Stacked::reduction[id_plane][id_point]    = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Plane);
-            Stacked::reduction[id_point][id_cylinder] = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Cylinder);
-            Stacked::reduction[id_cylinder][id_point] = reinterpret_cast<symbolic::EdgeReductionTree<Final>*>(nodePoint3Cylinder);
+            int id_point    = Final::template primitiveGeometryIndex<geometry::Point3>::value;
+            int id_line     = Final::template primitiveGeometryIndex<geometry::Line3>::value;
+            int id_plane    = Final::template primitiveGeometryIndex<geometry::Plane>::value;
+            int id_cylinder = Final::template primitiveGeometryIndex<geometry::Cylinder>::value;
         };
         
         ~type() {
-            
-            delete static_cast<symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Point3>*>(nodePoint3Point3);
-            delete static_cast<symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Line3>*>(nodePoint3Line3);
-            delete static_cast<symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Plane>*>(nodePoint3Plane);
-            delete static_cast<symbolic::GeometryEdgeReductionTree<Final, geometry::Point3, geometry::Cylinder>*>(nodePoint3Cylinder);
-           
+                      
         }
         
         /**
@@ -117,13 +96,13 @@ struct Module3D {
                 
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
-                typedef symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template type> TypeGeometry;
+                typedef symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template primitive> TypeGeometry;
             
                 BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
                 
                 //store the type
                 typedef typename geometry_traits<T>::type adapter;
-                m_type = Final::template geometryID<adapter>::value;
+                m_type = Final::template geometryIndex<adapter>::value;
                 
                 //hold the given type in our variant
                 InheritedV::m_variant = geometry;
@@ -185,12 +164,12 @@ struct Module3D {
             template<typename T>
             typename boost::enable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryID<typename geometry_traits<T>::type>::value;
+                return m_type == Final::template geometryIndex<typename geometry_traits<T>::type>::value;
             };
             template<typename T>
             typename boost::disable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryID<T>::value;
+                return m_type == Final::template geometryIndex<T>::value;
             };
            
             

@@ -31,8 +31,10 @@
 namespace dcm {
 namespace geometry {
 
+//Primitive geometry representing a rigid cluster, hence it exposes a translation and rotation
+//parameter
 template<typename Kernel, bool MappedType = true>
-struct Cluster3 : public Geometry<Kernel, MappedType,
+struct Cluster3d : public Geometry<Kernel, MappedType,
         storage::Vector<3>, storage::Matrix<3,3>> {
 
     typedef typename Kernel::Scalar Scalar;
@@ -60,10 +62,10 @@ namespace numeric {
 //norm quaternion to generate the unit quaternion
 
 template<typename Kernel, template<class, bool> class Base>
-struct Cluster3Geometry : public DependendGeometry<Kernel, Base, geometry::Cluster3> {
+struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Cluster3d> {
     
     typedef typename Kernel::Scalar Scalar;
-    typedef DependendGeometry<Kernel, Base, geometry::Cluster3> Inherited;
+    typedef DependendGeometry<Kernel, Base, geometry::Cluster3d> Inherited;
     
     void transformLocal(const details::Transform<Scalar, 3>& t) {
         m_local.transform(t);
@@ -89,10 +91,10 @@ protected:
 };    
     
 template< typename Kernel>
-struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
+struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         geometry::storage::Vector<3>, geometry::storage::Vector<3>> {
 
-    typedef ParameterGeometry<Kernel, geometry::Cluster3,
+    typedef ParameterGeometry<Kernel, geometry::Cluster3d,
             geometry::storage::Vector<3>, geometry::storage::Vector<3>> Inherited;
 
     typedef typename Kernel::Scalar Scalar;
@@ -201,9 +203,9 @@ struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
     };
 
     template<template<class, bool> class Base>
-    void addClusterGeometry(Cluster3Geometry<Kernel, Base>* g) {
-        m_recalculateables.emplace_back(std::bind(&Cluster3Geometry<Kernel, Base>::recalculate, g));
-        m_transformables.emplace_back(std::bind(&Cluster3Geometry<Kernel, Base>::transformLocal, g, 
+    void addClusterGeometry(Cluster3dGeometry<Kernel, Base>* g) {
+        m_recalculateables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::recalculate, g));
+        m_transformables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::transformLocal, g, 
                                                 std::placeholders::_1));
     };
     

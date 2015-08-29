@@ -91,6 +91,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
     numeric::LinearSystem<K> sys(20,20);    
     numeric::Geometry<K, TDirection3> dirGeom;
     
+    BOOST_CHECK(dirGeom.parameterCount() == 3);
+    
     dirGeom.init(sys);
     BOOST_REQUIRE(dirGeom.parameters().size() == 3);
     BOOST_REQUIRE(dirGeom.derivatives().size() == 3);
@@ -181,6 +183,8 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     
     numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter> cylGeom;
     
+    BOOST_CHECK(cylGeom.parameterCount() == 1);
+    
     cylGeom.init(sys);       
     
     //check default constructed derivatives
@@ -194,8 +198,11 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
        
     numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter, 
                     dcm::geometry::storage::Vector<3>> cyl2Geom;
+                   
+    BOOST_CHECK(cyl2Geom.parameterCount() == 4);
                     
     cyl2Geom.init(sys);
+    BOOST_CHECK(cyl2Geom.parameterCount() == 4);
     BOOST_CHECK(cyl2Geom.parameters().size()==4);
     BOOST_CHECK(cyl2Geom.derivatives().size()==4);
     
