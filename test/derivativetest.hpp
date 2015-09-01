@@ -99,7 +99,7 @@ struct DerivativeTest {
     template<typename Kernel, template<class, bool> class Base>
     static bool isCorrect(dcm::numeric::Geometry<Kernel, Base>& g, const std::function<void()>& recalc) {
 
-        typedef typename dcm::numeric::Geometry<Kernel, Base>::Derivative Derivative;
+        typedef typename dcm::numeric::Geometry<Kernel, Base>::DerivativePack Derivative;
 
         int d = 0;
         for(Derivative& der : g.derivatives()) {

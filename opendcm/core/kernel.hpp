@@ -35,12 +35,26 @@ namespace numeric {
 struct KernelBase {};
     
 template< typename Kernel >
-struct SystemEntry {
+struct VectorEntry {
     
     int                         Index;
     typename Kernel::Scalar*    Value;
     
-    bool operator==(const SystemEntry& e) {
+    bool operator==(const VectorEntry& e) {
+        //comparing the value addresses is enough, as if tey point to the same memory they
+        //must be the same system entry
+        return (Value == Value);
+    };
+};
+
+template< typename Kernel >
+struct MatrixEntry {
+    
+    int                         Row;
+    int                         Column;
+    typename Kernel::Scalar*    Value;
+    
+    bool operator==(const MatrixEntry& e) {
         //comparing the value addresses is enough, as if tey point to the same memory they
         //must be the same system entry
         return (Value == Value);
@@ -59,37 +73,51 @@ struct LinearSystem {
             m_jacobi(e, p), m_parameters(p),  m_residuals(e) {};
     
     
-    //map functions. Note that you can't map to a jacobi. This is for the case that we 
-    //switch to sparse matrices later.                
+    VectorEntry<Kernel> mapParameter() {
+        Scalar* s = &m_parameters(++m_parameterOffset);
+        return {m_parameterOffset, s};
+    };                
                
-    std::vector<SystemEntry<Kernel>> mapParameter(Scalar*& s) {
+    std::vector<VectorEntry<Kernel>> mapParameter(Scalar*& s) {
         s = &m_parameters(++m_parameterOffset);
-        std::vector<SystemEntry<Kernel>> result(1);
+        std::vector<VectorEntry<Kernel>> result(1);
         result[0] = {m_parameterOffset, s};
         return result;
     };
 
     template<typename Derived>
-    std::vector<SystemEntry<Kernel>> mapParameter(Eigen::Map<Derived>& map) {
+    std::vector<VectorEntry<Kernel>> mapParameter(Eigen::Map<Derived>& map) {
         new(&map) Eigen::Map<Derived>(&m_parameters(++m_parameterOffset));
         
-        std::vector<SystemEntry<Kernel>> result(map.rows());
+        std::vector<VectorEntry<Kernel>> result(map.rows());
         for (int i = 0; i < map.rows(); ++i)
             result[i] = {m_parameterOffset + i, &m_parameters(m_parameterOffset + i)};
 
-        m_parameterOffset+= 2;
+        //minus one as we increase the parameter offset already in this function
+        m_parameterOffset+= (map.rows()-1);
                 
         return result;
     };
     
-    SystemEntry<Kernel> mapResidual(Scalar* s) {
+    VectorEntry<Kernel> mapResidual(Scalar*& s) {
         s = &m_residuals(++m_residualOffset);
-        return {m_parameterOffset, s};
+        return {m_residualOffset, s};
     };
     
-    void registerJacobiValue(int row, int col, Scalar s) {
+    VectorEntry<Kernel> mapResidual() {
+        Scalar* s = &m_residuals(++m_residualOffset);
+        return {m_residualOffset, s};
+    };
+    
+    MatrixEntry<Kernel> mapJacobi(int row, int col, Scalar*& s) {
         s = &m_jacobi(row, col);
-    };    
+        return {row, col, s};
+    };  
+    
+    MatrixEntry<Kernel> mapJacobi(int row, int col) {
+        Scalar* s = &m_jacobi(row, col);
+        return {row, col, s};
+    };   
     
     void setupJacobi() {
         m_jacobi.setZero();

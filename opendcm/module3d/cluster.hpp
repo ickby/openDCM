@@ -76,8 +76,8 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Clus
         dcm_assert(Inherited::m_base);
         Inherited::m_value = m_local.transformed(Inherited::m_base->transform());
         
-        typename Inherited::DerivativeIterator it = Inherited::derivatives().begin();
-        for(typename Inherited::DependendDerivative& d : Inherited::m_base->derivatives()) {
+        typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
+        for(typename Inherited::DependendDerivativePack& d : Inherited::m_base->derivatives()) {
 
             dcm_assert(it != Inherited::derivatives().end());
             dcm_assert(it->second == d.second)
@@ -106,7 +106,7 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
 
         //we just want to set the derivatives for the translational parameters already in the init
         //function as they stay constant, no need to rewrite them every time
-        std::reverse_iterator<typename Inherited::DerivativeIterator> it = Inherited::derivatives().rbegin();
+        std::reverse_iterator<typename Inherited::DerivativePackIterator> it = Inherited::derivatives().rbegin();
 
         for(int i=2; i>=0; --i) {
             it->first.translation()(i) = 1;
@@ -152,7 +152,7 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         const Scalar dwc = -sn*NQFAKTOR*normQ(2);
 
         dcm_assert(Inherited::derivatives().size()==6);
-        typename Inherited::DerivativeIterator it = Inherited::derivatives().begin();
+        typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
 
         //dQ/dx
         Eigen::Matrix<Scalar,3,3>& diffx = it->first.rotation();

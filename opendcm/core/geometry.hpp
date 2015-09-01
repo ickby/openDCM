@@ -321,12 +321,13 @@ void pretty(T t) {
 template< typename Kernel, template<class, bool> class Base >
 struct Geometry : public Base<Kernel, true> {
 
-    typedef Base<Kernel, true>                         Inherited;
-    typedef typename Kernel::Scalar                    Scalar;
-    typedef SystemEntry<Kernel>                        Parameter;
-    typedef typename std::vector<Parameter>::iterator  ParameterIterator;
-    typedef std::pair<Base<Kernel, false>, Parameter>  Derivative;
-    typedef typename std::vector<Derivative>::iterator DerivativeIterator;
+    typedef Base<Kernel, true>                          Inherited;
+    typedef typename Kernel::Scalar                     Scalar;
+    typedef VectorEntry<Kernel>                         Parameter;
+    typedef typename std::vector<Parameter>::iterator   ParameterIterator;
+    typedef Base<Kernel, false>                         Derivative;
+    typedef std::pair<Base<Kernel, false>, Parameter>   DerivativePack;
+    typedef typename std::vector<DerivativePack>::iterator DerivativePackIterator;
 
     //mpl trickery to get a sequence counting from 0 to the size of stroage entries
     typedef mpl::range_c<int,0,
@@ -341,7 +342,7 @@ struct Geometry : public Base<Kernel, true> {
     std::vector< Parameter >&  parameters()   {
         return m_parameters;
     };
-    std::vector< Derivative >& derivatives() {
+    std::vector< DerivativePack >& derivatives() {
         return m_derivatives;
     };
     
@@ -374,25 +375,31 @@ struct Geometry : public Base<Kernel, true> {
                                     Inherited::m_storage, m_parameters, m_derivatives));
     };
 
+#ifdef DCM_DEBUG
+    bool isInitialized() {
+        return m_init;
+    };
+#endif
+    
 protected:
 #ifdef DCM_DEBUG
     bool m_init = false;
 #endif
     bool m_independent = true;
     int  m_parameterCount = 0;
-    std::vector< Parameter >  m_parameters;
-    std::vector< Derivative > m_derivatives;
+    std::vector< Parameter >   m_parameters;
+    std::vector< DerivativePack > m_derivatives;
 
     template<typename StorageType, bool InitDerivative = true>
     struct Initializer {
 
         LinearSystem<Kernel>&    m_system;
         std::vector<Parameter>&  m_entries;
-        std::vector<Derivative>& m_derivatives;
+        std::vector<DerivativePack>& m_derivatives;
         StorageType&             m_storage;
 
         Initializer(LinearSystem<Kernel>& s, StorageType& st, std::vector<Parameter>& vec,
-                    std::vector<Derivative>& der) : m_system(s), m_entries(vec),
+                    std::vector<DerivativePack>& der) : m_system(s), m_entries(vec),
             m_derivatives(der), m_storage(st) {};
 
         template<typename T>
@@ -404,7 +411,7 @@ protected:
 
             //create and set derivatives
             for(int i=0; i<v.size(); ++i) {
-                m_derivatives.emplace_back(Derivative(Base<Kernel, false>(),  v[i]));
+                m_derivatives.emplace_back(DerivativePack(Base<Kernel, false>(),  v[i]));
                 
                 if(InitDerivative) {
                     auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
@@ -565,7 +572,7 @@ template< typename Kernel, template<class, bool> class Base,
 struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStorageTypes...>  {
     
     typedef ParameterGeometry<Kernel, Base, ParameterStorageTypes...> Inherited;
-    typedef typename Geometry<Kernel, DBase>::Derivative              DependendDerivative;
+    typedef typename Geometry<Kernel, DBase>::DerivativePack              DependendDerivativePack;
     
     /**
      * @brief Setup the geometry \a this depends on
@@ -588,7 +595,7 @@ struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStora
                                        base->parameters().begin(), base->parameters().end());
         
         //This also means that we have a derivative for every parameter of base too.
-        for(const typename Geometry<Kernel, DBase>::Derivative& d : base->derivatives())
+        for(const typename Geometry<Kernel, DBase>::DerivativePack& d : base->derivatives())
                 Inherited::m_derivatives.push_back(std::make_pair(Base<Kernel, false>(), d.second));
     };
     

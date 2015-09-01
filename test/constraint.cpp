@@ -23,6 +23,8 @@
 #include "opendcm/core/constraint.hpp"
 #include <Eigen/Core>
 
+typedef dcm::Eigen3Kernel<double> K;
+
 //two vectors perpendicular, maybe the easiest constraints of them all
 struct test_constraint1 : public dcm::constraint::Constraint<int> {
     using Constraint::operator=;
@@ -39,6 +41,59 @@ struct test_constraint2 : public dcm::constraint::Constraint< double, char> {
     char&   direction() {return fusion::at_c<1>(m_storage);};
 };
 
+template<typename Kernel, bool MappedType = true>
+struct TPoint3 : public dcm::geometry::Geometry<Kernel, MappedType,
+            dcm::geometry::storage::Vector<3>> {
+
+    using dcm::geometry::Geometry<Kernel, MappedType, dcm::geometry::storage::Vector<3>>::m_storage;
+   
+    auto value() -> decltype(fusion::at_c<0>(m_storage)){
+        return fusion::at_c<0>(m_storage);
+    };
+};
+
+namespace dcm {
+namespace numeric {
+
+template<typename Kernel>
+struct Constraint<Kernel, dcm::Distance, TPoint3, TPoint3> : dcm::Distance {
+  
+    typedef dcm::Distance                                            Inherited;
+    typedef typename Kernel::Scalar                                  Scalar;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1>                 Vector;
+    typedef numeric::Geometry<Kernel, TPoint3>                       Geometry1;
+    typedef typename numeric::Geometry<Kernel, TPoint3>::Derivative  Derivative1;
+    typedef numeric::Geometry<Kernel, TPoint3>                       Geometry2;
+    typedef typename numeric::Geometry<Kernel, TPoint3>::Derivative  Derivative2;
+    
+    Constraint() {
+    };
+    
+    Scalar calculate(Geometry1& g1, Geometry2& g2) {        
+        return (g1.value()-g2.value()).norm() - value();
+    };
+
+    Scalar calculateGradientFirst(Geometry1& g1, Geometry2& g2, Derivative1& dg1) {        
+        return (g1.value()-g2.value()).dot(dg1.value()) / (g1.value()-g2.value()).norm();
+    };
+
+    Scalar calculateGradientSecond( Geometry1& g1, Geometry2& g2, Derivative2& dg2) {        
+        return (g1.value()-g2.value()).dot(-dg2.value()) / (g1.value()-g2.value()).norm();
+    };
+
+    Vector calculateGradientFirstComplete( Geometry1& g1, Geometry2& g2) {
+        return (g1.value()-g2.value()) / (g1.value()-g2.value()).norm();
+    };
+
+    Vector calculateGradientSecondComplete(Geometry1& g1, Geometry2& g2) {
+        return (g1.value()-g2.value()) / (g1.value()-g2.value()).norm();
+    };
+};
+
+} //numeric
+} //dcm
+
+
 template<typename T>
 void pretty(T t) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
@@ -46,7 +101,7 @@ void pretty(T t) {
 
 BOOST_AUTO_TEST_SUITE(Constraint_test_suit);
 
-BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
+BOOST_AUTO_TEST_CASE(primitive) {
     
     test_constraint1 test1(3);
     test_constraint2 test2(0.1, 'b');
@@ -79,5 +134,43 @@ BOOST_AUTO_TEST_CASE(module3d_multiconstraint) {
     BOOST_CHECK(test2.direction() == 'b');    
 }
 
+BOOST_AUTO_TEST_CASE(numeric) {
+    
+   dcm::numeric::LinearSystem<K> sys(20,20);  
+   dcm::numeric::Geometry<K, TPoint3> p1;
+   dcm::numeric::Geometry<K, TPoint3> p2;
+
+   p1.init(sys);
+   p2.init(sys);   
+   p1.value() = Eigen::Vector3d(1,0,0);
+   p2.value() = Eigen::Vector3d(0,0,0);
+   
+   typedef dcm::numeric::GeometryEquation<K, dcm::Distance, TPoint3, TPoint3> ggc;
+   typedef dcm::numeric::ClusterEquation<K, dcm::Distance, TPoint3, TPoint3>  ccc;
+   typedef dcm::numeric::GeometryClusterEquation<K, dcm::Distance, TPoint3, TPoint3> gcc;
+   typedef dcm::numeric::ClusterGeometryEquation<K, dcm::Distance, TPoint3, TPoint3> cgc;
+   
+   ggc gg_constraint;
+   ccc cc_constraint;
+   gcc gc_constraint;
+   cgc cg_constraint;
+
+   gg_constraint.setupGeometry(&p1, &p2);
+   gg_constraint.init(sys);
+   cc_constraint.setupGeometry(&p1, &p2);
+   cc_constraint.init(sys);
+   cg_constraint.setupGeometry(&p1, &p2);
+   cg_constraint.init(sys);
+   gc_constraint.setupGeometry(&p1, &p2);
+   gc_constraint.init(sys);
+   
+   BOOST_CHECK_NO_THROW(gg_constraint());
+   BOOST_CHECK_NO_THROW(cg_constraint());
+   BOOST_CHECK_NO_THROW(cc_constraint());
+   BOOST_CHECK_NO_THROW(gc_constraint());
+   
+   BOOST_CHECK(gg_constraint.getResidual() == 1);
+
+}
 
 BOOST_AUTO_TEST_SUITE_END();

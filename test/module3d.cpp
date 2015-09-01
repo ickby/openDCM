@@ -46,8 +46,8 @@ BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 BOOST_AUTO_TEST_CASE(cluster) {
 
     typedef dcm::numeric::Cluster3d<K>::ParameterIterator  cParIt;
-    typedef dcm::numeric::Cluster3d<K>::Derivative         cDer;
-    typedef dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>::Derivative clDer;
+    typedef dcm::numeric::Cluster3d<K>::DerivativePack        cDer;
+    typedef dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>::DerivativePack clDer;
 
     try {
 

@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_REQUIRE(dirGeom.parameters().size() == 3);
     BOOST_REQUIRE(dirGeom.derivatives().size() == 3);
     
-    typedef numeric::Geometry<K, TDirection3>::Derivative        TDir3Derivative;
+    typedef numeric::Geometry<K, TDirection3>::DerivativePack    TDir3Derivative;
     typedef numeric::Geometry<K, TDirection3>::ParameterIterator TDir3ParIt;
 
     int c = 0;
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_REQUIRE(cylGeom.parameters().size() == 7);
     BOOST_REQUIRE(cylGeom.derivatives().size() == 7);
    
-    typedef numeric::Geometry<K, TCylinder3>::Derivative         TCyl3Derivative;
+    typedef numeric::Geometry<K, TCylinder3>::DerivativePack        TCyl3Derivative;
     typedef numeric::Geometry<K, TCylinder3>::ParameterIterator  TCyl3ParIt;
     
     c=0;
