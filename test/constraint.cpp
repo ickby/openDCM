@@ -145,10 +145,10 @@ BOOST_AUTO_TEST_CASE(numeric) {
    p1.value() = Eigen::Vector3d(1,0,0);
    p2.value() = Eigen::Vector3d(0,0,0);
    
-   typedef dcm::numeric::GeometryEquation<K, dcm::Distance, TPoint3, TPoint3> ggc;
-   typedef dcm::numeric::ClusterEquation<K, dcm::Distance, TPoint3, TPoint3>  ccc;
-   typedef dcm::numeric::GeometryClusterEquation<K, dcm::Distance, TPoint3, TPoint3> gcc;
-   typedef dcm::numeric::ClusterGeometryEquation<K, dcm::Distance, TPoint3, TPoint3> cgc;
+   typedef dcm::numeric::ConstraintSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3>        ggc;
+   typedef dcm::numeric::ConstraintComplexEquation<K, dcm::Distance, TPoint3, TPoint3>           ccc;
+   typedef dcm::numeric::ConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3, TPoint3> gcc;
+   typedef dcm::numeric::ConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3> cgc;
    
    ggc gg_constraint;
    ccc cc_constraint;

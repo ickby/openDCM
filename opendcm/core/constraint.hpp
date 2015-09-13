@@ -166,6 +166,52 @@ protected:
 
 }//constraint
     
+    
+    
+
+/**
+* @brief Classes for symbolic handling of constraints
+* 
+*/
+namespace symbolic {
+    
+struct Constraint {
+    
+    int type;
+};
+
+template<typename PrimitiveConstraint>
+struct TypeConstraint : public Constraint {
+    
+    PrimitiveConstraint& getPrimitveConstraint() {
+        return m_constraint;
+    };
+    
+    void setPrimitiveConstraint(const PrimitiveConstraint& c) {
+        //type = id;
+        m_constraint = c;
+    };
+    
+    void setConstraintID(int id) {
+        type = id;
+    }
+    
+protected:   
+    PrimitiveConstraint m_constraint;
+};
+
+struct ConstraintProperty {
+    typedef Constraint* type;
+    struct default_value {
+        Constraint* operator()() {
+            return nullptr;
+        };
+    };
+    struct change_tracking{};
+};
+    
+}//symbolic    
+
 /**
  * @brief Classes for numeric evaluation of constraints
  *
@@ -218,7 +264,7 @@ namespace numeric {
  * \tparam PG2 the second primitive geometry the equation is defined for
  */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct Constraint : PC {
+struct Constraint : public PC, Equation<Kernel> {
     
         typedef PC                                                   Inherited;
         typedef typename Kernel::Scalar                              Scalar;
@@ -262,7 +308,7 @@ struct Constraint : PC {
 * 
 */    
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct EquationBase : public Constraint<Kernel, PC, PG1, PG2> {
+struct ConstraintEquationBase : public Constraint<Kernel, PC, PG1, PG2> {
    
     typedef Constraint<Kernel, PC, PG1, PG2>    Inherited;
     typedef VectorEntry<Kernel>                 Residual;
@@ -361,95 +407,120 @@ protected:
 };
 
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct GeometryEquation : EquationBase<Kernel, PC, PG1, PG2> {
+struct ConstraintSimplifiedEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
-    typedef EquationBase<Kernel, PC, PG1, PG2> Inherited;
+    typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
     void operator()() {
         *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
         Inherited::firstAsGeometry();
         Inherited::secondAsGeometry();
     };
+    
+    virtual void calculate() {
+        operator()();
+    };
 };
 
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct ClusterEquation : EquationBase<Kernel, PC, PG1, PG2> {
+struct ConstraintComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
-    typedef EquationBase<Kernel, PC, PG1, PG2> Inherited;
+    typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
     void operator()() {
         *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
         Inherited::firstAsCluster();
         Inherited::secondAsCluster();
     };
+    
+    virtual void calculate() {
+        operator()();
+    };
 };
 
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct GeometryClusterEquation : EquationBase<Kernel, PC, PG1, PG2> {
+struct ConstraintSimplifiedComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
-    typedef EquationBase<Kernel, PC, PG1, PG2> Inherited;
+    typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
     void operator()() {
         *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
         Inherited::firstAsGeometry();
         Inherited::secondAsCluster();
     };
+    
+    virtual void calculate() {
+        operator()();
+    };
 };
 
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct ClusterGeometryEquation : EquationBase<Kernel, PC, PG1, PG2> {
+struct ConstraintComplexSimplifiedEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
-    typedef EquationBase<Kernel, PC, PG1, PG2> Inherited;
+    typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
    
     void operator()() {
         *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
         Inherited::firstAsCluster();
         Inherited::secondAsGeometry();
     };
+    
+    virtual void calculate() {
+        operator()();
+    };
+};
+
+template<typename Kernel>
+struct ConstraintEquationGenerator {
+    
+     virtual Equation<Kernel> getEquation(numeric::GeomertyEquation<Kernel>* g1, 
+                                          numeric::GeomertyEquation<Kernel>* g2, 
+                                          symbolic::Constraint* c) {
+                                              dcm_assert(false);
+                                              return Equation<Kernel>();
+                                        };
+};
+
+template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Kernel> {
+
+    virtual Equation<Kernel> getEquation(numeric::GeomertyEquation<Kernel>* g1, 
+                                         numeric::GeomertyEquation<Kernel>* g2, 
+                                         symbolic::Constraint* c) {
+        
+        if(g1->complexity == Simplified && g2->complexity == Simplified) {
+            ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2> equation;
+            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
+                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
+            
+            return equation;
+        }
+        else if(g1->complexity == Simplified && g2->complexity != Complex) {
+            ConstraintSimplifiedComplexEquation<Kernel, PC, PG1, PG2> equation;
+            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
+                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
+            
+            return equation;
+        }
+        else if(g1->complexity != Complex && g2->complexity == Simplified) {
+            ConstraintComplexSimplifiedEquation<Kernel, PC, PG1, PG2> equation;
+            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
+                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
+            
+            return equation;
+        }
+        else if(g1->complexity != Complex && g2->complexity != Complex) {
+            ConstraintComplexEquation<Kernel, PC, PG1, PG2> equation;
+            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
+                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
+            
+            return equation;
+        }
+        return Equation<Kernel>();
+    };
 };
 
 }//numeric
-    
-    
-namespace symbolic {
-    
-struct Constraint {
-    
-    int type;
-};
-
-template<typename PrimitiveConstraint>
-struct TypeConstraint : public Constraint {
-    
-    PrimitiveConstraint& getPrimitveConstraint() {
-        return m_constraint;
-    };
-    
-    void setPrimitiveConstraint(const PrimitiveConstraint& c) {
-        //type = id;
-        m_constraint = c;
-    };
-    
-    void setConstraintID(int id) {
-        type = id;
-    }
-    
-protected:   
-    PrimitiveConstraint m_constraint;
-};
-
-struct ConstraintProperty {
-    typedef Constraint* type;
-    struct default_value {
-        Constraint* operator()() {
-            return nullptr;
-        };
-    };
-    struct change_tracking{};
-};
-    
-}//symbolic    
-
 
 
 //Provide a few default constraints.

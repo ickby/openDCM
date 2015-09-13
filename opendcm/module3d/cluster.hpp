@@ -71,8 +71,8 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Clus
         m_local.transform(t);
     };
     
-    void recalculate() {
-
+    virtual void calculate() {
+        
         dcm_assert(Inherited::m_base);
         Inherited::m_value = m_local.transformed(Inherited::m_base->transform());
         
@@ -114,7 +114,7 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         }
     };
 
-    void recalculate() {
+    virtual void calculate() {
 
         //calculate the quaternion and rotation matrix from the parameter vector
         const Eigen::Quaternion<Scalar> Q = calculateTransform();
@@ -198,13 +198,13 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         //the translation differentials stay fixed, no need to write them every time...
        
         //recalculate all geometries
-        for(auto& fct : m_recalculateables)
-            fct();
+        for(auto fct : m_recalculateables)
+            fct->calculate();
     };
 
     template<template<class, bool> class Base>
     void addClusterGeometry(Cluster3dGeometry<Kernel, Base>* g) {
-        m_recalculateables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::recalculate, g));
+        m_recalculateables.push_back(g);
         m_transformables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::transformLocal, g, 
                                                 std::placeholders::_1));
     };
@@ -289,7 +289,7 @@ protected:
             Eigen::Quaternion<Scalar>(Eigen::AngleAxisd(M_PI*2./3.,
             Eigen::Vector3d(1,1,1).normalized())));
     
-    std::vector<std::function<void()>>                                     m_recalculateables;
+    std::vector<numeric::Equation<Kernel>*>                                m_recalculateables;
     std::vector<std::function<void(const details::Transform<Scalar, 3>&)>> m_transformables;
 };
 

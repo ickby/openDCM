@@ -301,6 +301,31 @@ void pretty(T t) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 };
 
+enum Complexity {
+    Simplified = 0,
+    Complex
+};
+
+//to identifiy geometries
+template<typename Kernel>
+struct GeomertyEquation : public Equation<Kernel> {
+   
+    //allow to get the number of parameters this geometry offers. This function can be called before
+    //the geometry was initialized
+    int parameterCount() {
+        return m_parameterCount;
+    };
+    
+    Complexity complexity() {
+        return m_complexity;
+    };
+    
+protected:
+    Complexity m_complexity = Simplified;
+    int        m_parameterCount = 0;
+
+};
+
 /**
  * @brief Base class for numeric handling of geometry types
  *
@@ -319,7 +344,7 @@ void pretty(T t) {
  *              template type
  */
 template< typename Kernel, template<class, bool> class Base >
-struct Geometry : public Base<Kernel, true> {
+struct Geometry : public Base<Kernel, true>, GeomertyEquation<Kernel> {
 
     typedef Base<Kernel, true>                          Inherited;
     typedef typename Kernel::Scalar                     Scalar;
@@ -334,8 +359,8 @@ struct Geometry : public Base<Kernel, true> {
             mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
                 
     Geometry() {
-        
-        fusion::for_each(Inherited::m_storage, Counter(m_parameterCount));
+        GeomertyEquation<Kernel>::m_complexity = Simplified;
+        fusion::for_each(Inherited::m_storage, Counter(GeomertyEquation<Kernel>::m_parameterCount));
     };
     
     //allow access to parameters and derivatives
@@ -344,12 +369,6 @@ struct Geometry : public Base<Kernel, true> {
     };
     std::vector< DerivativePack >& derivatives() {
         return m_derivatives;
-    };
-    
-    //allow to get the number of parameters this geometry offers. This function can be called before
-    //the geometry was initialized
-    int parameterCount() {
-        return m_parameterCount;
     };
 
     //sometimes it is possible to optimize constraint derivative calculation when we are
@@ -386,7 +405,6 @@ protected:
     bool m_init = false;
 #endif
     bool m_independent = true;
-    int  m_parameterCount = 0;
     std::vector< Parameter >   m_parameters;
     std::vector< DerivativePack > m_derivatives;
 
@@ -488,7 +506,7 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
     typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
     
     ParameterGeometry() {
-
+        GeomertyEquation<Kernel>::m_complexity = Complex;
         fusion::for_each(m_parameterStorage, typename Inherited::Counter(Inherited::m_parameterCount));
     };
     
@@ -572,8 +590,8 @@ template< typename Kernel, template<class, bool> class Base,
 struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStorageTypes...>  {
     
     typedef ParameterGeometry<Kernel, Base, ParameterStorageTypes...> Inherited;
-    typedef typename Geometry<Kernel, DBase>::DerivativePack              DependendDerivativePack;
-    
+    typedef typename Geometry<Kernel, DBase>::DerivativePack          DependendDerivativePack;
+
     /**
      * @brief Setup the geometry \a this depends on
      * 

@@ -31,6 +31,17 @@
 namespace dcm {
 namespace numeric {
     
+template<typename Kernel> 
+struct LinearSystem;
+
+//base class for calculatable objects in a numeric context, simplified named as equations 
+template<typename Kernel>
+struct Equation {
+    
+    virtual void init(LinearSystem<Kernel>& sys) {};
+    virtual void calculate() {};
+};
+    
 //every kernel needs to be derived from this class
 struct KernelBase {};
     

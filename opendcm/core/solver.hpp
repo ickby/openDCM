@@ -24,6 +24,7 @@
 #include "filtergraph.hpp"
 #include "geometry.hpp"
 #include "analyse.hpp"
+#include "scheduler.hpp"
 
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/undirected_dfs.hpp>
@@ -31,18 +32,10 @@
 #include <boost/fusion/include/at.hpp>
 #include <boost/multi_array.hpp>
 
-#include <tbb/parallel_for_each.h>
-#include <tbb/parallel_for.h>
-#include <tbb/flow_graph.h>
-#include <tbb/concurrent_queue.h>
-#include <tbb/task_group.h>
-
 namespace fusion = boost::fusion;
 
 namespace dcm {
-    
-typedef tbb::flow::broadcast_node<tbb::flow::continue_msg> flow_node;
-    
+       
 namespace symbolic {
     
     /**
@@ -62,7 +55,7 @@ int reduceGraph(std::shared_ptr<Graph> g,
     
     //start with edge analysing
     auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
-    tbb::parallel_for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
+    shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
         
         symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
         symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
@@ -94,7 +87,7 @@ namespace numeric {
   
     
 template<typename Graph>
-tbb::flow::continue_node< tbb::flow::continue_msg > buildRecalculationFlow(std::shared_ptr<Graph> g) {
+shedule::FlowGraph buildRecalculationFlow(std::shared_ptr<Graph> g) {
     
 //     tbb::flow::continue_node< tbb::flow::continue_msg > fg;
 //     return fg;
@@ -105,78 +98,37 @@ tbb::flow::continue_node< tbb::flow::continue_msg > buildRecalculationFlow(std::
     
 namespace solver {
 
-//encapsulates a tbb flow graph and is responsible for managing the nodes lifetime
-struct Solvable {
+template<typename Graph, typename Kernel>
+struct FlowGraphExtractor : public boost::default_dfs_visitor {
+
+    typedef typename Graph::LocalVertex         LocalVertex;
+    typedef typename Graph::LocalEdge           LocalEdge;
+    typedef typename shedule::FlowGraph::Node   Node;
+
+    shedule::FlowGraph flow;
+    std::map<LocalVertex, numeric::GeomertyEquation<Kernel>*> geometryMap;
+    int parameter = 0;
+    int equations = 0;
        
-    typedef tbb::flow::broadcast_node<tbb::flow::continue_msg> broadcast_node;
-    
-    ~Solvable() {
-        
-        //delete all nodes!
-        for(tbb::flow::graph_node* node : m_nodes)
-            delete node;
-    }
-    
-    //allow to use a solvable as functor in a flow graph node
-    void operator()() {
-        solve();
-    }
-    
-    void solve() {
-        m_start.try_put(tbb::flow::continue_msg());
-        m_graph.wait_for_all();
-    }
-    
-    flow_node& addJoinNode() {
-        m_nodes.push_back(new flow_node(m_graph));
-        return *static_cast<flow_node*>(m_nodes.back());
-    }
-    
-    template<typename Action>
-    flow_node& addActionNode(Action a) {
-        
-        m_nodes.push_back(new flow_node(m_graph, a));
-        return *static_cast<flow_node*>(m_nodes.back());
-    };
-    
-    broadcast_node& getBroadcastNode() {        
-        return m_start;
-    };
-    
-    template<typename N1, typename N2>
-    void connect(N1& n1, N2& n2) {
-        tbb::flow::make_edge(n1, n2);
-    };
-
-private:
-    std::vector<tbb::flow::graph_node*> m_nodes;
-    tbb::flow::graph m_graph;
-    broadcast_node m_start = broadcast_node(m_graph);
-};
-
-
-template<typename Graph>
-struct SizeExtractor : public boost::default_dfs_visitor {
-
-    typedef typename Graph::LocalVertex LocalVertex;
-    typedef typename Graph::LocalEdge   LocalEdge;
-
-    int parameter = 0, equations = 0;
-   
     void tree_edge(LocalEdge u, const Graph& graph) {
 
-        LocalVertex source = graph->source(u);
-        LocalVertex target = graph->target(u);
-        auto result = graph.template getProperty<symbolic::ResultProperty>(u);
-        
-        //check which vertices need to be processed
-        if( graph->template getProperty<graph::Color>(source) == boost::default_color_type::white_color )  
-            parameter += result->getReducedParameter(graph.template getProperty<symbolic::GeometryProperty>(source));
-        
-        if( graph->template getProperty<graph::Color>(target) == boost::default_color_type::white_color )        
-            parameter += result->getReducedParameter(graph.template getProperty<symbolic::GeometryProperty>(target));
-       
-        equations += result->getReducedEquations();
+         auto result = graph.template getProperty<symbolic::ResultProperty>(u);
+         
+         LocalVertex source = graph.source(u);
+         auto res = geometryMap.find(source);
+         if(res == geometryMap.end()) {
+         
+             res = geometryMap.find(graph.target(u));
+             
+             //if we still have nothing we need to create a start vertex geometry
+             if(res == geometryMap.end()) {
+                 
+                 auto geom = graph.template getProperty<symbolic::GeometryProperty>(source);
+                 //geometryMap[source] = result->(geom);
+             }
+         }
+         
+         
     };
 
     //back edges are special. if we are in clusters, all backedge constraints depend on all clusters
@@ -188,7 +140,7 @@ struct SizeExtractor : public boost::default_dfs_visitor {
 };
 
 template<typename Graph>
-void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node start, flow_node join) {
+shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     
     /*
     //we build up the numeric system for this graph. This also means finding parts that can be solved 
@@ -242,17 +194,21 @@ void buildGraphNumericSystem(std::shared_ptr<Graph> g, Solvable& s, flow_node st
         }
     }*/
     
+    shedule::FlowGraph fg;
+    
     //iterate over all edges and create the equations for them
     auto edges = g->edges();
     for(; edges.first != edges.second; ++edges.first) {
     
-        auto result = g->template getProperty<symbolic::ResultProperty>(*edges.first);
+        //auto result = g->template getProperty<symbolic::ResultProperty<Kernel>>(*edges.first);
         
     }
+    
+    return fg;
 };
     
 template<typename Final, typename Graph>
-Solvable&& createSolvableSystem(std::shared_ptr<Graph> g, 
+shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, 
                     const boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction) {
     
     
@@ -267,22 +223,21 @@ Solvable&& createSolvableSystem(std::shared_ptr<Graph> g,
     auto iter = g->clusters();
     tbb::parallel_for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-            auto&& fg = createSolvableSystem(sub.second, reduction);
-            fg.solve();
+            auto fg = createSolvableSystem(sub.second, reduction);
+            fg->execute();
+            delete fg;
         }
     );        
         
-    Solvable s;
-    flow_node& start = s.getBroadcastNode();
-    flow_node& join  = s.addJoinNode();
-    //now identify all ndividual components and create a numeric solvable for each
+    shedule::ParallelVector* s = new shedule::ParallelVector();
+    //now identify all ndividual components and create a executable for each
     for(int i=0; i<components; ++i) {
         auto filter = graph::make_filter_graph(g, i);
-        buildGraphNumericSystem(filter, s, start, join);        
+        s->add(buildGraphNumericSystem(filter));        
     }
     
     //everything has been processed, lets return the solvable and let the caller decide what happens next
-    return std::move(s);
+    return s;
 }
 
 } //solver

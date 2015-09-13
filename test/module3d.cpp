@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         dcm::numeric::Cluster3d<K> cluster;
 
         cluster.init(sys);
-        cluster.recalculate();
+        cluster.calculate();
 
         BOOST_CHECK(cluster.parameters().size()==6);
         BOOST_CHECK(cluster.derivatives().size()==6);
@@ -67,13 +67,13 @@ BOOST_AUTO_TEST_CASE(cluster) {
         BOOST_CHECK(clGeom.derivatives().size()==0);
 
         clGeom.setBaseGeometry(&cluster);
-        clGeom.recalculate();
+        clGeom.calculate();
 
         BOOST_CHECK(clGeom.parameters().size()==6);
         BOOST_CHECK(clGeom.derivatives().size()==6);
 
         cluster.addClusterGeometry(&clGeom);
-        cluster.recalculate();
+        cluster.calculate();
 
         for(clDer& der : clGeom.derivatives())
             BOOST_CHECK(der.second.Value != nullptr);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         //let's test the derivatives and see if we calculate them correct for 0 values
         DerivativeTest::isCorrect(clGeom, 
                [&]() {
-                   cluster.recalculate();
+                   cluster.calculate();
                }
         );
         
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         clGeom.point().normalize();
         DerivativeTest::isCorrect(clGeom, 
                [&]() {
-                   cluster.recalculate();
+                   cluster.calculate();
                 }
         );
 
