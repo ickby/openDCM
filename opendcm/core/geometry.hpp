@@ -37,6 +37,7 @@
 #include <boost/fusion/include/for_each.hpp>
 
 #include "kernel.hpp"
+#include "equations.hpp"
 #include "transformation.hpp"
 
 #ifdef DCM_DEBUG
@@ -47,7 +48,7 @@ namespace mpl    = boost::mpl;
 namespace fusion = boost::fusion;
 
 namespace dcm {
-
+    
 /**
  * @brief Geometric primitives handling
  *
@@ -109,7 +110,41 @@ namespace dcm {
  * namespace which ease the creation of geometric primitives.
  */
 namespace geometry {
-
+/*
+namespace identifier {
+    
+       template<int i>
+       struct ParameterIdentifier {
+            mpl::int_<i> id;
+            static int id() { return id::value;};
+       };
+    
+       template<int i>
+       struct Vector3Identifier {
+            mpl::int_<i> id;
+            static int id() { return id::value;};
+            
+            struct X { 
+                mpl::int_<i+1> id;
+                static int id() { return id::value;};
+            };
+            struct Y { 
+                mpl::int_<i+2> id;
+                static int id() { return id::value;};
+            };
+            struct Z { 
+                mpl::int_<i+3> id;
+                static int id() { return id::value;};
+            };
+    };
+    
+    struct Position  : public Vector3Identifier<1> {};
+    struct Direction : public Vector3Identifier<10> {};
+    
+    struct Radius    : public ParameterIdentifier<100>{};
+    
+}; //identifier
+*/
 /**
  * @brief Storage types from which a geometric primitive can be build
  *
@@ -120,7 +155,7 @@ namespace geometry {
  * storage types.
  */
 namespace storage  {
-
+    
 /**
  * @brief A simple scalar parameter
  *
@@ -294,47 +329,134 @@ struct extractor<Base<Kernel, b>> {
 
 }//geometry
 
-namespace numeric {
+namespace detail {
+//helper classes for numeric geometry
+template<typename Kernel, typename StorageType, typename Equation, bool InitDerivative = true>
+struct Initializer {
 
-template<typename T>
-void pretty(T t) {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    typedef typename Kernel::Scalar Scalar;
+    
+    numeric::LinearSystem<Kernel>&                  m_system;
+    std::vector<typename Equation::Parameter>&      m_entries;
+    std::vector<typename Equation::DerivativePack>& m_derivatives;
+    StorageType&                                    m_storage;
+
+    Initializer(numeric::LinearSystem<Kernel>& s, StorageType& st, std::vector<typename Equation::Parameter>& vec,
+                std::vector<typename Equation::DerivativePack>& der) : m_system(s), m_entries(vec),
+        m_derivatives(der), m_storage(st) {};
+
+    template<typename T>
+    void operator()(T t) {
+
+        //get the parameter
+        auto& t1 = fusion::at<T>(m_storage);
+        std::vector<typename Equation::Parameter> v = map(t1);
+
+        //create and set derivatives
+        for(int i=0; i<v.size(); ++i) {
+            m_derivatives.emplace_back(typename Equation::DerivativePack(typename Equation::OutputType(),  v[i]));
+            
+            if(InitDerivative) {
+                auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
+                setOne(t2, i);
+            }
+        };
+
+        //set parameters
+        std::move(v.begin(), v.end(), std::back_inserter(m_entries));
+    }
+
+    template<typename T>
+    void setOne(Eigen::MatrixBase<T>& m, int n) {
+        m(n) = 1;
+    };
+    void setOne(Scalar& s, int n)               {
+        s = 1;
+    };
+    
+    template<typename T>
+    std::vector<typename Equation::Parameter> map(const Eigen::MatrixBase<T>& m) const {
+        std::vector<typename Equation::Parameter> vec(m.rows()*m.cols());
+        
+        for(int i=0; i<(m.rows()*m.cols()); ++i) 
+            vec[i] = m_system.mapParameter();
+        
+        return vec;
+    };
+    
+    std::vector<typename Equation::Parameter> map(const Scalar& s) const {
+        std::vector<typename Equation::Parameter> vec(1);
+        vec[0] = m_system.mapParameter();
+        
+        return vec;
+    };
 };
 
-enum Complexity {
-    Simplified = 0,
-    Complex
-};
-
-//to identifiy geometries
 template<typename Kernel>
-struct GeomertyEquation : public Equation<Kernel> {
-   
-    //allow to get the number of parameters this geometry offers. This function can be called before
-    //the geometry was initialized
-    int parameterCount() {
-        return m_parameterCount;
-    };
-    
-    Complexity complexity() {
-        return m_complexity;
-    };
-    
-protected:
-    Complexity m_complexity = Simplified;
-    int        m_parameterCount = 0;
+struct Counter {
 
+    typedef typename Kernel::Scalar Scalar;
+    
+    int& count;
+    Counter(int& c) : count(c) {
+        count = 0;
+    }; 
+
+    template<typename T>
+    void operator()(T& t) const {
+        
+        count += size(t);
+    }
+    
+    template<typename T>
+    void operator()(T*& t) const {
+        
+        count += size(*t);
+    }
+
+    template<typename T>
+    int size(Eigen::MatrixBase<T>& m) const {
+        return m.rows()*m.cols();
+    };
+    int size(Scalar& s) const {
+        return 1;
+    };
 };
+
+template<typename Equation>
+struct Assigner {
+
+    int& m_count;
+    std::vector<typename Equation::Parameter>& m_params;
+
+    Assigner(std::vector<typename Equation::Parameter>& p, int& c) : m_params(p), m_count(c) {
+        m_count = -1;
+    };
+
+    template<typename T>
+    void operator()(Eigen::MatrixBase<T>& t) const {
+        for(int i=0; i<(t.rows()*t.cols()); ++i)
+            t(i) = m_params[++m_count];
+    }
+    
+    void operator()(typename Equation::KernelType::Scalar& t) const {
+        t = m_params[++m_count];
+    }
+};
+
+};//detail
+    
+namespace numeric {
 
 /**
  * @brief Base class for numeric handling of geometry types
  *
- * This class is the common base for all geometry types when used in numerical calculations. It provides an
- * interface from which all needed numerical data can be accessed. Relevant are the geometry values and the
- * derivatives dependend on the parameters this geometry depends on. This is enough for every case, no matter
- * if the geometry depends on another one, is in a cluster or if values depend on parameters. Therefore this
- * class is used in equations to do calculations undependend of the actual state of the geometry and only
- * dependend by the type of the provided primitive.
+ * This class is used for numeric evaluation of primitive geometry. It does wrap the geometries and 
+ * exposes them as equation for further use in complex mathematical systems. It is responsible for 
+ * creating free parameters representing the primitive as well as initialising them correctly. Furthermore
+ * it also exposes the correct derivatives for the free parameters. 
+ * The intended use of this class is to give a simple one-line wrapper for all possible geometries where 
+ * every number is used as a free parameter.
  *
   \note The numeric geometry types do not yet support variable size geometric primitives. Please ensure such
  * are not used as \a Base template parameter.
@@ -344,32 +466,20 @@ protected:
  *              template type
  */
 template< typename Kernel, template<class, bool> class Base >
-struct Geometry : public Base<Kernel, true>, GeomertyEquation<Kernel> {
+struct Geometry : public Equation<Kernel, Base<Kernel, false>> {
 
-    typedef Base<Kernel, true>                          Inherited;
-    typedef typename Kernel::Scalar                     Scalar;
-    typedef VectorEntry<Kernel>                         Parameter;
-    typedef typename std::vector<Parameter>::iterator   ParameterIterator;
-    typedef Base<Kernel, false>                         Derivative;
-    typedef std::pair<Base<Kernel, false>, Parameter>   DerivativePack;
-    typedef typename std::vector<DerivativePack>::iterator DerivativePackIterator;
+    typedef Equation<Kernel, Base<Kernel, false>> Inherited;
+    typedef Base<Kernel, true>                    Map;
+    typedef typename Kernel::Scalar               Scalar;
 
     //mpl trickery to get a sequence counting from 0 to the size of stroage entries
     typedef mpl::range_c<int,0,
             mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
                 
     Geometry() {
-        GeomertyEquation<Kernel>::m_complexity = Simplified;
-        fusion::for_each(Inherited::m_storage, Counter(GeomertyEquation<Kernel>::m_parameterCount));
+        fusion::for_each(Inherited::m_storage, detail::Counter<Kernel>(Inherited::m_parameterCount));
     };
     
-    //allow access to parameters and derivatives
-    std::vector< Parameter >&  parameters()   {
-        return m_parameters;
-    };
-    std::vector< DerivativePack >& derivatives() {
-        return m_derivatives;
-    };
 
     //sometimes it is possible to optimize constraint derivative calculation when we are
     //a normal geometry (where parameret == value). To enable those optimisations we need
@@ -378,151 +488,8 @@ struct Geometry : public Base<Kernel, true>, GeomertyEquation<Kernel> {
         return m_independent;
     };
 
-    //the assumptions amde here are only valid for pure geometry, so we give the derived
-    //types the chance to override the initialisaion behaviour
-    virtual void init(LinearSystem<Kernel>& sys) {
-#ifdef DCM_DEBUG
-        dcm_assert(!m_init);
-        m_init = true;
-#endif
-        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
-        typedef mpl::range_c<int,0,
-                mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
-        //now iterate that sequence so we can access all storage elements with knowing the position
-        //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(Initializer<typename Inherited::Storage>(sys,
-                                    Inherited::m_storage, m_parameters, m_derivatives));
-    };
-
-#ifdef DCM_DEBUG
-    bool isInitialized() {
-        return m_init;
-    };
-#endif
-    
-protected:
-#ifdef DCM_DEBUG
-    bool m_init = false;
-#endif
-    bool m_independent = true;
-    std::vector< Parameter >   m_parameters;
-    std::vector< DerivativePack > m_derivatives;
-
-    template<typename StorageType, bool InitDerivative = true>
-    struct Initializer {
-
-        LinearSystem<Kernel>&    m_system;
-        std::vector<Parameter>&  m_entries;
-        std::vector<DerivativePack>& m_derivatives;
-        StorageType&             m_storage;
-
-        Initializer(LinearSystem<Kernel>& s, StorageType& st, std::vector<Parameter>& vec,
-                    std::vector<DerivativePack>& der) : m_system(s), m_entries(vec),
-            m_derivatives(der), m_storage(st) {};
-
-        template<typename T>
-        void operator()(T t) {
-
-            //get the parameter
-            auto& t1 = fusion::at<T>(m_storage);
-            std::vector<Parameter> v = m_system.mapParameter(t1);
-
-            //create and set derivatives
-            for(int i=0; i<v.size(); ++i) {
-                m_derivatives.emplace_back(DerivativePack(Base<Kernel, false>(),  v[i]));
-                
-                if(InitDerivative) {
-                    auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
-                    setOne(t2, i);
-                }
-            };
-
-            //set parameter
-            std::move(v.begin(), v.end(), std::back_inserter(m_entries));
-        }
-
-        template<typename T>
-        void setOne(Eigen::MatrixBase<T>& m, int n) {
-            m(n) = 1;
-        };
-        void setOne(Scalar& s, int n)               {
-            s = 1;
-        };
-    };
-    
-    struct Counter {
-
-        int& count;
-        Counter(int& c) : count(c) {
-            count = 0;
-        }; 
-
-        template<typename T>
-        void operator()(T& t) const {
-            
-            count += size(t);
-        }
-        
-        template<typename T>
-        void operator()(T*& t) const {
-            
-            count += size(*t);
-        }
-
-        template<typename T>
-        int size(Eigen::MatrixBase<T>& m) const {
-            return m.rows()*m.cols();
-        };
-        int size(Scalar& s) const {
-            return 1;
-        };
-    };
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-/**
- * @brief Base class for geometry which calculates its value from a set of parameters
- * 
- * Not for every geometry each value is automaticly a system parameter. Often you have the case that certain
- * values must be calculated from a few parameter. Then the number to variate in numeric solving is not 
- * anymore the value but the parameters. To ease the handling of such a case this class is given. It allows 
- * to specify a independent parameter storage and ensures that the values are not mapped into the linear system
- * but the parameters are. As the values still need to be a map (to enable polymophism with basic \ref Geometry)
- * a object local storge m_storage has been created which the geometry value maps are mapped to. So if you 
- * calculate the geometry values from the parameters you can either write to the normal maps or the local 
- * storage.
- * 
- * \tparam Kernel The math \ref Kernel in use
- * \tparam Base The geometric primitive this numeric geometry represents
- * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
- */
-template< typename Kernel, template<class, bool> class Base, typename... ParameterStorageTypes>
-struct ParameterGeometry : public Geometry<Kernel, Base> {
-
-    typedef typename Kernel::Scalar Scalar;
-    typedef Geometry<Kernel, Base>  Inherited;
-    typedef typename geometry::Geometry<Kernel, true, ParameterStorageTypes...>::Storage ParameterStorage;
-    
-    ParameterGeometry() {
-        GeomertyEquation<Kernel>::m_complexity = Complex;
-        fusion::for_each(m_parameterStorage, typename Inherited::Counter(Inherited::m_parameterCount));
-    };
-    
-    /**
-     * @brief Initialization of the geometry for calculation
-     * 
-     * This function must be called before any access to the geometry is made. It ensures that all maps are
-     * valid. If the geometry is accessed before calling init a segfault will happen. In debug mode an assert 
-     * is called in this situation, but in release no warning will occure. 
-     * The geometry can only be initialized with a \ref LinearSystem as the parameters of the geometry are maped
-     * into this lienar system. It is therefore highly important that the given \ref LinearSystem is used for
-     * all calculations involing this geometry.
-     * 
-     * @param sys LinearSystem the geometry is initalized with
-     * @return void
-     */
+    //the assumptions made here are only valid for pure geometry, so the derived
+    //types must override the initialisaion behaviour
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
         dcm_assert(!Inherited::m_init);
@@ -531,54 +498,93 @@ struct ParameterGeometry : public Geometry<Kernel, Base> {
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
         typedef mpl::range_c<int,0,
                 mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+        //now iterate that sequence so we can access all storage elements with knowing the position
+        //we are at (that is important to access the correct derivative storage position too)
+        mpl::for_each<StorageRange>(detail::Initializer<Kernel, typename Inherited::Storage, Inherited>(sys,
+                                    Inherited::m_storage, Inherited::m_parameters, 
+                                    Inherited::m_derivatives));
+    };
+    
+    //we actually do not really need to calculate anything, but we need to make sure the mapped 
+    //values are move over to the output
+    CALCULATE() {
+        
+        fusion::for_each(Inherited::m_storage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter));    
+    };
+    
+protected:
+    bool m_independent = true;
+    
+protected:
+    int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
+                        //for every recalculate
+};
+
+/**
+ * @brief Base class for geometry which calculates its value from a set of parameters
+ * 
+ * Not for every geometry each value is automaticly a system parameter. Often you have the case that certain
+ * values must be calculated from a few parameters, and this class makes it easy to expose those cases 
+ * as equations to the numerical solving process. The number to variate in numeric solving is not 
+ * anymore the value of the output but the free parameters only. Hence this class allows to specify a 
+ * independent parameter storage and ensures that the values of the result geometry are not 
+ * mapped into the linear system but the parameters of the storage are. To specify the parameter 
+ * storage the template parameter \tparam ParameterStorageTypes can be used.
+ * 
+ * \tparam Kernel The math \ref Kernel in use
+ * \tparam Base The geometric primitive this numeric geometry represents
+ * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
+ */
+template< typename Kernel, template<class, bool> class Base, typename... ParameterStorageTypes>
+struct ParameterGeometry : public Equation<Kernel, Base<Kernel, false>> {
+
+    typedef typename Kernel::Scalar                Scalar;
+    typedef Equation<Kernel, Base<Kernel, false>>  Inherited;
+    typedef typename geometry::Geometry<Kernel, false, ParameterStorageTypes...>::Storage ParameterStorage;
+    
+    ParameterGeometry() {
+        fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
+    };
+    
+    //make sure the parameter storage is used, not the geometry one, for initialisation
+    virtual void init(LinearSystem<Kernel>& sys) {
+#ifdef DCM_DEBUG
+        dcm_assert(!Inherited::m_init);
+        Inherited::m_init = true;
+#endif
+        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+        typedef mpl::range_c<int,0, mpl::size<ParameterStorage>::value> StorageRange;
         
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(Remapper(Inherited::m_storage, m_value));
-        
-        //finally map the parameters and create derivatives for them (zero initialized)
-        typedef mpl::range_c<int,0, mpl::size<ParameterStorage>::value> ParameterRange;
-        mpl::for_each<ParameterRange>(typename Inherited::template Initializer<ParameterStorage, false>(
-                                    sys, m_parameterStorage, Inherited::m_parameters, 
+        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited>(sys,
+                                    m_parameterStorage, Inherited::m_parameters, 
                                     Inherited::m_derivatives));
+    };
+    
+    CALCULATE() {
+        fusion::for_each(m_parameterStorage, 
+                         detail::Assigner<Inherited>(Inherited::m_parameters, m_counter));    
     };
 
 protected:
     ParameterStorage     m_parameterStorage = fusion::make_vector(
-                                              ParameterStorageTypes::template create<Kernel, true>::build()...);
-    Base<Kernel, false>  m_value;
+                                              ParameterStorageTypes::template create<Kernel, false>::build()...);
 
-    struct Remapper {
-
-        typename Inherited::Storage& m_map;
-        Base<Kernel, false>&         m_storage;
-
-        Remapper(typename Inherited::Storage& map, Base<Kernel, false>& storage)
-            : m_map(map), m_storage(storage) {};
-
-        template<typename T>
-        void operator()(T t) {
-            remap(fusion::at<T>(m_storage.m_storage), fusion::at<T>(m_map));
-        };
-
-        template<typename T>
-        void remap(T& storage, Eigen::Map<T>& map) {
-            new(&map) Eigen::Map<T>(&storage(0));
-        };
-
-        void remap(Scalar& storage, Scalar*& map) {
-            map = &storage;
-        };
-    };
+    int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
+                        //for every recalculate
 };
 
 /**
  * @brief Base class for numeric geometry calculations of interdependend geomtries
  * 
  * Often a geometry can be calculated in relation to annother one. This reduces the amount of 
- * existing parameters. This base class eases the handling of such a case by allowing to specify
- * the base geometry and holding it for easy access. As it derives from ParameterGeometry the value
- * of \ref this can be calculated from a certain set of parameters and the other geometry only.
+ * existing parameters. This base class eases the handling of such a case by deriving from UnaryEquation.
+ * Hence it can hold a input equation, as all numeric geometrie wrappers are equations. This does of 
+ * course also allow to calculate the input from any other equation, it must not be a geometry one. 
+ * Equal to the \ref ParameterGeometry this class allows to specify a extra parameter storage which is 
+ * used to define free parameters. Hence this equation type calculates its result from a input equation
+ * and free parameters.
  * 
  * \tparam Kernel The math \ref Kenel in use
  * \tparam Base The geometric primitive this numeric geometry is based in
@@ -587,38 +593,60 @@ protected:
  */
 template< typename Kernel, template<class, bool> class Base,
           template<class, bool> class DBase, typename... ParameterStorageTypes>
-struct DependendGeometry : public ParameterGeometry<Kernel, Base, ParameterStorageTypes...>  {
+struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>  {
     
-    typedef ParameterGeometry<Kernel, Base, ParameterStorageTypes...> Inherited;
-    typedef typename Geometry<Kernel, DBase>::DerivativePack          DependendDerivativePack;
+    typedef UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>              Inherited;
+    typedef typename Kernel::Scalar                                                       Scalar;
+    typedef typename geometry::Geometry<Kernel, false, ParameterStorageTypes...>::Storage ParameterStorage;
 
-    /**
-     * @brief Setup the geometry \a this depends on
-     * 
-     * Allows to set the base geometry which is needed to calculate \a this geometrys value. It will 
-     * automaticly setup new derivatives dependend on the base derivatives, however, the values are
-     * not quranteed to have any value. They therefore need to be overridden before use.
-     * \note This function should only be called if \a this and \a base have been initialized.
-     * 
-     * \param base The base geometry \a this depends on
-     * @return void
-     */
-    void setBaseGeometry(Geometry<Kernel, DBase>* base) {
+    DependendGeometry() {
+        fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
+    };
+    
+    //make sure the parameter storage is used, not the geometry one, for initialisation
+    virtual void init(LinearSystem<Kernel>& sys) {
+#ifdef DCM_DEBUG
+        dcm_assert(!Inherited::m_init);
+        Inherited::m_init = true;
+#endif
         
-        dcm_assert(Inherited::m_init);
+        //we are a unary equation, we need to make sure that we take our responsibility of 
+        //ownership serious
+        dcm_assert(Inherited::m_input);
+        if(Inherited::hasInputOwnership())
+            Inherited::m_input->init(sys);
         
-        m_base = base;
-        //we are a dependend geometry, therefore our value depends on all parameters of base. 
-        Inherited::m_parameters.insert(Inherited::m_parameters.end(),
-                                       base->parameters().begin(), base->parameters().end());
+        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
+        typedef mpl::range_c<int,0, mpl::size<ParameterStorage>::value> StorageRange;
         
-        //This also means that we have a derivative for every parameter of base too.
-        for(const typename Geometry<Kernel, DBase>::DerivativePack& d : base->derivatives())
-                Inherited::m_derivatives.push_back(std::make_pair(Base<Kernel, false>(), d.second));
+        //now iterate that sequence so we can access all storage elements with knowing the position
+        //we are at (that is important to access the correct derivative storage position too)
+        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited>(sys,
+                                    m_parameterStorage, Inherited::m_parameters, 
+                                    Inherited::m_derivatives));
+        
+        //now add the derivatives we take over from the input geometry
+        Inherited::m_derivatives.clear();
+        for(const auto& param : Inherited::inputEquation()->parameters()) 
+            Inherited::m_derivatives.push_back(std::make_pair(Inherited::OutputType(), param));
+    };
+    
+    CALCULATE() {
+        //ensure the dependend input is calculated correctly
+        dcm_assert(Inherited::m_input);        
+        if(Inherited::hasInputOwnership())
+            Inherited::m_input->execute(); 
+                
+        //to calculate the real output one needs to know the mathematical equation... this must be done 
+        //by the derived class
     };
     
 protected:
-    Geometry<Kernel, DBase>* m_base = nullptr;
+    ParameterStorage     m_parameterStorage = fusion::make_vector(
+                                              ParameterStorageTypes::template create<Kernel, false>::build()...);
+
+    int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
+                        //for every recalculate
 };
 
 } //numeric

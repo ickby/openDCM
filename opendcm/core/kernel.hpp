@@ -34,28 +34,25 @@ namespace numeric {
 template<typename Kernel> 
 struct LinearSystem;
 
-//base class for calculatable objects in a numeric context, simplified named as equations 
-template<typename Kernel>
-struct Equation {
-    
-    virtual void init(LinearSystem<Kernel>& sys) {};
-    virtual void calculate() {};
-};
-    
+  
 //every kernel needs to be derived from this class
 struct KernelBase {};
     
 template< typename Kernel >
 struct VectorEntry {
     
-    int                         Index;
-    typename Kernel::Scalar*    Value;
+    typedef typename Kernel::Scalar Scalar;
+    
+    int     Index;
+    Scalar* Value;
     
     bool operator==(const VectorEntry& e) {
         //comparing the value addresses is enough, as if tey point to the same memory they
         //must be the same system entry
         return (Value == Value);
     };
+    
+    operator Scalar&() {return *Value;};
 };
 
 template< typename Kernel >
@@ -139,9 +136,9 @@ struct LinearSystem {
     };
     
     //access the vectors and matrices
-    VectorX parameter() {return m_parameters;};
-    VectorX residuals() {return m_residuals;};
-    MatrixX jacobi()    {return m_jacobi;};    
+    VectorX& parameter() {return m_parameters;};
+    VectorX& residuals() {return m_residuals;};
+    MatrixX& jacobi()    {return m_jacobi;};    
     
 private:
     int m_parameterCount, m_equationCount;

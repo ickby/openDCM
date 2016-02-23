@@ -23,8 +23,8 @@
 #include <boost/test/unit_test.hpp>
 
 //we are in externalize mode, but don't want a extra cpp file, so we include the implementations here
-#include "opendcm/core/imp/transformation_imp.hpp"
-#include "opendcm/core/imp/kernel_imp.hpp"
+//#include "opendcm/core/imp/transformation_imp.hpp"
+//#include "opendcm/core/imp/kernel_imp.hpp"
 
 BOOST_AUTO_TEST_SUITE(kernel_suit);
 

@@ -56,32 +56,32 @@ namespace dcm {
 namespace numeric {
 
 template<typename Kernel>
-struct Constraint<Kernel, dcm::Distance, TPoint3, TPoint3> : dcm::Distance {
+struct Constraint<Kernel, dcm::Distance, TPoint3, TPoint3> : public ConstraintBase<Kernel, dcm::Distance, TPoint3, TPoint3> {
   
-    typedef dcm::Distance                                            Inherited;
-    typedef typename Kernel::Scalar                                  Scalar;
-    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1>                 Vector;
-    typedef numeric::Geometry<Kernel, TPoint3>                       Geometry1;
-    typedef typename numeric::Geometry<Kernel, TPoint3>::Derivative  Derivative1;
-    typedef numeric::Geometry<Kernel, TPoint3>                       Geometry2;
-    typedef typename numeric::Geometry<Kernel, TPoint3>::Derivative  Derivative2;
+    typedef ConstraintBase<Kernel, dcm::Distance, TPoint3, TPoint3>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry1           Geometry1;
+    typedef typename Inherited::Derivative1         Derivative1;
+    typedef typename Inherited::Geometry2           Geometry2;
+    typedef typename Inherited::Derivative2         Derivative2;
     
     Constraint() {
     };
     
-    Scalar calculate(Geometry1& g1, Geometry2& g2) {        
-        return (g1.value()-g2.value()).norm() - value();
+    Scalar calculateError(Geometry1& g1, Geometry2& g2) {        
+        return (g1.value()-g2.value()).norm() - Inherited::distance();
     };
 
     Scalar calculateGradientFirst(Geometry1& g1, Geometry2& g2, Derivative1& dg1) {        
         return (g1.value()-g2.value()).dot(dg1.value()) / (g1.value()-g2.value()).norm();
     };
 
-    Scalar calculateGradientSecond( Geometry1& g1, Geometry2& g2, Derivative2& dg2) {        
+    Scalar calculateGradientSecond(Geometry1& g1, Geometry2& g2, Derivative2& dg2) {        
         return (g1.value()-g2.value()).dot(-dg2.value()) / (g1.value()-g2.value()).norm();
     };
 
-    Vector calculateGradientFirstComplete( Geometry1& g1, Geometry2& g2) {
+    Vector calculateGradientFirstComplete(Geometry1& g1, Geometry2& g2) {
         return (g1.value()-g2.value()) / (g1.value()-g2.value()).norm();
     };
 
@@ -137,39 +137,39 @@ BOOST_AUTO_TEST_CASE(primitive) {
 BOOST_AUTO_TEST_CASE(numeric) {
     
    dcm::numeric::LinearSystem<K> sys(20,20);  
-   dcm::numeric::Geometry<K, TPoint3> p1;
-   dcm::numeric::Geometry<K, TPoint3> p2;
+   std::shared_ptr<dcm::numeric::Geometry<K, TPoint3>> p1(new dcm::numeric::Geometry<K, TPoint3>());
+   std::shared_ptr<dcm::numeric::Geometry<K, TPoint3>> p2(new dcm::numeric::Geometry<K, TPoint3>);
 
-   p1.init(sys);
-   p2.init(sys);   
-   p1.value() = Eigen::Vector3d(1,0,0);
-   p2.value() = Eigen::Vector3d(0,0,0);
+   p1->init(sys);
+   p2->init(sys);   
+   p1->value() = Eigen::Vector3d(1,0,0);
+   p2->value() = Eigen::Vector3d(0,0,0);
    
    typedef dcm::numeric::ConstraintSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3>        ggc;
    typedef dcm::numeric::ConstraintComplexEquation<K, dcm::Distance, TPoint3, TPoint3>           ccc;
    typedef dcm::numeric::ConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3, TPoint3> gcc;
    typedef dcm::numeric::ConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3> cgc;
    
-   ggc gg_constraint;
-   ccc cc_constraint;
-   gcc gc_constraint;
-   cgc cg_constraint;
+   std::shared_ptr<ggc> gg_constraint(new ggc());
+   std::shared_ptr<ccc> cc_constraint(new ccc());
+   std::shared_ptr<gcc> gc_constraint(new gcc());
+   std::shared_ptr<cgc> cg_constraint(new cgc());
 
-   gg_constraint.setupGeometry(&p1, &p2);
-   gg_constraint.init(sys);
-   cc_constraint.setupGeometry(&p1, &p2);
-   cc_constraint.init(sys);
-   cg_constraint.setupGeometry(&p1, &p2);
-   cg_constraint.init(sys);
-   gc_constraint.setupGeometry(&p1, &p2);
-   gc_constraint.init(sys);
+   gg_constraint->setInputEquations(p1, p2);
+   gg_constraint->init(sys);
+   cc_constraint->setInputEquations(p1, p2);
+   cc_constraint->init(sys);
+   cg_constraint->setInputEquations(p1, p2);
+   cg_constraint->init(sys);
+   gc_constraint->setInputEquations(p1, p2);
+   gc_constraint->init(sys);
    
-   BOOST_CHECK_NO_THROW(gg_constraint());
-   BOOST_CHECK_NO_THROW(cg_constraint());
-   BOOST_CHECK_NO_THROW(cc_constraint());
-   BOOST_CHECK_NO_THROW(gc_constraint());
+   BOOST_CHECK_NO_THROW(gg_constraint->calculate());
+   BOOST_CHECK_NO_THROW(cg_constraint->operator()());
+   BOOST_CHECK_NO_THROW(cc_constraint->execute());
+   BOOST_CHECK_NO_THROW(gc_constraint->calculate());
    
-   BOOST_CHECK(gg_constraint.getResidual() == 1);
+   BOOST_CHECK(gg_constraint->getResidual() == 1);
 
 }
 

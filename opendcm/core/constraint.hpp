@@ -168,11 +168,6 @@ protected:
     
     
     
-
-/**
-* @brief Classes for symbolic handling of constraints
-* 
-*/
 namespace symbolic {
     
 struct Constraint {
@@ -211,23 +206,40 @@ struct ConstraintProperty {
 };
     
 }//symbolic    
-
-/**
- * @brief Classes for numeric evaluation of constraints
- *
- * Primitive constraints hold only their constraint type and the options to fully define its behaviour. 
- * As numeric evaluation of constraints may be needed in the solving processm this information is not enough.
- * The governing equations for the primitive constraints and their arious possible geometry combinations 
- * are needed. All following classes provide a conviniet interface to handle all required equations.
- * 
- *
- */     
+    
 namespace numeric {
    
 /**
+ * @brief Base class to unify derivation of parent classes
+ * 
+ * To ease the specification of the parent classes for specilized numeric constraint classes as well 
+ * as simplifying the needed types this class is given. It encapsulates all needed inheritance and 
+ * typedefs. Note that the equation exposes a single scalar as result. This is due to the fact, that 
+ * a constraint equation is always a error function for the numeric solver.
+ */
+template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+struct ConstraintBase : public BinaryEquation<Kernel, PG1<Kernel, false>, PG2<Kernel, false>, typename Kernel::Scalar>, 
+                        public PC  {
+    
+        typedef BinaryEquation<Kernel, PG1<Kernel, false>, PG2<Kernel, false>, typename Kernel::Scalar> Equation;
+        
+        typedef typename Kernel::Scalar                  Scalar;
+        typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
+        typedef PG1<Kernel, false>                       Geometry1;
+        typedef Geometry1                                Derivative1;
+        typedef PG2<Kernel, false>                       Geometry2;
+        typedef Geometry2                                Derivative2;
+};
+    
+/**
  * @brief Class for numeric evaluation of primitive constraints
  * 
- * Therefore this class provides a way of specifying equations for numeric evaluation of constraints. As
+ * Primitive constraints hold only their constraint type and the options to fully define their behaviour. 
+ * As numeric evaluation of constraints may be needed in the solving procesm this information is not enough.
+ * The governing equations for the primitive constraints and their various possible geometry combinations 
+ * are needed. This and all derived classes provide a conviniet interface to handle all required equations.
+ * 
+ * This class provides a way of specifying equations for numeric evaluation of constraints. As
  * every primitive constraint can be defined for multiple geometry combinations it must allow to specify 
  * the equations for those different contexts. To achieve this a numeric constraint is a template class,
  * with the primitive constraint and the geometries as template parameters. This allows to specialize the
@@ -248,10 +260,14 @@ namespace numeric {
  * namespace dcm { namespace numeric {
  * 
  * template<typename Kernel>
- * struct Constraint<Kernel, dcm::Distance, dcm::Point3, dcm::Point3> {
- * 
+ * struct Constraint<Kernel, dcm::Distance, dcm::Point3, dcm::Point3> : public ConstraintBase<Kernel, dcm::Distance, TPoint3, TPoint3>  {
+ *
+ *      Scalar calculateError(const Geometry1& g1, const Geometry2& g2) {};
+ *      Scalar calculateGradientFirst(const Geometry1& g1, const Geometry2& g2, const Derivative1& dg1) {};
+ *      Scalar calculateGradientSecond(const Geometry1& g1, const Geometry2& g2, const Derivative2& dg2) {};
+ *      Vector calculateGradientFirstComplete(const Geometry1& g1, const Geometry2& g2) {};
+ *      Vector calculateGradientSecondComplete(const Geometry1& g1, const Geometry2& g2) {};
  * }
- * 
  * }}
  * \endcode
  *  
@@ -259,42 +275,45 @@ namespace numeric {
  * the primitive constraint functions to access the constraint options.
  * 
  * \tparam Kernel the math kernel in use
- * \tparam PC the primitive constraint in use
+ * \tparam PC  the primitive constraint in use
  * \tparam PG1 the first primitive geometry the equation is defined for
  * \tparam PG2 the second primitive geometry the equation is defined for
  */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct Constraint : public PC, Equation<Kernel> {
-    
-        typedef PC                                                   Inherited;
-        typedef typename Kernel::Scalar                              Scalar;
-        typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1>             Vector;
-        typedef numeric::Geometry<Kernel, PG1>                       Geometry1;
-        typedef typename numeric::Geometry<Kernel, PG1>::Derivative  Derivative1;
-        typedef numeric::Geometry<Kernel, PG2>                       Geometry2;
-        typedef typename numeric::Geometry<Kernel, PG2>::Derivative  Derivative2;
+struct Constraint : public ConstraintBase<Kernel, PC, PG1, PG2> {
+           
+        typedef ConstraintBase<Kernel, PC, PG1, PG2>     Inherited;
+        typedef typename Kernel::Scalar                  Scalar;
+        typedef typename Inherited::Vector               Vector;
+        typedef typename Inherited::Geometry1            Geometry1;
+        typedef typename Inherited::Derivative1          Derivative1;
+        typedef typename Inherited::Geometry2            Geometry2;
+        typedef typename Inherited::Derivative2          Derivative2;
+        
+        typedef PC  InheritedConstraint;
+        typedef BinaryEquation<Kernel, Geometry1, Geometry2, Scalar> InheritedEquation;
         
         Constraint() {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
         
-        Scalar calculate(Geometry1& g1, Geometry2& g2) {
+        Scalar calculateError(const Geometry1& g1, const Geometry2& g2) {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
 
-        Scalar calculateGradientFirst(Geometry1& g1, Geometry2& g2, Derivative1& dg1) {
+        Scalar calculateGradientFirst(const Geometry1& g1, const Geometry2& g2, const Derivative1& dg1) {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
 
-        Scalar calculateGradientSecond(Geometry1& g1, Geometry2& g2, Derivative2& dg2) {
+        Scalar calculateGradientSecond(const Geometry1& g1, const Geometry2& g2, const Derivative2& dg2) {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
 
-        Vector calculateGradientFirstComplete(Geometry1& g1, Geometry2& g2) {
+        Vector calculateGradientFirstComplete(const Geometry1& g1, const Geometry2& g2) {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
 
-        Vector calculateGradientSecondComplete(Geometry1& g1, Geometry2& g2) {
+        Vector calculateGradientSecondComplete(const Geometry1& g1, const Geometry2& g2) {
             throw creation_error() <<  boost::errinfo_errno(24) << error_message("Constraint is not supported for given geometry types");
         };
 };
@@ -303,42 +322,39 @@ struct Constraint : public PC, Equation<Kernel> {
 * @brief Numeric handling of error functions
 * 
 * As all error functions share a certain kind of structure, this class is used to provide a single 
-* implementation for reused functionality. This involves the storage of needed types, like the 
-* geometries and the jacobi matrix entries. But it is also used to unify the initialisation process.
+* implementation for reused functionality. This involves the initialisation of the equation with 
+* allocating the residual and the derivatives in the solver. This class provides the storage and 
+* access points for the result and derivatives. It further provides higher level functions to calculate 
+* individual parts of the equation.
 * 
 */    
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct ConstraintEquationBase : public Constraint<Kernel, PC, PG1, PG2> {
+struct ConstraintEquationBase : public numeric::Constraint<Kernel, PC, PG1, PG2> {
    
-    typedef Constraint<Kernel, PC, PG1, PG2>    Inherited;
-    typedef VectorEntry<Kernel>                 Residual;
-    typedef MatrixEntry<Kernel>                 Derivative;
+    typedef Constraint<Kernel, PC, PG1, PG2>            Inherited;
+    typedef VectorEntry<Kernel>                         Residual;
+    typedef MatrixEntry<Kernel>                         Derivative;
     
     //type to hold geometric derivative together with the correct position for the jacobi entry
-    typedef std::pair<typename numeric::Geometry<Kernel, PG1>::Derivative*, Derivative> Derivative1Pack;
-    typedef std::pair<typename numeric::Geometry<Kernel, PG2>::Derivative*, Derivative> Derivative2Pack;
-    
+    typedef std::pair<typename numeric::Equation<Kernel, PG1<Kernel, false>>::Derivative*, Derivative> Derivative1Pack;
+    typedef std::pair<typename numeric::Equation<Kernel, PG2<Kernel, false>>::Derivative*, Derivative> Derivative2Pack;
+     
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
         dcm_assert(!m_init);
-        dcm_assert(g1 && g1->isInitialized());
-        dcm_assert(g2 && g2->isInitialized());
+        dcm_assert(Inherited::firstInputEquation() && Inherited::firstInputEquation()->isInitialized());
+        dcm_assert(Inherited::secondInputEquation() && Inherited::secondInputEquation()->isInitialized());
         m_init = true;
 #endif
         //setup the residual first to see in which row we are working with this constraint
         residual = sys.mapResidual();
             
         //Setup the correct jacobi entry for the individual parameter
-        for(typename numeric::Geometry<Kernel, PG1>::DerivativePack& der : g1->derivatives())  
+        for(auto& der : Inherited::firstInputEquation()->derivatives())  
             g1_derivatives.push_back({&der.first, sys.mapJacobi(residual.Index, der.second.Index)});
     
-        for(typename numeric::Geometry<Kernel, PG2>::DerivativePack& der : g2->derivatives())
+        for(auto& der : Inherited::secondInputEquation()->derivatives())
             g2_derivatives.push_back({&der.first, sys.mapJacobi(residual.Index, der.second.Index)});
-    };
-    
-    void setupGeometry(numeric::Geometry<Kernel, PG1>* geo1, numeric::Geometry<Kernel, PG2>* geo2) {
-        g1 = geo1;
-        g2 = geo2;
     };
     
 #ifdef DCM_TESTING
@@ -357,9 +373,10 @@ struct ConstraintEquationBase : public Constraint<Kernel, PC, PG1, PG2> {
     
 protected:
     
-    void firstAsGeometry() {
+    void firstAsSimplified() {
          
-        auto result1 = Inherited::calculateGradientFirstComplete(*g1, *g2);
+        auto result1 = Inherited::calculateGradientFirstComplete(Inherited::firstInput(), 
+                                                                 Inherited::secondInput());
 #ifdef DCM_DEBUG
         dcm_assert(result1.rows() == g1_derivatives.size());
 #endif
@@ -370,15 +387,17 @@ protected:
         }
     };
     
-    void firstAsCluster() {
+    void firstAsComplex() {
       
         for(Derivative1Pack& der : g1_derivatives) 
-            *(der.second.Value) = Inherited::calculateGradientFirst(*g1, *g2, *der.first);
+            *(der.second.Value) = Inherited::calculateGradientFirst(Inherited::firstInput(),
+                                                                    Inherited::secondInput(), *der.first);
     };
     
-    void secondAsGeometry() {
+    void secondAsSimplified() {
         
-        auto result2 = Inherited::calculateGradientSecondComplete(*g1, *g2);
+        auto result2 = Inherited::calculateGradientSecondComplete(Inherited::firstInput(), 
+                                                                  Inherited::secondInput());
 #ifdef DCM_DEBUG
         dcm_assert(result2.rows() == g2_derivatives.size());
 #endif
@@ -389,87 +408,98 @@ protected:
         }
     };
     
-    void secondAsCluster() {
+    void secondAsComplex() {
         
         for(Derivative2Pack& der : g2_derivatives) 
-            *(der.second.Value) = Inherited::calculateGradientFirst(*g1, *g2, *der.first);
+            *(der.second.Value) = Inherited::calculateGradientFirst(Inherited::firstInput(),
+                                                                    Inherited::secondInput(), *der.first);
     };
 
 #ifdef DCM_DEBUG
     bool m_init = false;
 #endif
-    numeric::Geometry<Kernel, PG1>* g1;
-    numeric::Geometry<Kernel, PG2>* g2;
     Residual                        residual;
     std::vector<Derivative1Pack>    g1_derivatives;
     std::vector<Derivative2Pack>    g2_derivatives;
     
 };
 
+/**
+ * @brief Error function evaluation for two simple inputs
+ * 
+ * If both input equations are simple, meaning they are not an InputEquation themself, one can use 
+ * the simplified functions for both inputs.  This class provides the needed claculation functionality
+ * for the equation.
+ */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct ConstraintSimplifiedEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
+struct ConstraintSimplifiedEquation : public ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
-    void operator()() {
-        *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
-        Inherited::firstAsGeometry();
-        Inherited::secondAsGeometry();
-    };
-    
-    virtual void calculate() {
-        operator()();
+    CALCULATE() {
+        *Inherited::residual.Value = Inherited::calculateError(Inherited::firstInput(), Inherited::secondInput());
+        Inherited::firstAsSimplified();
+        Inherited::secondAsSimplified();
     };
 };
 
+/**
+ * @brief Error function evaluation for two complex inputs
+ * 
+ * If both input equations are complex, meaning they are  InputEquation themself, one must use 
+ * the complex functions for both inputs.  This class provides the needed claculation functionality
+ * for the equation.
+ */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
 struct ConstraintComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
-    void operator()() {
-        *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
-        Inherited::firstAsCluster();
-        Inherited::secondAsCluster();
-    };
-    
-    virtual void calculate() {
-        operator()();
+    CALCULATE() {
+        *Inherited::residual.Value = Inherited::calculateError(Inherited::firstInput(), Inherited::secondInput());
+        Inherited::firstAsComplex();
+        Inherited::secondAsComplex();
     };
 };
 
+/**
+ * @brief Error function evaluation for two complex inputs
+ * 
+ * If the first input equations is simple, the second complex, one must use 
+ * the simple and complex functions respectivly.  This class provides the needed claculation functionality
+ * for the equation.
+ */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
 struct ConstraintSimplifiedComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
     
-    void operator()() {
-        *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
-        Inherited::firstAsGeometry();
-        Inherited::secondAsCluster();
-    };
-    
-    virtual void calculate() {
-        operator()();
+    CALCULATE() {
+        *Inherited::residual.Value = Inherited::calculateError(Inherited::firstInput(), Inherited::secondInput());
+        Inherited::firstAsSimplified();
+        Inherited::secondAsComplex();
     };
 };
 
+/**
+ * @brief Error function evaluation for two complex inputs
+ * 
+ * If the second input equations is simple, the first complex, one must use 
+ * the simple and complex functions respectivly.  This class provides the needed claculation functionality
+ * for the equation.
+ */
 template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
 struct ConstraintComplexSimplifiedEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
    
-    void operator()() {
-        *Inherited::residual.Value = Inherited::calculate(*Inherited::g1, *Inherited::g2);
-        Inherited::firstAsCluster();
-        Inherited::secondAsGeometry();
-    };
-    
-    virtual void calculate() {
-        operator()();
+    CALCULATE() {
+        *Inherited::residual.Value = Inherited::calculateError(Inherited::firstInput(), Inherited::secondInput());
+        Inherited::firstAsComplex();
+        Inherited::secondAsSimplified();
     };
 };
-
+/*
 template<typename Kernel>
 struct ConstraintEquationGenerator {
     
@@ -519,7 +549,7 @@ struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Ker
         return Equation<Kernel>();
     };
 };
-
+*/
 }//numeric
 
 
@@ -533,7 +563,7 @@ struct Distance : public dcm::constraint::Constraint<double, SolutionSpaces> {
     Distance(){};
     Distance(const double& i, SolutionSpaces s) : Constraint(i,s) {};
     
-    double&        value() {return fusion::at_c<0>(m_storage);};
+    double&        distance() {return fusion::at_c<0>(m_storage);};
     SolutionSpaces solutionSpace() {return fusion::at_c<1>(m_storage);};
 };
 
@@ -542,7 +572,7 @@ struct Orientation : public dcm::constraint::Constraint<Orientations> {
     Orientation(){};
     Orientation(const Orientations& i) : Constraint(i) {};
     
-    Orientations& value() {return fusion::at_c<0>(m_storage);};
+    Orientations& orientation() {return fusion::at_c<0>(m_storage);};
 };
 
 struct Angle : public dcm::constraint::Constraint<double> {
@@ -550,7 +580,7 @@ struct Angle : public dcm::constraint::Constraint<double> {
     Angle(){};
     Angle(const double& i) : Constraint(i) {};
     
-    double& value() {return fusion::at_c<0>(m_storage);};
+    double& angle() {return fusion::at_c<0>(m_storage);};
 };
 
 static Distance         distance(0, SolutionSpaces::Bidirectional);

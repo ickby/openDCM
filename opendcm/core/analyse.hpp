@@ -226,11 +226,6 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final>, public Geome
 
     virtual ~GeometryEdgeReductionTree() {};
 
-    template<typename T>
-    void pretty(const T& t) {
-        std::cout<<__PRETTY_FUNCTION__<<std::endl;
-    };
-
     virtual void apply(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge e) {
 
 /*

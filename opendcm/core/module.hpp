@@ -47,19 +47,6 @@ namespace mpl = boost::mpl;
     typedef typename mpl::fold<TmpFullObjectList, typename stacked::FullObjectList, \
         mpl::push_back<mpl::_1, mpl::_2>>::type FullObjectList;
 
-#define ADD_ADAPTOR(s, data, elem) \
-    typename geometry::adaptor<elem>::placeholder
-
-#define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
-    typedef mpl::vector<BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(ADD_ADAPTOR, 0, seq))> TmpGeometryList;\
-    typedef typename mpl::fold<TmpGeometryList, typename stacked::GeometryList, \
-         mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
-
-#define DCM_MODULE_ADD_CONSTRAINTS(stacked, seq) \
-    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpConstraintList;\
-    typedef typename mpl::fold<TmpConstraintList, typename stacked::ConstraintList, \
-         mpl::push_back<mpl::_1, mpl::_2>>::type ConstraintList;
-         
 #define DCM_MODULE_ADD_VERTEX_PROPERTIES(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpVertexProperties;\
     typedef typename mpl::fold<TmpVertexProperties, typename stacked::VertexProperties, \

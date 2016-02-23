@@ -24,6 +24,7 @@
 #include <boost/exception/exception.hpp>
 #include <boost/graph/graph_concepts.hpp>
 #include <string>
+#include <iostream>
 
 namespace dcm {
 
@@ -52,6 +53,12 @@ if(exp) \
 #else
 #define dcm_assert(exp)
 #endif
+
+template<typename T>
+void pretty(const T& t) {
+    std::cout<<__PRETTY_FUNCTION__<<std::endl;
+};
+    
 }; //dcm
 
 #endif //DCM_DEFINES_CORE_H

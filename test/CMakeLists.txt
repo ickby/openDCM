@@ -11,16 +11,17 @@ link_directories ( ${Boost_LIBRARY_DIRS} ${TBB_LIBRARY_DIR} )
 set(framework_SRC framework.cpp)
 
 set(test_SRC  define.cpp
+              #mapping.cpp
+              #kernel.cpp
+              numeric.cpp
+              constraint.cpp
               #scheduler.cpp
-	      #kernel.cpp
-	      clustergraph.cpp
+	      #clustergraph.cpp
 	      #system.cpp
 	      #analyse.cpp
-	      constraint.cpp
-	      numeric.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
-	      module3d.cpp
+	      #module3d.cpp
 	      #dof.cpp
 	      #modulepart.cpp
 	      #modulepart2.cpp
@@ -33,10 +34,8 @@ set(test_SRC  define.cpp
 if(LOGGING)
 set(LOG_LIBS  boost_log
 	      rt
-	      ${Boost_SYSTEM_LIBRARY}
 	      ${Boost_FILESYSTEM_LIBRARY}
 	      ${Boost_THREAD_LIBRARY}
-	      ${Boost_CHRONO_LIBRARY}
 )
 endif(LOGGING)
 
@@ -49,4 +48,4 @@ IF (MSVC)
 SET_TARGET_PROPERTIES(solvertest PROPERTIES COMPILE_FLAGS "/bigobj")
 ENDIF (MSVC)
 
-target_link_libraries(solvertest framework ${LOG_LIBS} ${TBB_LIBRARY})
+target_link_libraries(solvertest framework ${LOG_LIBS} ${Boost_SYSTEM_LIBRARY} ${Boost_CHRONO_LIBRARY} ${TBB_LIBRARY})

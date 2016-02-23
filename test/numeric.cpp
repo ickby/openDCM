@@ -19,6 +19,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include "opendcm/core/equations.hpp"
 #include "opendcm/core/geometry.hpp"
 #include "opendcm/core/kernel.hpp"
 
@@ -28,11 +29,45 @@ using namespace dcm;
 
 typedef dcm::Eigen3Kernel<double> K;
 
+//a default equation wich uses own parameters
+struct TestEquation : public numeric::Equation<K, Eigen::Vector3d> {
+    
+    typedef numeric::Equation<K, Eigen::Vector3d> Base;
+    
+    TestEquation() : Base(), m_map(nullptr) {};
+    TestEquation(const Eigen::Vector3d& val) : Base(val), m_map(nullptr) {};
+    
+    virtual void init(numeric::LinearSystem< K >& sys) {
+        
+        Base::m_parameters = sys.mapParameter(m_map);
+        
+        for(auto& param : Base::m_parameters) 
+            Base::m_derivatives.push_back(std::make_pair(Eigen::Vector3d(), param));
+    };
+    
+    CALCULATE() {
+    
+        //nothing to calculate, only updating
+        output() = m_map;
+        
+        //derivatives are simple. should actually already be defined in init, but this is test only
+        for(int i=0; i<3; ++i)
+            Base::m_derivatives[i].first(i) = 1;
+        
+        //this equation is not used as error function, hence no derivtives and result update
+    };
+    
+private:
+    Eigen::Map<Eigen::Vector3d> m_map;
+};
+
+
 template<typename Kernel, bool MappedType = true>
 struct TDirection3 : public geometry::Geometry<Kernel, MappedType,
             geometry::storage::Vector<3>> {
 
     using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>>::m_storage;
+    using geometry::Geometry<Kernel, MappedType, geometry::storage::Vector<3>>::operator=;
    
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
@@ -70,12 +105,81 @@ struct TCylinder3 : public geometry::Geometry<Kernel, MappedType,
         return Inherited::rmPtr(fusion::at_c<1>(m_storage));
     };
 };
- 
+
 using namespace dcm;
 
 
 
 BOOST_AUTO_TEST_SUITE(Numeric_test_suit);
+
+BOOST_AUTO_TEST_CASE(equations) {
+    
+    //see if we can construct it
+    numeric::Equation<K, double> eqn1(2), eqn2(2.5);
+    numeric::Equation<K, Eigen::Vector3d> eqn3, eqn4(Eigen::Vector3d(1,2,3));
+    
+    //accessing?
+    double d1 = eqn2.output();
+    double d2 = eqn2;
+    Eigen::Vector3d v1 = eqn4.output();
+    Eigen::Vector3d v2 = eqn3;
+    
+    //using special functions of the return type?
+    double d3 = eqn4.norm();
+    
+    BOOST_CHECK_CLOSE(d1, 2.5, 1e-9);
+    BOOST_CHECK_CLOSE(d2, 2.5, 1e-9);
+    BOOST_CHECK_CLOSE(v1(0), 1, 1e-9);
+    BOOST_CHECK_CLOSE(v1(1), 2, 1e-9);
+    BOOST_CHECK_CLOSE(v1(2), 3, 1e-9);   
+    
+    
+    //check unary and binary equations
+    numeric::LinearSystem<K> sys(20,20); 
+    
+    auto d = std::make_shared<numeric::Equation<K, double>>(eqn1);
+    auto v = std::shared_ptr<TestEquation>(new TestEquation());
+    
+    auto d_v = numeric::makeUnaryEquation<K, double, Eigen::Vector3d>  (
+        [](const double& d, Eigen::Vector3d& v) {
+            v << d, 2*d, 3*d;    
+        },        
+        [](const double& d, const double& dd, Eigen::Vector3d& v) {
+            v << 1*dd,2*dd,3*dd;
+        }
+    );
+    
+    auto vv_d = numeric::makeBinaryEquation<K, Eigen::Vector3d, Eigen::Vector3d, double>  (
+        [](const Eigen::Vector3d& d1, const Eigen::Vector3d& d2, double& v) {
+            v = d1.transpose() * d2;    
+        },        
+        [](const Eigen::Vector3d& d1, const Eigen::Vector3d& d2, const Eigen::Vector3d& dd1, double& v) {
+            v = dd1.transpose() * d2; 
+        },
+        [](const Eigen::Vector3d& d1, const Eigen::Vector3d& d2, const Eigen::Vector3d& dd2, double& v) {
+            v = d1.transpose() * dd2; 
+        }
+    );
+    
+    d_v->prepend(d);
+    d_v->execute();
+    BOOST_CHECK_SMALL((*d_v-Eigen::Vector3d(2,4,6)).norm(), 1e-9);
+    BOOST_CHECK(d_v->parameters().size() == 0);
+    BOOST_CHECK(d_v->derivatives().size() == 0);
+    
+    d_v->init(sys);    
+    BOOST_CHECK(d_v->parameters().size() == 0);
+    BOOST_CHECK(d_v->derivatives().size() == 0);
+    
+    vv_d->prepend(v, d_v);
+    BOOST_CHECK(vv_d->parameters().size() == 0);
+    BOOST_CHECK(vv_d->derivatives().size() == 0);
+    
+    vv_d->init(sys);
+    BOOST_CHECK_EQUAL(vv_d->parameters().size(), 0);
+    BOOST_CHECK_EQUAL(vv_d->derivatives().size(),3);
+}
+
 
 BOOST_AUTO_TEST_CASE(geometry) {
   
@@ -91,7 +195,7 @@ BOOST_AUTO_TEST_CASE(geometry) {
     numeric::LinearSystem<K> sys(20,20);    
     numeric::Geometry<K, TDirection3> dirGeom;
     
-    BOOST_CHECK(dirGeom.parameterCount() == 3);
+    BOOST_CHECK(dirGeom.newParameterCount() == 3);
     
     dirGeom.init(sys);
     BOOST_REQUIRE(dirGeom.parameters().size() == 3);
@@ -142,14 +246,17 @@ BOOST_AUTO_TEST_CASE(geometry) {
     };
     
     //let's see if the mapping works
-    dirGeom.value() = Eigen::Vector3d(7.1,8.2,9.3);
-    BOOST_CHECK(sys.parameter().head<3>().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
+    sys.parameter().head<3>() = Eigen::Vector3d(7.1,8.2,9.3);
+    dirGeom.execute();
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
     
-    cylGeom.radius() = 3.3;
-    BOOST_CHECK(sys.parameter()(6) == (3.3));
+    sys.parameter()(6) = 3.3;
+    cylGeom.execute();
+    BOOST_CHECK(cylGeom.radius() == (3.3));
     
-    cylGeom.direction() = Eigen::Vector3d(5.5,6.6,7.7);
-    BOOST_CHECK(sys.parameter().segment<3>(7).isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
+    sys.parameter().segment<3>(7) = Eigen::Vector3d(5.5,6.6,7.7);
+    cylGeom.execute();
+    BOOST_CHECK(cylGeom.direction().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
     
     //see if anything was overriden
     BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(7.1,8.2,9.3)));
@@ -183,7 +290,7 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     
     numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter> cylGeom;
     
-    BOOST_CHECK(cylGeom.parameterCount() == 1);
+    BOOST_CHECK(cylGeom.newParameterCount() == 1);
     
     cylGeom.init(sys);       
     
@@ -199,15 +306,15 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     numeric::ParameterGeometry<K, TCylinder3, dcm::geometry::storage::Parameter, 
                     dcm::geometry::storage::Vector<3>> cyl2Geom;
                    
-    BOOST_CHECK(cyl2Geom.parameterCount() == 4);
+    BOOST_CHECK(cyl2Geom.newParameterCount() == 4);
                     
     cyl2Geom.init(sys);
-    BOOST_CHECK(cyl2Geom.parameterCount() == 4);
+    BOOST_CHECK(cyl2Geom.newParameterCount() == 4);
     BOOST_CHECK(cyl2Geom.parameters().size()==4);
     BOOST_CHECK(cyl2Geom.derivatives().size()==4);
     
     //check the polymorphism
-    numeric::Geometry<K, TCylinder3>* Geom = &cylGeom;
+    numeric::Equation<K, TCylinder3<K, false>>* Geom = &cylGeom;
     
     BOOST_CHECK(Geom->point().isApprox(Eigen::Vector3d(1,2,3)));
     BOOST_CHECK(sys.parameter().isApprox(init));
