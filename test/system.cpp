@@ -54,6 +54,22 @@ struct TestProperty3 {
 struct TestProperty4 {
     typedef bool type;
 };
+struct TestVertexProperty1 {
+    typedef int type;
+};
+struct TestVertexProperty2 {
+    typedef int type;
+};
+struct TestEdgeProperty1 {
+    typedef int type;
+};
+struct TestEdgeProperty2 {
+    typedef int type;
+};
+struct TestEdgeProperty3 {
+    typedef int type;
+};
+
 
 struct test_signal1 {};
 struct test_signal2 {};
@@ -88,6 +104,8 @@ struct TestModule1 {
         };
 
         DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1)(TestType2))
+        DCM_MODULE_ADD_VERTEX_PROPERTIES(Stacked, (TestVertexProperty1))
+        DCM_MODULE_ADD_GLOBAL_EDGE_PROPERTIES(Stacked, (TestEdgeProperty3))
     };
 };
 
@@ -111,6 +129,8 @@ struct TestModule2 {
         };
         
         DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1))
+        DCM_MODULE_ADD_VERTEX_PROPERTIES(Stacked, (TestVertexProperty2))
+        DCM_MODULE_ADD_LOCAL_EDGE_PROPERTIES(Stacked, (TestEdgeProperty1)(TestEdgeProperty2))
     };
 };
 
@@ -118,7 +138,7 @@ typedef dcm::System<TestModule2, TestModule1> System;
 
 
 
-BOOST_AUTO_TEST_CASE(inherit_functions_types) {
+BOOST_AUTO_TEST_CASE(module_functions) {
 
     System sys;
 
@@ -155,53 +175,36 @@ BOOST_AUTO_TEST_CASE(object_handling) {
     BOOST_CHECK(t->getTestProperty1());
     t->setTestProperty4(true);
     BOOST_CHECK(t->getTestProperty4());
+   
+    BOOST_CHECK(t->function1() == 1);
+    BOOST_CHECK(t->function2() == 2);
 };
-/*
+
 BOOST_AUTO_TEST_CASE(graph_properties) {
 
     System sys;
+    auto gr = std::static_pointer_cast<typename System::Graph>(sys.getGraph());
+    
+    dcm::graph::GlobalVertex v = fusion::at_c<1>(gr->addVertex());
+    gr->setProperty<TestVertexProperty1>(v, 1);
+    gr->setProperty<TestVertexProperty2>(v, 2);
+    BOOST_CHECK(gr->getProperty<TestVertexProperty1>(v) == 1);
+    BOOST_CHECK(gr->getProperty<TestVertexProperty2>(v) == 2);
 
-    dcm::GlobalVertex v = fusion::at_c<1>(sys.m_cluster->addVertex());
-    sys.m_cluster->setProperty<test_vertex_property1>(v, 1);
-    sys.m_cluster->setProperty<test_vertex_property2>(v, 2);
-    BOOST_CHECK(sys.m_cluster->getProperty<test_vertex_property1>(v) == 1);
-    BOOST_CHECK(sys.m_cluster->getProperty<test_vertex_property2>(v) == 2);
-
-    dcm::GlobalVertex v2 = fusion::at_c<1>(sys.m_cluster->addVertex());
-    dcm::GlobalEdge e = fusion::at_c<1>(sys.m_cluster->addEdge(v, v2));
-    sys.m_cluster->setProperty<test_edge_property1>(e, 1);
-    sys.m_cluster->setProperty<test_edge_property2>(e, 2);
-    BOOST_CHECK(sys.m_cluster->getProperty<test_edge_property1>(e) == 1);
-    BOOST_CHECK(sys.m_cluster->getProperty<test_edge_property2>(e) == 2);
-
-};
-
-BOOST_AUTO_TEST_CASE(object_properties) {
-
-    System sys;
-    typedef TestModule1::type<System> Module1;
-    typedef TestModule2::type<System> Module2;
-    typedef Module1::test_object1 to1;
-    typedef Module2::test_object2 to2;
-
-    to1 o1(sys);
-    to2 o2(sys);
-
-    //check defualt value
-    BOOST_CHECK(o1.getProperty<Module1::test_object1_prop>() == 3);
-
-    o1.setProperty<Module1::test_object1_prop>(5);
-    BOOST_CHECK(o1.getProperty<Module1::test_object1_prop>() == 5);
-
-    o1.setProperty<Module2::test_object1_external_prop>(7);
-    BOOST_CHECK(o1.getProperty<Module1::test_object1_prop>() == 5);
-    BOOST_CHECK(o1.getProperty<Module2::test_object1_external_prop>() == 7);
-
-    o2.getProperty<Module2::test_object2_prop>() = o1.getProperty<Module2::test_object1_external_prop>();
-    BOOST_CHECK(o2.getProperty<Module2::test_object2_prop>() == 7);
+    dcm::graph::GlobalVertex v2 = fusion::at_c<1>(gr->addVertex());
+    auto ret = gr->addEdge(v, v2);
+    dcm::graph::GlobalEdge e = fusion::at_c<1>(ret);
+    dcm::graph::LocalEdge le = fusion::at_c<0>(ret);
+    gr->setProperty<TestEdgeProperty3>(e, 1);
+    gr->setProperty<TestEdgeProperty1>(le, 2);
+    gr->setProperty<TestEdgeProperty2>(le, 3);
+    BOOST_CHECK(gr->getProperty<TestEdgeProperty3>(e) == 1);
+    BOOST_CHECK(gr->getProperty<TestEdgeProperty1>(le) == 2);
+    BOOST_CHECK(gr->getProperty<TestEdgeProperty2>(le) == 3);
 
 };
 
+/*
 BOOST_AUTO_TEST_CASE(settings_properties) {
 
     System sys;

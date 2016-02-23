@@ -16,8 +16,8 @@ set(test_SRC  define.cpp
               numeric.cpp
               constraint.cpp
               #scheduler.cpp
-	      #clustergraph.cpp
-	      #system.cpp
+	      clustergraph.cpp
+	      system.cpp
 	      #analyse.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp

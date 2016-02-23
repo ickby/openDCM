@@ -66,7 +66,16 @@ namespace mpl = boost::mpl;
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpClusterProperties;\
     typedef typename mpl::fold<TmpClusterProperties, typename stacked::ClusterProperties, \
          mpl::push_back<mpl::_1, mpl::_2>>::type ClusterProperties;
-         
+  
+#define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpGeometryList;\
+    typedef typename mpl::fold<TmpGeometryList, typename stacked::GeometryList, \
+        mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
+   
+#define DCM_MODULE_ADD_CONSTRAINTS(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpConstraintList;\
+    typedef typename mpl::fold<TmpConstraintList, typename stacked::GeometryList, \
+        mpl::push_back<mpl::_1, mpl::_2>>::type ConstraintList;
 
 namespace dcm {
 namespace details {
@@ -81,7 +90,7 @@ struct remove_base {
 template<typename Final, typename MathKernel>
 struct ModuleCoreInit {
 
-    ModuleCoreInit() : graph(NULL)
+    ModuleCoreInit() : m_graph(NULL)
 #ifdef DCM_USE_LOGGING
         , sink(init_log())
 #endif
@@ -89,8 +98,8 @@ struct ModuleCoreInit {
         int size = mpl::size<typename Final::GeometryList>::type::value;
         reduction.resize(boost::extents[size][size]);
         
-        int constraints = mpl::size<typename Final::ConstraintList>::type::value;
-        generator.resize(boost::extents[size][size][constraints]);
+        //int constraints = mpl::size<typename Final::ConstraintList>::type::value;
+        //generator.resize(boost::extents[size][size][constraints]);
         
         //build up the default reduction nodes
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
@@ -101,8 +110,8 @@ struct ModuleCoreInit {
         RecursiveSequenceApplyer<typename Final::GeometryList, ReductionNodeCreator> r(reduction);
         mpl::for_each<StorageRange>(r);
         
-        RecursiveSequenceApplyer<typename Final::GeometryList, ConstraintGeneratorCreator> g(generator);
-        mpl::for_each<StorageRange>(g);
+        //RecursiveSequenceApplyer<typename Final::GeometryList, ConstraintGeneratorCreator> g(generator);
+        //mpl::for_each<StorageRange>(g);
         
     };
 
@@ -154,32 +163,32 @@ protected:
         int n2 = Final::template primitiveGeometryIndex<G2>::value;
         return reduction[n1][n2];
     };
-    
+    /*
     template<template<class, bool> class G1, template<class, bool> class G2, typename PC>
     numeric::ConstraintEquationGenerator<Kernel> getEquationGenerator() {
         int n1 = Final::template primitiveGeometryIndex<G1>::value;
         int n2 = Final::template primitiveGeometryIndex<G2>::value;
         int n3 = Final::template constraintIndex<PC>::value;
         return reduction[n1][n2][n3];
-    };
+    };*/
     
 #ifdef DCM_TESTING
 public:
 #endif
     //ensure that the correct graph type is used by not allowing anyone to set the graph pointer
     std::shared_ptr<graph::AccessGraphBase> getGraph() {
-        if(!graph)
-            graph = std::make_shared<typename Final::Graph>();
+        if(!m_graph)
+            m_graph = std::make_shared<typename Final::Graph>();
 
-        return graph;
+        return m_graph;
     };
     
 protected:
     boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>           reduction;
-    boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>  generator;
+    //boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>  generator;
 
 private:
-    std::shared_ptr<graph::AccessGraphBase> graph;
+    std::shared_ptr<graph::AccessGraphBase> m_graph;
 #ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
@@ -242,7 +251,7 @@ private:
             reduction[idx2][idx1] = node;
         };
     };
-    
+    /*
     template<typename Sequence>
     struct ConstraintGeneratorCreator {
     
@@ -275,11 +284,14 @@ private:
                 generator[n2][n1][T::value] = generator[n1][n2][T::value];
             };
         };
-    };
+    };*/
 };
 
 template<typename Final, typename Stacked>
 struct ModuleCoreFinish : public Stacked {
+    
+    //the math kernel in use
+    typedef typename Stacked::Kernel Kernel;
     
     //The FullObjectList holds all created object types, including all "evolution steps", meaning every
     //base class of the final object is represented as well. However, we often want only to habe the user-visible types
@@ -306,7 +318,7 @@ struct ModuleCoreFinish : public Stacked {
     };
     
     template<typename G>
-    struct geometryIndex {
+    struct initGeometryIndex {
         typedef typename mpl::find<typename Stacked::GeometryList, G>::type iterator;
         typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
         BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_TYPE_NOT_REGISTERT, (G));
@@ -315,19 +327,13 @@ struct ModuleCoreFinish : public Stacked {
                             iterator>::type type; 
         const static long value = type::value;
     };
-
-    template<template<class, bool> class G>
-    struct geometryIndex<geometry::adaptor<G>> {
-        typedef typename geometryIndex<typename geometry::adaptor<G>::placeholder>::type type; 
+    
+    template<template<class> class G>
+    struct geometryIndex {
+        typedef typename initGeometryIndex<G<Kernel>>::type type; 
         const static long value = type::value;
     };
-    
-    template<template<class, bool> class G>
-    struct primitiveGeometryIndex {
-        typedef typename geometryIndex<typename geometry::adaptor<G>::placeholder>::type type; 
-        const static long value = type::value;
-    };
-    
+   
     template<typename G>
     struct constraintIndex {
         typedef typename mpl::find<typename Stacked::ConstraintList, G>::type iterator;

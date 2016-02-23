@@ -312,6 +312,7 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
             mpl::size<typename Inherited::StorageSequence>::value> StorageRange;
                 
     Geometry() {
+        Inherited::m_complexity = Complexity::Complex;
         fusion::for_each(Inherited::m_storage, detail::Counter<Kernel>(Inherited::m_parameterCount));
     };
     

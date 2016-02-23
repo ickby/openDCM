@@ -73,6 +73,12 @@ namespace numeric {
     
 namespace mpl = boost::mpl;
 
+//Fixed:   No free parameters, fixed output value
+//Simple:  Every value of the output is an free parameter, equation depends on no additional ones
+//Complex: Output is calculated from free parameters of the own or other equations
+enum class Complexity { Fixed, Simple, Complex };
+
+
 //This macro is intendet to ease the implementation of equations. They need to override execute() to allow 
 //polymorphic calculation, but also implement calculate() for exeution without virtual calls. Futhermore 
 //using them as functors in heplpful. This macro provides the boilerplate needed for all of this.
@@ -210,6 +216,18 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
         return m_derivatives;
     };
     
+    /**
+     * @brief Returns the complexity of this equation
+     * 
+     * Returns a hint on how this equation is calculated:
+     * Fixed:   No free parameters, fixed output value
+     * Simple:  Every value of the output is an free parameter, equation depends on no additional ones
+     * Complex: Output is calculated from free parameters of the own or other equations
+     * 
+     * @return dcm::numeric::Complexity Complexity of the equation
+     */
+    Complexity getComplexity() {return m_complexity;};
+    
 #ifdef DCM_DEBUG
     bool isInitialized() {
         return m_init;
@@ -221,6 +239,7 @@ protected:
     std::vector< Parameter >            m_parameters;
     std::vector< DerivativePack >       m_derivatives; 
     int                                 m_parameterCount = 0; //how many parameters are added by this equation?
+    Complexity                          m_complexity = Complexity::Fixed;
 #ifdef DCM_DEBUG
     bool m_init = false;
 #endif
@@ -242,6 +261,9 @@ public:
 template<typename Kernel, typename Output>
 struct InputEquation : public Equation<Kernel, Output> {
     
+    InputEquation() {
+        Equation<Kernel, Output>::m_complexity = Complexity::Complex;
+    };
     
     /**
      * @brief Returns if equation owns the input equations

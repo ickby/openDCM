@@ -106,12 +106,12 @@ struct FlowGraphExtractor : public boost::default_dfs_visitor {
     typedef typename shedule::FlowGraph::Node   Node;
 
     shedule::FlowGraph flow;
-    std::map<LocalVertex, numeric::GeomertyEquation<Kernel>*> geometryMap;
+//    std::map<LocalVertex, numeric::GeomertyEquation<Kernel>*> geometryMap;
     int parameter = 0;
     int equations = 0;
        
     void tree_edge(LocalEdge u, const Graph& graph) {
-
+/*
          auto result = graph.template getProperty<symbolic::ResultProperty>(u);
          
          LocalVertex source = graph.source(u);
@@ -127,7 +127,7 @@ struct FlowGraphExtractor : public boost::default_dfs_visitor {
                  //geometryMap[source] = result->(geom);
              }
          }
-         
+  */       
          
     };
 
