@@ -41,11 +41,10 @@ struct test_constraint2 : public dcm::constraint::Constraint< double, char> {
     char&   direction() {return fusion::at_c<1>(m_storage);};
 };
 
-template<typename Kernel, bool MappedType = true>
-struct TPoint3 : public dcm::geometry::Geometry<Kernel, MappedType,
-            dcm::geometry::storage::Vector<3>> {
+template<typename Kernel>
+struct TPoint3 : public dcm::geometry::Geometry<Kernel, dcm::numeric::Vector<Kernel, 3>> {
 
-    using dcm::geometry::Geometry<Kernel, MappedType, dcm::geometry::storage::Vector<3>>::m_storage;
+    using dcm::geometry::Geometry<Kernel, dcm::numeric::Vector<Kernel, 3>>::m_storage;
    
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);

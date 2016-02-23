@@ -217,17 +217,17 @@ namespace numeric {
  * typedefs. Note that the equation exposes a single scalar as result. This is due to the fact, that 
  * a constraint equation is always a error function for the numeric solver.
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
-struct ConstraintBase : public BinaryEquation<Kernel, PG1<Kernel, false>, PG2<Kernel, false>, typename Kernel::Scalar>, 
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
+struct ConstraintBase : public BinaryEquation<Kernel, PG1<Kernel>, PG2<Kernel>, typename Kernel::Scalar>, 
                         public PC  {
     
-        typedef BinaryEquation<Kernel, PG1<Kernel, false>, PG2<Kernel, false>, typename Kernel::Scalar> Equation;
+        typedef BinaryEquation<Kernel, PG1<Kernel>, PG2<Kernel>, typename Kernel::Scalar> Equation;
         
         typedef typename Kernel::Scalar                  Scalar;
         typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
-        typedef PG1<Kernel, false>                       Geometry1;
+        typedef PG1<Kernel>                              Geometry1;
         typedef Geometry1                                Derivative1;
-        typedef PG2<Kernel, false>                       Geometry2;
+        typedef PG2<Kernel>                              Geometry2;
         typedef Geometry2                                Derivative2;
 };
     
@@ -279,7 +279,7 @@ struct ConstraintBase : public BinaryEquation<Kernel, PG1<Kernel, false>, PG2<Ke
  * \tparam PG1 the first primitive geometry the equation is defined for
  * \tparam PG2 the second primitive geometry the equation is defined for
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct Constraint : public ConstraintBase<Kernel, PC, PG1, PG2> {
            
         typedef ConstraintBase<Kernel, PC, PG1, PG2>     Inherited;
@@ -328,7 +328,7 @@ struct Constraint : public ConstraintBase<Kernel, PC, PG1, PG2> {
 * individual parts of the equation.
 * 
 */    
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct ConstraintEquationBase : public numeric::Constraint<Kernel, PC, PG1, PG2> {
    
     typedef Constraint<Kernel, PC, PG1, PG2>            Inherited;
@@ -336,8 +336,8 @@ struct ConstraintEquationBase : public numeric::Constraint<Kernel, PC, PG1, PG2>
     typedef MatrixEntry<Kernel>                         Derivative;
     
     //type to hold geometric derivative together with the correct position for the jacobi entry
-    typedef std::pair<typename numeric::Equation<Kernel, PG1<Kernel, false>>::Derivative*, Derivative> Derivative1Pack;
-    typedef std::pair<typename numeric::Equation<Kernel, PG2<Kernel, false>>::Derivative*, Derivative> Derivative2Pack;
+    typedef std::pair<typename numeric::Equation<Kernel, PG1<Kernel>>::Derivative*, Derivative> Derivative1Pack;
+    typedef std::pair<typename numeric::Equation<Kernel, PG2<Kernel>>::Derivative*, Derivative> Derivative2Pack;
      
     virtual void init(LinearSystem<Kernel>& sys) {
 #ifdef DCM_DEBUG
@@ -431,7 +431,7 @@ protected:
  * the simplified functions for both inputs.  This class provides the needed claculation functionality
  * for the equation.
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct ConstraintSimplifiedEquation : public ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
@@ -450,7 +450,7 @@ struct ConstraintSimplifiedEquation : public ConstraintEquationBase<Kernel, PC, 
  * the complex functions for both inputs.  This class provides the needed claculation functionality
  * for the equation.
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct ConstraintComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
@@ -469,7 +469,7 @@ struct ConstraintComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> 
  * the simple and complex functions respectivly.  This class provides the needed claculation functionality
  * for the equation.
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct ConstraintSimplifiedComplexEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
     
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;
@@ -488,7 +488,7 @@ struct ConstraintSimplifiedComplexEquation : ConstraintEquationBase<Kernel, PC, 
  * the simple and complex functions respectivly.  This class provides the needed claculation functionality
  * for the equation.
  */
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct ConstraintComplexSimplifiedEquation : ConstraintEquationBase<Kernel, PC, PG1, PG2> {
   
     typedef ConstraintEquationBase<Kernel, PC, PG1, PG2> Inherited;

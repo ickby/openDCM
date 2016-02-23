@@ -58,21 +58,20 @@ namespace dcm {
  * requirements for a geometric primitive: 
  * First the values need to be stored in a fusion vector named \a m_storage. This is important for automatic 
  * handling of primitives regardless of type. 
- * Second it must be possible to initiate a geometric primitive either as storage type (realy holding the values) or as pointer or map
- * type, referencing the data from somewhere else.
- * Third it must implement the interface for in place transformation returning a transformed copy. This interface 
- * consists of two function: 
+ * Second it must implement the interface for in place transformation and returning a transformed copy. T
+ * his interface consists of two function: 
  * \code
- * this_type& transform  (const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //in place transformation, return reference
- * this_type  transformed(const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) //return transformed copy
+ * //in place transformation, return reference
+ * this_type& transform  (const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&)
+ * //return transformed copy
+ * this_type  transformed(const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) 
  *\endcode
- * Finally a geometric primitive must be copy-constructable and assignable by the same type in map and storage form.
+ * Third and finale requirement is that a geometric primitive must be default-constructable, 
+ * copy-constructable and assignable.
  * 
- * As an example let's create a point2d geometric primitive. We get the \ref Kernel as always template argument.
- * Furthermore we have a bool template parameter which describes if the point shall be a storage or a refernce.
- *
+ * As an example let's create a point2d geometric primitive. We get the \ref Kernel as template argument. *
  * \code{.cpp}
- * template<typename Kernel, bool Map>
+ * template<typename Kernel>
  * struct point2D {
  *      typedef Kernel::Scalar Scalar;
  *      boost::fusion::vector<Scalar, Scalar> m_storage;
@@ -83,178 +82,41 @@ namespace dcm {
  *      point2d<Kernel, Map>& transform  (const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
  *      point2d<Kernel, Map>  transformed(const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
  * }
- *
- * template<typename Kernel>
- * struct point2D<Kernel, true {
- *      typedef Kernel::Scalar Scalar;
- *      boost::fusion::vector<Scalar*, Scalar*> m_storage;
- *
- *      Scalar* x() {return boost::fusion::at_c<0>(m_storage);
- *      Scalar* y() {return boost::fusion::at_c<1>(m_storage);
- * 
- *      point2d<Kernel, Map>& transform  (const details::Transform<Scalar,2>& t)...
- *      point2d<Kernel, Map>  transformed(const details::Transform<Scalar,2>& t)...
- * }
- * }
  * \endcode
  *
  * The first requirement has been followed by creating a fusion vector called m_stroage which holds our two
- * data entries. The second requeirement has been fullfilled for specializing the point type if a map type is
- * required and then replacing the Scalar values with pointers to those. Number three is also satisfied, both 
- * spezialisations implement the transform interface.
- *
- * \note The fusion vector must have the same size and order for map and storage type. Furthermore the enries
- * in the map type primitive must be constructible from pointers to the storage type.
+ * data entries. The second requeirement is fullfilled by the fully provided transform interface. The third copy 
+ * and assignable condition is meet by standart compiler-generated operators and constructors. 
  *
  * As the example above needs quite some boilerplate for a primitve type helper classes are provided in this
  * namespace which ease the creation of geometric primitives.
  */
 namespace geometry {
-/*
-namespace identifier {
-    
-       template<int i>
-       struct ParameterIdentifier {
-            mpl::int_<i> id;
-            static int id() { return id::value;};
-       };
-    
-       template<int i>
-       struct Vector3Identifier {
-            mpl::int_<i> id;
-            static int id() { return id::value;};
-            
-            struct X { 
-                mpl::int_<i+1> id;
-                static int id() { return id::value;};
-            };
-            struct Y { 
-                mpl::int_<i+2> id;
-                static int id() { return id::value;};
-            };
-            struct Z { 
-                mpl::int_<i+3> id;
-                static int id() { return id::value;};
-            };
-    };
-    
-    struct Position  : public Vector3Identifier<1> {};
-    struct Direction : public Vector3Identifier<10> {};
-    
-    struct Radius    : public ParameterIdentifier<100>{};
-    
-}; //identifier
-*/
-/**
- * @brief Storage types from which a geometric primitive can be build
- *
- * This namespace contains types which abstract the difference between a map and a storage and the
- * difference in construction method. This makes it easy to describe the most common types independent
- * from the geometric primtive requeirements. For example a linear algebra vector of size 3 can be given
- * as storage::Vector<3>. This type hold all nesseccary boilerplate to define and construct map and
- * storage types.
- */
-namespace storage  {
-    
-/**
- * @brief A simple scalar parameter
- *
- * If you need a storage of one scalar value this is the class to use. For the storage it creates the
- * \ref Kernel defined scalar and for a map it creates a pointer to such a scalar. The pointer will be
- * nullptr initialized. 
- * \note A parameter will never be transformed
- */
-struct Parameter {
-
-    template<typename Kernel, bool Map>
-    struct create {
-        typedef typename Kernel::Scalar type;
-        static type build() {
-            return type(0);
-        };
-    };
-    template<typename Kernel>
-    struct create<Kernel, true> {
-        typedef typename Kernel::Scalar* type;
-        static type build() {
-            return type(nullptr);
-        };
-    };
-};
-
-/**
- * @brief A two dimensionla \a Eigen matrix
- *
- * A stroage for a full matrix, either fixed size (when \a Row or \Column are gives as integers > 0) or
- * dynamical sized (when \a Row or \Column are gives as Eigen::Dynamic). For storage it creates a Eigen::Matrix
- * and for a map a Eigen::Map to such a matrix. The map will be nullptr initialized on construction.
- * 
- * \note Matrices can be transformed in multiple ways. A <3,3> matrix can be rotated
- *
- * \tparam Row The matrix's row count, or Eigen::Dynamic for dynamicaly sized rows.
- * \tparam Column The matrix's column count, or Eigen::Dynamic for dynamicaly sized columns.
- */
-template<int Row, int Column>
-struct Matrix {
-
-    template<typename Kernel, bool Map>
-    struct create {
-        typedef Eigen::Matrix<typename Kernel::Scalar, Row, Column> type;
-        static type build() {
-            return type::Zero();
-        };
-    };
-    template<typename Kernel>
-    struct create<Kernel, true> {
-        typedef Eigen::Map<Eigen::Matrix<typename Kernel::Scalar, Row, Column>> type;
-        static type build() {
-            return type(nullptr);
-        };
-    };
-};
-
-/**
- * @brief A row \a Eigen vector
- *
- * A stroage for a row vector, either fixed size (when \a Size is gives as integer > 0) or
- * dynamical sized (when \a Size is gives as Eigen::Dynamic). For storage it creates a Eigen::Matrix
- * and for a map a Eigen::Map to such a matrix, both with the column size = 1. The map will be
- * nullptr initialized on construction.
- *
- * \note A vector can be transformed if its \a Size is equal the systems dimension. Three possibilities exist: 
- * 0 
- * 
- * \tparam Size The vectors row count, or Eigen::Dynamic for a dynamicaly sized vector.
- */
-template<int Size>
-using Vector = Matrix<Size, 1>;
-
-} //storages
 
 /**
  * @brief Helper base struct for creating primitive gepometry types
  *
- * Primitive geometry has to fullfill four requirements: the storage based on fusion::vector, the possibility
- * to be a map or storage type, the transform interface and the copy-constructability and assignability 
- * independend of map or storage type. To reduce boilerplate this class is given which handles the fusion::vector
- * creation automaticly for storage and map types dependend on the template parameter \a Map. To tell the struct
- * which types shall be stored (or mapped) it is possible to pass an arbitrary number of storage types as
+ * Primitive geometry has to fullfill three requirements: the storage based on fusion::vector, the 
+ * transform interface and the copy-constructability and assignability. To reduce boilerplate this class
+ * is given which handles the fusion::vector creation automaticly. To tell the struct
+ * which types shall be stored it is possible to pass an arbitrary number of types as
  * template parameters. For example a line could be constructed using this class in the following way:
  * \code
- * template<typename Kernel, bool MappedType = true>
- * struct Line3 : public geometry::Geometry<Kernel, MappedType,
- *            geometry::storage::Vector<3>, geometry::storage::Vector<3>> {
+ * template<typename Kernel>
+ * struct Line3 : public geometry::Geometry<Kernel, Eigen::Vector3d, Eigen::Vector3d> {
  *
- *    using geometry::Geometry<Kernel, MappedType,
- *        geometry::storage::Vector<3>, geometry::storage::Vector<3>>::m_storage;
+ *    typedef geometry::Geometry<Kernel, Eigen::Vector3d, Eigen::Vector3d> Base;
  *
- *    auto point() -> decltype(fusion::at_c<0>(m_storage)) {
- *        return fusion::at_c<0>(m_storage);
+ *    Eigen::Vector3d& point() {
+ *        return fusion::at_c<0>(Base::m_storage);
  *    };
  *
- *    auto direction() -> decltype(fusion::at_c<1>(m_storage)) {
- *        return fusion::at_c<1>(m_storage);
+ *    auto direction() -> decltype(fusion::at_c<1>(Base::m_storage)) {
+ *        return fusion::at_c<1>(Base::m_storage);
  *    };
+ * 
+ *    Line3<Kernel>& transform  (const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t)...
+ *    Line3<Kernel>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t)...        
  * };
  * \endcode
  * 
@@ -266,44 +128,14 @@ using Vector = Matrix<Size, 1>;
  * \tparam Map boolean which states if this geometric primitive shall be a storage or a map
  * \tparam StorageTypes Variadic sequence of storage types
  */
-template<typename Kernel, bool Map, typename... StorageTypes>
+template<typename Kernel, typename... StorageTypes>
 struct Geometry {
 
-    typedef mpl::vector<StorageTypes...>                                               StorageTypeSequence;
-    typedef mpl::vector< typename StorageTypes::template create<Kernel, Map>::type...> StorageSequence;
-    typedef typename fusion::result_of::as_vector<StorageSequence>::type               Storage;
+    typedef mpl::vector< StorageTypes... >                               StorageSequence;
+    typedef typename fusion::result_of::as_vector<StorageSequence>::type Storage;
     
 protected:
-    Storage m_storage = fusion::make_vector(StorageTypes::template create<Kernel, Map>::build()...);
-
-    //helper function for parameters: remove the pointer if the parameter is represented as such
-    //and in every case return a reference
-    template<typename T>
-    T& rmPtr(T* t) {
-        return *t;
-    };
-    template<typename T>
-    T& rmPtr(T& t) {
-        return t;
-    };
-};
-
-/**
- * @brief Adaptor for easy primitive geometry handling
- * 
- * As a primitive geometry is mostly used without the template arguments it may be very cumbersome to use it. 
- * Especialy if a fully defined type is needed. Therefore this adaptor is provided. It is fully defined by a 
- * primitive geomerty even without the template arguments and provides template aliases to generate a primtive.
- * 
- * \param Base the primitive geometry which should be wrapped
- */
-template<template<class, bool> class Base>
-struct adaptor {
-    template<typename Kernel, bool b> using primitive    = Base<Kernel, b>;
-    template<typename Kernel>         using mapped  = Base<Kernel, true>;
-    template<typename Kernel>         using storage = Base<Kernel, false>;
-    
-    typedef Base<numeric::DummyKernel, true> placeholder;
+    Storage m_storage;
 };
 
 /**
@@ -319,12 +151,10 @@ struct adaptor {
 template<typename T>
 struct extractor {};
 
-template<template<class, bool> class Base, typename Kernel, bool b>
-struct extractor<Base<Kernel, b>> {
+template<template<class> class Base, typename Kernel>
+struct extractor<Base<Kernel>> {
     
-    template<typename K, bool b_> using primitive = Base<K,b_>;
-    typedef Base<Kernel, true>  mapped;
-    typedef Base<Kernel, false> storage;
+    template<typename K> using  primitive = Base<K>;
 };
 
 }//geometry
@@ -448,6 +278,12 @@ struct Assigner {
     
 namespace numeric {
 
+template<typename Kernel, int i> 
+using Vector = Eigen::Matrix<typename Kernel::Scalar, i, 1>;
+
+template<typename Kernel, int i, int j> 
+using Matrix = Eigen::Matrix<typename Kernel::Scalar, i, j>;
+
 /**
  * @brief Base class for numeric handling of geometry types
  *
@@ -465,16 +301,15 @@ namespace numeric {
  * \tparam Base The geometric primitive on which the numeric geometry is based on as non-specialized 
  *              template type
  */
-template< typename Kernel, template<class, bool> class Base >
-struct Geometry : public Equation<Kernel, Base<Kernel, false>> {
+template< typename Kernel, template<class> class Base >
+struct Geometry : public Equation<Kernel, Base<Kernel>> {
 
-    typedef Equation<Kernel, Base<Kernel, false>> Inherited;
-    typedef Base<Kernel, true>                    Map;
-    typedef typename Kernel::Scalar               Scalar;
+    typedef Equation<Kernel, Base<Kernel>> Inherited;
+    typedef typename Kernel::Scalar        Scalar;
 
     //mpl trickery to get a sequence counting from 0 to the size of stroage entries
     typedef mpl::range_c<int,0,
-            mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+            mpl::size<typename Inherited::StorageSequence>::value> StorageRange;
                 
     Geometry() {
         fusion::for_each(Inherited::m_storage, detail::Counter<Kernel>(Inherited::m_parameterCount));
@@ -497,7 +332,7 @@ struct Geometry : public Equation<Kernel, Base<Kernel, false>> {
 #endif
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
         typedef mpl::range_c<int,0,
-                mpl::size<typename Inherited::StorageTypeSequence>::value> StorageRange;
+                mpl::size<typename Inherited::StorageSequence>::value> StorageRange;
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
         mpl::for_each<StorageRange>(detail::Initializer<Kernel, typename Inherited::Storage, Inherited>(sys,
@@ -535,12 +370,12 @@ protected:
  * \tparam Base The geometric primitive this numeric geometry represents
  * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
  */
-template< typename Kernel, template<class, bool> class Base, typename... ParameterStorageTypes>
-struct ParameterGeometry : public Equation<Kernel, Base<Kernel, false>> {
+template< typename Kernel, template<class> class Base, typename... ParameterStorageTypes>
+struct ParameterGeometry : public Equation<Kernel, Base<Kernel>> {
 
-    typedef typename Kernel::Scalar                Scalar;
-    typedef Equation<Kernel, Base<Kernel, false>>  Inherited;
-    typedef typename geometry::Geometry<Kernel, false, ParameterStorageTypes...>::Storage ParameterStorage;
+    typedef typename Kernel::Scalar         Scalar;
+    typedef Equation<Kernel, Base<Kernel>>  Inherited;
+    typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
     
     ParameterGeometry() {
         fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
@@ -568,8 +403,7 @@ struct ParameterGeometry : public Equation<Kernel, Base<Kernel, false>> {
     };
 
 protected:
-    ParameterStorage     m_parameterStorage = fusion::make_vector(
-                                              ParameterStorageTypes::template create<Kernel, false>::build()...);
+    ParameterStorage     m_parameterStorage;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
                         //for every recalculate
@@ -595,9 +429,9 @@ template< typename Kernel, template<class, bool> class Base,
           template<class, bool> class DBase, typename... ParameterStorageTypes>
 struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>  {
     
-    typedef UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>              Inherited;
-    typedef typename Kernel::Scalar                                                       Scalar;
-    typedef typename geometry::Geometry<Kernel, false, ParameterStorageTypes...>::Storage ParameterStorage;
+    typedef UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>       Inherited;
+    typedef typename Kernel::Scalar                                                Scalar;
+    typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
 
     DependendGeometry() {
         fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
@@ -642,8 +476,7 @@ struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel, false>, Ba
     };
     
 protected:
-    ParameterStorage     m_parameterStorage = fusion::make_vector(
-                                              ParameterStorageTypes::template create<Kernel, false>::build()...);
+    ParameterStorage     m_parameterStorage;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
                         //for every recalculate
