@@ -30,6 +30,8 @@
 
 #include <boost/multi_array.hpp>
 #include <unordered_map>
+#include <typeindex>
+                
 
 namespace dcm {
 namespace symbolic {
