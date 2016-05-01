@@ -27,6 +27,7 @@
 
 #include "transformation.hpp"
 #include "logging.hpp"
+#include "scheduler.hpp"
 
 namespace dcm {
 namespace numeric {
@@ -146,6 +147,56 @@ private:
     VectorX m_parameters;
     VectorX m_residuals;
     MatrixX m_jacobi;
+};
+
+
+/**
+ * @brief Base for all things that need to be calculated when evaluating a Linear System
+ * 
+ */
+template<typename Kernel>
+struct Calculatable : shedule::Executable {
+    
+    typedef Kernel KernelType;
+    
+    /**
+     * @brief Initialization to enable internal setup
+     * 
+     * This function must be called before any access to the calculatable is made. It ensures that all inernals are
+     * valid, all parameters are initialised. If the calculatabe is accessed before calling init the behaviour can be
+     * undefined. In debug mode an assert will be called in this situation, but in release no warning will occure. 
+     * The geometry can only be initialized with a \ref LinearSystem as the parameters of the equation are maped
+     * into this lienar system. It is therefore highly important that the given \ref LinearSystem is used for
+     * all calculations involing this class.
+     * 
+     * @param sys LinearSystem the geometry is initalized with
+     * @return void
+     */
+    virtual void init(LinearSystem<Kernel>& sys) {};
+    
+    /**
+     * @brief Execution of the calculation
+     * 
+     * This function executes the calculation. It is the derived classes responsibility to override this 
+     * method and provide suitable behaviour
+     * 
+     * The caller is responsible for ensuring that the equation has been initialized before call this function.
+     * @return void
+     */
+    virtual void execute() {};  
+    
+    /**
+     * @brief Number of free parameters this equation needs
+     * 
+     * Return the amount of parameters this equation will need in the solving process. The amount is later
+     * mapped into the linear system on \ref init. It is possible to access this function before initialisation.
+     * @return void
+     */
+    unsigned int newParameterCount() {return m_parameterCount;};
+    
+protected:
+    int m_parameterCount = 0; //how many parameters are added by this equation?
+
 };
     
 //the standart solverS

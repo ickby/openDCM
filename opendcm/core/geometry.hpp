@@ -426,11 +426,11 @@ protected:
  * \tparam DBase The geometric primitive this numeric geometry depends on
  * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
  */
-template< typename Kernel, template<class, bool> class Base,
-          template<class, bool> class DBase, typename... ParameterStorageTypes>
-struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>  {
+template< typename Kernel, template<class> class Base,
+          template<class> class DBase, typename... ParameterStorageTypes>
+struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel>, Base<Kernel>>  {
     
-    typedef UnaryEquation<Kernel, DBase<Kernel, false>, Base<Kernel, false>>       Inherited;
+    typedef UnaryEquation<Kernel, DBase<Kernel>, Base<Kernel>>                     Inherited;
     typedef typename Kernel::Scalar                                                Scalar;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
 

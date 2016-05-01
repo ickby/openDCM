@@ -28,24 +28,23 @@ using namespace dcm;
 
 typedef Eigen3Kernel<double> K;
 
-template<typename Kernel = K, bool Map = false>
-struct TDirection3 : public geometry::Geometry<Kernel, Map,
-        geometry::storage::Vector<3>> {
+template<typename Kernel = K>
+struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using geometry::Geometry<Kernel, Map, geometry::storage::Vector<3>>::m_storage;
+    using geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>>::m_storage;
 
     auto value() -> decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
     };
 
-    TDirection3<Kernel, Map>& transform(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
+    TDirection3<Kernel>& transform(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
         value() = t.rotation()*value();
         return *this;
     };
 
-    TDirection3<Kernel, Map>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
-        TDirection3<Kernel, Map> copy(*this);
+    TDirection3<Kernel>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t) {
+        TDirection3<Kernel> copy(*this);
         copy.transform(t);
         return copy;
     };
@@ -84,10 +83,11 @@ struct Node1 : public symbolic::GeometryNode<K, TDirection3, TDirection3> {
 BOOST_AUTO_TEST_SUITE(analyse);
 
 BOOST_AUTO_TEST_CASE(analyse_basic) {
-
+/*
     boost::multi_array<symbolic::EdgeReductionTree<TestSystem>*,2> reduction;
     reduction.resize(boost::extents[1][1]);
     reduction[0][0] = new symbolic::GeometryEdgeReductionTree<TestSystem, TDirection3, TDirection3>();
+    /*
 };
 
 //     //build up the graph

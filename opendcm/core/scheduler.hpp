@@ -150,7 +150,7 @@ struct FlowGraph : public Executable {
     typedef tbb::flow::broadcast_node<tbb::flow::continue_msg>  StartNode;
        
     FlowGraph() : m_graph(new tbb::flow::graph()) {};
-    virtual ~FlowGraph() {delete m_graph;};
+    virtual ~FlowGraph() {};
     
     void operator()() {
         m_start.try_put(tbb::flow::continue_msg());
@@ -164,7 +164,7 @@ struct FlowGraph : public Executable {
     template<typename Action>
     Node& newActionNode(Action a) {
         
-        m_nodes.emplace_back(flow_node(*m_graph, a));
+        m_nodes.emplace_back(Node(*m_graph, a));
         return m_nodes.back();
     };
     
@@ -186,9 +186,9 @@ struct FlowGraph : public Executable {
     };
 
 private:
-    std::vector<Node>      m_nodes;
-    tbb::flow::graph*      m_graph;
-    StartNode              m_start = StartNode(*m_graph);
+    std::vector<Node>                 m_nodes;
+    std::unique_ptr<tbb::flow::graph> m_graph;
+    StartNode                         m_start = StartNode(*m_graph);
 };
     
 //functions for parallel execution

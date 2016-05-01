@@ -67,10 +67,15 @@ namespace mpl = boost::mpl;
     typedef typename mpl::fold<TmpClusterProperties, typename stacked::ClusterProperties, \
          mpl::push_back<mpl::_1, mpl::_2>>::type ClusterProperties;
   
+/**************************************/
+
+#define QUALIFY(s, data, elem) \
+    elem<typename data::Kernel>
+
 #define DCM_MODULE_ADD_GEOMETRIES(stacked, seq) \
-    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpGeometryList;\
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(QUALIFY, stacked, seq))> TmpGeometryList;\
     typedef typename mpl::fold<TmpGeometryList, typename stacked::GeometryList, \
-        mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
+         mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
    
 #define DCM_MODULE_ADD_CONSTRAINTS(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpConstraintList;\
@@ -95,20 +100,10 @@ struct ModuleCoreInit {
         , sink(init_log())
 #endif
     {
-        int size = mpl::size<typename Final::GeometryList>::type::value;
-        reduction.resize(boost::extents[size][size]);
+        
         
         //int constraints = mpl::size<typename Final::ConstraintList>::type::value;
         //generator.resize(boost::extents[size][size][constraints]);
-        
-        //build up the default reduction nodes
-        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
-        typedef mpl::range_c<int,0,
-                mpl::size<typename Final::GeometryList>::value> StorageRange;
-        //now iterate that sequence so we can access all storage elements with knowing the position
-        //we are at
-        RecursiveSequenceApplyer<typename Final::GeometryList, ReductionNodeCreator> r(reduction);
-        mpl::for_each<StorageRange>(r);
         
         //RecursiveSequenceApplyer<typename Final::GeometryList, ConstraintGeneratorCreator> g(generator);
         //mpl::for_each<StorageRange>(g);
@@ -184,7 +179,6 @@ public:
     };
     
 protected:
-    boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>           reduction;
     //boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>  generator;
 
 private:
@@ -193,64 +187,7 @@ private:
     boost::shared_ptr< sink_t > sink;
 #endif
     
-    template<typename Sequence, template<class> class Functor>
-    struct RecursiveSequenceApplyer {
-        
-        Functor<Sequence> functor;
-        
-        template<typename T>
-        RecursiveSequenceApplyer(T& param) 
-            : functor(Functor<Sequence>(param)) {};
-            
-        RecursiveSequenceApplyer<RecursiveSequenceApplyer<Sequence, Functor>>(RecursiveSequenceApplyer& r) 
-            : functor(r.functor) {};
-            
-        template<typename T>
-        void operator()(const T& t) {        
-              typedef mpl::range_c<int, T::value, mpl::size<Sequence>::value> StorageRange;
-              mpl::for_each<StorageRange>(InnerLoop<T>(functor));
-        };
-        
-        template<typename Number>
-        struct InnerLoop {
-    
-            Functor<Sequence>& functor;
-            
-            InnerLoop(Functor<Sequence>& f) 
-                : functor(f) {};
-                
-            template<typename T>
-            void operator()(const T& t) {            
-                functor.template operator()<Number, T>();
-            };
-        };
-    };
-    
-    template<typename Sequence>
-    struct ReductionNodeCreator {
-    
-        boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction;
-        
-        ReductionNodeCreator(boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& r) 
-            : reduction(r) {};
-            
-        template<typename N1, typename N2>
-        void operator()() {
-        
-            typedef typename mpl::at<Sequence, N1>::type t1;
-            typedef typename mpl::at<Sequence, N2>::type t2;
-            
-            auto node = new symbolic::GeometryEdgeReductionTree<Final, 
-                                geometry::extractor<t1>::template primitive,
-                                geometry::extractor<t2>::template primitive >();
-        
-            int idx1 = Final::template geometryIndex<t1>::value;
-            int idx2 = Final::template geometryIndex<t2>::value;
-            
-            reduction[idx1][idx2] = node;
-            reduction[idx2][idx1] = node;
-        };
-    };
+
     /*
     template<typename Sequence>
     struct ConstraintGeneratorCreator {

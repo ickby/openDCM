@@ -15,10 +15,9 @@ set(test_SRC  define.cpp
               #kernel.cpp
               numeric.cpp
               constraint.cpp
-              #scheduler.cpp
 	      clustergraph.cpp
-	      system.cpp
 	      #analyse.cpp
+	      #system.cpp
 	      #clustermath.cpp
 	      #constraints3d.cpp
 	      #module3d.cpp
@@ -28,6 +27,7 @@ set(test_SRC  define.cpp
 	      #modulehl3d.cpp
 	      #misc.cpp
 	      #userbugs.cpp
+	      #scheduler.cpp
 	      #${state_SRC}	      
 )
 

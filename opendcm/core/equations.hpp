@@ -90,7 +90,7 @@ enum class Complexity { Fixed, Simple, Complex };
         calculate(); \
     } \
     void calculate()
-        
+               
 /**
     * @brief Base class for numeric equations
     * 
@@ -115,6 +115,7 @@ enum class Complexity { Fixed, Simple, Complex };
     */
 template<typename Kernel, typename Output>
 struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type, 
+                  public Calculatable<Kernel>,
                   public std::enable_shared_from_this<Equation<Kernel, Output>> {   
     
     typedef typename mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type Base;
@@ -147,47 +148,7 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
      * \see output()
      * @return const Output&
      */    
-    operator const Output&() const {return output();}    
-    
-    //override to add mathematical correct behaviour to the equation
-    
-     /**
-     * @brief Initialization of the equation for calculation
-     * 
-     * This function must be called before any access to the equation is made. It ensures that all maps are
-     * valid, all parameters are initialised. If the equation is accessed before calling init the behaviour can be
-     * undefined. In debug mode an assert will be called in this situation, but in release no warning will occure. 
-     * The geometry can only be initialized with a \ref LinearSystem as the parameters of the equation are maped
-     * into this lienar system. It is therefore highly important that the given \ref LinearSystem is used for
-     * all calculations involing this geometry.
-     * 
-     * @param sys LinearSystem the geometry is initalized with
-     * @return void
-     */
-    virtual void init(LinearSystem<Kernel>& sys) {};
-    
-    /**
-     * @brief Execution of the calculation
-     * 
-     * This function executes the calculation of the equation y=f(x) as well as all derivatives. It does so
-     * by calling the derived class \ref calculate method. If you do not need to use polymorphism, it is 
-     * encouraged to directly call \ref calculate or the dervied class operator() to avoid the virtua call
-     * overhead.
-     * 
-     * The caller is responsible for ensuring that the equation has been initialized before call this function.
-     * @return void
-     */
-    virtual void execute() {};  
-    
-    /**
-     * @brief Number of free parameters this equation needs
-     * 
-     * Return the amount of parameters this equation will need in the solving process. The amount is later
-     * mapped into the linear system on \ref init. It is possible to access this function before initialisation.
-     * @return void
-     */
-    unsigned int newParameterCount() {return m_parameterCount;};
-    
+    operator const Output&() const {return output();}        
     
     /**
      * @brief Access all initialized free parameters
@@ -238,7 +199,6 @@ protected:
     //storage of derivatives for faster calculation
     std::vector< Parameter >            m_parameters;
     std::vector< DerivativePack >       m_derivatives; 
-    int                                 m_parameterCount = 0; //how many parameters are added by this equation?
     Complexity                          m_complexity = Complexity::Fixed;
 #ifdef DCM_DEBUG
     bool m_init = false;
@@ -311,6 +271,7 @@ protected:
 template<typename Kernel, typename Input, typename Output>
 struct UnaryEquation : public InputEquation<Kernel, Output> {
     
+    typedef Input                               InputType;
     typedef Equation<Kernel, Input>             InputEqn;
     typedef InputEquation<Kernel, Output>       Base;
     
@@ -527,6 +488,8 @@ std::shared_ptr<UnaryEquation<Kernel, Input, Output>> makeUnaryEquation(std::sha
 template<typename Kernel, typename Input1, typename Input2, typename Output>
 struct BinaryEquation : public InputEquation<Kernel, Output> {
       
+    typedef Input1                              Input1Type;
+    typedef Input2                              Input2Type;
     typedef Equation<Kernel, Input1>            Input1Eqn;
     typedef Equation<Kernel, Input2>            Input2Eqn;
     typedef InputEquation<Kernel, Output>       Base;
