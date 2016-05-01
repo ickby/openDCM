@@ -232,7 +232,6 @@ struct Module3D {
             
         protected:
             Final* m_system;
-            int    m_type;
             std::shared_ptr<Geometry3D> m_g1, m_g2;
             
             template<typename ...Args>
@@ -253,6 +252,7 @@ struct Module3D {
                 //add the primitive constraint to the global edge
                 symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
                 tc->setPrimitiveConstraint(t);
+                tc->setConstraintID(Final::template constraintIndex<T>::value);
                 cluster->template setProperty<ConstraintProperty>(fusion::at_c<1>(res), tc);
                 
                 t.setDefault();

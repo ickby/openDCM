@@ -85,10 +85,10 @@ enum class Complexity { Fixed, Simple, Complex };
 #define CALCULATE() \
     virtual void execute() {\
         calculate();\
-    } \
+    }; \
     void operator()() {\
         calculate(); \
-    } \
+    }; \
     void calculate()
                
 /**

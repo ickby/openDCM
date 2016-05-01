@@ -23,7 +23,6 @@
 #include "clustergraph.hpp"
 #include "filtergraph.hpp"
 #include "geometry.hpp"
-#include "analyse.hpp"
 #include "scheduler.hpp"
 
 #include <boost/graph/connected_components.hpp>
@@ -51,8 +50,8 @@ namespace symbolic {
      */    
 template<typename Final, typename Graph>
 int reduceGraph(std::shared_ptr<Graph> g, 
-                 const boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction) {
-    
+                 const boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& reduction) {
+    /*
     //start with edge analysing
     auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
     shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
@@ -78,7 +77,7 @@ int reduceGraph(std::shared_ptr<Graph> g,
         g->template setProperty<graph::Group>(e, g->template getProperty<graph::Group>(g->source(e)));
     });
     
-    return c;
+    return c;*/
 };
 
 } //symbolic
@@ -192,7 +191,7 @@ shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
                 }
             });            
         }
-    }*/
+    }
     
     shedule::FlowGraph fg;
     
@@ -204,12 +203,12 @@ shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
         
     }
     
-    return fg;
+    return fg;*/
 };
     
 template<typename Final, typename Graph>
 shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, 
-                    const boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction) {
+                    const boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& reduction) {
     
     
     

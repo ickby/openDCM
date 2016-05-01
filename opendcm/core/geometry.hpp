@@ -422,15 +422,15 @@ protected:
  * and free parameters.
  * 
  * \tparam Kernel The math \ref Kenel in use
- * \tparam Base The geometric primitive this numeric geometry is based in
- * \tparam DBase The geometric primitive this numeric geometry depends on
+ * \tparam Input  The geometric primitive this numeric geometry is based in
+ * \tparam Output The geometric primitive this numeric geometry depends on
  * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
  */
-template< typename Kernel, template<class> class Base,
-          template<class> class DBase, typename... ParameterStorageTypes>
-struct DependendGeometry : public UnaryEquation<Kernel, DBase<Kernel>, Base<Kernel>>  {
+template< typename Kernel, template<class> class Input,
+          template<class> class Output, typename... ParameterStorageTypes>
+struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Kernel>>  {
     
-    typedef UnaryEquation<Kernel, DBase<Kernel>, Base<Kernel>>                     Inherited;
+    typedef UnaryEquation<Kernel, Input<Kernel>, Output<Kernel>>                   Inherited;
     typedef typename Kernel::Scalar                                                Scalar;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
 
@@ -492,15 +492,14 @@ struct Geometry {
     int type;
 };
 
-template<typename Kernel, template<class, bool> class G>
+template<typename Kernel, template<class> class G>
 struct TypeGeometry : public Geometry {
 
-    typedef G<Kernel, false> PrimitiveGeometry; 
+    typedef G<Kernel> PrimitiveGeometry; 
     
     PrimitiveGeometry& getPrimitveGeometry() {return m_geometry;};
     
-    template<bool mapped>
-    void setPrimitiveGeometry(const G<Kernel, mapped>& g) {
+    void setPrimitiveGeometry(const G<Kernel>& g) {
         m_geometry = g;
     };    
     

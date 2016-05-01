@@ -25,7 +25,7 @@
 #include "filtergraph.hpp"
 #include "logging.hpp"
 #include "object.hpp"
-#include "analyse.hpp"
+#include "reduction.hpp"
 #include "constraint.hpp"
 #include "geometry.hpp"
 #include "solver.hpp"
@@ -79,7 +79,7 @@ namespace mpl = boost::mpl;
    
 #define DCM_MODULE_ADD_CONSTRAINTS(stacked, seq) \
     typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpConstraintList;\
-    typedef typename mpl::fold<TmpConstraintList, typename stacked::GeometryList, \
+    typedef typename mpl::fold<TmpConstraintList, typename stacked::ConstraintList, \
         mpl::push_back<mpl::_1, mpl::_2>>::type ConstraintList;
 
 namespace dcm {
@@ -145,19 +145,6 @@ protected:
     typedef mpl::vector<symbolic::GeometryProperty>             VertexProperties;
     typedef mpl::vector0<>                                      ClusterProperties;
 
-    template<template<class, bool> class G1, template<class, bool> class G2>
-    symbolic::GeometryNode<Kernel, G1, G2>* getInitialReductionNode() {
-        int n1 = Final::template primitiveGeometryIndex<G1>::value;
-        int n2 = Final::template primitiveGeometryIndex<G2>::value;
-        return reinterpret_cast<symbolic::GeometryNode<Kernel, G1, G2>*>(reduction[n1][n2]);
-    };
-    
-    template<template<class, bool> class G1, template<class, bool> class G2>
-    symbolic::EdgeReductionTree<Final>* getInitialReductionTree() {
-        int n1 = Final::template primitiveGeometryIndex<G1>::value;
-        int n2 = Final::template primitiveGeometryIndex<G2>::value;
-        return reduction[n1][n2];
-    };
     /*
     template<template<class, bool> class G1, template<class, bool> class G2, typename PC>
     numeric::ConstraintEquationGenerator<Kernel> getEquationGenerator() {

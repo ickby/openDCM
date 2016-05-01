@@ -28,6 +28,8 @@
 #include "scheduler.hpp"
 #include "utilities.hpp"
 
+#include <boost/multi_array.hpp>
+
 namespace dcm {
 namespace symbolic {
    
@@ -94,9 +96,9 @@ protected:
 
 template<typename Kernel>
 struct ResultProperty {
-    typedef ReductionResult<Kernel>* type;
+    typedef Reduction<Kernel>* type;
     struct default_value {
-        ReductionResult<Kernel>* operator()() {
+        Reduction<Kernel>* operator()() {
             return nullptr;
         };
     };
@@ -156,52 +158,8 @@ struct Edge;
 struct TreeWalker {
     
 };
-    
-struct Node {
-  
-    /**
-     * @brief Connect this node to annother via a specific Edge
-     *
-     * This function can be used to connect a node to annother one. As the connections are always 
-     * conditional the Edge evaluating the condition needs to be supplied.
-     * \Note The reduction tree is a static tree, hence there is no identifier for the made connection
-     * and also no way to disconnect again
-     *
-     * \param node The node we build a connection to
-     * \param edge The GeometryEdge which evaluates the condition for the transition
-     */
-    void connect(Node* node, Edge* edge) {
 
-        edge->start = this;
-        edge->end   = node;
-        m_edges.push_back(edge);
-    };
-    
-    /**
-     * @brief Further traverse the tree
-     * 
-     * This function is used to execute the node. The base version provided here has no action, hence
-     * all it does is to anaylse all edges if they are able to process the walker and apply the walker
-     * to a edge if possible. For any actions that should be done by the node a new class must be
-     * derived which overrides this method with custom behavior. 
-     * \Note When overriding this function you must call it after imüplementing the custom behavior to 
-     * ensure the tree traversal
-     * 
-     * @return bool True if an edge for further traversing was found, false otherwise
-     */
-    virtual bool apply(TreeWalker* walker) {
-        for (const Edge& e : m_edges) {
-            if (e.apply(walker)) {
-                return true;
-                break;
-            }
-        };
-        return false;
-    }; 
-
-private:
-    std::vector<Edge> m_edges;
-};
+struct Node;
 
 /**
  * @brief Connects two nodes in a conditional manner
@@ -217,6 +175,8 @@ struct Edge {
     Node* start;
     Node* end;
 
+    virtual ~Edge() {};
+    
     /**
      * @brief Checks edge condition and traverses the tree
      * 
@@ -230,15 +190,101 @@ struct Edge {
      * @param walker The TreeWalker holding all data
      * @return bool  True if the edge is valid and the tree is traversed further
      */
-    virtual bool apply(TreeWalker* walker) const = 0;
+    virtual bool apply(TreeWalker* walker) const;
 };
 
+template<typename Functor>
+struct FunctorEdge : public Edge {
+  
+    FunctorEdge(const Functor& f) : m_functor(f) {};
+    
+    virtual bool apply(TreeWalker* walker) const {
+        
+        if(m_functor(walker))
+            return Edge::apply(walker);
+        
+        return false;
+    };
+    
+private:
+    Functor m_functor;
+};
 
-template<typename Kernel, typename Primitive>
+    
+struct Node {
+  
+    ~Node() {      
+        //we own the edges,  hence we are responsible for deleting them
+        for (Edge* e : m_edges)
+            delete e;
+    };
+    
+    /**
+     * @brief Connect this node to annother via a specific Edge
+     *
+     * This function can be used to connect a node to annother one. As the connections are always 
+     * conditional the Edge evaluating the condition needs to be supplied.
+     * \Note The reduction tree is a static tree, hence there is no identifier for the made connection
+     * and also no way to disconnect again
+     *
+     * \param node The node we build a connection to
+     * \param edge The GeometryEdge which evaluates the condition for the transition
+     */   
+    template<typename Functor>
+    void connect(Node& node, Functor func);    
+    
+    /**
+     * @brief Further traverse the tree
+     * 
+     * This function is used to execute the node. The base version provided here has no action, hence
+     * all it does is to anaylse all edges if they are able to process the walker and apply the walker
+     * to a edge if possible. For any actions that should be done by the node a new class must be
+     * derived which overrides this method with custom behavior. 
+     * \Note When overriding this function you must call it after imüplementing the custom behavior to 
+     * ensure the tree traversal
+     * 
+     * @return bool True if an edge for further traversing was found, false otherwise
+     */
+    virtual bool apply(TreeWalker* walker) {
+        for (Edge* e : m_edges) {
+            if (e->apply(walker)) {
+                return true;
+                break;
+            }
+        };
+        return false;
+    }; 
+
+private:
+    std::vector<Edge*> m_edges;
+};
+
+template<typename Functor>
+void Node::connect(Node& node, Functor func) {
+
+    auto edge = new FunctorEdge<Functor>(func);
+    connect(node, static_cast<Edge*>(edge));
+};
+template<>
+void Node::connect<Edge*>(Node& node, Edge* edge) {
+
+    edge->start = this;
+    edge->end   = &node;
+    m_edges.push_back(edge);
+};
+
+//we can create the apply function of Edge only now as node must be fullydefined...
+bool Edge::apply(TreeWalker* walker) const {
+        
+    end->apply(walker);
+    return true;
+};
+
+template<typename Kernel, template<class> class Primitive>
 struct GeometryWalker : public TreeWalker {
     
-    typedef std::shared_ptr<numeric::Equation<Kernel, Primitive>> Geometry;
-    typedef std::shared_ptr<numeric::Calculatable<Kernel>>        Equation;
+    typedef std::shared_ptr<numeric::Equation<Kernel, Primitive<Kernel>>> Geometry;
+    typedef std::shared_ptr<numeric::Calculatable<Kernel>>                Equation;
     
     GeometryWalker(const Primitive<Kernel>& prim) : m_primitive(prim) {};
  
@@ -256,11 +302,11 @@ private:
     Geometry                    m_geometry;  //numeric geometry 
 };
 
-template<typename Kernel, typename SourcePrimitive, typename TargetPrimitive>
+template<typename Kernel, template<class> class SourcePrimitive, template<class> class TargetPrimitive>
 struct ConstraintWalker : public GeometryWalker<Kernel, TargetPrimitive> {
-    
+       
     ConstraintWalker(const SourcePrimitive<Kernel>& sprim, const TargetPrimitive<Kernel>& tprim) :
-                 GeometryWalker(tprim), m_sourcePrimitive(sprim) {};
+                 GeometryWalker<Kernel, TargetPrimitive>(tprim), m_sourcePrimitive(sprim) {};
  
     const SourcePrimitive<Kernel>& getSourcePrimitive() {return m_sourcePrimitive;};
     
@@ -289,14 +335,16 @@ struct GeometryNode : public Node {
         GeometryWalker<Kernel, G>* gwalker = static_cast<GeometryWalker<Kernel, G>*>(walker);
         
         //create the new primitive geometry and set the initial value
-        numeric::Geometry<Kernel, G>* geom = new numeric::Geometry<Kernel, G>();       
-        *geom = *gwalker->getPrimitive();
+        auto geom = std::make_shared<numeric::Geometry<Kernel, G>>();       
+        geom->output() = gwalker->getPrimitive();
         
         //set the new value in the walker for further processing
         gwalker->setGeometry(geom);
         
         //further traverse the tree
         Node::apply(walker);
+
+        return true;
     }
 };
 
@@ -315,7 +363,11 @@ struct DerivedGeometryNode : public Node {
         typedef typename DerivedG::OutputType   Primitive;
         typedef typename DerivedG::InputType    Input;
         
-        GeometryWalker<Primitive<Kernel>>* gwalker = static_cast<GeometryWalker<Primitive<Kernel>>*>(walker);
+        pretty(DerivedG::OutputType());
+        
+        /*
+        GeometryWalker<Kernel, geometry::extractor<typename DerivedG::OutputType>::primitive>* gwalker;
+        gwalker = static_cast<GeometryWalker<Kernel, geometry::extractor<typename DerivedG::OutputType>::primitive>*>(walker);
         
         //create the new primitive geometry and set the initial value
         DerivedG* geom = new DerivedG();       
@@ -332,11 +384,12 @@ struct DerivedGeometryNode : public Node {
         gwalker->setGeometry(geom);
         
         //further traverse the tree
-        Node::apply(walker);
+        Node::apply(walker);*/
+        
+        return true;
     }
 };
 
-template<typename Final>
 struct EdgeReductionTree {
 
     /**
@@ -354,15 +407,14 @@ struct EdgeReductionTree {
                                          std::vector<symbolic::Constraint*> constraints) = 0;
 };
 
-template<typename Final, template<class> class SourceGeometry, template<class> class TargetGeometry>
-struct GeometryEdgeReductionTree : public EdgeReductionTree<Final> {
+template<typename Kernel, template<class> class SourceGeometry, template<class> class TargetGeometry>
+struct GeometryEdgeReductionTree : public EdgeReductionTree {
 
-    typedef typename Final::Kernel  Kernel;
     typedef typename Kernel::Scalar Scalar;
 
     virtual ~GeometryEdgeReductionTree() {
         //create the tree source note, it must always be available
-        m_sourceNode = reduction::GeometryNode<Kernel, TargetGeometry>;
+        m_sourceNode = reduction::GeometryNode<Kernel, TargetGeometry>();
     };
     
     reduction::Node& getSourceNode() {return m_sourceNode;};
@@ -375,16 +427,16 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree<Final> {
                                          std::vector<symbolic::Constraint*> constraints) {
 
         dcm_assert(source != target);
-        dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(source) != NULL)
-        dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(target) != NULL)
+        //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(source) != NULL);
+        //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(target) != NULL);
 
         //get the primitive geometries
         const SourceGeometry<Kernel>& pg1 = static_cast<TypeGeometry<Kernel, SourceGeometry>*>(source)->getPrimitveGeometry();
         const TargetGeometry<Kernel>& pg2 = static_cast<TypeGeometry<Kernel, SourceGeometry>*>(target)->getPrimitveGeometry();
 
         //create a new treewalker and set it up
-        ConstraintWalker<Kernel, SourceGeometry, TargetGeometry> walker(pg1, pg2);
-        walker->setConstraints(constraints);
+        auto walker = new ConstraintWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
+        walker->setConstraintPool(constraints);
         
         //start the calculation
         getSourceNode().apply(walker);
@@ -404,7 +456,7 @@ struct Reducer {
     Reducer() {
     
         int size = mpl::size<typename Final::GeometryList>::type::value;
-        reduction.resize(boost::extents[size][size]);
+        m_treeArray.resize(boost::extents[size][size]);
         
         //build up the default reduction nodes
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
@@ -412,19 +464,19 @@ struct Reducer {
                 mpl::size<typename Final::GeometryList>::value> StorageRange;
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at
-        utilities::RecursiveSequenceApplyer<typename Final::GeometryList, ReductionTreeCreator> r(reduction);
+        utilities::RecursiveSequenceApplyer<typename Final::GeometryList, ReductionTreeCreator> r(m_treeArray);
         mpl::for_each<StorageRange>(r);
     };
     
     void reduce(typename Final::Graph& g, graph::LocalEdge edge) {
         
         //get the geometry used in this edge
-        symbolic::Geometry* source = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
-        symbolic::Geometry* target = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
+        symbolic::Geometry* source = g->template getProperty<symbolic::GeometryProperty>(g->source(edge));
+        symbolic::Geometry* target = g->template getProperty<symbolic::GeometryProperty>(g->target(edge));
         
         //get the two reduction trees for this geometry combination
-        reduction::EdgeReductionTree* stTree = reduction[source->type][target->type];
-        reduction::EdgeReductionTree* tsTree = reduction[target->type][source->type];
+        reduction::EdgeReductionTree* stTree = m_treeArray[source->type][target->type];
+        reduction::EdgeReductionTree* tsTree = m_treeArray[target->type][source->type];
         
         //get all constraints
         std::vector<symbolic::Constraint*> constraints;
@@ -442,15 +494,15 @@ struct Reducer {
     };
     
 private:
-    boost::multi_array<symbolic::EdgeReductionTree<Final>*,2> m_treeArray;
+    boost::multi_array<symbolic::reduction::EdgeReductionTree*,2> m_treeArray;
        
     template<typename Sequence>
     struct ReductionTreeCreator {
     
-        boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& reduction;
+        boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& m_treeArray;
         
-        ReductionTreeCreator(boost::multi_array<symbolic::EdgeReductionTree<Final>*,2>& r) 
-            : reduction(r) {};
+        ReductionTreeCreator(boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& r) 
+            : m_treeArray(r) {};
             
         template<typename N1, typename N2>
         void operator()() {
@@ -458,15 +510,19 @@ private:
             typedef typename mpl::at<Sequence, N1>::type t1;
             typedef typename mpl::at<Sequence, N2>::type t2;
             
-            auto node = new symbolic::GeometryEdgeReductionTree<Final, 
+            auto node1 = new symbolic::reduction::GeometryEdgeReductionTree<Final, 
                                 geometry::extractor<t1>::template primitive,
                                 geometry::extractor<t2>::template primitive >();
+                                
+            auto node2 = new symbolic::reduction::GeometryEdgeReductionTree<Final, 
+                                geometry::extractor<t2>::template primitive,
+                                geometry::extractor<t1>::template primitive >();
         
             int idx1 = Final::template geometryIndex<t1>::value;
             int idx2 = Final::template geometryIndex<t2>::value;
             
-            reduction[idx1][idx2] = node;
-            reduction[idx2][idx1] = node;
+            m_treeArray[idx1][idx2] = node1;
+            m_treeArray[idx2][idx1] = node2;
         };
     };
 };

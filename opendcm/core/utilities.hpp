@@ -51,6 +51,39 @@ struct Variant {
 protected:
     VariantType m_variant;
 };
+
+template<typename Sequence, template<class> class Functor>
+struct RecursiveSequenceApplyer {
+    
+    Functor<Sequence> functor;
+    
+    template<typename T>
+    RecursiveSequenceApplyer(T& param) 
+        : functor(Functor<Sequence>(param)) {};
+    
+    RecursiveSequenceApplyer<RecursiveSequenceApplyer<Sequence, Functor>>(RecursiveSequenceApplyer& r) 
+        : functor(r.functor) {};
+        
+    template<typename T>
+    void operator()(const T& t) {        
+            typedef mpl::range_c<int, T::value, mpl::size<Sequence>::value> StorageRange;
+            boost::mpl::for_each<StorageRange>(InnerLoop<T>(functor));
+    };
+    
+    template<typename Number>
+    struct InnerLoop {
+
+        Functor<Sequence>& functor;
+        
+        InnerLoop(Functor<Sequence>& f) 
+            : functor(f) {};
+            
+        template<typename T>
+        void operator()(const T& t) {            
+            functor.template operator()<Number, T>();
+        };
+    };
+};
     
 }//utilities
 
@@ -77,7 +110,7 @@ public:
         return static_cast<pointer>(0);
     }
 };
-}
+} //details
 
 template<typename T, typename Types>
 typename boost::add_reference<T>::type 
@@ -90,39 +123,6 @@ get(std::shared_ptr<utilities::Variant<Types>> variant) {
     if (!result)
         throw boost::bad_get();
     return *result;
-};
-
-template<typename Sequence, template<class> class Functor>
-struct RecursiveSequenceApplyer {
-    
-    Functor<Sequence> functor;
-    
-    template<typename T>
-    RecursiveSequenceApplyer(T& param) 
-        : functor(Functor<Sequence>(param)) {};
-        
-    RecursiveSequenceApplyer<RecursiveSequenceApplyer<Sequence, Functor>>(RecursiveSequenceApplyer& r) 
-        : functor(r.functor) {};
-        
-    template<typename T>
-    void operator()(const T& t) {        
-            typedef mpl::range_c<int, T::value, mpl::size<Sequence>::value> StorageRange;
-            boost::mpl::for_each<StorageRange>(InnerLoop<T>(functor));
-    };
-    
-    template<typename Number>
-    struct InnerLoop {
-
-        Functor<Sequence>& functor;
-        
-        InnerLoop(Functor<Sequence>& f) 
-            : functor(f) {};
-            
-        template<typename T>
-        void operator()(const T& t) {            
-            functor.template operator()<Number, T>();
-        };
-    };
 };
 
 }//dcm
