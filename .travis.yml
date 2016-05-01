@@ -3,6 +3,13 @@ compiler:
   - gcc
   - clang
 
+os:
+   - linux
+   - osx
+
+dist: trusty
+sudo: required
+
 env:
   global:
    - secure: "H4JJrrsbFcamFrlGBPLXHdKlkt9ufkN2jAxrZ6+hXLuf/AxoYp7tP1F7jWNiELrE5jauiUWzufx+0xrzBzb1Wqr1q1UCFSlYTBr7EEngU8MGbG6QHkZb+Q/1W7WOjvJKCyWXOdhrAsejnE2r/wZwmpZZSDjRyn2AhJ5esQRIzKY="
