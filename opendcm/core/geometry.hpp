@@ -463,7 +463,7 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
         //now add the derivatives we take over from the input geometry
         Inherited::m_derivatives.clear();
         for(const auto& param : Inherited::inputEquation()->parameters()) 
-            Inherited::m_derivatives.push_back(std::make_pair(Inherited::OutputType(), param));
+            Inherited::m_derivatives.push_back(std::make_pair(typename Inherited::OutputType(), param));
     };
     
     CALCULATE() {

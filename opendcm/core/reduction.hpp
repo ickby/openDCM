@@ -31,6 +31,7 @@
 #include <boost/multi_array.hpp>
 #include <unordered_map>
 #include <typeindex>
+#include <vector>
                 
 
 namespace dcm {
@@ -107,34 +108,6 @@ struct ResultProperty {
     };
 };
 
-template<typename Kernel, template<class> class G1, template<class> class G2>
-struct GeometryReductionResult : public Reduction<Kernel> {
-    /*
-    typedef typename Final::Kernel      Kernel;
-    typedef shedule::FlowGraph::Node    Node;
-
-
-    virtual numeric::GeomertyEquation<Kernel>* createGenericGeometry(Geometry& geom) {
-
-        if(geom.type == Final::template primitiveGeometryIndex<G1>::value)
-            return new numeric::Geometry<Kernel, G1>();
-
-        else
-            return new numeric::Geometry<Kernel, G2>();
-    };
-
-    virtual std::pair<std::vector<numeric::Equation<Kernel>*>, Node>
-                                        setupGenericEquations(numeric::GeomertyEquation<Kernel>* g1,
-                                                              numeric::GeomertyEquation<Kernel>* g2,
-                                                              shedule::FlowGraph& flow) {
-
-        std::vector<numeric::Equation<Kernel>*> vec;
-    };
-    */
-protected:
-    std::vector<symbolic::Constraint*>  ConstraintPool; //all available constraints
-};
-
 /**
  * @brief The tree structure used for Constrain reduction
  * 
@@ -175,8 +148,8 @@ struct Node;
  */
 struct Edge {
 
-    Node* start;
-    Node* end;
+    Node* source;
+    Node* target;
 
     virtual ~Edge() {};
     
@@ -213,6 +186,7 @@ private:
     Functor m_functor;
 };
 
+template<typename Constraint, typename Constraint::
     
 struct Node {
   
@@ -234,7 +208,7 @@ struct Node {
      * \param edge The GeometryEdge which evaluates the condition for the transition
      */   
     template<typename Functor>
-    void connect(Node& node, Functor func);    
+    void connect(Node* node, Functor func);    
     
     /**
      * @brief Further traverse the tree
@@ -263,23 +237,24 @@ private:
 };
 
 template<typename Functor>
-void Node::connect(Node& node, Functor func) {
+void Node::connect(Node* node, Functor func) {
 
     auto edge = new FunctorEdge<Functor>(func);
     connect(node, static_cast<Edge*>(edge));
 };
-template<>
-void Node::connect<Edge*>(Node& node, Edge* edge) {
 
-    edge->start = this;
-    edge->end   = &node;
+template<>
+void Node::connect<Edge*>(Node* node, Edge* edge) {
+
+    edge->source = this;
+    edge->target  = node;
     m_edges.push_back(edge);
 };
 
 //we can create the apply function of Edge only now as node must be fullydefined...
 bool Edge::apply(TreeWalker* walker) const {
         
-    end->apply(walker);
+    target->apply(walker);
     return true;
 };
 
@@ -308,12 +283,33 @@ private:
 template<typename Kernel, template<class> class SourcePrimitive, template<class> class TargetPrimitive>
 struct ConstraintWalker : public GeometryWalker<Kernel, TargetPrimitive> {
        
+    typedef typename std::vector<symbolic::Constraint*>::const_iterator iterator;
+    
     ConstraintWalker(const SourcePrimitive<Kernel>& sprim, const TargetPrimitive<Kernel>& tprim) :
                  GeometryWalker<Kernel, TargetPrimitive>(tprim), m_sourcePrimitive(sprim) {};
  
     const SourcePrimitive<Kernel>& getSourcePrimitive() {return m_sourcePrimitive;};
     
     void setConstraintPool(std::vector<symbolic::Constraint*> c) {m_constraintPool = c;};
+    
+    //interface for accessing constraints
+    bool     empty() const {return m_constraintPool.empty();}
+    int      size()  const {return m_constraintPool.size();}
+    iterator begin() const {return m_constraintPool.begin();};
+    iterator end()   const {return m_constraintPool.end();};
+    
+    //multiple constraints of the same type are always reduntant or conflicting, they do not occure here
+    template<typename T>
+    symbolic::TypeConstraint<T>* getConstraint(int type) {
+        for(auto c : m_constraintPool) {
+            if(c->type == type)
+                return static_cast<symbolic::TypeConstraint<T>*>(c);
+        }
+        return nullptr;
+    };
+    void acceptConstraint(symbolic::Constraint* c) {
+        m_constraintPool.erase(std::remove(m_constraintPool.begin(), m_constraintPool.end(), c), m_constraintPool.end());
+    };
     
 private:
     const SourcePrimitive<Kernel>&      m_sourcePrimitive; //primitive holding the value of the source
@@ -358,27 +354,24 @@ struct GeometryNode : public Node {
  * geometry is created and that all input equations are connected correctly. 
  */
 template<typename DerivedG>
-struct DerivedGeometryNode : public Node {
+struct DependendGeometryNode : public Node {
 
     virtual bool apply(TreeWalker* walker) {
         
         typedef typename DerivedG::KernelType   Kernel;
-        typedef typename DerivedG::OutputType   Primitive;
+        typedef typename DerivedG::OutputType   Output;
         typedef typename DerivedG::InputType    Input;
-        
-        pretty(DerivedG::OutputType());
-        
-        /*
-        GeometryWalker<Kernel, geometry::extractor<typename DerivedG::OutputType>::primitive>* gwalker;
-        gwalker = static_cast<GeometryWalker<Kernel, geometry::extractor<typename DerivedG::OutputType>::primitive>*>(walker);
+                
+        auto* gwalker = static_cast<GeometryWalker<Kernel, geometry::extractor<Output>::template primitive>*>(walker);
         
         //create the new primitive geometry and set the initial value
-        DerivedG* geom = new DerivedG();       
-        *geom = gwalker->getPrimitive();
+        auto geom = std::make_shared<DerivedG>();       
+        geom->output() = gwalker->getPrimitive();
         
         //set the input for our unary equation
-        geom->setInputEquation(static_cast<numeric::UnaryEquation<Kernel, Input, Primitive>>(gwalker->getCummulatedInputEquation()));
-        geom->setInputOwnership(true);
+        auto eqn = std::static_pointer_cast<numeric::Equation<Kernel, Input>>(gwalker->getCummulativeInputEquation());
+        geom->setInputEquation(eqn);
+        geom->takeInputOwnership(true);
         
         //set the new value in the walker for further processing
         //note that the walker has the only shared_ptr of the equation, hence if it is a unary 
@@ -387,7 +380,7 @@ struct DerivedGeometryNode : public Node {
         gwalker->setGeometry(geom);
         
         //further traverse the tree
-        Node::apply(walker);*/
+        Node::apply(walker);
         
         return true;
     }
@@ -415,15 +408,28 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
 
     typedef typename Kernel::Scalar Scalar;
 
-    virtual ~GeometryEdgeReductionTree() {
+    GeometryEdgeReductionTree() {
         //create the tree source note, it must always be available
-        m_sourceNode = reduction::GeometryNode<Kernel, TargetGeometry>();
+        m_sourceNode = new reduction::GeometryNode<Kernel, TargetGeometry>();
     };
     
-    reduction::Node& getSourceNode() {return m_sourceNode;};
+    virtual ~GeometryEdgeReductionTree() {
+        //we own all nodes, delete them!        
+        for(auto iter = m_nodesMap.begin(); iter != m_nodesMap.end(); ++iter)
+            delete iter->second;
+    };
+    
+    reduction::Node* getSourceNode() {return m_sourceNode;};
     
     template<typename T>
-    reduction::Node& getTreeNode() { return m_nodesMap[std::type_index(typeid(T))];};
+    reduction::Node* getTreeNode() { 
+        auto iter = m_nodesMap.find(std::type_index(typeid(T)));
+        if(iter != m_nodesMap.end())
+            return iter->second;
+        
+        m_nodesMap[std::type_index(typeid(T))] = new DependendGeometryNode<T>();
+        return m_nodesMap[std::type_index(typeid(T))];
+    };
 
 
     virtual reduction::TreeWalker* apply(symbolic::Geometry* source, symbolic::Geometry* target,
@@ -442,13 +448,13 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
         walker->setConstraintPool(constraints);
         
         //start the calculation
-        getSourceNode().apply(walker);
+        getSourceNode()->apply(walker);
         return walker;
     };
     
 protected:
-    reduction::GeometryNode<Kernel, TargetGeometry>      m_sourceNode;
-    std::unordered_map<std::type_index, reduction::Node> m_nodesMap;
+    reduction::GeometryNode<Kernel, TargetGeometry>*      m_sourceNode;
+    std::unordered_map<std::type_index, reduction::Node*> m_nodesMap;
 };
 
 } //reduction

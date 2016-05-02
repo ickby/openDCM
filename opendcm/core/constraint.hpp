@@ -178,7 +178,7 @@ struct Constraint {
 template<typename PrimitiveConstraint>
 struct TypeConstraint : public Constraint {
     
-    PrimitiveConstraint& getPrimitveConstraint() {
+    PrimitiveConstraint& getPrimitiveConstraint() {
         return m_constraint;
     };
     
