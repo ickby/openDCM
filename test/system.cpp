@@ -26,12 +26,6 @@
 #include <boost/mpl/map.hpp>
 #include <boost/mpl/replace_if.hpp>
 
-#ifdef DCM_EXTERNAL_CORE
-#include "opendcm/core/imp/system_imp.hpp"
-#include "opendcm/core/imp/clustergraph_imp.hpp"
-#include "opendcm/core/imp/object_imp.hpp"
-#endif
-
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(system_and_object);
@@ -135,12 +129,13 @@ struct TestModule2 {
 };
 
 typedef dcm::System<TestModule2, TestModule1> System;
+typedef dcm::System<dcm::Eigen3Kernel<double>, TestModule2, TestModule1> System2;
 
 
 
 BOOST_AUTO_TEST_CASE(module_functions) {
 
-    System sys;
+    System2 sys;
 
     BOOST_CHECK(sys.module_function1() == 1);
     BOOST_CHECK(sys.module_function2() == 2);

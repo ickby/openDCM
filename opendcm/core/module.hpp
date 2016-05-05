@@ -140,10 +140,10 @@ struct ModuleCoreInit {
     typedef mpl::vector3<Distance, Orientation, Angle>  ConstraintList;
 
 protected:
-    typedef mpl::vector<symbolic::ResultProperty<Kernel>>       EdgeProperties;
-    typedef mpl::vector<symbolic::ConstraintProperty>           GlobalEdgeProperties;
-    typedef mpl::vector<symbolic::GeometryProperty>             VertexProperties;
-    typedef mpl::vector0<>                                      ClusterProperties;
+    typedef mpl::vector<numeric::EquationBuilderProperty<Kernel>>    EdgeProperties;
+    typedef mpl::vector<symbolic::ConstraintProperty>                GlobalEdgeProperties;
+    typedef mpl::vector<symbolic::GeometryProperty>                  VertexProperties;
+    typedef mpl::vector0<>                                           ClusterProperties;
 
     /*
     template<template<class, bool> class G1, template<class, bool> class G2, typename PC>
@@ -270,11 +270,7 @@ struct ModuleCoreFinish : public Stacked {
     };
     
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
-            typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;
-         
-    using Stacked::reduction;
-    
-        
+            typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;        
 
             
     /**
@@ -286,7 +282,7 @@ struct ModuleCoreFinish : public Stacked {
         
         //All graph manipulation work has been done, from here on we only access the graph. 
         //Next find all connected components and build the numeric solving system based on them
-        solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
+        //solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
                 
         //post process the finished calculation
         

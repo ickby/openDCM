@@ -146,6 +146,7 @@ struct HugeParallelVector : public Vector {
 //encapsulates a tbb flow graph and is responsible for managing the nodes lifetime
 struct FlowGraph : public Executable {
        
+    typedef tbb::flow::continue_msg                             ContinueMessage;
     typedef tbb::flow::continue_node< tbb::flow::continue_msg > Node;
     typedef tbb::flow::broadcast_node<tbb::flow::continue_msg>  StartNode;
        

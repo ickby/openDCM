@@ -50,7 +50,7 @@ namespace symbolic {
      */    
 template<typename Final, typename Graph>
 int reduceGraph(std::shared_ptr<Graph> g, 
-                 const boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& reduction) {
+                 const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
     /*
     //start with edge analysing
     auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
@@ -208,7 +208,7 @@ shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     
 template<typename Final, typename Graph>
 shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, 
-                    const boost::multi_array<symbolic::reduction::EdgeReductionTree*,2>& reduction) {
+                    const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
     
     
     

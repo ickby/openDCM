@@ -46,25 +46,29 @@ struct module_inheritance {
     typedef typename Module::template type<Final, Stack> type;
 };
 
-template<typename Final, typename ...Modules>
+template<typename Final, typename ...ModuleTypes>
 struct module_inheriter {
 
-    typedef mpl::vector<Modules...> modules;
+    typedef mpl::vector<ModuleTypes...> Modules;
     
     //find or create the kernel
-    typedef typename mpl::find_if<modules, boost::is_base_of<numeric::KernelBase, mpl::_1> >::type it;
-    typedef typename mpl::if_<boost::is_same<it, typename mpl::end<modules>::type>, Eigen3Kernel<double>, 
+    typedef typename mpl::find_if<Modules, boost::is_base_of<numeric::KernelBase, mpl::_1> >::type it;
+    typedef typename mpl::if_<boost::is_same<it, typename mpl::end<Modules>::type>, Eigen3Kernel<double>, 
                                 typename mpl::deref<it>::type>::type Kernel;   
     
+    //remove kernel from modules list if provided
+    typedef typename mpl::if_<boost::is_same<it, typename mpl::end<Modules>::type>, Modules, 
+                                typename mpl::remove<Modules,Kernel>::type>::type StrippedModules;    
+    
     //sort according to the modules id
-    typedef typename mpl::sort<modules, module_sort<mpl::_1, mpl::_2> >::type sorted_modules;
+    typedef typename mpl::sort<StrippedModules, module_sort<mpl::_1, mpl::_2> >::type SortedModules;
 
     //initialise the module stack
-    typedef typename mpl::fold<sorted_modules, ModuleCoreInit<Final, Kernel>,
-            module_inheritance<Final, mpl::_1, mpl::_2> >::type module_stack;
+    typedef typename mpl::fold<SortedModules, ModuleCoreInit<Final, Kernel>,
+            module_inheritance<Final, mpl::_1, mpl::_2> >::type ModuleStack;
 
     //and create the finished inheritance type
-    typedef ModuleCoreFinish<Final, module_stack > type;
+    typedef ModuleCoreFinish<Final, ModuleStack > type;
 };
 
 

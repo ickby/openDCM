@@ -19,13 +19,12 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <opendcm/core/system.hpp>
 #include <opendcm/core/reduction.hpp>
 
 using namespace dcm;
 
 typedef dcm::Eigen3Kernel<double> K;
-typedef dcm::graph::ClusterGraph<mpl::vector0<>, mpl::vector1<dcm::symbolic::ConstraintProperty>,
-        mpl::vector1<dcm::symbolic::GeometryProperty>, mpl::vector0<> > Graph;
         
 template<typename Kernel>
 struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>> {
@@ -61,16 +60,23 @@ struct PointLineGlider : public numeric::DependendGeometry<K, TDirection3, TScal
     };
 };
 
+struct ReductionModule {
+
+    typedef boost::mpl::int_<1> ID;
+
+    template<typename Final, typename Stacked>
+    struct type : public Stacked {
+
+        DCM_MODULE_ADD_GEOMETRIES(Stacked, (TDirection3)(TScalar));
+    };
+};
+
+typedef dcm::System<K, ReductionModule> Sys;
+
 BOOST_AUTO_TEST_SUITE(Reduction);
 
 BOOST_AUTO_TEST_CASE(tree) {
-    
-    //build up a small test graph
-    std::shared_ptr<Graph> g = std::shared_ptr<Graph>(new Graph);
-    auto v1 = g->addVertex();
-    auto v2 = g->addVertex();
-    auto e  = g->addEdge(fusion::at_c<0>(v1), fusion::at_c<0>(v2));
-    
+        
     //build the data 
     TDirection3<K> g1, g2;
     auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
@@ -88,15 +94,15 @@ BOOST_AUTO_TEST_CASE(tree) {
     cvec.push_back(c2);
     
     //build up an example reduction tree
-    dcm::symbolic::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> tree;
+    dcm::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> tree;
     
     //add a dependend geometry node 
-    dcm::symbolic::reduction::Node* node = tree.getTreeNode<PointLineGlider>();
+    dcm::reduction::Node* node = tree.getTreeNode<PointLineGlider>();
     
     //connect the node with a custom edge
-    tree.getSourceNode()->connect(node, [](dcm::symbolic::reduction::TreeWalker* walker)->bool{
+    tree.getSourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
-        auto cwalker = static_cast<dcm::symbolic::reduction::ConstraintWalker<K, TDirection3, TDirection3>*>(walker);
+        auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
         auto dist = cwalker->getConstraint<dcm::Distance>(1);
         if(dist && dist->getPrimitiveConstraint().distance()==0) {
                 
@@ -108,13 +114,50 @@ BOOST_AUTO_TEST_CASE(tree) {
     );       
     
     //apply should execute both nodes and the edge
-    auto walker = static_cast<dcm::symbolic::reduction::ConstraintWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
+    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
     
-    BOOST_CHECK(!walker->getCummulativeInputEquation());
-    BOOST_CHECK(walker->getGeometry());
+    BOOST_CHECK(!walker->getInputEquation());
+    BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
+    BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<PointLineGlider>());
     BOOST_CHECK(walker->size() == 1);
     
 }
 
+BOOST_AUTO_TEST_CASE(reduce) {
+    
+    //build up a small test graph
+    typedef typename Sys::Graph Graph;
+    std::shared_ptr<Graph> g = std::shared_ptr<Graph>(new Graph);
+    auto v1 = g->addVertex();
+    auto v2 = g->addVertex();
+    auto e1  = g->addEdge(fusion::at_c<0>(v1), fusion::at_c<0>(v2));
+    auto e2  = g->addEdge(fusion::at_c<0>(v1), fusion::at_c<0>(v2));
+    
+    //build the data 
+    TDirection3<K> g1, g2;
+    auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
+    auto sg2 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
+    sg1->setPrimitiveGeometry(g1);
+    sg2->setPrimitiveGeometry(g2);
+    g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v1), sg1);
+    g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v2), sg2);
+
+    auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
+    c1->setPrimitiveConstraint(dcm::distance);
+    c1->setConstraintID(0);
+    auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
+    c2->setPrimitiveConstraint(dcm::angle);
+    c2->setConstraintID(1);
+    g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
+    g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
+
+    symbolic::Reducer<Sys> reducer;
+    reducer.reduce(g, fusion::at_c<0>(e1));
+    
+    //check the result
+    numeric::EquationBuilder<K>* builder = g->getProperty<numeric::EquationBuilderProperty<K>>(fusion::at_c<0>(e1));
+    BOOST_CHECK(builder != nullptr);
+    
+}
 
 BOOST_AUTO_TEST_SUITE_END();

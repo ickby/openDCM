@@ -109,6 +109,7 @@ template<typename ...OptionTypes>
 struct Constraint {
 
     typedef typename fusion::vector<OptionTypes...> Options;
+    typedef typename mpl::at_c<Options, 0>::type    PimaryOptionType;
 
     Constraint() {};
     
@@ -157,6 +158,12 @@ struct Constraint {
     //set default option values, neeeded for repedability and to prevent unexpected behaviour
     void setDefault() {
         m_storage = m_defaults;
+    };
+    
+    //access a option by index 
+    template<int idx>
+    typename fusion::result_of::at_c<Options, idx>::type getOption() {
+        return fusion::at_c<idx>(m_storage);
     };
        
 protected:
