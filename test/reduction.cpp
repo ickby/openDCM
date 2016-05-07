@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(tree) {
     //add a dependend geometry node 
     dcm::reduction::Node* node = tree.getTreeNode<PointLineGlider>();
     
-    //connect the node with a custom edge
+    //connect the node with a custom connection
     tree.getSourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(tree) {
     }
     );       
     
-    //apply should execute both nodes and the edge
+    //apply should execute both nodes and the connection
     auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, c1Geoms, c2Geoms));
     
     BOOST_CHECK(!walker->getInputEquation());
