@@ -28,6 +28,8 @@
 #include "scheduler.hpp"
 #include "utilities.hpp"
 
+#include <boost/tuple/tuple.hpp>
+#include <boost/iterator/zip_iterator.hpp>
 #include <boost/multi_array.hpp>
 #include <unordered_map>
 #include <typeindex>
@@ -80,12 +82,12 @@ struct EquationBuilder {
 
     //this function is used to create all default constraint equations
     virtual std::vector<CalcPtr>
-    createReducedEquations(CalcPtr g1, CalcPtr g2) = 0;
+    createReducedEquations(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2) = 0;
                        
     //this function is used to create a node in the calculation flow graph with all remaining
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createReducedEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) = 0;
+    createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) = 0;
 };
 
 template<typename Kernel>
@@ -143,6 +145,8 @@ struct ConstraintWalker : public TreeWalker {
     int      size()  const {return m_constraintPool.size();}
     iterator begin() const {return m_constraintPool.begin();};
     iterator end()   const {return m_constraintPool.end();};
+    const symbolic::Constraint* front() const {return m_constraintPool.front();};
+    const symbolic::Constraint* back() const {return m_constraintPool.back();};
     
     //multiple constraints of the same type are always reduntant or conflicting, they do not occure here
     template<typename T>
@@ -181,7 +185,7 @@ private:
 };
 
 template<typename Kernel, template<class> class SourcePrimitive, template<class> class TargetPrimitive>
-struct SourceTargetWalker : TargetWalker<Kernel, TargetPrimitive>{
+struct SourceTargetWalker : public TargetWalker<Kernel, TargetPrimitive>{
   
     SourceTargetWalker(const SourcePrimitive<Kernel>& sprim, const TargetPrimitive<Kernel>& tprim) 
                             : TargetWalker<Kernel, TargetPrimitive>(tprim), m_sourcePrimitive(sprim) {};
@@ -191,6 +195,98 @@ struct SourceTargetWalker : TargetWalker<Kernel, TargetPrimitive>{
 private:
     const SourcePrimitive<Kernel>&    m_sourcePrimitive; //primitive holding the value
 
+};
+
+template<typename Kernel, template<class> class Cluster, template<class> class Primitive>
+struct SourceClusterWalker : public SourceTargetWalker<Kernel, Cluster, Primitive> {
+  
+    typedef SourceTargetWalker<Kernel, Cluster, Primitive>              Inherited;
+    typedef boost::tuple<std::vector<symbolic::Constraint*>::iterator,
+                         std::vector<symbolic::Geometry*>::iterator>    ConstraintGeometryTuble;
+    typedef boost::zip_iterator<ConstraintGeometryTuble>                Iterator;
+    
+    SourceClusterWalker(const Cluster<Kernel>& cluster, const Primitive<Kernel>& primitive) :
+        Inherited(cluster, primitive){};
+        
+    void setGlobalGeometryPool(std::vector<symbolic::Geometry*> c) {
+        dcm_assert(c.size() == Inherited::size());
+        m_clusterGeometry = c;
+    };
+    
+    //allow iteration over constraint together with the source geometry
+    //interface for accessing constraints
+    Iterator begin() const {
+        return Iterator(ConstraintGeometryTuble(Inherited::begin(), m_clusterGeometry.begin()));
+    };
+    Iterator end()   const {
+        return Iterator(ConstraintGeometryTuble(Inherited::end(), m_clusterGeometry.end()));
+    };
+    const ConstraintGeometryTuble front() const {
+        return ConstraintGeometryTuble(Inherited::front(), m_clusterGeometry.front());
+    };
+    const ConstraintGeometryTuble back() const {
+        return ConstraintGeometryTuble(Inherited::back(), m_clusterGeometry.back());
+    };
+    
+private:
+    std::vector<symbolic::Geometry*> m_clusterGeometry;
+};
+
+template<typename Kernel, template<class> class Primitive, template<class> class Cluster>
+struct TargetClusterWalker : public SourceClusterWalker<Kernel, Primitive, Cluster> {
+  
+    typedef SourceClusterWalker<Kernel, Primitive, Cluster>             Inherited;
+    typedef boost::tuple<std::vector<symbolic::Constraint*>::iterator,
+                         std::vector<symbolic::Geometry*>::iterator>    ConstraintGeometryTuble;
+    typedef boost::zip_iterator<ConstraintGeometryTuble>                Iterator;
+    
+    TargetClusterWalker(const Primitive<Kernel>& primitive, const Cluster<Kernel>& cluster) :
+        Inherited(primitive, cluster){};
+};
+
+//actually we only need one cluster, the second one is always the same. However, for compilation in
+//other classes it is handy to specify both independend, as this prevents compiler errors if the 
+//class the constraint walker is initialised in also initialises the other walkers. This prevents
+//problems wih the constructor.
+template<typename Kernel, template<class> class Cluster1, template<class> class Cluster2>
+struct ClusterWalker : public SourceTargetWalker<Kernel, Cluster1, Cluster2> {
+  
+    typedef SourceTargetWalker<Kernel, Cluster1, Cluster2>                Inherited;
+    typedef boost::tuple<std::vector<symbolic::Constraint*>::iterator,
+                         std::vector<symbolic::Geometry*>::iterator,
+                         std::vector<symbolic::Geometry*>::iterator>    ConstraintGeometryTuble;
+    typedef boost::zip_iterator<ConstraintGeometryTuble>                Iterator;
+    
+    ClusterWalker(const Cluster1<Kernel>& source, const Cluster2<Kernel>& target) :
+        Inherited(source, target){};
+        
+    void setGlobalGeometryPool(std::vector<symbolic::Geometry*> source, 
+                               std::vector<symbolic::Geometry*> target) {
+        
+        dcm_assert(source.size() == target.size());
+        dcm_assert(source.size() == Inherited::size());
+        m_sourceGeometry = source;
+        m_targetGeometry = target;                           
+    };
+    
+    //allow iteration over constraint together with the source geometry
+    //interface for accessing constraints
+    Iterator begin() const {
+        return Iterator(ConstraintGeometryTuble(Inherited::begin(), m_sourceGeometry.begin(), m_targetGeometry.begin()));
+    };
+    Iterator end()   const {
+        return Iterator(ConstraintGeometryTuble(Inherited::end(), m_sourceGeometry.end(), m_targetGeometry.end()));
+    };
+    const ConstraintGeometryTuble front() const {
+        return ConstraintGeometryTuble(Inherited::front(), m_sourceGeometry.front(), m_targetGeometry.front());
+    };
+    const ConstraintGeometryTuble back() const {
+        return ConstraintGeometryTuble(Inherited::back(), m_sourceGeometry.back(), m_targetGeometry.back());
+    };
+    
+private:
+    std::vector<symbolic::Geometry*> m_sourceGeometry;
+    std::vector<symbolic::Geometry*> m_targetGeometry;
 };
 
 /**
@@ -455,8 +551,9 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
 
 struct EdgeReductionTree {
 
-    /**
-     * @brief Analyses the global edges and finds the best reduction result
+    virtual ~EdgeReductionTree() {};
+    
+    /** @brief Analyses the global edges and finds the best reduction result
      *
      * The caller owns the returned TreeWalker pointer.
      * 
@@ -467,7 +564,9 @@ struct EdgeReductionTree {
      * @return void
      */
     virtual reduction::TreeWalker* apply(symbolic::Geometry* source, symbolic::Geometry* target,
-                                         std::vector<symbolic::Constraint*> constraints) = 0;
+                                         std::vector<symbolic::Constraint*> constraints,
+                                         std::vector<symbolic::Geometry*> sourceClusterGeometries,
+                                         std::vector<symbolic::Geometry*> targetClusterGeometries) = 0;
 };
 
 template<typename Kernel, template<class> class SourceGeometry, template<class> class TargetGeometry>
@@ -504,7 +603,9 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
 
 
     virtual reduction::TreeWalker* apply(symbolic::Geometry* source, symbolic::Geometry* target,
-                                         std::vector<symbolic::Constraint*> constraints) {
+                                         std::vector<symbolic::Constraint*> constraints, 
+                                         std::vector<symbolic::Geometry*> sourceClusterGeometries,
+                                         std::vector<symbolic::Geometry*> targetClusterGeometries) {
 
         dcm_assert(source != target);
         //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(source) != NULL);
@@ -514,10 +615,33 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
         const SourceGeometry<Kernel>& pg1 = static_cast<symbolic::TypeGeometry<Kernel, SourceGeometry>*>(source)->getPrimitveGeometry();
         const TargetGeometry<Kernel>& pg2 = static_cast<symbolic::TypeGeometry<Kernel, TargetGeometry>*>(target)->getPrimitveGeometry();
 
-        //create a new treewalker and set it up
-        auto walker = new SourceTargetWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
-        walker->setInitialNode(getSourceNode());
-        walker->setConstraintPool(constraints);
+        //create a new treewalker and set it up. We need to make sure that the correct walker for the 
+        //given reduction job is used
+        ConstraintWalker<Kernel>* walker = nullptr;
+        if(!sourceClusterGeometries.empty() && !targetClusterGeometries.empty()) {
+            auto cwalker = new ClusterWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
+            cwalker->setConstraintPool(constraints);
+            cwalker->setGlobalGeometryPool(sourceClusterGeometries, targetClusterGeometries);
+            walker = cwalker;
+        }
+        else if(!sourceClusterGeometries.empty()) {
+            auto cwalker = new SourceClusterWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
+            cwalker->setConstraintPool(constraints);
+            cwalker->setGlobalGeometryPool(sourceClusterGeometries);
+            walker = cwalker;
+        }
+        else if(!targetClusterGeometries.empty()) {
+            auto cwalker = new TargetClusterWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
+            cwalker->setConstraintPool(constraints);
+            cwalker->setGlobalGeometryPool(targetClusterGeometries);
+            walker = cwalker;
+        }
+        else {
+            walker = new SourceTargetWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
+            walker->setConstraintPool(constraints);
+        }
+        
+        walker->setInitialNode(getSourceNode());        
         
         //start the calculation
         getSourceNode()->apply(walker);
@@ -531,10 +655,10 @@ protected:
 
 } //reduction
 
-namespace symbolic {
+namespace numeric {
 
 template<typename Kernel>
-struct Reduction : public numeric::EquationBuilder<Kernel> {
+struct EdgeBuilder : public numeric::EquationBuilder<Kernel> {
     
     //the general reduction result: how many parameters can be eliminated
     int parameterReduction() {
@@ -546,23 +670,25 @@ private:
 };
 
 template<typename Kernel>
-struct ConstraintReduction : public Reduction<Kernel> {
+struct ConstraintBuilder : public EdgeBuilder<Kernel> {
     
     typedef shedule::FlowGraph::Node  Node;
     typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
+    typedef typename boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>::template array_view<1>::type GeneratorArray;
     
-    ConstraintReduction(const graph::LocalVertex& source, const graph::LocalVertex& target,
-                        reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw) 
-        : m_sourceWalker(sw), m_targetWalker(tw), m_sourceVertex(source), m_targetVertex(target) {};
+    ConstraintBuilder(const graph::LocalVertex& source, const graph::LocalVertex& target,
+                      reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw,
+                      const GeneratorArray& cg) 
+        : m_sourceWalker(sw), m_targetWalker(tw), m_sourceVertex(source), m_targetVertex(target), m_generatorArry(cg) {};
     
-    virtual ~ConstraintReduction() {
+    virtual ~ConstraintBuilder() {
         //we own the walkers
         delete m_sourceWalker;
         delete m_targetWalker;
     }
         
     //this function is used to create a default numeric geometry for the given symbolic one.
-    virtual CalcPtr createGeometry(const graph::LocalVertex& vertex) {
+    virtual CalcPtr createGeometry(const graph::LocalVertex& vertex) override {
                
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
@@ -575,7 +701,7 @@ struct ConstraintReduction : public Reduction<Kernel> {
     };
 
     virtual std::pair< CalcPtr, Node>
-    createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) {
+    createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) override {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
@@ -589,7 +715,7 @@ struct ConstraintReduction : public Reduction<Kernel> {
     
     //this function creates a reduced numeric geometry equation. For this the equation it depends on 
     //is required
-    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex, CalcPtr basegeometry) {
+    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex, CalcPtr basegeometry) override {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
@@ -605,7 +731,7 @@ struct ConstraintReduction : public Reduction<Kernel> {
     //corresponding flow graph. For this the equation it depends on is required
     virtual std::pair< CalcPtr, Node>
     createReducedGeometryNode(const graph::LocalVertex& vertex, CalcPtr basegeometry,
-                              shedule::FlowGraph& flowgraph) {
+                              shedule::FlowGraph& flowgraph) override {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
@@ -619,59 +745,123 @@ struct ConstraintReduction : public Reduction<Kernel> {
     
     //this function is used to create all default constraint equations
     virtual std::vector<CalcPtr>
-    createEquations(CalcPtr g1, CalcPtr g2) {
+    createEquations(CalcPtr g1, CalcPtr g2) override {
         
+        std::vector<CalcPtr> equations;
+        for(auto cons : m_constraints)
+            equations.push_back(m_generatorArry[cons->type]->buildEquation(g1, g2, cons));
+        
+        return equations;
     };
                        
-    //this function is used to create a node in the calculation flow graph with all remaining
+    //this function is used to create a node in the calculation flow graph with all default
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) {
+    createEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
     
-        
+        if(m_constraints.size() == 1) {
+            auto node = m_generatorArry[m_constraints[0]->type]->buildEquationNode(g1, g2, m_constraints[0], flow);
+            std::vector<CalcPtr> vec(1);
+            vec.push_back(node.first);
+            return std::make_pair(vec, node.second);
+        }
+                
+        //if we have multiple constraints we need to call the virtual functions anyway
+        auto equations = createEquations(g1,g2);
+        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            for(auto cons : equations)
+                cons->execute();
+        }));
     };
 
     //this function is used to create all default constraint equations
     virtual std::vector<CalcPtr>
-    createReducedEquations(CalcPtr g1, CalcPtr g2) {
+    createReducedEquations(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2) override {
         
+        std::vector<CalcPtr> equations;
+        reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
+        for(auto cons : *walker)
+            equations.push_back(m_generatorArry[cons->type]->buildEquation(g1, g2, cons));
+        
+        return equations;
     };
                        
     //this function is used to create a node in the calculation flow graph with all remaining
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createReducedEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) {
+    createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
         
+        reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
+        if(walker->size() == 1) {
+            auto node = m_generatorArry[walker->front()->type]->buildEquationNode(g1, g2, walker->front(), flow);
+            std::vector<CalcPtr> vec(1);
+            vec.push_back(node.first);
+            return std::make_pair(vec, node.second);   
+        }
+                
+        //if we have multiple constraints we need to call the virtual functions anyway
+        auto equations = createReducedEquations(target,g1,g2);
+        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            for(auto cons : equations)
+                cons->execute();
+        }));
     };
     
 private:
     graph::LocalVertex                   m_sourceVertex, m_targetVertex;
-    reduction::ConstraintWalker<Kernel>* m_sourceWalker; //reduction result for the source geometry
-    reduction::ConstraintWalker<Kernel>* m_targetWalker; //reduction result for the target geometry 
-    std::vector<symbolic::Constraint*>   m_constraints;  //all constraints in the edge
+    reduction::ConstraintWalker<Kernel>* m_sourceWalker;  //reduction result for the source geometry
+    reduction::ConstraintWalker<Kernel>* m_targetWalker;  //reduction result for the target geometry 
+    std::vector<symbolic::Constraint*>   m_constraints;   //all constraints in the edge
+    const GeneratorArray&                m_generatorArry; //array with ConstraintGenerators for this special geometry combination
 };
+} //numeric
+
+namespace symbolic {
     
-template<typename Final>
-struct Reducer {
+/**
+ * @brief Converts symbolic constraint systems into numeric equations
+ * 
+ * This class is used to analyse symbolic constraint systems and generate approprite numeric equations
+ * for it. It searchews for the best possible numeric implementation by combining geometries and 
+ * constraints appropriately. Note that at the time of reduction it is not yet known if the symbolic
+ * system really should be converted to generalized coordinates, hence the numeric system is not 
+ * directly created. Instead the NumericConverter adds an EquationBuilder to the graph which can be 
+ * used to create the generalized or cartesian coordinate equations dependend on other analysis results.
+ * 
+ * @note This class is very heavy to initiate, it should not be created on the heap
+ */
+template<typename Kernel, typename GeometryList, typename ConstraintList, typename Graph>
+struct NumericConverter {
+      
+    NumericConverter() {
     
-    typedef typename Final::Kernel Kernel;
-    
-    Reducer() {
-    
-        int size = mpl::size<typename Final::GeometryList>::type::value;
+        int size = mpl::size<GeometryList>::type::value;
         m_treeArray.resize(boost::extents[size][size]);
         
         //build up the default reduction nodes
         //mpl trickery to get a sequence counting from 0 to the size of stroage entries
         typedef mpl::range_c<int,0,
-                mpl::size<typename Final::GeometryList>::value> StorageRange;
+                mpl::size<GeometryList>::value> StorageRange;
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at
-        utilities::RecursiveSequenceApplyer<typename Final::GeometryList, ReductionTreeCreator> r(m_treeArray);
+        utilities::RecursiveSequenceApplyer<GeometryList, ReductionTreeCreator> r(m_treeArray);
         mpl::for_each<StorageRange>(r);
+        
+        //do all the same for the constraints
+        int constraints = mpl::size<ConstraintList>::type::value;
+        m_generatorArray.resize(boost::extents[size][size][constraints]);        
+        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator> g(m_generatorArray);
+        mpl::for_each<StorageRange>(g);
     };
     
-    void reduce(std::shared_ptr<typename Final::Graph> g, graph::LocalEdge edge) {
+    ~NumericConverter() {
+        //delete all reduction nodes
+        int size = std::pow(mpl::size<GeometryList>::value, 2);
+        //for(int i=0; i<size; ++i) 
+        //    delete m_treeArray(i);
+    };
+    
+    void setupEquationBuilder(std::shared_ptr<Graph> g, graph::LocalEdge edge) {
         
         //get the geometry used in this edge
         symbolic::Geometry* source = g->template getProperty<symbolic::GeometryProperty>(g->source(edge));
@@ -680,17 +870,29 @@ struct Reducer {
         //get the two reduction trees for this geometry combination
         reduction::EdgeReductionTree* stTree = m_treeArray[source->type][target->type];
         reduction::EdgeReductionTree* tsTree = m_treeArray[target->type][source->type];
-        
-        //get all constraints
-        std::vector<symbolic::Constraint*> constraints;
-        typedef typename Final::Graph::global_edge_iterator iterator;
-        std::pair<iterator, iterator> it = g->getGlobalEdges(edge);
-        for (; it.first != it.second; ++it.first)
-            constraints.push_back(g->template getProperty<symbolic::ConstraintProperty>(*it.first));
 
+        //see if we need tpo process clusters
+        bool sourceCluster = g->isCluster(g->source(edge));
+        bool targetCluster = g->isCluster(g->target(edge));
+        
+        //get all constraints and cluster geometries, is needed
+        std::vector<symbolic::Constraint*> constraints;
+        std::vector<symbolic::Geometry*>   sourceGeometry, targetGeometry;
+        typedef typename Graph::global_edge_iterator iterator;
+        std::pair<iterator, iterator> it = g->getGlobalEdges(edge);
+        for (; it.first != it.second; ++it.first) {
+            constraints.push_back(g->template getProperty<symbolic::ConstraintProperty>(*it.first));
+            if(sourceCluster)
+                sourceGeometry.push_back(g->template getProperty<symbolic::GeometryProperty>((*it.first).source));
+            if(targetCluster)
+                targetGeometry.push_back(g->template getProperty<symbolic::GeometryProperty>((*it.first).target));
+        }
+       
         //calculate both results
-        auto* stWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(source, target, constraints));
-        auto* tsWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(target, source, constraints));
+        auto* stWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(source, target, constraints, 
+                                                                                         sourceGeometry, targetGeometry));
+        auto* tsWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(tsTree->apply(target, source, constraints,
+                                                                                         targetGeometry, sourceGeometry));
         
         //build the reduction and set store it in the graph. Make sure any pointer already stored is
         //deleted properly, especially the walkers
@@ -698,12 +900,17 @@ struct Reducer {
         if(reduction)
             delete reduction;
         
-        reduction = new ConstraintReduction<typename Final::Kernel>(g->source(edge), g->target(edge), tsWalker, stWalker);
+        typedef typename boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>::index_range range;
+        typename boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>::template array_view<1>::type 
+            view = m_generatorArray[boost::indices[source->type][target->type][range()]];
+        reduction = new numeric::ConstraintBuilder<Kernel>(g->source(edge), g->target(edge), 
+                                                                           tsWalker, stWalker, view);
         g->template setProperty<numeric::EquationBuilderProperty<Kernel>>(edge, reduction);
     };
     
 private:
-    boost::multi_array<reduction::EdgeReductionTree*,2> m_treeArray;
+    boost::multi_array<reduction::EdgeReductionTree*,2>                 m_treeArray;
+    boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3> m_generatorArray;
        
     template<typename Sequence>
     struct ReductionTreeCreator {
@@ -727,11 +934,46 @@ private:
                                 geometry::extractor<t2>::template primitive,
                                 geometry::extractor<t1>::template primitive >();
         
-            int idx1 = Final::template initGeometryIndex<t1>::value;
-            int idx2 = Final::template initGeometryIndex<t2>::value;
+            int idx1 = utilities::index<GeometryList, t1>::value;
+            int idx2 = utilities::index<GeometryList, t2>::value;
             
             m_treeArray[idx1][idx2] = node1;
             m_treeArray[idx2][idx1] = node2;
+        };
+    };
+    
+ 
+    template<typename Sequence>
+    struct ConstraintGeneratorCreator {
+    
+        boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& generator;
+        
+        ConstraintGeneratorCreator(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& r) 
+            : generator(r) {};
+            
+        template<typename N1, typename N2>
+        void operator()() {
+        
+            
+        };
+        
+        template<typename G1, typename G2, int n1, int n2>
+        struct InnerLoop {
+            
+            boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& generator;
+        
+            InnerLoop(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
+            
+            template<typename T>
+            void operator()(const T& t) {
+            
+                generator[n1][n2][T::value] = new numeric::TypedConstraintEquationGenerator<Kernel, 
+                                                    typename mpl::at<ConstraintList, T>::type,
+                                                    geometry::extractor<G1>::template primitive,
+                                                    geometry::extractor<G2>::template primitive>();
+                                                                         
+                generator[n2][n1][T::value] = generator[n1][n2][T::value];
+            };
         };
     };
 };

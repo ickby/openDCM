@@ -84,6 +84,17 @@ struct RecursiveSequenceApplyer {
         };
     };
 };
+
+template<typename Sequence, typename G>
+struct index {
+    typedef typename mpl::find<Sequence, G>::type iterator;
+    typedef boost::is_same<iterator, typename mpl::end<Sequence>::type> valid;
+    BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, CONSTRAINT_TYPE_NOT_REGISTERT, (G));
+    
+    typedef typename mpl::distance<typename mpl::begin<Sequence>::type,
+                        iterator>::type type; 
+    const static long value = type::value;
+};
     
 }//utilities
 

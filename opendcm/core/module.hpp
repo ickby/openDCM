@@ -37,8 +37,6 @@
 #include <boost/preprocessor/seq/transform.hpp>
 
 #include <boost/mpl/int.hpp>
-#include <boost/multi_array.hpp>
-
 
 namespace mpl = boost::mpl;
 
@@ -99,26 +97,12 @@ struct ModuleCoreInit {
 #ifdef DCM_USE_LOGGING
         , sink(init_log())
 #endif
-    {
-        
-        
-        //int constraints = mpl::size<typename Final::ConstraintList>::type::value;
-        //generator.resize(boost::extents[size][size][constraints]);
-        
-        //RecursiveSequenceApplyer<typename Final::GeometryList, ConstraintGeneratorCreator> g(generator);
-        //mpl::for_each<StorageRange>(g);
-        
-    };
+    {};
 
     ~ModuleCoreInit() {
 #ifdef DCM_USE_LOGGING
         stop_log(sink);
 #endif
-        /*
-        //delete all reduction nodes
-        int size = std::pow(mpl::size<typename Final::GeometryList>::value, 2);
-        for(int i=0; i<size; ++i)
-            delete reduction(i);*/
     };
 
 #ifdef DCM_USE_LOGGING
@@ -144,16 +128,7 @@ protected:
     typedef mpl::vector<symbolic::ConstraintProperty>                GlobalEdgeProperties;
     typedef mpl::vector<symbolic::GeometryProperty>                  VertexProperties;
     typedef mpl::vector0<>                                           ClusterProperties;
-
-    /*
-    template<template<class, bool> class G1, template<class, bool> class G2, typename PC>
-    numeric::ConstraintEquationGenerator<Kernel> getEquationGenerator() {
-        int n1 = Final::template primitiveGeometryIndex<G1>::value;
-        int n2 = Final::template primitiveGeometryIndex<G2>::value;
-        int n3 = Final::template constraintIndex<PC>::value;
-        return reduction[n1][n2][n3];
-    };*/
-    
+   
 #ifdef DCM_TESTING
 public:
 #endif
@@ -165,50 +140,12 @@ public:
         return m_graph;
     };
     
-protected:
-    //boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>  generator;
-
 private:
     std::shared_ptr<graph::AccessGraphBase> m_graph;
 #ifdef DCM_USE_LOGGING
     boost::shared_ptr< sink_t > sink;
 #endif
     
-
-    /*
-    template<typename Sequence>
-    struct ConstraintGeneratorCreator {
-    
-        boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>& generator;
-        
-        ConstraintGeneratorCreator(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>& r) 
-            : generator(r) {};
-            
-        template<typename N1, typename N2>
-        void operator()() {
-        
-            
-        };
-        
-        template<typename G1, typename G2, int n1, int n2>
-        struct InnerLoop {
-            
-            boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>& generator;
-        
-            InnerLoop(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>,3>& r) : generator(r) {};
-            
-            template<typename T>
-            void operator()(const T& t) {
-            
-                generator[n1][n2][T::value] = numeric::TypedConstraintEquationGenerator<Kernel, 
-                                                  typename mpl::at<typename Final::ConstraintList, T>::type,
-                                                  geometry::extractor<G1>::template primitive,
-                                                  geometry::extractor<G2>::template primitive>();
-                                                                         
-                generator[n2][n1][T::value] = generator[n1][n2][T::value];
-            };
-        };
-    };*/
 };
 
 template<typename Final, typename Stacked>
@@ -242,15 +179,7 @@ struct ModuleCoreFinish : public Stacked {
     };
     
     template<typename G>
-    struct initGeometryIndex {
-        typedef typename mpl::find<typename Stacked::GeometryList, G>::type iterator;
-        typedef boost::is_same<iterator, typename mpl::end<typename Stacked::GeometryList>::type> valid;
-        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, GEOMETRY_TYPE_NOT_REGISTERT, (G));
-        
-        typedef typename mpl::distance<typename mpl::begin<typename Stacked::GeometryList>::type,
-                            iterator>::type type; 
-        const static long value = type::value;
-    };
+    struct initGeometryIndex : utilities::index<typename Stacked::GeometryList, G>{};
     
     template<template<class> class G>
     struct geometryIndex {
@@ -259,15 +188,7 @@ struct ModuleCoreFinish : public Stacked {
     };
    
     template<typename G>
-    struct constraintIndex {
-        typedef typename mpl::find<typename Stacked::ConstraintList, G>::type iterator;
-        typedef boost::is_same<iterator, typename mpl::end<typename Stacked::ConstraintList>::type> valid;
-        BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, CONSTRAINT_TYPE_NOT_REGISTERT, (G));
-        
-        typedef typename mpl::distance<typename mpl::begin<typename Stacked::ConstraintList>::type,
-                            iterator>::type type; 
-        const static long value = type::value;
-    };
+    struct constraintIndex : utilities::index<typename Stacked::ConstraintList, G>{};
     
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;        
@@ -287,6 +208,10 @@ struct ModuleCoreFinish : public Stacked {
         //post process the finished calculation
         
     };
+    
+private:
+    symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
+                               typename Stacked::ConstraintList, Graph> m_converter;
 };
 
 

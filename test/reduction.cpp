@@ -92,6 +92,8 @@ BOOST_AUTO_TEST_CASE(tree) {
     std::vector<symbolic::Constraint*> cvec;
     cvec.push_back(c1);
     cvec.push_back(c2);
+    //no clusters for now
+    std::vector<symbolic::Geometry*> c1Geoms, c2Geoms;
     
     //build up an example reduction tree
     dcm::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> tree;
@@ -114,7 +116,7 @@ BOOST_AUTO_TEST_CASE(tree) {
     );       
     
     //apply should execute both nodes and the edge
-    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
+    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, c1Geoms, c2Geoms));
     
     BOOST_CHECK(!walker->getInputEquation());
     BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
@@ -151,8 +153,8 @@ BOOST_AUTO_TEST_CASE(reduce) {
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
 
-    symbolic::Reducer<Sys> reducer;
-    reducer.reduce(g, fusion::at_c<0>(e1));
+    symbolic::NumericConverter<K, typename Sys::GeometryList, typename Sys::ConstraintList, typename Sys::Graph> reducer;
+    reducer.setupEquationBuilder(g, fusion::at_c<0>(e1));
     
     //check the result
     numeric::EquationBuilder<K>* builder = g->getProperty<numeric::EquationBuilderProperty<K>>(fusion::at_c<0>(e1));

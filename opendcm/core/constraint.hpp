@@ -506,57 +506,107 @@ struct ConstraintComplexSimplifiedEquation : ConstraintEquationBase<Kernel, PC, 
         Inherited::secondAsSimplified();
     };
 };
-/*
+
 template<typename Kernel>
 struct ConstraintEquationGenerator {
     
-     virtual Equation<Kernel> getEquation(numeric::GeomertyEquation<Kernel>* g1, 
-                                          numeric::GeomertyEquation<Kernel>* g2, 
-                                          symbolic::Constraint* c) {
-                                              dcm_assert(false);
-                                              return Equation<Kernel>();
-                                        };
+     typedef shedule::FlowGraph::Node  FlowNode;
+     typedef std::shared_ptr<numeric::Calculatable<Kernel>>  Equation;
+    
+     virtual Equation buildEquation(Equation g1, 
+                                    Equation g2, 
+                                    const symbolic::Constraint* c) const = 0;
+                                              
+    virtual std::pair<Equation, FlowNode>
+    buildEquationNode(Equation g1, 
+                      Equation g2, 
+                      const symbolic::Constraint* c,
+                      shedule::FlowGraph& flowgraph) const = 0;
+                                              
 };
 
-template<typename Kernel, typename PC, template<class, bool> class PG1, template<class, bool> class PG2>
+template<typename Kernel, typename PC, template<class> class PG1, template<class> class PG2>
 struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Kernel> {
 
-    virtual Equation<Kernel> getEquation(numeric::GeomertyEquation<Kernel>* g1, 
-                                         numeric::GeomertyEquation<Kernel>* g2, 
-                                         symbolic::Constraint* c) {
+    typedef typename ConstraintEquationGenerator<Kernel>::Equation Equation;
+    typedef typename ConstraintEquationGenerator<Kernel>::FlowNode FlowNode;
+    
+    virtual Equation buildEquation(Equation g1, 
+                                   Equation g2, 
+                                   const symbolic::Constraint* c) override {
         
-        if(g1->complexity == Simplified && g2->complexity == Simplified) {
-            ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2> equation;
-            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
-                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
-            
+        auto tg1 = static_cast<numeric::Equation<Kernel, PG1<Kernel>>*>(g1);
+        auto tg2 = static_cast<numeric::Equation<Kernel, PG2<Kernel>>*>(g2);
+        
+        if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2>>(); 
+            equation->setInputEquations(tg1, tg2);            
             return equation;
         }
-        else if(g1->complexity == Simplified && g2->complexity != Complex) {
-            ConstraintSimplifiedComplexEquation<Kernel, PC, PG1, PG2> equation;
-            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
-                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
-            
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintSimplifiedComplexEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);            
             return equation;
         }
-        else if(g1->complexity != Complex && g2->complexity == Simplified) {
-            ConstraintComplexSimplifiedEquation<Kernel, PC, PG1, PG2> equation;
-            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
-                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
-            
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintComplexSimplifiedEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);            
             return equation;
         }
-        else if(g1->complexity != Complex && g2->complexity != Complex) {
-            ConstraintComplexEquation<Kernel, PC, PG1, PG2> equation;
-            equation.setupGeometry(static_cast<numeric::Geometry<Kernel, PG1>*>(g1), 
-                                static_cast<numeric::Geometry<Kernel, PG2>*>(g2));
-            
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintComplexEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);            
             return equation;
         }
-        return Equation<Kernel>();
+        dcm_assert(false);
+        return Equation();
+    };
+    
+    virtual std::pair<Equation, FlowNode>
+    buildEquationNode(Equation g1, Equation g2, const symbolic::Constraint* c,
+                      shedule::FlowGraph& flowgraph) const override {
+       
+        auto  tg1 = static_cast<numeric::Equation<Kernel, PG1<Kernel>>*>(g1);
+        auto  tg2 = static_cast<numeric::Equation<Kernel, PG2<Kernel>>*>(g2);
+        auto& pc  = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitiveConstraint();
+        
+        if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2>>(); 
+            equation->setInputEquations(tg1, tg2);            
+            equation->output() = pc;
+            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+                equation->calculate();
+            }));
+        }
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintSimplifiedComplexEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);     
+            equation->output() = pc;
+            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+                equation->calculate();
+            }));
+        }
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintComplexSimplifiedEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);  
+            equation->output() = pc;
+            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+                equation->calculate();
+            }));
+        }
+        else if(tg1->complexity != Complexity::Complex && tg2->complexity != Complexity::Complex) {
+            auto equation = std::make_shared<ConstraintComplexEquation<Kernel, PC, PG1, PG2>>();
+            equation->setInputEquations(tg1, tg2);  
+            equation->output() = pc;
+            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+                equation->calculate();
+            }));
+        }
+        dcm_assert(false);
+        return Equation();
     };
 };
-*/
+
 }//numeric
 
 
