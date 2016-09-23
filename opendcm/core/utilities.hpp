@@ -22,6 +22,7 @@
 
 #include <boost/variant.hpp>
 #include <boost/mpl/for_each.hpp>
+#include <boost/mpl/if.hpp>
 
 namespace dcm {
 namespace utilities {
@@ -61,7 +62,7 @@ struct RecursiveSequenceApplyer {
     RecursiveSequenceApplyer(T& param) 
         : functor(Functor<Sequence>(param)) {};
     
-    RecursiveSequenceApplyer<RecursiveSequenceApplyer<Sequence, Functor>>(RecursiveSequenceApplyer& r) 
+    RecursiveSequenceApplyer(RecursiveSequenceApplyer& r) 
         : functor(r.functor) {};
         
     template<typename T>
@@ -85,6 +86,7 @@ struct RecursiveSequenceApplyer {
     };
 };
 
+//generates a int index value of a type in a sequence
 template<typename Sequence, typename G>
 struct index {
     typedef typename mpl::find<Sequence, G>::type iterator;
@@ -95,6 +97,10 @@ struct index {
                         iterator>::type type; 
     const static long value = type::value;
 };
+
+//exposes the given type except if it is floating point, than int is exposed
+template<typename T>
+struct non_floating : public boost::mpl::if_<std::is_floating_point<T>, int, T>{};
     
 }//utilities
 

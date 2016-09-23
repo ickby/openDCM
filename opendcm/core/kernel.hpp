@@ -245,7 +245,7 @@ struct Eigen3Kernel : public numeric::KernelBase {
 
 
 private:
-    Nonlinear< Eigen3Kernel<Scalar, Nonlinear> > m_solver;
+    //Nonlinear< Eigen3Kernel<Scalar, Nonlinear> > m_solver;
 
 };
 

@@ -201,17 +201,17 @@ struct ModuleCoreFinish : public Stacked {
      */
     void solve() {       
         
-        //All graph manipulation work has been done, from here on we only access the graph. 
-        //Next find all connected components and build the numeric solving system based on them
-        //solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
+        //build up the system to solve
+        //auto solvable = solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
                 
         //post process the finished calculation
+        
         
     };
     
 private:
-    symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
-                               typename Stacked::ConstraintList, Graph> m_converter;
+    //symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
+    //                           typename Stacked::ConstraintList, Graph> m_converter;
 };
 
 

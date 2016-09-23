@@ -154,6 +154,7 @@ struct extractor {};
 template<template<class> class Base, typename Kernel>
 struct extractor<Base<Kernel>> {
     
+    using type = Base<Kernel>;
     template<typename K> using  primitive = Base<K>;
 };
 

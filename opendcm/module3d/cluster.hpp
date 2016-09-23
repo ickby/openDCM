@@ -61,6 +61,7 @@ namespace numeric {
 #define NQFAKTOR 0.5    //the faktor by which the norm quaternion is multiplied with to get the RealScalar
 //norm quaternion to generate the unit quaternion
 
+    
 template<typename Kernel, template<class, bool> class Base>
 struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Cluster3d> {
     

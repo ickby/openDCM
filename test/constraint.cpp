@@ -55,9 +55,9 @@ namespace dcm {
 namespace numeric {
 
 template<typename Kernel>
-struct Constraint<Kernel, dcm::Distance, TPoint3, TPoint3> : public ConstraintBase<Kernel, dcm::Distance, TPoint3, TPoint3> {
+struct Constraint<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> : public ConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> {
   
-    typedef ConstraintBase<Kernel, dcm::Distance, TPoint3, TPoint3>  Inherited;
+    typedef ConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>>  Inherited;
     typedef typename Kernel::Scalar                 Scalar;
     typedef typename Inherited::Vector              Vector;
     typedef typename Inherited::Geometry1           Geometry1;
@@ -144,10 +144,10 @@ BOOST_AUTO_TEST_CASE(numeric) {
    p1->value() = Eigen::Vector3d(1,0,0);
    p2->value() = Eigen::Vector3d(0,0,0);
    
-   typedef dcm::numeric::ConstraintSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3>        ggc;
-   typedef dcm::numeric::ConstraintComplexEquation<K, dcm::Distance, TPoint3, TPoint3>           ccc;
-   typedef dcm::numeric::ConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3, TPoint3> gcc;
-   typedef dcm::numeric::ConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3, TPoint3> cgc;
+   typedef dcm::numeric::ConstraintSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>        ggc;
+   typedef dcm::numeric::ConstraintComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>           ccc;
+   typedef dcm::numeric::ConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> gcc;
+   typedef dcm::numeric::ConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> cgc;
    
    std::shared_ptr<ggc> gg_constraint(new ggc());
    std::shared_ptr<ccc> cc_constraint(new ccc());

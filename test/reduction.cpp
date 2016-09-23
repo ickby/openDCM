@@ -1,6 +1,6 @@
 /*
     openDCM, dimensional constraint manager
-    Copyright (C) 2012  Stefan Troeger <stefantroeger@gmx.net>
+    Copyright (C) 2016  Stefan Troeger <stefantroeger@gmx.net>
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -19,13 +19,14 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <opendcm/core/constraint.hpp>
 #include <opendcm/core/system.hpp>
 #include <opendcm/core/reduction.hpp>
 
-using namespace dcm;
+#include <boost/exception/get_error_info.hpp>
 
-typedef dcm::Eigen3Kernel<double> K;
-        
+using namespace dcm;
+      
 template<typename Kernel>
 struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>> {
 
@@ -47,18 +48,79 @@ struct TScalar : public geometry::Geometry<Kernel, typename Kernel::Scalar> {
     };
 };
 
+template<typename Kernel>
+struct PointLineGlider : public numeric::DependendGeometry<Kernel, TDirection3, TScalar, double> {
 
-struct PointLineGlider : public numeric::DependendGeometry<K, TDirection3, TScalar, double> {
-     
+    using Inherited = numeric::DependendGeometry<Kernel, TDirection3, TScalar, double>;
+
     CALCULATE() {
-        DependendGeometry::calculate();
-        value() = input().value().norm()*scale();
+        Inherited::DependendGeometry::calculate();
+        Inherited::value() = Inherited::input().value().norm()*scale();
     };
     
-    auto scale() -> decltype(fusion::at_c<0>(m_parameterStorage)){
-        return fusion::at_c<0>(m_parameterStorage);
+    auto scale() -> decltype(fusion::at_c<0>(Inherited::m_parameterStorage)){
+        return fusion::at_c<0>(Inherited::m_parameterStorage);
     };
 };
+
+template<typename  Kernel>
+struct FixedPoint : public numeric::DependendGeometry<Kernel, TDirection3, TDirection3> {
+     
+    using Inherited = numeric::DependendGeometry<Kernel, TDirection3, TDirection3>;
+
+    CALCULATE() {
+        Inherited::calculate();
+        Inherited::output() = Inherited::input();
+    };
+};
+
+
+namespace dcm { namespace numeric {
+ 
+template<typename Kernel>
+struct Constraint<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>> 
+    : public ConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  {
+
+    typedef ConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry1           Geometry1;
+    typedef typename Inherited::Derivative1         Derivative1;
+    typedef typename Inherited::Geometry2           Geometry2;
+    typedef typename Inherited::Derivative2         Derivative2;
+    
+    Constraint() {
+    };
+    
+    Scalar calculateError(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return 1;};
+    Scalar calculateGradientFirst(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2, const Derivative1& dg1) {return 1;};
+    Scalar calculateGradientSecond(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2, const Derivative2& dg2) {return 1;};
+    Vector calculateGradientFirstComplete(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return Eigen::Vector2d(1,2);};
+    Vector calculateGradientSecondComplete(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return Eigen::Vector2d(1,2);};
+};
+
+template<typename Kernel>
+struct Constraint<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>> : public ConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  {
+
+    typedef ConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry1           Geometry1;
+    typedef typename Inherited::Derivative1         Derivative1;
+    typedef typename Inherited::Geometry2           Geometry2;
+    typedef typename Inherited::Derivative2         Derivative2;
+    
+    Constraint() {
+    };
+        
+    Scalar calculateError(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return 1;};
+    Scalar calculateGradientFirst(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2, const Derivative1& dg1) {return 1;};
+    Scalar calculateGradientSecond(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2, const Derivative2& dg2) {return 1;};
+    Vector calculateGradientFirstComplete(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return Eigen::Vector2d(1,2);};
+    Vector calculateGradientSecondComplete(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return Eigen::Vector2d(1,2);};
+};
+
+}}
 
 struct ReductionModule {
 
@@ -71,41 +133,49 @@ struct ReductionModule {
     };
 };
 
+typedef dcm::Eigen3Kernel<double> K;
 typedef dcm::System<K, ReductionModule> Sys;
+
+template<typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type Option>
+using Equal = reduction::ConstraintEqualValue<Sys, Constraint, Option>;
 
 BOOST_AUTO_TEST_SUITE(Reduction);
 
 BOOST_AUTO_TEST_CASE(tree) {
         
+    typedef dcm::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> Tree;
+
     //build the data 
     TDirection3<K> g1, g2;
     auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
     auto sg2 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
     sg1->setPrimitiveGeometry(g1);
     sg2->setPrimitiveGeometry(g2);
+    
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitiveConstraint(dcm::distance);
-    c1->setConstraintID(0);
+    c1->setConstraintID(Sys::template constraintIndex<dcm::Distance>::value);
+    c1->getPrimitiveConstraint().distance() = 0;
+    
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitiveConstraint(dcm::angle);
-    c2->setConstraintID(1);
-    std::vector<symbolic::Constraint*> cvec;
-    cvec.push_back(c1);
-    cvec.push_back(c2);
-    //no clusters for now
-    std::vector<symbolic::Geometry*> c1Geoms, c2Geoms;
+    c2->setConstraintID(Sys::template constraintIndex<dcm::Angle>::value);
+    c2->getPrimitiveConstraint().angle() = 0;
+    Tree::SymbolicVector cvec;
+    cvec.push_back(std::make_tuple(c1, sg1, sg2));
+    cvec.push_back(std::make_tuple(c2, sg1, sg2));
     
     //build up an example reduction tree
-    dcm::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> tree;
+    Tree tree;
     
     //add a dependend geometry node 
-    dcm::reduction::Node* node = tree.getTreeNode<PointLineGlider>();
+    dcm::reduction::Node* node = tree.getTreeNode<PointLineGlider<K>>();
     
     //connect the node with a custom connection
     tree.getSourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-        auto dist = cwalker->getConstraint<dcm::Distance>(1);
+        auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value);
         if(dist && dist->getPrimitiveConstraint().distance()==0) {
                 
             cwalker->acceptConstraint(dist);        
@@ -116,17 +186,30 @@ BOOST_AUTO_TEST_CASE(tree) {
     );       
     
     //apply should execute both nodes and the connection
-    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, c1Geoms, c2Geoms));
+    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
     
     BOOST_CHECK(!walker->getInputEquation());
     BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
-    BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<PointLineGlider>());
+    BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<PointLineGlider<K>>());
     BOOST_CHECK(walker->size() == 1);
     
+    //lets test conditional constraints 
+    delete walker;
+    c1->getPrimitiveConstraint().distance() = 1;
+    auto fixed = tree.getTreeNode<FixedPoint<K>>();
+
+    tree.getSourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 0>>(fixed, [](const dcm::Angle& angle){});  
+    walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
+
+    BOOST_CHECK(!walker->getInputEquation());
+    BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
+    BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<FixedPoint<K>>());
+    BOOST_CHECK(walker->size() == 1);
 }
 
-BOOST_AUTO_TEST_CASE(reduce) {
+BOOST_AUTO_TEST_CASE(convertion) {
     
+    try{
     //build up a small test graph
     typedef typename Sys::Graph Graph;
     std::shared_ptr<Graph> g = std::shared_ptr<Graph>(new Graph);
@@ -137,6 +220,8 @@ BOOST_AUTO_TEST_CASE(reduce) {
     
     //build the data 
     TDirection3<K> g1, g2;
+    g1.value() << 1,2,3;
+    g2.value() << 4,5,6;
     auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
     auto sg2 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
     sg1->setPrimitiveGeometry(g1);
@@ -146,10 +231,10 @@ BOOST_AUTO_TEST_CASE(reduce) {
 
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitiveConstraint(dcm::distance);
-    c1->setConstraintID(0);
+    c1->setConstraintID(Sys::constraintIndex<dcm::Distance>::value);
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitiveConstraint(dcm::angle);
-    c2->setConstraintID(1);
+    c2->setConstraintID(Sys::constraintIndex<dcm::Angle>::value);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
 
@@ -160,6 +245,23 @@ BOOST_AUTO_TEST_CASE(reduce) {
     numeric::EquationBuilder<K>* builder = g->getProperty<numeric::EquationBuilderProperty<K>>(fusion::at_c<0>(e1));
     BOOST_CHECK(builder != nullptr);
     
+    auto eg1 = std::static_pointer_cast<numeric::Equation<K, TDirection3<K>>>(builder->createGeometry(fusion::at_c<0>(v1)));
+    auto eg2 = std::static_pointer_cast<numeric::Equation<K, TDirection3<K>>>(builder->createGeometry(fusion::at_c<0>(v2)));
+    BOOST_CHECK( eg1->output().value().isApprox(Eigen::Vector3d(1,2,3), 1e-9) );
+    BOOST_CHECK( eg2->output().value().isApprox(Eigen::Vector3d(4,5,6), 1e-9) );
+     
+    auto ecv = builder->createEquations(eg1, eg2);
+    //BOOST_CHECK_EQUAL(ecv.size(),2);
+    auto ec = std::static_pointer_cast<numeric::BinaryEquation<K, TDirection3<K>, TDirection3<K>, double>>(ecv.front());
+    BOOST_REQUIRE( ec );
+    BOOST_CHECK( ec->firstInput().value().isApprox(Eigen::Vector3d(1,2,3), 1e-9) );
+    BOOST_CHECK( ec->secondInput().value().isApprox(Eigen::Vector3d(4,5,6), 1e-9) );
+    
+    }
+    catch(const boost::exception& e) {
+        std::cout<<"unexpected error " << *boost::get_error_info<boost::errinfo_errno>(e)
+                    << " raised: " << boost::get_error_info<dcm::error_message>(e)->c_str()<<std::endl;
+    };
 }
 
 BOOST_AUTO_TEST_SUITE_END();

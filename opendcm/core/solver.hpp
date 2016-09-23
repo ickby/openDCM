@@ -24,6 +24,7 @@
 #include "filtergraph.hpp"
 #include "geometry.hpp"
 #include "scheduler.hpp"
+#include "reduction.hpp"
 
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/undirected_dfs.hpp>
@@ -38,31 +39,20 @@ namespace dcm {
 namespace symbolic {
     
     /**
-     * @brief Reduces the Graph to the smallest possible system
+     * @brief Find all seperated graph components
      * 
-     * 
-     * This function analyses the systems constraints and geometries and tries to find possible 
-     * reductions, this means rigid subsections which are moved to their own clusters or simple
-     * replacements of constraints with dependend geometry.
-     * 
-     * It furthermore finds all disconnected components in the graph and assigns each vertex and
-     * edege to the components they belong to via their group property.
-     */    
+     * This function finds all seperated graph parts and numbers them accordingly. This allows to 
+     * treat the disconnected components indivudual and hence in parallel.
+     * Creating a FilterGraph on the found component is possible by using incremental inidices 
+     * starting from 0 till the returned component count is reached.
+     * @note The indentified and numbered groups are all still in the same data structure. Hence 
+     * modifing the structure of the unconnected components cannot be done in parallel but must be 
+     * done sequentially. Hence it is sensible to only use this function after all structure changing 
+     * algorithms have finished.
+     */
+    
 template<typename Final, typename Graph>
-int reduceGraph(std::shared_ptr<Graph> g, 
-                 const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
-    /*
-    //start with edge analysing
-    auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
-    shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
-        
-        symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
-        symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
-        symbolic::EdgeReductionTree<Final>* tree = reduction[g1->type][g2->type];
-        dcm_assert(tree);
-        tree->apply(g, e); 
-        g->acknowledgeEdgeChanges(e);
-    });
+int splitGraph(std::shared_ptr<Graph> g)   {
     
     g->initIndexMaps();
     graph::property_map<graph::Group, Graph, graph::LocalVertex> gmap(g);
@@ -73,11 +63,50 @@ int reduceGraph(std::shared_ptr<Graph> g,
     
     //connected components only assigns vertices, lets also assign edges to groups
     auto edges = g->edges();
-    tbb::parallel_for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
+    shedule::for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
         g->template setProperty<graph::Group>(e, g->template getProperty<graph::Group>(g->source(e)));
     });
     
-    return c;*/
+};
+
+/**
+* @brief Reduces the Graph to the smallest possible system
+* 
+* 
+* This function analyses the systems constraints and geometries and tries to find possible 
+* reductions, this means rigid subsections which are moved to their own clusters or simple
+* replacements of constraints with dependend geometry.
+* 
+*/    
+template<typename Final, typename Graph>
+void reduceGraph(std::shared_ptr<Graph> g, 
+                 const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
+    
+    bool done = false;
+    
+    while(!done) {
+        //start with edge analysing
+        auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
+        shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
+            
+            symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
+            symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
+            reduction::EdgeReductionTree* tree = reduction[g1->type][g2->type];
+            dcm_assert(tree);
+            tree->apply(g, e); 
+            g->acknowledgeEdgeChanges(e);
+        });
+  
+        //reduce endges into cluster if possible
+        //TODO: create cluster from rigid edges
+        
+        //go on with cycle analysis and reduce into cluster if possible
+        //TODO: find all cycles and analyse those for rigidy.
+        
+        done = true;
+    }
+        
+    //return c;
 };
 
 } //symbolic
@@ -214,22 +243,25 @@ shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g,
     
     //simplify the graph as much as possible. This has to be done before the subcluste processing as it is
     //possible that subclusters are groupt into yet annother subcluster
-    int components = symbolic::reduceGraph(g, reduction);   
+    symbolic::reduceGraph(g, reduction);   
+    //all topology changing actions are done, now we can find groups to split
+    int components = symbolic::splitGraph(g);
     
     //accesses all subclusters and handle them to make sure they are properly calculated before we try to 
     //reduce the toplevel cluster. A subcluster has to be reduced and solved imediatly, in contrary to the
-    //toplevel system. This is a one time action, there is no need to store the subcluster calculation task.
+    //toplevel system. As subclusters are rigid by definition this is a one time action, there is no need
+    //to store the subcluster calculation task.
     auto iter = g->clusters();
-    tbb::parallel_for_each(iter.first, iter.second, 
+    shedule::for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
             auto fg = createSolvableSystem(sub.second, reduction);
             fg->execute();
             delete fg;
         }
     );        
-        
+
+    //now identify all individual components and create a executable for each
     shedule::ParallelVector* s = new shedule::ParallelVector();
-    //now identify all ndividual components and create a executable for each
     for(int i=0; i<components; ++i) {
         auto filter = graph::make_filter_graph(g, i);
         s->add(buildGraphNumericSystem(filter));        
