@@ -202,7 +202,7 @@ struct ModuleCoreFinish : public Stacked {
     void solve() {       
         
         //build up the system to solve
-        //auto solvable = solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), reduction);
+        auto solvable = solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), m_converter);
                 
         //post process the finished calculation
         
@@ -210,8 +210,8 @@ struct ModuleCoreFinish : public Stacked {
     };
     
 private:
-    //symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
-    //                           typename Stacked::ConstraintList, Graph> m_converter;
+    symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
+                               typename Stacked::ConstraintList, Graph> m_converter;
 };
 
 

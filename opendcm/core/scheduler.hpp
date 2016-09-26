@@ -70,9 +70,9 @@ protected:
  * This class stores different executables and processes them sequentially. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct Vector : public Executable {
+struct SequentialVector : public Executable {
   
-    virtual ~Vector() {
+    virtual ~SequentialVector() {
         for(Executable* ex : m_executables) 
             delete ex;
     };
@@ -107,14 +107,13 @@ protected:
  * This class stores different executables and processes them in parallel. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct ParallelVector : public Vector {
+struct ParallelVector : public SequentialVector {
     
     void operator()() {
-//         tbb::parallel_for_each(m_executables.begin(), m_executables.end(), 
-//                            [&](const tbb::blocked_range<int>& range) {
-//             for(int i=range.begin(); i!=range.end(); ++i)
-//                 m_executables[i]->execute();
-//         });
+         tbb::parallel_for_each(m_executables.begin(), m_executables.end(), 
+                            [&](Executable* exe) {
+             exe->execute();
+         });
     };
     
     virtual void execute() {
@@ -128,14 +127,14 @@ struct ParallelVector : public Vector {
  * This class stores different executables and processes them in parallel. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct HugeParallelVector : public Vector {
+struct HugeParallelVector : public SequentialVector {
     
     void operator()() {
-//         tbb::parallel_for( tbb::blocked_range<int>( 1, m_executables.size()), 
-//                            [&](const tbb::blocked_range<int>& range) {
-//             for(int i=range.begin(); i!=range.end(); ++i)
-//                 m_executables[i]->execute();
-//         });
+         tbb::parallel_for( tbb::blocked_range<int>( 1, m_executables.size()), 
+                            [&](const tbb::blocked_range<int>& range) {
+             for(int i=range.begin(); i!=range.end(); ++i)
+                 m_executables[i]->execute();
+         });
     };
     
     virtual void execute() {
@@ -196,7 +195,7 @@ private:
 
 template<typename Iterator, typename Functor>
 void for_each(const Iterator& start, const Iterator& end, const Functor& func) {
-    //tbb::parallel_for_each(start, end, func);
+    tbb::parallel_for_each(start, end, func);
 };
 
 } //details

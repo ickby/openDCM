@@ -78,9 +78,8 @@ int splitGraph(std::shared_ptr<Graph> g)   {
 * replacements of constraints with dependend geometry.
 * 
 */    
-template<typename Final, typename Graph>
-void reduceGraph(std::shared_ptr<Graph> g, 
-                 const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
+template<typename Final, typename Graph, typename Converter>
+void reduceGraph(std::shared_ptr<Graph> g, Converter c) {
     
     bool done = false;
     
@@ -89,11 +88,7 @@ void reduceGraph(std::shared_ptr<Graph> g,
         auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
         shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
             
-            symbolic::Geometry* g1 = g->template getProperty<symbolic::GeometryProperty>(g->source(e));
-            symbolic::Geometry* g2 = g->template getProperty<symbolic::GeometryProperty>(g->target(e));
-            reduction::EdgeReductionTree* tree = reduction[g1->type][g2->type];
-            dcm_assert(tree);
-            tree->apply(g, e); 
+            c->setupEquationBuilder(g, e);
             g->acknowledgeEdgeChanges(e);
         });
   
@@ -103,6 +98,7 @@ void reduceGraph(std::shared_ptr<Graph> g,
         //go on with cycle analysis and reduce into cluster if possible
         //TODO: find all cycles and analyse those for rigidy.
         
+        //TODO: If we have reduced clusters we need to reiterate on the edges, so done ==false
         done = true;
     }
         
@@ -235,16 +231,16 @@ shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     return fg;*/
 };
     
-template<typename Final, typename Graph>
-shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, 
-                    const boost::multi_array<reduction::EdgeReductionTree*,2>& reduction) {
+template<typename Final, typename Graph, typename Converter>
+shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c) {
     
     
     
     //simplify the graph as much as possible. This has to be done before the subcluste processing as it is
     //possible that subclusters are groupt into yet annother subcluster
-    symbolic::reduceGraph(g, reduction);   
-    //all topology changing actions are done, now we can find groups to split
+    symbolic::reduceGraph(g, c);   
+    //all topology changing actions are done, now we can find groups to split. TODO: Split can happen 
+    //before reduceGraph and reduce can be done on every splitted subgraph. 
     int components = symbolic::splitGraph(g);
     
     //accesses all subclusters and handle them to make sure they are properly calculated before we try to 
@@ -254,7 +250,7 @@ shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g,
     auto iter = g->clusters();
     shedule::for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-            auto fg = createSolvableSystem(sub.second, reduction);
+            auto fg = createSolvableSystem(sub.second, c);
             fg->execute();
             delete fg;
         }

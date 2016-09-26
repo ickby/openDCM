@@ -13,7 +13,7 @@ set(framework_SRC framework.cpp)
 set(test_SRC  define.cpp
               #mapping.cpp
               #kernel.cpp
-              #system.cpp
+              system.cpp
               numeric.cpp
               constraint.cpp
 	      clustergraph.cpp
