@@ -569,32 +569,49 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     
     g1->initIndexMaps();
 
-    dcm::graph::FilterGraph<Graph> filter(g1, 0);
-    //at the begining the default edge and vertex group should be 0 and hence the graphs should be identical
+    auto filter = std::make_shared<dcm::graph::FilterGraph<Graph>>(g1, 0);
+    //at the begining the edges and vertices are in no group, hence the filter graph should be empty
+    BOOST_REQUIRE(filter->edges().first == filter->edges().second);
+    BOOST_REQUIRE(filter->vertices().first == filter->vertices().second);
+    
+    //check if we can add all elements into a single group
     auto eit = g1->edges();
-    auto geit = filter.edges();
+    for(;eit.first != eit.second; ++eit.first)
+        g1->addToGroup(*eit.first, 0);
+
+    auto vit = g1->vertices();
+    for(;vit.first != vit.second; ++vit.first)
+        g1->addToGroup(*vit.first, 0);
+   
+    //both graphs should be absolutely identical, as all elements are in the filtered group now
+    BOOST_REQUIRE(filter->edges().first != filter->edges().second);
+    BOOST_REQUIRE(filter->vertices().first != filter->vertices().second);
+    eit = g1->edges();
+    auto geit = filter->edges();
     for(;eit.first != eit.second; ++eit.first) {
         BOOST_REQUIRE(geit.first != geit.second);
         BOOST_CHECK(*eit.first == *geit.first);
         ++geit.first;
     }
       
-    auto vit = g1->vertices();
-    auto gvit = filter.vertices();
+    vit = g1->vertices();
+    auto gvit = filter->vertices();
     for(;vit.first != vit.second; ++vit.first) {
         BOOST_REQUIRE(gvit.first != gvit.second);
-        BOOST_CHECK(g1->getProperty<Index>(*vit.first) == filter.getProperty<Index>(*gvit.first));
+        BOOST_CHECK(g1->getProperty<Index>(*vit.first) == filter->getProperty<Index>(*gvit.first));
         ++gvit.first;
     }
    
     //now change two vertices in a new group
-    g1->setProperty<Group>(fusion::at_c<0>(v3c), 1);
-    g1->setProperty<Group>(fusion::at_c<0>(v4c), 1);
+    g1->removeFromGroup(fusion::at_c<0>(v3c), 0);
+    g1->addToGroup(fusion::at_c<0>(v3c), 1);
+    g1->clearGroups(fusion::at_c<0>(v4c));
+    g1->addToGroup(fusion::at_c<0>(v4c), 1);
       
-    dcm::graph::FilterGraph<Graph> filter2(g1, 1);
+    auto filter2 = std::make_shared<dcm::graph::FilterGraph<Graph>>(g1, 1);
  
-    auto g2eit = filter2.edges();
-    geit = filter.edges();
+    auto g2eit = filter2->edges();
+    geit = filter->edges();
 
     //we added two vertices to the new group, so both groups should have two vertices. From the 3 edges we did not
     //shift any. Edges get filtered for their group and the group of the source and target vertices, hence
@@ -605,8 +622,8 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     BOOST_CHECK(c==1);
     BOOST_CHECK(g2eit.first == g2eit.second);
     
-    gvit = filter.vertices();
-    auto g2vit = filter2.vertices();
+    gvit = filter->vertices();
+    auto g2vit = filter2->vertices();
     for(c=0;gvit.first != gvit.second; ++gvit.first)
         c++;
     BOOST_CHECK(c==2);    
@@ -615,10 +632,10 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
     BOOST_CHECK(c==2); 
     
     //now change an edge to group 1
-    filter2.setProperty<Group>(fusion::at_c<0>(e3c), 1);
+    filter2->addToGroup(fusion::at_c<0>(e3c), 1);
       
-    g2eit = filter2.edges();
-    geit = filter.edges();
+    g2eit = filter2->edges();
+    geit = filter->edges();
 
     //we added one edge to the second group. as both vertices of this edge are also in this group
     //it will show up there
@@ -629,8 +646,8 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
         c++;
     BOOST_CHECK(c==1);
     
-    gvit = filter.vertices();
-    g2vit = filter2.vertices();
+    gvit = filter->vertices();
+    g2vit = filter2->vertices();
     for(c=0;gvit.first != gvit.second; ++gvit.first)
         c++;
     BOOST_CHECK(c==2);    
@@ -638,6 +655,30 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
         c++;
     BOOST_CHECK(c==2); 
     
+    //test if we can add a second group to the elements. A filter on a filter should than only return
+    //elements in both groups
+    eit = g1->edges();
+    for(;eit.first != eit.second; ++eit.first)
+        g1->addToGroup(*eit.first, 5);
+
+    vit = g1->vertices();
+    for(;vit.first != vit.second; ++vit.first)
+        g1->addToGroup(*vit.first, 5);
+    
+    //as all elements are in group 5 we expect the same result as before
+    auto filter3 = std::make_shared<dcm::graph::FilterGraph<dcm::graph::FilterGraph<Graph>>>(filter2, 5);
+    auto g3vit = filter3->vertices();
+    for(c=0;g3vit.first != g3vit.second; ++g3vit.first)
+        c++;
+    BOOST_CHECK(c==2);
+    
+    //add one vertex to annother group
+    g1->addToGroup(*filter3->vertices().first, 7);
+    auto filter4 = std::make_shared<dcm::graph::FilterGraph<dcm::graph::FilterGraph<Graph>>>(filter2, 7);
+    auto g4vit = filter4->vertices();
+    for(c=0;g4vit.first != g4vit.second; ++g4vit.first)
+        c++;
+    BOOST_CHECK(c==1);
 }
 
 BOOST_AUTO_TEST_SUITE_END();

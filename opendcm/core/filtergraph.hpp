@@ -36,7 +36,8 @@ struct group_filter {
 
     template<typename It>
     bool operator()(const It it) const {
-        return (graph->template getProperty<graph::Group>(it) == group);
+        auto res = graph->template getProperty<graph::Group>(it);
+        return std::find(res.begin(), res.end(), group) != res.end();
     };
     
 private:
@@ -48,7 +49,7 @@ template<typename Graph>
 struct create_filtered_graph {
     
     template<typename T1, typename T2, typename T3, typename T4, typename T5>
-    using type = boost::filtered_graph<boost::adjacency_list<T1,T2,T3,T4,T5>, 
+    using type = boost::filtered_graph<typename Graph::Graph, 
                                     group_filter<Graph>, group_filter<Graph>>;
 };
 
@@ -107,7 +108,8 @@ public:
         ClusterFilter(std::shared_ptr<Graph> g, int gr) : m_graph(g), m_group(gr) {};
         
         bool operator()(const typename  std::iterator_traits<typename Graph::cluster_iterator>::value_type& v) {
-            return m_graph->template getProperty<Group>(v.first) == m_group;
+            auto res = m_graph->template getProperty<graph::Group>(v.first);
+            return std::find(res.begin(), res.end(), m_group) != res.end();
         }
     };
     
@@ -143,7 +145,7 @@ public:
      * @return :size_t
      **/
     std::size_t numClusters() const;
-    
+       
 private:
     typename Base::Graph   m_graph;
     std::shared_ptr<Graph> m_cluster;

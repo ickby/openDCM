@@ -136,19 +136,14 @@ struct Color {
 };
 
 /**
- * @brief The edge/vertex belongs to a certain group
+ * @brief The edge/vertex belongs to certain groups
  *
- * It is possible to filter edges and vertices for the group they belong to either by iterating over all filtered 
+ * It is possible to filter local edges and vertices for the group they belong to either by iterating over all filtered 
  * elemente or by using a filtered graph. This allows to apply boost graph algorithms only to a certain subset of 
- * the graph.
+ * the graph. Note that each entity can belong to more than one group
  **/
 struct Group {
-    typedef int type;
-    struct default_value {
-        int operator()() {
-            return 0;
-        };
-    };
+    typedef std::vector<int> type;
 };
 /**
  * @}
@@ -798,6 +793,35 @@ public:
      * @return void
      **/
     void initIndexMaps();
+    
+    /**
+     * @brief Add the edge/vertex to a certain group
+     * @param Edge or Vertex which shall be added to the group
+     * @param group The Group identifier
+     */
+    template<typename key>
+    void addToGroup(key k, int group);
+    
+    /**
+     * @brief Remove the edge/vertex from a certain group
+     * @param Edge or Vertex which shall be removed from the group
+     * @param group The Group identifier
+     */
+    template<typename key>
+    void removeFromGroup(key k, int group);
+    
+    /**
+     * @brief Remove the edge/vertex from all groups
+     * @param Edge or Vertex which shall be removed from all group
+     */
+    template<typename key>
+    void clearGroups(key k);
+    
+    /**
+     * @brief Clear all Groups of edges and vertices
+     * Removes any grouping in the graph by emptying all edges and vertices group properties 
+     */
+    void clearGroups();
 
     //possible predicates based on properties to filter the graph iteration
     //can be used together with filter_iterator
@@ -871,7 +895,8 @@ public:
 
         template<typename It>
         bool operator()(const It it) const {
-            return (graph->template getProperty<Group>(it) == group);
+            auto res = graph->template getProperty<Group>(it);
+            return std::find(res.begin(), res.end(), group) != res.end();
         };
     };
     
@@ -882,7 +907,8 @@ public:
 
         template<typename It>
         bool operator()(const It it) const {
-            return (graph->template getProperty<Group>(it) != group);
+            auto res = graph->template getProperty<Group>(it);
+            return std::find(res.begin(), res.end(), group) != res.end();
         };
     };
 
@@ -1298,6 +1324,45 @@ void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_ba
     for(int c = 0; eit.first != eit.second; ++eit.first, ++c)
         setProperty<Index>(*eit.first, c);
 };
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+template<typename key>
+void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::addToGroup(key k, int group) {
+      
+    auto& vec = apply_to_bundle(k, get_accessible_helper<Group, AccessGraph>());
+    if(std::find(vec.begin(), vec.end(), group) == vec.end())
+        vec.push_back(group);
+}
+    
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+template<typename key>
+void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::removeFromGroup(key k, int group) {
+    auto& vec = apply_to_bundle(k, get_accessible_helper<Group, AccessGraph>());
+    vec.erase(std::remove(vec.begin(), vec.end(), group), vec.end());  
+}
+    
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+template<typename key>
+void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::clearGroups(key k) {
+    auto& vec = apply_to_bundle(k, get_accessible_helper<Group, AccessGraph>());
+    vec.clear();
+}
+    
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::clearGroups() {
+    
+    //just iterate over all edges and vertices and give them all a unique index
+    std::pair<local_vertex_iterator, local_vertex_iterator>  vit = boost::vertices(m_graph);
+
+    for(int c = 0; vit.first != vit.second; ++vit.first, ++c)
+        apply_to_bundle(*vit.first, get_accessible_helper<Group, AccessGraph>()).clear();
+
+    std::pair<local_edge_iterator, local_edge_iterator>  eit = boost::edges(m_graph);
+
+    for(int c = 0; eit.first != eit.second; ++eit.first, ++c)
+        apply_to_bundle(*eit.first, get_accessible_helper<Group, AccessGraph>()).clear();
+}
+
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
 template<typename functor>

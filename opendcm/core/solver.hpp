@@ -42,9 +42,11 @@ namespace symbolic {
      * @brief Find all seperated graph components
      * 
      * This function finds all seperated graph parts and numbers them accordingly. This allows to 
-     * treat the disconnected components indivudual and hence in parallel.
+     * treat the disconnected components individual and hence in parallel.
      * Creating a FilterGraph on the found component is possible by using incremental inidices 
      * starting from 0 till the returned component count is reached.
+     * @note This function clears all groups, as only this way ensures that the components numbers are
+     *       unique 
      * @note The indentified and numbered groups are all still in the same data structure. Hence 
      * modifing the structure of the unconnected components cannot be done in parallel but must be 
      * done sequentially. Hence it is sensible to only use this function after all structure changing 
@@ -54,6 +56,7 @@ namespace symbolic {
 template<typename Final, typename Graph>
 int splitGraph(std::shared_ptr<Graph> g)   {
     
+    g->clearGroups();
     g->initIndexMaps();
     graph::property_map<graph::Group, Graph, graph::LocalVertex> gmap(g);
     graph::property_map<graph::Index, Graph, graph::LocalVertex> imap(g);
@@ -62,9 +65,18 @@ int splitGraph(std::shared_ptr<Graph> g)   {
                                                  gmap, boost::vertex_index_map(imap).color_map(cmap));
     
     //connected components only assigns vertices, lets also assign edges to groups
+    //As we support multiple groups, one needs to assign the edges only to the groups 
+    //shared by both vertices.
     auto edges = g->edges();
     shedule::for_each(edges.first, edges.second, [&](graph::LocalEdge& e) {
-        g->template setProperty<graph::Group>(e, g->template getProperty<graph::Group>(g->source(e)));
+        std::vector<int> edge;
+        auto v1 = g->template getProperty<graph::Group>(g->source(e));
+        auto v2 = g->template getProperty<graph::Group>(g->target(e));
+        std::sort(v1.begin(), v1.end());
+        std::sort(v2.begin(), v2.end());
+
+        std::set_intersection(v1.begin(),v1.end(),v2.begin(),v2.end(),std::back_inserter(edge));
+        g->template setProperty<graph::Group>(e, edge);
     });
     
 };
@@ -245,11 +257,16 @@ shedule::Executable* buildGraphNumericSystem(std::shared_ptr<Graph> g) {
 };
     
 
+/**
+ * @brief Creates a optimal numeric representation of the graph
+ * 
+ * This function returns a executable which can solve the dimensional constraint problem numerically.
+ * It ensures that the system is optimally processed with symbolic methods and hence that the resulting
+ * numeric equation system is minimal. Excecute will trigger the solving.
+ */
 template<typename Final, typename Graph, typename Converter>
 shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c) {
-    
-    
-    
+
     //simplify the graph as much as possible. This has to be done before the subcluste processing as it is
     //possible that subclusters are groupt into yet annother subcluster
     symbolic::reduceGraph(g, c);   
@@ -266,21 +283,36 @@ shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c)
     auto s1 = new shedule::ParallelConcurrentVector;
     shedule::for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-            auto fg = buildGraphNumericSystem<typename Final::Kernel>(sub.second, c);
+            auto fg = createSolvableSystem<typename Final::Kernel>(sub.second, c);
             s1->addExecutable(fg);
         }
     );        
 
     //now identify all individual components and create a executable for each
-    auto s2 = new shedule::ParallelConcurrentVector;
-    shedule::for_each(0, components, 1, [&](int i) {
-        auto filter = graph::make_filter_graph(g, i);
-        s2->addExecutable(buildGraphNumericSystem<typename Final::Kernel>(filter));        
+    shedule::Executable* s2 = nullptr;
+    if(components > 1) {       
+        auto vec = new shedule::ParallelConcurrentVector;
+        shedule::for_each(0, components, 1, [&](int i) {
+            auto filter = graph::make_filter_graph(g, i);
+            vec->addExecutable(buildGraphNumericSystem<typename Final::Kernel>(filter));        
+        });
+        s2 = vec;
+    }
+    else {
+        s2 = buildGraphNumericSystem(g);   
+    }
+    
+    
+    //to calculate everthing we need to make sure that all subclusters are calculated before the 
+    //main graph is handled.
+    if(s1->empty()) {
+        delete s1;
+        return s2;
+    }    
+    return shedule::make_executable([s1, s2](){
+        s1->execute();
+        s2->execute();
     });
-    
-    
-    //everything has been processed, lets return the solvable and let the caller decide what happens next
-    return s2;
 }
 
 } //solver

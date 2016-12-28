@@ -64,6 +64,18 @@ protected:
     T m_functor;
 };
 
+/**
+ * @brief Make a Executable from arbitrary functors
+ * 
+ * To allow the excecution of arbitrary functors this 
+ * function can be used. It takes any parameter-free lambda [](){} and returnes an executable, 
+ * which can be used within the shedule parallel environment
+ */
+template<typename T>
+Executable* make_executable(const T& functor) {
+    return new Functor<T>(functor);
+};
+
 template<typename Vector>
 struct _SequentialVector : public Executable {
   
@@ -91,6 +103,7 @@ struct _SequentialVector : public Executable {
     };
     
     int size() { return m_executables.size();};
+    bool empty() {return m_executables.empty();};
     
 protected:
     Vector m_executables;    
