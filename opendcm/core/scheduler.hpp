@@ -30,6 +30,7 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 #include <tbb/flow_graph.h>
+#include <tbb/tbb.h>
 
 
 namespace dcm {
@@ -63,16 +64,10 @@ protected:
     T m_functor;
 };
 
-
-/**
- * @brief Sequential execution of multiple Executables
- * 
- * This class stores different executables and processes them sequentially. Note that passed 
- * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
- */
-struct SequentialVector : public Executable {
+template<typename Vector>
+struct _SequentialVector : public Executable {
   
-    virtual ~SequentialVector() {
+    virtual ~_SequentialVector() {
         for(Executable* ex : m_executables) 
             delete ex;
     };
@@ -98,19 +93,32 @@ struct SequentialVector : public Executable {
     int size() { return m_executables.size();};
     
 protected:
-    std::vector<Executable*> m_executables;    
+    Vector m_executables;    
 };
 
 /**
- * @brief Parallel unordered execution 
+ * @brief Sequential execution of multiple Executables
  * 
- * This class stores different executables and processes them in parallel. Note that passed 
+ * This class stores different executables and processes them sequentially. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct ParallelVector : public SequentialVector {
+struct SequentialVector : public _SequentialVector<std::vector<Executable*>> {};
+
+/**
+ * @brief Sequential execution of Executables with concurrent adding
+ * 
+ * This class stores different executables and processes them sequentially. It allowes concurrent 
+ * adding of executables, which means it can be filled up from the shedule parallel functions.
+ * Note that passed executable pointers are afterwards owned by the Vector object which delets it 
+ * when destroyed.
+ */
+struct SequentialConcurrentVector : public _SequentialVector<tbb::concurrent_vector<Executable*>> {};
+
+template<typename Vector>
+struct _ParallelVector : public _SequentialVector<Vector> {
     
     void operator()() {
-         tbb::parallel_for_each(m_executables.begin(), m_executables.end(), 
+         tbb::parallel_for_each(_SequentialVector<Vector>::m_executables.begin(), _SequentialVector<Vector>::m_executables.end(), 
                             [&](Executable* exe) {
              exe->execute();
          });
@@ -122,18 +130,31 @@ struct ParallelVector : public SequentialVector {
 };
 
 /**
- * @brief Parallel unordered execution of large numbers of execuatples
+ * @brief Parallel unordered execution 
  * 
  * This class stores different executables and processes them in parallel. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct HugeParallelVector : public SequentialVector {
+struct ParallelVector : public _ParallelVector<std::vector<Executable*>> {};
+
+/**
+ * @brief Parallel unordered execution with concurrent adding
+ * 
+ * This class stores different executables and processes them in parallel. It also allows concurrent
+ * adding of executables, which means it can be filled from shedule's parallel functions. 
+ * Note that passed executable pointers are afterwards owned by the Vector object which delets it when 
+ * destroyed.
+ */
+struct ParallelConcurrentVector : public _ParallelVector<tbb::concurrent_vector<Executable*>> {};
+
+template<typename Vector>
+struct _HugeParallelVector : public _SequentialVector<Vector> {
     
     void operator()() {
-         tbb::parallel_for( tbb::blocked_range<int>( 1, m_executables.size()), 
+         tbb::parallel_for( tbb::blocked_range<int>( 1, _SequentialVector<Vector>::m_executables.size()), 
                             [&](const tbb::blocked_range<int>& range) {
              for(int i=range.begin(); i!=range.end(); ++i)
-                 m_executables[i]->execute();
+                 _SequentialVector<Vector>::m_executables[i]->execute();
          });
     };
     
@@ -141,6 +162,26 @@ struct HugeParallelVector : public SequentialVector {
         operator()();
     };
 };
+
+/**
+ * @brief Parallel unordered execution of large numbers of execuatbles
+ * 
+ * This class stores different executables and processes them in parallel. It provides a perforamnce
+ * benefit to the \ref ParallelVector in case of many executables (>100).  Note that passed 
+ * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
+ */
+struct HugeParallelVector : public _HugeParallelVector<std::vector<Executable*>> {};
+
+/**
+ * @brief Parallel unordered execution of large numbers of execuatbles
+ * 
+ * This class stores different executables and processes them in parallel. It provides a perforamnce
+ * benefit to the \ref ParallelVector in case of many executables (>100). This vector also provides 
+ * concurrent adding of executables, it can be filled with the parallel shedule functions.
+ * Note that passed executable pointers are afterwards owned by the Vector object which delets it 
+ * when destroyed.
+ */
+struct HugeParallelConcurrentVector : public _HugeParallelVector<tbb::concurrent_vector<Executable*>> {};
 
 //encapsulates a tbb flow graph and is responsible for managing the nodes lifetime
 struct FlowGraph : public Executable {
@@ -193,9 +234,26 @@ private:
     
 //functions for parallel execution
 
+/**
+ * @brief Parallel iteration between start and end iterator
+ * 
+ * This function applies each iterator between start and end to the functor in parallel. This is 
+ * intended for use with iteratable containers like std::vector and their begin() and end() functions.
+ */
 template<typename Iterator, typename Functor>
 void for_each(const Iterator& start, const Iterator& end, const Functor& func) {
     tbb::parallel_for_each(start, end, func);
+};
+
+/**
+ * @brief Parallel iteration over a numerical range
+ * 
+ * This function applies the functor to each number between start and end. The increment is defined
+ * by step. This is equaivalent to the default c++ for loop for(i=start;i<end; i+=step) f(i)
+ */
+template<typename Type, typename Functor>
+void for_each(Type start, Type end, Type step, const Functor& func) {
+    tbb::parallel_for_each(start, end, step, func);
 };
 
 } //details

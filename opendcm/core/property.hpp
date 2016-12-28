@@ -358,7 +358,6 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     /**
      * @brief Check if any property was changed
      * 
-     * @tparam Prop the property to mar as changed
      * @return bool true if any property has the change flag set to true, i.e. isPropertyChanged() returns true
      */
     bool hasPropertyChanges() const;

@@ -70,8 +70,7 @@ int splitGraph(std::shared_ptr<Graph> g)   {
 };
 
 /**
-* @brief Reduces the Graph to the smallest possible system
-* 
+* @brief Reduces the Graph to the smallest possible system 
 * 
 * This function analyses the systems constraints and geometries and tries to find possible 
 * reductions, this means rigid subsections which are moved to their own clusters or simple
@@ -92,7 +91,7 @@ void reduceGraph(std::shared_ptr<Graph> g, Converter c) {
             g->acknowledgeEdgeChanges(e);
         });
   
-        //reduce endges into cluster if possible
+        //reduce edges into cluster if possible
         //TODO: create cluster from rigid edges
         
         //go on with cycle analysis and reduce into cluster if possible
@@ -163,13 +162,21 @@ struct FlowGraphExtractor : public boost::default_dfs_visitor {
     };
 };
 
-template<typename Graph>
-shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
+/**
+ * @brief Builds the numeric representation of the constraint system
+ * 
+ * This function builds up a executable which represents the geometric constraint system of a cluster 
+ * in a numeric equaltion system. Executing the returned value recalculates all equations dependend on
+ * the set parameters in the graph
+ */
+template<typename Kernel, typename Graph>
+shedule::Executable* buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     
-    /*
+    
     //we build up the numeric system for this graph. This also means finding parts that can be solved 
     //indivudual or simply after the main part (one-connected components)
     
+    /*
     //to find one connected components we search all verices with one edge only. From there we can 
     //follow that edge to the adjacent vertices until we find a edge with more than two connections. That is
     //where the leaf ends.
@@ -216,21 +223,28 @@ shedule::FlowGraph buildGraphNumericSystem(std::shared_ptr<Graph> g) {
                 }
             });            
         }
-    }
-    
-    shedule::FlowGraph fg;
-    
+    }*/
+   /*
+    //shedule::FlowGraph* fg = new shedule::FlowGraph();
+    shedule::SequentialVector* fg = new shedule::SequentialVector;
     //iterate over all edges and create the equations for them
     auto edges = g->edges();
-    for(; edges.first != edges.second; ++edges.first) {
-    
-        //auto result = g->template getProperty<symbolic::ResultProperty<Kernel>>(*edges.first);
-        
+    for(; edges.first != edges.second; ++edges.first) {    
+        //this is the most stupid code ever as nearly all geometry equations are added twice
+        typedef typename numeric::EquationBuilderProperty<Kernel> prop;
+        numeric::EquationBuilder<Kernel>* builder = g->getProperty<prop>(edges.first); 
+        auto g1 = builder->createGeometry(g->source(edges.first));
+        fg->add(g1);
+        auto g2 = builder->createGeometry(g->target(edges.first));
+        fg->add(g2);
+        fg->add(builder->createEquations(edges.first, g1, g2));
+
     }
-    
+   
     return fg;*/
 };
     
+
 template<typename Final, typename Graph, typename Converter>
 shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c) {
     
@@ -240,31 +254,33 @@ shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c)
     //possible that subclusters are groupt into yet annother subcluster
     symbolic::reduceGraph(g, c);   
     //all topology changing actions are done, now we can find groups to split. TODO: Split can happen 
-    //before reduceGraph and reduce can be done on every splitted subgraph. 
+    //before reduceGraph and reduce can be done on every splitted subgraph. But currently FilterGraph 
+    //cannot be used as it cant change the graph structure
     int components = symbolic::splitGraph(g);
     
     //accesses all subclusters and handle them to make sure they are properly calculated before we try to 
-    //reduce the toplevel cluster. A subcluster has to be reduced and solved imediatly, in contrary to the
-    //toplevel system. As subclusters are rigid by definition this is a one time action, there is no need
-    //to store the subcluster calculation task.
+    //reduce the toplevel cluster. A subcluster has to be reduced and solved before the cluster graph is 
+    //solved, as the graph depends on the finished subcluster values. However, all subclusters can be solved
+    //in parallel
     auto iter = g->clusters();
+    auto s1 = new shedule::ParallelConcurrentVector;
     shedule::for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-            auto fg = createSolvableSystem(sub.second, c);
-            fg->execute();
-            delete fg;
+            auto fg = buildGraphNumericSystem<typename Final::Kernel>(sub.second, c);
+            s1->addExecutable(fg);
         }
     );        
 
     //now identify all individual components and create a executable for each
-    shedule::ParallelVector* s = new shedule::ParallelVector();
-    for(int i=0; i<components; ++i) {
+    auto s2 = new shedule::ParallelConcurrentVector;
+    shedule::for_each(0, components, 1, [&](int i) {
         auto filter = graph::make_filter_graph(g, i);
-        s->add(buildGraphNumericSystem(filter));        
-    }
+        s2->addExecutable(buildGraphNumericSystem<typename Final::Kernel>(filter));        
+    });
+    
     
     //everything has been processed, lets return the solvable and let the caller decide what happens next
-    return s;
+    return s2;
 }
 
 } //solver
