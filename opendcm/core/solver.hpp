@@ -89,8 +89,8 @@ int splitGraph(std::shared_ptr<Graph> g)   {
 * replacements of constraints with dependend geometry.
 * 
 */    
-template<typename Final, typename Graph, typename Converter>
-void reduceGraph(std::shared_ptr<Graph> g, Converter c) {
+template<typename , typename Graph, typename Converter>
+void reduceGraph(std::shared_ptr<Graph> g, Converter& c) {
     
     bool done = false;
     
@@ -99,7 +99,7 @@ void reduceGraph(std::shared_ptr<Graph> g, Converter c) {
         auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
         shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
             
-            c->setupEquationBuilder(g, e);
+            c.setupEquationBuilder(g, e);
             g->acknowledgeEdgeChanges(e);
         });
   
@@ -182,7 +182,7 @@ struct FlowGraphExtractor : public boost::default_dfs_visitor {
  * the set parameters in the graph
  */
 template<typename Kernel, typename Graph>
-shedule::Executable* buildGraphNumericSystem(std::shared_ptr<Graph> g) {
+std::shared_ptr<shedule::Executable> buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     
     
     //we build up the numeric system for this graph. This also means finding parts that can be solved 
@@ -236,24 +236,26 @@ shedule::Executable* buildGraphNumericSystem(std::shared_ptr<Graph> g) {
             });            
         }
     }*/
-   /*
+   
     //shedule::FlowGraph* fg = new shedule::FlowGraph();
-    shedule::SequentialVector* fg = new shedule::SequentialVector;
+    auto fg = std::make_shared<numeric::CalculatableSequentialVector<Kernel>>();
     //iterate over all edges and create the equations for them
     auto edges = g->edges();
     for(; edges.first != edges.second; ++edges.first) {    
         //this is the most stupid code ever as nearly all geometry equations are added twice
         typedef typename numeric::EquationBuilderProperty<Kernel> prop;
-        numeric::EquationBuilder<Kernel>* builder = g->getProperty<prop>(edges.first); 
-        auto g1 = builder->createGeometry(g->source(edges.first));
-        fg->add(g1);
-        auto g2 = builder->createGeometry(g->target(edges.first));
-        fg->add(g2);
-        fg->add(builder->createEquations(edges.first, g1, g2));
-
+        numeric::EquationBuilder<Kernel>* builder = g->template getProperty<prop>(*edges.first); 
+        auto g1 = builder->createGeometry(g->source(*edges.first));
+        fg->addExecutable(g1);
+        auto g2 = builder->createGeometry(g->target(*edges.first));
+        fg->addExecutable(g2);
+        auto vec = builder->createEquations(g1, g2);
+        fg->append(vec);
+        
     }
    
-    return fg;*/
+    //build the solver object        
+    return std::make_shared<numeric::Dogleg<Kernel>>(fg);
 };
     
 
@@ -265,33 +267,33 @@ shedule::Executable* buildGraphNumericSystem(std::shared_ptr<Graph> g) {
  * numeric equation system is minimal. Excecute will trigger the solving.
  */
 template<typename Final, typename Graph, typename Converter>
-shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c) {
+std::shared_ptr<shedule::Executable> createSolvableSystem(std::shared_ptr<Graph> g, Converter& c) {
 
     //simplify the graph as much as possible. This has to be done before the subcluste processing as it is
     //possible that subclusters are groupt into yet annother subcluster
-    symbolic::reduceGraph(g, c);   
+    symbolic::reduceGraph<Final>(g, c);   
     //all topology changing actions are done, now we can find groups to split. TODO: Split can happen 
     //before reduceGraph and reduce can be done on every splitted subgraph. But currently FilterGraph 
     //cannot be used as it cant change the graph structure
-    int components = symbolic::splitGraph(g);
+    int components = symbolic::splitGraph<Final>(g);
     
     //accesses all subclusters and handle them to make sure they are properly calculated before we try to 
     //reduce the toplevel cluster. A subcluster has to be reduced and solved before the cluster graph is 
     //solved, as the graph depends on the finished subcluster values. However, all subclusters can be solved
     //in parallel
     auto iter = g->clusters();
-    auto s1 = new shedule::ParallelConcurrentVector;
+    auto s1 = std::make_shared<shedule::ParallelConcurrentVector>();
     shedule::for_each(iter.first, iter.second, 
         [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-            auto fg = createSolvableSystem<typename Final::Kernel>(sub.second, c);
+            auto fg = createSolvableSystem<Final>(sub.second, c);
             s1->addExecutable(fg);
         }
     );        
 
     //now identify all individual components and create a executable for each
-    shedule::Executable* s2 = nullptr;
+    std::shared_ptr<shedule::Executable> s2;
     if(components > 1) {       
-        auto vec = new shedule::ParallelConcurrentVector;
+        auto vec = std::make_shared<shedule::ParallelConcurrentVector>();
         shedule::for_each(0, components, 1, [&](int i) {
             auto filter = graph::make_filter_graph(g, i);
             vec->addExecutable(buildGraphNumericSystem<typename Final::Kernel>(filter));        
@@ -299,14 +301,14 @@ shedule::Executable* createSolvableSystem(std::shared_ptr<Graph> g, Converter c)
         s2 = vec;
     }
     else {
-        s2 = buildGraphNumericSystem(g);   
+        s2 = buildGraphNumericSystem<typename Final::Kernel>(g);   
     }
     
     
     //to calculate everthing we need to make sure that all subclusters are calculated before the 
     //main graph is handled.
     if(s1->empty()) {
-        delete s1;
+        s1.reset();
         return s2;
     }    
     return shedule::make_executable([s1, s2](){

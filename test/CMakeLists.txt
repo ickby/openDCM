@@ -13,14 +13,14 @@ set(framework_SRC framework.cpp)
 set(test_SRC  define.cpp
               #mapping.cpp
               #kernel.cpp
-              system.cpp
-              numeric.cpp
-              constraint.cpp
-	      clustergraph.cpp
-	      reduction.cpp
-	      #clustermath.cpp
-	      #constraints3d.cpp
-	      #module3d.cpp
+              #system.cpp
+              #numeric.cpp
+              #constraint.cpp
+	      #clustergraph.cpp
+	      #reduction.cpp
+	      module3d.cpp
+              #clustermath.cpp
+              #constraints3d.cpp
 	      #dof.cpp
 	      #modulepart.cpp
 	      #modulepart2.cpp

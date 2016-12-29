@@ -45,52 +45,52 @@ BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
 
 BOOST_AUTO_TEST_CASE(cluster) {
 
-    typedef dcm::numeric::Cluster3d<K>::ParameterIterator  cParIt;
+    typedef dcm::numeric::Cluster3d<K>::ParameterIterator     cParIt;
     typedef dcm::numeric::Cluster3d<K>::DerivativePack        cDer;
     typedef dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>::DerivativePack clDer;
 
     try {
 
         dcm::numeric::LinearSystem<K> sys(10,10);
-        dcm::numeric::Cluster3d<K> cluster;
+        auto cluster = std::make_shared<dcm::numeric::Cluster3d<K>>();
 
-        cluster.init(sys);
-        cluster.calculate();
+        cluster->init(sys);
+        cluster->calculate();
 
-        BOOST_CHECK(cluster.parameters().size()==6);
-        BOOST_CHECK(cluster.derivatives().size()==6);
+        BOOST_CHECK(cluster->parameters().size()==6);
+        BOOST_CHECK(cluster->derivatives().size()==6);
 
-        dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3> clGeom;
-        clGeom.init(sys);
+        auto clGeom = std::make_shared<dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>>();
+        clGeom->init(sys);
 
-        BOOST_CHECK(clGeom.parameters().size()==0);
-        BOOST_CHECK(clGeom.derivatives().size()==0);
+        BOOST_CHECK(clGeom->parameters().size()==0);
+        BOOST_CHECK(clGeom->derivatives().size()==0);
 
-        clGeom.setBaseGeometry(&cluster);
-        clGeom.calculate();
+        clGeom->setInputEquation(cluster);
+        clGeom->calculate();
 
-        BOOST_CHECK(clGeom.parameters().size()==6);
-        BOOST_CHECK(clGeom.derivatives().size()==6);
+        BOOST_CHECK(clGeom->parameters().size()==6);
+        BOOST_CHECK(clGeom->derivatives().size()==6);
 
-        cluster.addClusterGeometry(&clGeom);
-        cluster.calculate();
+        cluster->addClusterGeometry(clGeom);
+        cluster->calculate();
 
-        for(clDer& der : clGeom.derivatives())
+        for(clDer& der : clGeom->derivatives())
             BOOST_CHECK(der.second.Value != nullptr);
 
         //let's test the derivatives and see if we calculate them correct for 0 values
-        DerivativeTest::isCorrect(clGeom, 
+        DerivativeTest::isCorrect(std::static_pointer_cast<dcm::numeric::Equation<K, dcm::geometry::Point3<K>>>(clGeom), 
                [&]() {
-                   cluster.calculate();
+                   cluster->calculate();
                }
         );
         
         //and check the derivatives for an arbitrary value
-        clGeom.point() << 1,2,3;
-        clGeom.point().normalize();
-        DerivativeTest::isCorrect(clGeom, 
+        clGeom->point() << 1,2,3;
+        clGeom->point().normalize();
+        DerivativeTest::isCorrect(std::static_pointer_cast<dcm::numeric::Equation<K, dcm::geometry::Point3<K>>>(clGeom), 
                [&]() {
-                   cluster.calculate();
+                   cluster->calculate();
                 }
         );
 

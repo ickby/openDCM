@@ -120,12 +120,13 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
     
     typedef typename mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type Base;
     
-    typedef Kernel                                      KernelType;
-    typedef Output                                      OutputType;
-    typedef VectorEntry<Kernel>                         Parameter;
-    typedef typename std::vector<Parameter>::iterator   ParameterIterator;
-    typedef Output                                      Derivative;
-    typedef std::pair<Output, Parameter>                DerivativePack;
+    typedef Kernel                                              KernelType;
+    typedef Output                                              OutputType;
+    typedef VectorEntry<Kernel>                                 Parameter;
+    typedef typename std::vector<Parameter>::iterator           ParameterIterator;
+    typedef Output                                              Derivative;
+    typedef std::pair<Output, Parameter>                        DerivativePack;
+    typedef typename std::vector<DerivativePack>::iterator      DerivativePackIterator;
     
     //set values in case this is a fixed equation
     Equation() {};

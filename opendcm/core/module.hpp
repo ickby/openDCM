@@ -201,11 +201,14 @@ struct ModuleCoreFinish : public Stacked {
      */
     void solve() {       
         
-        //build up the system to solve
-        auto solvable = solver::createSolvableSystem(std::static_pointer_cast<Graph>(this->getGraph()), m_converter);
+        //build up the system and solve
+        auto g = std::static_pointer_cast<Graph>(this->getGraph());
+        auto solvable = solver::createSolvableSystem<Final>(g, m_converter);
+        solvable->execute();
+                       
+        //post process the finished calculation. As solving throws an exception when not successfull we 
+        //are sure that we finished and that we can process the solution
                 
-        //post process the finished calculation
-        
         
     };
     

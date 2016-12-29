@@ -30,33 +30,33 @@ namespace dcm {
 //the geometry primitives we handle in the 3d module
 namespace geometry {
 
-template<typename Kernel, bool MappedType = true>
-struct Point3 : public Geometry<Kernel, MappedType, storage::Vector<3>> {
+template<typename Kernel>
+struct Point3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, MappedType, storage::Vector<3>>::m_storage;
+    using Geometry<Kernel, numeric::Vector<Kernel, 3>>::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
     };
     
-    Point3<Kernel, MappedType>& transform(const details::Transform<Scalar, 3>& t) {
+    Point3<Kernel>& transform(const details::Transform<Scalar, 3>& t) {
         point() = t*point();
         return *this;
     };
 
-    Point3<Kernel, MappedType>  transformed(const details::Transform<Scalar, 3>& t) {
-        Point3<Kernel, MappedType> copy(*this);
+    Point3<Kernel>  transformed(const details::Transform<Scalar, 3>& t) {
+        Point3<Kernel> copy(*this);
         copy.transform(t);
         return copy;
     };
 };
 
-template<typename Kernel, bool MappedType = true>
-struct Line3 : public Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>> {
+template<typename Kernel>
+struct Line3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>>::m_storage;
+    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>>::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -67,11 +67,11 @@ struct Line3 : public Geometry<Kernel, MappedType, storage::Vector<3>, storage::
     };
 };
 
-template<typename Kernel, bool MappedType = true>
-struct Plane : public Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>> {
+template<typename Kernel>
+struct Plane : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>>::m_storage;
+    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>>::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -82,14 +82,12 @@ struct Plane : public Geometry<Kernel, MappedType, storage::Vector<3>, storage::
     };
 };
 
-template<typename Kernel, bool MappedType = true>
-struct Cylinder : public Geometry<Kernel, MappedType,
-        storage::Vector<3>, storage::Vector<3>, storage::Parameter> {
+template<typename Kernel>
+struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, typename Kernel::Scalar> {
 
     typedef typename Kernel::Scalar Scalar;
-    typedef Geometry<Kernel, MappedType,
-            storage::Vector<3>, storage::Vector<3>, storage::Parameter> Inherited;
-    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Vector<3>, storage::Parameter>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Inherited;
+    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar>::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -107,10 +105,10 @@ struct Cylinder : public Geometry<Kernel, MappedType,
 }//geometry
 
 //the user-exposed geometry types for use in the geometry traits
-typedef geometry::adaptor<geometry::Point3>     Point3;
-typedef geometry::adaptor<geometry::Line3>      Line3;
-typedef geometry::adaptor<geometry::Plane>      Plane3;
-typedef geometry::adaptor<geometry::Cylinder>   Cylinder3;
+typedef geometry::Point3<DummyKernel>     Point3;
+typedef geometry::Line3<DummyKernel>      Line3;
+typedef geometry::Plane<DummyKernel>      Plane3;
+typedef geometry::Cylinder<DummyKernel>   Cylinder3;
 
 namespace modell {
     

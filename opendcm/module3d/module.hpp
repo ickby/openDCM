@@ -33,12 +33,7 @@
 
 struct symbol;
 namespace dcm {
-    
-template<typename T>
-void pretty(const T& t) {
-    std::cout<<__PRETTY_FUNCTION__<<std::endl;
-};
-    
+       
 template<typename ... types>
 struct Module3D {
 
@@ -52,10 +47,7 @@ struct Module3D {
         type() : Stacked() {
                    
             //we create our default edge reduction trees
-            int id_point    = Final::template primitiveGeometryIndex<geometry::Point3>::value;
-            int id_line     = Final::template primitiveGeometryIndex<geometry::Line3>::value;
-            int id_plane    = Final::template primitiveGeometryIndex<geometry::Plane>::value;
-            int id_cylinder = Final::template primitiveGeometryIndex<geometry::Cylinder>::value;
+            
         };
         
         ~type() {
@@ -96,13 +88,13 @@ struct Module3D {
                 
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
-                typedef symbolic::TypeGeometry<Kernel,geometry_traits<T>::type::template primitive> TypeGeometry;
+                typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
+                typedef symbolic::TypeGeometry<Kernel, extractor::template primitive> TypeGeometry;
             
                 BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
                 
                 //store the type
-                typedef typename geometry_traits<T>::type adapter;
-                m_type = Final::template geometryIndex<adapter>::value;
+                m_type = Final::template geometryIndex<extractor::template primitive>::value;
                 
                 //hold the given type in our variant
                 InheritedV::m_variant = geometry;
@@ -164,12 +156,12 @@ struct Module3D {
             template<typename T>
             typename boost::enable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryIndex<typename geometry_traits<T>::type>::value;
+                return m_type == Final::template geometryIndex<geometry::extractor<typename geometry_traits<T>::type>::template primitive>::value;
             };
             template<typename T>
             typename boost::disable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryIndex<T>::value;
+                return m_type == Final::template geometryIndex<geometry::extractor<T>::template primitive>::value;
             };
            
             
@@ -191,14 +183,14 @@ struct Module3D {
         public:
             Constraint3D(Final* system) 
                 : Stacked::ObjectBase( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
-                m_system(system), m_type(-1){
+                m_system(system){
                     
             };    
             
             template<typename ...Constraints>
             void set(Constraints&... cons) {
                 
-                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 
                 if(!m_g1 || !m_g2)
                     throw creation_error() <<  boost::errinfo_errno(21) << error_message("Geometry was not set before setting constraints types");
@@ -252,7 +244,8 @@ struct Module3D {
                 //add the primitive constraint to the global edge
                 symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
                 tc->setPrimitiveConstraint(t);
-                tc->setConstraintID(Final::template constraintIndex<T>::value);
+                //tc->setConstraintID(Final::template constraintIndex<T>::value);
+                pretty(T());
                 cluster->template setProperty<ConstraintProperty>(fusion::at_c<1>(res), tc);
                 
                 t.setDefault();
@@ -270,7 +263,7 @@ struct Module3D {
         template<typename T>
         std::shared_ptr<Geometry3D> addGeometry3D(const T& geom) {
             
-            std::shared_ptr<Geometry3D> g(new Geometry3D(static_cast<Final*>(this)));
+            auto g = std::make_shared<Geometry3D>(static_cast<Final*>(this));
             g->set(geom);
             return g;
         };
@@ -280,13 +273,14 @@ struct Module3D {
                                                       std::shared_ptr<Geometry3D> G2,
                                                       Constraints&... cons) { 
             
-            std::shared_ptr<Constraint3D> c(new Constraint3D(static_cast<Final*>(this)));
+            auto c = std::make_shared<Constraint3D>(static_cast<Final*>(this));
             c->set(G1, G2);
             c->set(cons...);
             return c;
         };
         
         DCM_MODULE_ADD_GEOMETRIES(Stacked, (geometry::Point3)(geometry::Line3)(geometry::Plane)(geometry::Cylinder))
+        DCM_MODULE_ADD_CONSTRAINTS(Stacked, (dcm::Distance)(dcm::Angle)(dcm::Orientation))
     };
     
 };

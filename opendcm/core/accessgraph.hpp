@@ -795,8 +795,16 @@ public:
     void initIndexMaps();
     
     /**
+     * @brief Check if the vertex/edge belongs to a group
+     * @param key Edge or Vertex which shall be checked
+     * @param group The Group identifier
+     */
+    template<typename key>
+    bool isInGroup(key k, int group);
+    
+    /**
      * @brief Add the edge/vertex to a certain group
-     * @param Edge or Vertex which shall be added to the group
+     * @param key Edge or Vertex which shall be added to the group
      * @param group The Group identifier
      */
     template<typename key>
@@ -804,7 +812,7 @@ public:
     
     /**
      * @brief Remove the edge/vertex from a certain group
-     * @param Edge or Vertex which shall be removed from the group
+     * @param key Edge or Vertex which shall be removed from the group
      * @param group The Group identifier
      */
     template<typename key>
@@ -812,7 +820,7 @@ public:
     
     /**
      * @brief Remove the edge/vertex from all groups
-     * @param Edge or Vertex which shall be removed from all group
+     * @param key Edge or Vertex which shall be removed from all group
      */
     template<typename key>
     void clearGroups(key k);
@@ -1000,6 +1008,29 @@ public:
      *
      * @param g shared ptr of the cluster graph on which the algorithm is used
      **/
+    property_map(std::shared_ptr<Graph> g)
+        : m_graph(g) { }
+
+    std::shared_ptr<Graph> m_graph;
+};
+
+/**
+ * @brief Special property map for groups
+ * 
+ * Internal groups work different than expected by boost algorithms. DCM uses vectors with multiple entries, 
+ * boost only a int. To use the internl property in algorithms anyway this specialization is given.
+ * Note that it appens anything that is put to the property map on the group vector, every get only
+ * returns the first entry in the vector. 
+ */
+template<typename Graph, typename Key>
+class property_map<Group, Graph, Key> {
+
+public:
+    typedef Key key_type;
+    typedef int value_type;
+    typedef int&  reference;
+    typedef boost::lvalue_property_map_tag category;
+    
     property_map(std::shared_ptr<Graph> g)
         : m_graph(g) { }
 
@@ -1327,6 +1358,13 @@ void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_ba
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
 template<typename key>
+bool AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::isInGroup(key k, int group) {
+    auto& vec = apply_to_bundle(k, get_accessible_helper<Group, AccessGraph>());
+    return std::find(vec.begin(), vec.end(), group) != vec.end();
+}
+    
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+template<typename key>
 void AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::addToGroup(key k, int group) {
       
     auto& vec = apply_to_bundle(k, get_accessible_helper<Group, AccessGraph>());
@@ -1431,7 +1469,7 @@ AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::
                           boost::make_filter_iterator(p, range.second, range.second));
 };
     
-//for some completly not understandable reason the compiler does not find some get/put methods for vertex and color in the boost namespace.
+//for some completly not understandable reason the compiler does not find some get/put methods for vertex and color, group in the boost namespace.
 template<typename G>
 typename dcm::graph::property_map<Color, G, LocalVertex>::value_type    get(const dcm::graph::property_map<Color, G, LocalVertex>& map,
             const typename dcm::graph::property_map<Color, G, LocalVertex>::key_type& key)
@@ -1444,7 +1482,7 @@ void    put(const dcm::graph::property_map<Group, G, LocalVertex>& map,
             const typename dcm::graph::property_map<Group, G, LocalVertex>::key_type& key,
             const typename dcm::graph::property_map<Group, G, LocalVertex>::value_type& value)
 {
-    map.m_graph->template setProperty<Group>(key, value);
+    map.m_graph->addToGroup(key, value);
 };
 
 } //namespace graph
@@ -1476,6 +1514,37 @@ typename dcm::graph::property_map<P, G, K>::reference at(const dcm::graph::prope
 {
     return map.m_graph->template getPropertyAccessible<P>(key);
 }
+
+//specialization for the group property
+template<typename G, typename K>
+typename dcm::graph::property_map<dcm::graph::Group, G, K>::value_type    get(const dcm::graph::property_map<dcm::graph::Group, G, K>& map,
+            const typename dcm::graph::property_map<dcm::graph::Group, G, K>::key_type& key)
+{
+    auto& p = map.m_graph->template getProperty<dcm::graph::Group>(key);
+    if(p.empty())
+        return -1;
+    return p.front();
+};
+
+template<typename G, typename K>
+void  put(const dcm::graph::property_map<dcm::graph::Group, G, K>& map,
+          const typename dcm::graph::property_map<dcm::graph::Group, G, K>::key_type& key,
+          const typename dcm::graph::property_map<dcm::graph::Group, G, K>::value_type& value)
+{
+
+    map.m_graph->addToGroup(key, value);
+};
+
+
+template<typename G, typename K>
+typename dcm::graph::property_map<dcm::graph::Group, G, K>::reference 
+at(const dcm::graph::property_map<dcm::graph::Group, G, K>& map,
+   const typename dcm::graph::property_map<dcm::graph::Group, G, K>::key_type& key)
+{
+    auto& vec = map.m_graph->template getPropertyAccessible<dcm::graph::Group>(key);
+    assert(!vec.empty());
+    return vec.front();
+};
 } //boost
 
 

@@ -98,7 +98,7 @@ namespace geometry {
  *
  * Primitive geometry has to fullfill three requirements: the storage based on fusion::vector, the 
  * transform interface and the copy-constructability and assignability. To reduce boilerplate this class
- * is given which handles the fusion::vector creation automaticly. To tell the struct
+ * is given which handles the fusion::vector creation automatically. To tell the struct
  * which types shall be stored it is possible to pass an arbitrary number of types as
  * template parameters. For example a line could be constructed using this class in the following way:
  * \code
@@ -125,7 +125,6 @@ namespace geometry {
  * the derived classes responibility to implement that interface. 
  *
  * \tparam Kernel The math \ref Kernel in use
- * \tparam Map boolean which states if this geometric primitive shall be a storage or a map
  * \tparam StorageTypes Variadic sequence of storage types
  */
 template<typename Kernel, typename... StorageTypes>
@@ -228,8 +227,8 @@ struct Counter {
 
     typedef typename Kernel::Scalar Scalar;
     
-    int& count;
-    Counter(int& c) : count(c) {
+    unsigned int& count;
+    Counter(unsigned int& c) : count(c) {
         count = 0;
     }; 
 
@@ -424,7 +423,7 @@ protected:
  * 
  * \tparam Kernel The math \ref Kenel in use
  * \tparam Input  The geometric primitive this numeric geometry is based in
- * \tparam Output The geometric primitive this numeric geometry depends on
+ * \tparam Output The geometric primitive this numeric geometry represents
  * \tparam ParameterStorageTypes Any number of storage types which describe the parameters
  */
 template< typename Kernel, template<class> class Input,

@@ -33,12 +33,11 @@ namespace geometry {
 
 //Primitive geometry representing a rigid cluster, hence it exposes a translation and rotation
 //parameter
-template<typename Kernel, bool MappedType = true>
-struct Cluster3d : public Geometry<Kernel, MappedType,
-        storage::Vector<3>, storage::Matrix<3,3>> {
+template<typename Kernel>
+struct Cluster3d : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, MappedType, storage::Vector<3>, storage::Matrix<3,3>>::m_storage;
+    using Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>>::m_storage;
 
     auto translation()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -62,18 +61,18 @@ namespace numeric {
 //norm quaternion to generate the unit quaternion
 
     
-template<typename Kernel, template<class, bool> class Base>
-struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Cluster3d> {
+template<typename Kernel, template<class> class Base>
+struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d, Base> {
     
     typedef typename Kernel::Scalar Scalar;
-    typedef DependendGeometry<Kernel, Base, geometry::Cluster3d> Inherited;
+    typedef DependendGeometry<Kernel, geometry::Cluster3d, Base> Inherited;
     
     void transformLocal(const details::Transform<Scalar, 3>& t) {
         m_local.transform(t);
     };
     
-    virtual void calculate() {
-        
+    CALCULATE() {
+        /*
         dcm_assert(Inherited::m_base);
         Inherited::m_value = m_local.transformed(Inherited::m_base->transform());
         
@@ -84,19 +83,19 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, Base, geometry::Clus
             dcm_assert(it->second == d.second)
             it->first = m_local.transformed(d.first.transform());        
             ++it;
-        };
+        };*/
     };
         
 protected:
-    Base<Kernel, false> m_local; //the local value in the cluster (m_value is global)
+    Base<Kernel> m_local; //the local value in the cluster (The base type is global)
 };    
     
 template< typename Kernel>
 struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
-        geometry::storage::Vector<3>, geometry::storage::Vector<3>> {
+        numeric::Vector<Kernel,3>, numeric::Vector<Kernel,3>> {
 
     typedef ParameterGeometry<Kernel, geometry::Cluster3d,
-            geometry::storage::Vector<3>, geometry::storage::Vector<3>> Inherited;
+            numeric::Vector<Kernel,3>, numeric::Vector<Kernel,3>> Inherited;
 
     typedef typename Kernel::Scalar Scalar;
     
@@ -115,7 +114,7 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         }
     };
 
-    virtual void calculate() {
+    CALCULATE() {
 
         //calculate the quaternion and rotation matrix from the parameter vector
         const Eigen::Quaternion<Scalar> Q = calculateTransform();
@@ -200,11 +199,11 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
        
         //recalculate all geometries
         for(auto fct : m_recalculateables)
-            fct->calculate();
+            fct->execute();
     };
 
-    template<template<class, bool> class Base>
-    void addClusterGeometry(Cluster3dGeometry<Kernel, Base>* g) {
+    template<template<class> class Base>
+    void addClusterGeometry(std::shared_ptr<Cluster3dGeometry<Kernel, Base>> g) {
         m_recalculateables.push_back(g);
         m_transformables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::transformLocal, g, 
                                                 std::placeholders::_1));
@@ -290,7 +289,7 @@ protected:
             Eigen::Quaternion<Scalar>(Eigen::AngleAxisd(M_PI*2./3.,
             Eigen::Vector3d(1,1,1).normalized())));
     
-    std::vector<numeric::Equation<Kernel>*>                                m_recalculateables;
+    std::vector<std::shared_ptr<numeric::Calculatable<Kernel>>>            m_recalculateables;
     std::vector<std::function<void(const details::Transform<Scalar, 3>&)>> m_transformables;
 };
 

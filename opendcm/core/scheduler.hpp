@@ -72,20 +72,17 @@ protected:
  * which can be used within the shedule parallel environment
  */
 template<typename T>
-Executable* make_executable(const T& functor) {
-    return new Functor<T>(functor);
+std::shared_ptr<Executable> make_executable(const T& functor) {
+    return std::make_shared<Functor<T>>(functor);
 };
 
 template<typename Vector>
 struct _SequentialVector : public Executable {
   
-    virtual ~_SequentialVector() {
-        for(Executable* ex : m_executables) 
-            delete ex;
-    };
+    typedef typename Vector::value_type value_type;
     
     void operator()() {
-        for(Executable* ex : m_executables) 
+        for(value_type ex : m_executables) 
             ex->execute();
     };
     
@@ -95,11 +92,15 @@ struct _SequentialVector : public Executable {
     
     template<typename T> 
     void add(const T& t) {
-        m_executables.push_back(new Functor<T>(t));
+        m_executables.push_back(make_executable(t));
     };
     
-    void addExecutable(Executable* ex) {
+    void addExecutable(value_type ex) {
         m_executables.push_back(ex);
+    };
+    
+    void append(Vector& vec) {
+        m_executables.insert(m_executables.end(), vec.begin(), vec.end());  
     };
     
     int size() { return m_executables.size();};
@@ -115,7 +116,7 @@ protected:
  * This class stores different executables and processes them sequentially. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct SequentialVector : public _SequentialVector<std::vector<Executable*>> {};
+struct SequentialVector : public _SequentialVector<std::vector<std::shared_ptr<Executable>>> {};
 
 /**
  * @brief Sequential execution of Executables with concurrent adding
@@ -125,14 +126,14 @@ struct SequentialVector : public _SequentialVector<std::vector<Executable*>> {};
  * Note that passed executable pointers are afterwards owned by the Vector object which delets it 
  * when destroyed.
  */
-struct SequentialConcurrentVector : public _SequentialVector<tbb::concurrent_vector<Executable*>> {};
+struct SequentialConcurrentVector : public _SequentialVector<tbb::concurrent_vector<std::shared_ptr<Executable>>> {};
 
 template<typename Vector>
 struct _ParallelVector : public _SequentialVector<Vector> {
     
     void operator()() {
          tbb::parallel_for_each(_SequentialVector<Vector>::m_executables.begin(), _SequentialVector<Vector>::m_executables.end(), 
-                            [&](Executable* exe) {
+                            [&](std::shared_ptr<Executable> exe) {
              exe->execute();
          });
     };
@@ -148,7 +149,7 @@ struct _ParallelVector : public _SequentialVector<Vector> {
  * This class stores different executables and processes them in parallel. Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct ParallelVector : public _ParallelVector<std::vector<Executable*>> {};
+struct ParallelVector : public _ParallelVector<std::vector<std::shared_ptr<Executable>>> {};
 
 /**
  * @brief Parallel unordered execution with concurrent adding
@@ -158,7 +159,7 @@ struct ParallelVector : public _ParallelVector<std::vector<Executable*>> {};
  * Note that passed executable pointers are afterwards owned by the Vector object which delets it when 
  * destroyed.
  */
-struct ParallelConcurrentVector : public _ParallelVector<tbb::concurrent_vector<Executable*>> {};
+struct ParallelConcurrentVector : public _ParallelVector<tbb::concurrent_vector<std::shared_ptr<Executable>>> {};
 
 template<typename Vector>
 struct _HugeParallelVector : public _SequentialVector<Vector> {
@@ -183,7 +184,7 @@ struct _HugeParallelVector : public _SequentialVector<Vector> {
  * benefit to the \ref ParallelVector in case of many executables (>100).  Note that passed 
  * executable pointers are afterwards owned by the Vector object which delets it when destroyed.
  */
-struct HugeParallelVector : public _HugeParallelVector<std::vector<Executable*>> {};
+struct HugeParallelVector : public _HugeParallelVector<std::vector<std::shared_ptr<Executable>>> {};
 
 /**
  * @brief Parallel unordered execution of large numbers of execuatbles
@@ -194,7 +195,7 @@ struct HugeParallelVector : public _HugeParallelVector<std::vector<Executable*>>
  * Note that passed executable pointers are afterwards owned by the Vector object which delets it 
  * when destroyed.
  */
-struct HugeParallelConcurrentVector : public _HugeParallelVector<tbb::concurrent_vector<Executable*>> {};
+struct HugeParallelConcurrentVector : public _HugeParallelVector<tbb::concurrent_vector<std::shared_ptr<Executable>>> {};
 
 //encapsulates a tbb flow graph and is responsible for managing the nodes lifetime
 struct FlowGraph : public Executable {
@@ -266,7 +267,7 @@ void for_each(const Iterator& start, const Iterator& end, const Functor& func) {
  */
 template<typename Type, typename Functor>
 void for_each(Type start, Type end, Type step, const Functor& func) {
-    tbb::parallel_for_each(start, end, step, func);
+    tbb::parallel_for(start, end, step, func);
 };
 
 } //details

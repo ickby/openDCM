@@ -31,10 +31,10 @@
 struct DerivativeTest {
 
     
-    template<typename Kernel, template<class, bool> class Base>
+    template<typename Kernel, typename Base>
     struct DerivativeCalculator {
         
-        typedef Base<Kernel, false> Geometry;
+        typedef Base Geometry;
         
         Geometry &left, &right, &diff;
         
@@ -63,14 +63,14 @@ struct DerivativeTest {
         };
     };
     
-    template<typename Kernel, template<class, bool> class Base>
+    template<typename Kernel, typename Base>
     struct Compare {
       
-        Base<Kernel, false>& analytical;
-        Base<Kernel, false>& numeric;
+        Base& analytical;
+        Base& numeric;
         int iteration, derivative;
         
-        Compare(Base<Kernel, false>& a, Base<Kernel, false>& n, int i, int d) 
+        Compare(Base& a, Base& n, int i, int d) 
             : analytical(a), numeric(n), iteration(i), derivative(d) {};
         
         template<typename T>
@@ -96,39 +96,39 @@ struct DerivativeTest {
         };
     };
     
-    template<typename Kernel, template<class, bool> class Base>
-    static bool isCorrect(dcm::numeric::Geometry<Kernel, Base>& g, const std::function<void()>& recalc) {
+    template<typename Kernel, typename Base>
+    static bool isCorrect(std::shared_ptr<dcm::numeric::Equation<Kernel, Base>> g, const std::function<void()>& recalc) {
 
-        typedef typename dcm::numeric::Geometry<Kernel, Base>::DerivativePack Derivative;
+        typedef typename dcm::numeric::Equation<Kernel, Base>::DerivativePack Derivative;
 
         int d = 0;
-        for(Derivative& der : g.derivatives()) {
+        for(Derivative& der : g->derivatives()) {
 
             for(int i=0; i<int(RANGE/STEP); i++) {
 
                 *(der.second.Value) += STEP - DELTA;
                 recalc();
                 //save the current value
-                Base<Kernel, false> left;
-                left.m_storage = g.m_storage;
+                Base left;
+                left.m_storage = g->m_storage;
                 
                 *(der.second.Value) += 2*DELTA;
                 recalc();
                 //save the current value
-                Base<Kernel, false> right;
-                right.m_storage = g.m_storage;
+                Base right;
+                right.m_storage = g->m_storage;
 
                 //get the residual diff between the last two calculations
-                Base<Kernel, false> diff;
+                Base diff;
                 //mpl trickery to get a sequence counting from 0 to the size of stroage entries
                 typedef mpl::range_c<int,0,
-                        mpl::size<typename Base<Kernel, false>::StorageTypeSequence>::value> StorageRange;
+                        mpl::size<typename Base::StorageSequence>::value> StorageRange;
                 //now iterate that sequence so we can access all storage elements with knowing the position
                 //we are at (that is important to access the correct derivative storage position too)
                 mpl::for_each<StorageRange>( DerivativeCalculator<Kernel, Base>(left, right, diff) );
                 
                 //compare to the analytical diff
-                Base<Kernel, false> analytic;
+                Base analytic;
                 analytic.m_storage = der.first.m_storage;
                 mpl::for_each<StorageRange>(Compare<Kernel, Base>(analytic, diff, i, d));
                 
