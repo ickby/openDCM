@@ -39,22 +39,18 @@ public:
             Eigen::Quaternion<Scalar>,
             Eigen::Rotation2D<Scalar> >::type     Rotation;
     typedef Eigen::Translation<Scalar, Dim>	  Translation;
-    typedef Eigen::UniformScaling<Scalar> 	  Scaling;
     typedef typename Rotation::RotationMatrixType RotationMatrix;
 
 protected:
     Rotation   	m_rotation;
     Translation	m_translation;
-    Scaling  	m_scale;
 
 public:
     Transform();
 
     Transform(const Rotation& r);
     Transform(const Translation& t);
-    Transform(const Scaling& s);
     Transform(const Rotation& r, const Translation& t);
-    Transform(const Rotation& r, const Translation& t, const Scaling& s);
 
     //access the single parts and manipulate them
     //***********************
@@ -67,12 +63,7 @@ public:
     const Translation& translation() const;
     Transform& setTranslation(const Translation& translation);
     Transform& translate(const Translation& translation);
-
-    const Scaling& scaling() const;
-    Transform& setScale(const Scaling& scaling);
-    Transform& scale(const Scalar& scaling);
-    Transform& scale(const Scaling& scaling);
-    
+   
     Eigen::Transform<Scalar, Dim, Eigen::AffineCompact> transformation();
 
     Transform& invert();
@@ -84,10 +75,6 @@ public:
     Transform& operator=(const Translation& t);
     Transform operator*(const Translation& s) const;
     Transform& operator*=(const Translation& t);
-
-    Transform& operator=(const Scaling& s);
-    Transform operator*(const Scaling& s) const;
-    Transform& operator*=(const Scaling& s);
 
     template<typename Derived>
     Transform& operator=(const Eigen::RotationBase<Derived,Dim>& r);
@@ -105,8 +92,6 @@ public:
     Derived& rotate(Eigen::MatrixBase<Derived>& vec) const;
     template<typename Derived>
     Derived& translate(Eigen::MatrixBase<Derived>& vec) const;
-    template<typename Derived>
-    Derived& scale(Eigen::MatrixBase<Derived>& vec) const;
     template<typename Derived>
     Derived& transform(Eigen::MatrixBase<Derived>& vec) const;
     template<typename Derived>
@@ -142,37 +127,21 @@ std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& o
 
 template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform() : m_rotation(Rotation::Identity()),
-    m_translation(Translation::Identity()),
-    m_scale(Scaling(1.)) { };
+    m_translation(Translation::Identity()) { };
 
 template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform(const Rotation& r) : m_rotation(r),
-    m_translation(Translation::Identity()),
-    m_scale(Scaling(1.)) {
+    m_translation(Translation::Identity()) {
     m_rotation.normalize();
 };
 
 template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform(const Translation& t) : m_rotation(Rotation::Identity()),
-    m_translation(t),
-    m_scale(Scaling(1.)) {};
-
-template<typename Scalar, int Dim>
-Transform<Scalar, Dim>::Transform(const Scaling& s) : m_rotation(Rotation::Identity()),
-    m_translation(Translation::Identity()),
-    m_scale(s) {};
+    m_translation(t){};
 
 template<typename Scalar, int Dim>
 Transform<Scalar, Dim>::Transform(const Rotation& r, const Translation& t) : m_rotation(r),
-    m_translation(t),
-    m_scale(Scaling(1.)) {
-    m_rotation.normalize();
-};
-
-template<typename Scalar, int Dim>
-Transform<Scalar, Dim>::Transform(const Rotation& r, const Translation& t, const Scaling& s) : m_rotation(r),
-    m_translation(t),
-    m_scale(s) {
+    m_translation(t) {
     m_rotation.normalize();
 };
 
@@ -213,30 +182,9 @@ Transform<Scalar, Dim>& Transform<Scalar, Dim>::translate(const Translation& tra
 }
 
 template<typename Scalar, int Dim>
-const typename Transform<Scalar, Dim>::Scaling& Transform<Scalar, Dim>::scaling() const {
-    return m_scale;
-}
-template<typename Scalar, int Dim>
-Transform<Scalar, Dim>& Transform<Scalar, Dim>::scale(const Scalar& scaling) {
-    m_scale *= Scaling(scaling);
-    return *this;
-}
-template<typename Scalar, int Dim>
-Transform<Scalar, Dim>& Transform<Scalar, Dim>::setScale(const Scaling& scaling) {
-    m_scale.factor() = scaling.factor();
-    return *this;
-}
-template<typename Scalar, int Dim>
-Transform<Scalar, Dim>& Transform<Scalar, Dim>::scale(const Scaling& scaling) {
-    m_scale.factor() *= scaling.factor();
-    return *this;
-}
-
-template<typename Scalar, int Dim>
 Transform<Scalar, Dim>& Transform<Scalar, Dim>::invert() {
     m_rotation = m_rotation.inverse();
-    m_translation.vector() = (m_rotation*m_translation.vector()) * (-m_scale.factor());
-    m_scale = Scaling(1./m_scale.factor());
+    m_translation.vector() = (m_rotation*m_translation.vector());
     return *this;
 };
 template<typename Scalar, int Dim>
@@ -250,7 +198,6 @@ template<typename Scalar, int Dim>
 inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator=(const Translation& t) {
     m_translation = t;
     m_rotation = Rotation::Identity();
-    m_scale = Scaling(1.);
     return *this;
 }
 template<typename Scalar, int Dim>
@@ -265,30 +212,11 @@ inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator*=(const Translat
 }
 
 template<typename Scalar, int Dim>
-inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator=(const Scaling& s) {
-    m_scale = s;
-    m_translation = Translation::Identity();
-    m_rotation = Rotation::Identity();
-    return *this;
-}
-template<typename Scalar, int Dim>
-inline Transform<Scalar, Dim> Transform<Scalar, Dim>::operator*(const Scaling& s) const {
-    Transform res = *this;
-    res.scale(s);
-    return res;
-}
-template<typename Scalar, int Dim>
-inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator*=(const Scaling& s) {
-    return scale(s);
-}
-
-template<typename Scalar, int Dim>
 template<typename Derived>
 inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator=(const Eigen::RotationBase<Derived,Dim>& r) {
     m_rotation = r.derived();
     m_rotation.normalize();
     m_translation = Translation::Identity();
-    m_scale = Scaling(1);
     return *this;
 }
 template<typename Scalar, int Dim>
@@ -314,8 +242,7 @@ template<typename Scalar, int Dim>
 inline Transform<Scalar, Dim>& Transform<Scalar, Dim>::operator*= (const Transform& other) {
     rotate(other.rotation());
     other.rotate(m_translation.vector());
-    m_translation.vector() += other.translation().vector()/m_scale.factor();
-    m_scale.factor() *= other.scaling().factor();
+    m_translation.vector() += other.translation().vector();
     return *this;
 }
 
@@ -335,22 +262,15 @@ inline Derived& Transform<Scalar, Dim>::translate(Eigen::MatrixBase<Derived>& ve
 
 template<typename Scalar, int Dim>
 template<typename Derived>
-inline Derived& Transform<Scalar, Dim>::scale(Eigen::MatrixBase<Derived>& vec) const {
-    vec*=m_scale.factor();
-    return vec.derived();
-}
-
-template<typename Scalar, int Dim>
-template<typename Derived>
 inline Derived& Transform<Scalar, Dim>::transform(Eigen::MatrixBase<Derived>& vec) const {
-    vec = (m_rotation*vec + m_translation.vector())*m_scale.factor();
+    vec = (m_rotation*vec + m_translation.vector());
     return vec.derived();
 }
 
 template<typename Scalar, int Dim>
 template<typename Derived>
 inline Derived Transform<Scalar, Dim>::operator*(const Eigen::MatrixBase<Derived>& vec) const {
-    return (m_rotation*vec + m_translation.vector())*m_scale.factor();
+    return (m_rotation*vec + m_translation.vector());
 }
 
 template<typename Scalar, int Dim>
@@ -362,20 +282,18 @@ inline void Transform<Scalar, Dim>::operator()(Eigen::MatrixBase<Derived>& vec) 
 template<typename Scalar, int Dim>
 bool Transform<Scalar, Dim>::isApprox(const Transform& other, Scalar prec) const {
     return m_rotation.isApprox(other.rotation(), prec)
-           && ((m_translation.vector()- other.translation().vector()).norm() < prec)
-           && (std::abs(m_scale.factor()-other.scaling().factor()) < prec);
+           && ((m_translation.vector()- other.translation().vector()).norm() < prec);
 };
 
 template<typename Scalar, int Dim>
 void Transform<Scalar, Dim>::setIdentity() {
     m_rotation.setIdentity();
     m_translation = Translation::Identity();
-    m_scale = Scaling(1.);
 }
 
 template<typename Scalar, int Dim>
 const Transform<Scalar, Dim> Transform<Scalar, Dim>::Identity() {
-    return Transform(Rotation::Identity(), Translation::Identity(), Scaling(1));
+    return Transform(Rotation::Identity(), Translation::Identity());
 }
 
 template<typename Scalar, int Dim>
@@ -397,8 +315,7 @@ Eigen::Transform<Scalar, Dim, Eigen::AffineCompact> Transform<Scalar, Dim>::tran
 template<typename charT, typename traits, typename Kernel, int Dim>
 std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::Transform<Kernel, Dim>& t) {
     os << "Rotation:    " << t.rotation().coeffs().transpose() << std::endl
-       << "Translation: " << t.translation().vector().transpose() <<std::endl
-       << "Scale:       " << t.scaling().factor();
+       << "Translation: " << t.translation().vector().transpose() <<std::endl;
     return os;
 }
 
