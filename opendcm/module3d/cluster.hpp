@@ -48,10 +48,6 @@ struct Cluster3d : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::M
     };
     
     details::Transform<Scalar, 3> transform() {
-        if( (rotation().array() != 0.).any() )
-            return details::Transform<Scalar, 3>(Eigen::Quaternion<Scalar>(0.,1.,1.,1.),
-                                             Eigen::Translation<Scalar, 3>(translation()));
-            
         return details::Transform<Scalar, 3>(Eigen::Quaternion<Scalar>(rotation()),
                                              Eigen::Translation<Scalar, 3>(translation()));
     };
