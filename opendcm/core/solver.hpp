@@ -79,6 +79,7 @@ int splitGraph(std::shared_ptr<Graph> g)   {
         g->template setProperty<graph::Group>(e, edge);
     });
     
+    return c;
 };
 
 /**

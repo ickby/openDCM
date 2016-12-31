@@ -151,7 +151,7 @@ public:
     typedef Eigen::Matrix<Scalar, 3, 1>           TranslationVector;
     typedef typename Rotation::RotationMatrixType RotationMatrix;
     
-    Transform() : Base() {};
+    Transform() : Base() { setIdentity();}; //we need set identity here, base can't do it as it would override the map values
     Transform(const Rotation& r) : Base(r) {};
     Transform(const Translation& t) : Base(t) {};
     Transform(const Rotation& r, const Translation& t) : Base(r,t) {};
@@ -345,8 +345,8 @@ Derived TransformBase<Derived>::inverse() const {
 
 template<typename Derived>
 inline Derived& TransformBase<Derived>::operator=(const Translation& t) {
-    derived.setIdentity();
-    derived.translation() = t;
+    derived().setIdentity();
+    derived().translation() = t;
     return derived();
 }
 template<typename Derived>
@@ -364,7 +364,7 @@ template<typename Derived>
 template<typename OtherDerived>
 inline Derived& TransformBase<Derived>::operator=(const Eigen::RotationBase<OtherDerived,Dimension>& r) {
     derived().setIdentity();
-    derived.setRotation(r.derived());
+    derived().setRotation(r.derived());
     derived().normalize();
     return derived();
 }
@@ -379,7 +379,7 @@ template<typename Derived>
 template<typename OtherDerived>
 inline Derived& TransformBase<Derived>::operator*=(const Eigen::RotationBase<OtherDerived,Dimension>& r) {
     rotate(r);
-    derived.setTranslation(r*derived().translationVector());
+    derived().setTranslation(r*derived().translationVector());
     return derived();
 }
 
@@ -458,7 +458,7 @@ template<typename Derived>
 Eigen::Transform<typename TransformBase<Derived>::Scalar, TransformBase<Derived>::Dimension, Eigen::AffineCompact> 
 TransformBase<Derived>::transformation() {
     return Eigen::Transform<typename Derived::Scalar, Derived::Dimension, Eigen::AffineCompact>(derived().toRotationMatrix()) *
-            Eigen::Transform<typename Derived::Scalar, Derived::Dimension, Eigen::AffineCompact>(derived.translation());
+            Eigen::Transform<typename Derived::Scalar, Derived::Dimension, Eigen::AffineCompact>(derived().translation());
 };
 
 /*When you overload a binary operator as a member function of a class the overload is used
@@ -467,7 +467,7 @@ TransformBase<Derived>::transformation() {
 */
 template<typename charT, typename traits, typename Derived>
 std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::TransformBase<Derived>& t) {
-    os << "Rotation:    " << t.rotation()<< std::endl
+    os << "Rotation:    " << t.rotation().coeffs()<< std::endl
        << "Translation: " << t.derived().translationVector() <<std::endl;
     return os;
 }

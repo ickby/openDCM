@@ -152,7 +152,7 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
      */    
     operator const Output&() const {return output();} 
     
-    Output& operator=(const Output& in) {output() = in;};
+    Output& operator=(const Output& in) {output() = in; return *this;};
     
     /**
      * @brief Access all initialized free parameters

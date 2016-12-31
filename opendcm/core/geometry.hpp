@@ -136,7 +136,7 @@ struct Geometry {
     typedef mpl::vector< StorageTypes... >                               StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type Storage;
     
-    Geometry& operator=(const Storage& storage) {m_storage = storage;};
+    Geometry& operator=(const Storage& storage) {m_storage = storage; return *this;};
 protected:
     Storage m_storage;
     

@@ -313,6 +313,10 @@ protected:
     
     std::vector<std::shared_ptr<numeric::Calculatable<Kernel>>>            m_recalculateables;
     std::vector<std::function<void(const details::Transform<Scalar, 3>&)>> m_transformables;
+    
+#ifdef DCM_USE_LOGGING
+    dcm_logger log;
+#endif
 };
 
 } //numeric
