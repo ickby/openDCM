@@ -154,9 +154,10 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
     /**
      * @brief Access all initialized free parameters
      * 
-     * Allows to access all the free parameters this equation adds to the overall system. Note that the result
-     * may depend on more parameters than the ones given in this vector, as it may also be dependend on other 
-     * results. See \ref UnaryEquation and \ref BinaryEqaution for examples. 
+     * Allows to access all the free parameters this equation adds to the overall system. Note that 
+     * Only the added parameters are returned here. The equation may depend on other parameters as 
+     * well, for example from input equations, but they are not listed here. Hence it can also 
+     * happen that there are more derivatives available than parameters.
      * 
      * @return std::vector< Parameter >& vector of all mapped free parameters
      */
@@ -212,11 +213,11 @@ public:
 /**
  * @brief Handles ownership of equations with inputs 
  * 
- * For equations with inputs other than the free parameters created itself the question of ownership arises.
+ * For equations with inputs other than the free parameters, e.g. other equations, the question of ownership arises.
  * There may be the possibility that the input equation is initialised and calculated by someone else, than this 
- * does not need to be redone by the equation using it. However, sometime t may happen that the input equation 
+ * does not need to be redone by the equation using it. However, sometimes it may happen that the input equation 
  * is owned by the equation itself, hence its init and calculate methods will not be called by annyone else. In
- * This case the equation is responsible for handling this. \ref this class provides the interface needed to 
+ * this case the equation is responsible for handling this. \ref this class provides the interface needed to 
  * tell the equation if it owns its input equations and if it is responsible for handling it.
  */
 template<typename Kernel, typename Output>

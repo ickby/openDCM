@@ -52,24 +52,36 @@ struct VectorEntry {
     bool operator==(const VectorEntry& e) {
         //comparing the value addresses is enough, as if tey point to the same memory they
         //must be the same system entry
-        return (Value == Value);
+        return (Value == e.Value);
     };
     
     operator Scalar&() {return *Value;};
+    
+    void operator=(const Scalar& in) {
+       *Value = in;
+    }
 };
 
 template< typename Kernel >
 struct MatrixEntry {
     
-    int                         Row;
-    int                         Column;
-    typename Kernel::Scalar*    Value;
+    typedef typename Kernel::Scalar Scalar;
+    
+    int     pRow;
+    int     Column;
+    Scalar* Value;
     
     bool operator==(const MatrixEntry& e) {
         //comparing the value addresses is enough, as if tey point to the same memory they
         //must be the same system entry
         return (Value == Value);
     };
+    
+    operator Scalar&() {return *Value;};
+    
+    void operator=(const Scalar& in) {
+       *Value = in;
+    }
 };
 
 template<typename Kernel> 

@@ -278,6 +278,13 @@ BOOST_AUTO_TEST_CASE(geometry) {
     basic_vec.value() << 5,4,3;
     basic_vec_2 = basic_vec;
     BOOST_CHECK(basic_vec_2.value().isApprox(basic_vec.value()));
+    
+    //check if we can use the parameters within the numeric geometry
+    *dirGeom.parameters()[0].Value = 1.;
+    *dirGeom.parameters()[1].Value = 2.;
+    *dirGeom.parameters()[2].Value = 3.;
+    dirGeom.execute();
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(1.,2., 3.)));
 };
     
 
@@ -341,7 +348,7 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     cylGeom2 = cylGeom;
     BOOST_CHECK(cylGeom2.point().isApprox(cylGeom.point()));
     BOOST_CHECK(cylGeom2.direction().isApprox(cylGeom.direction()));
-    BOOST_CHECK(cylGeom2.radius() = cylGeom.radius());
+    BOOST_CHECK(cylGeom2.radius() == cylGeom.radius());
 };
 
 

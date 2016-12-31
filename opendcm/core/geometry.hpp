@@ -274,6 +274,27 @@ struct Assigner {
     }
 };
 
+template<typename Equation>
+struct RevertAssigner {
+
+    int& m_count;
+    std::vector<typename Equation::Parameter>& m_params;
+
+    RevertAssigner(std::vector<typename Equation::Parameter>& p, int& c) : m_params(p), m_count(c) {
+        m_count = -1;
+    };
+
+    template<typename T>
+    void operator()(Eigen::MatrixBase<T>& t) const {
+        for(int i=0; i<(t.rows()*t.cols()); ++i)
+            m_params[++m_count] = t(i);
+    }
+    
+    void operator()(typename Equation::KernelType::Scalar& t) const {
+        m_params[++m_count] = t;
+    }
+};
+
 };//detail
     
 namespace numeric {
@@ -339,16 +360,26 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
         mpl::for_each<StorageRange>(detail::Initializer<Kernel, typename Inherited::Storage, Inherited>(sys,
                                     Inherited::m_storage, Inherited::m_parameters, 
                                     Inherited::m_derivatives));
+        
+        //setup the parameter values
+        storageToParam();
     };
     
     //we actually do not really need to calculate anything, but we need to make sure the mapped 
-    //values are move over to the output
+    //values are moved over to the output
     CALCULATE() {
-        
-        fusion::for_each(Inherited::m_storage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter));    
+        paramToStorage();
     };
     
 protected:
+    void paramToStorage() {
+        fusion::for_each(Inherited::m_storage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
+    };
+    
+    void storageToParam() {
+        fusion::for_each(Inherited::m_storage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
+    };
+    
     bool m_independent = true;
     
 protected:
@@ -393,17 +424,27 @@ struct ParameterGeometry : public Equation<Kernel, Base<Kernel>> {
         
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited>(sys,
+        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited, false>(sys,
                                     m_parameterStorage, Inherited::m_parameters, 
                                     Inherited::m_derivatives));
+        
+        //setup the parameter values correctly 
+        storageToParam();
     };
     
     CALCULATE() {
-        fusion::for_each(m_parameterStorage, 
-                         detail::Assigner<Inherited>(Inherited::m_parameters, m_counter));    
+        paramToStorage();  
     };
 
 protected:
+    void paramToStorage() {
+        fusion::for_each(m_parameterStorage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
+    };
+    
+    void storageToParam() {
+        fusion::for_each(m_parameterStorage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
+    };
+    
     ParameterStorage     m_parameterStorage;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
@@ -464,6 +505,9 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
         Inherited::m_derivatives.clear();
         for(const auto& param : Inherited::inputEquation()->parameters()) 
             Inherited::m_derivatives.push_back(std::make_pair(typename Inherited::OutputType(), param));
+        
+        //make sure the parameters have the correct values
+        storageToParam();
     };
     
     CALCULATE() {
@@ -477,6 +521,14 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
     };
     
 protected:
+    void paramToStorage() {
+        fusion::for_each(m_parameterStorage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
+    };
+    
+    void storageToParam() {
+        fusion::for_each(m_parameterStorage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
+    };
+    
     ParameterStorage     m_parameterStorage;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 

@@ -111,12 +111,14 @@ struct DerivativeTest {
                 //save the current value
                 Base left;
                 left.m_storage = g->m_storage;
+                std::cout<<"Left with Value " << *(der.second.Value) << std::endl<<fusion::at_c<0>(left.m_storage)<<std::endl;
                 
                 *(der.second.Value) += 2*DELTA;
                 recalc();
                 //save the current value
                 Base right;
                 right.m_storage = g->m_storage;
+                std::cout<<"Right with Value " << *(der.second.Value) << std::endl<<fusion::at_c<0>(right.m_storage)<<std::endl;
 
                 //get the residual diff between the last two calculations
                 Base diff;
@@ -130,6 +132,7 @@ struct DerivativeTest {
                 //compare to the analytical diff
                 Base analytic;
                 analytic.m_storage = der.first.m_storage;
+
                 mpl::for_each<StorageRange>(Compare<Kernel, Base>(analytic, diff, i, d));
                 
             };

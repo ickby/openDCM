@@ -67,23 +67,44 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d,
     typedef typename Kernel::Scalar Scalar;
     typedef DependendGeometry<Kernel, geometry::Cluster3d, Base> Inherited;
     
+    /**
+     * @brief Creates the internal local value
+     * This function calculates the local value l from the global value g, which is used as this geometries
+     * output, and the input equations transformation t. g=l*t --> l = g*t^-1. If you have multiple 
+     * stacked clusters than you need to apply the additional transformations afterwards with 
+     * transformLocal
+     */
+    void setupLocal() {
+       dcm_assert(Inherited::m_input);
+       std::cout<<"setupLocal with transform: "<<std::endl<<Inherited::m_input->transform()<<std::endl;
+       m_local = Inherited::output().transform(Inherited::m_input->transform().invert());
+       std::cout<<"Local Value: "<<std::endl<<m_local.point()<<std::endl;
+    };
+    
     void transformLocal(const details::Transform<Scalar, 3>& t) {
         m_local.transform(t);
     };
     
     CALCULATE() {
-        /*
-        dcm_assert(Inherited::m_base);
-        Inherited::m_value = m_local.transformed(Inherited::m_base->transform());
         
+        dcm_assert(Inherited::m_input);
+        Inherited::output() = m_local.transformed(Inherited::m_input->transform());
+        std::cout<<"Calculate with transform: "<<std::endl<<Inherited::m_input->transform()<<std::endl;
+        std::cout<<"Calculate with m_local: "<<std::endl<<m_local.point()<<std::endl;
+       
+        //We already have a derivative for each cluster parameter, hence we don't need to create 
+        //anything new. we just go other all input equation derivatives and use those to calculate 
+        //our derivatives, which is for a transformation a simple g=l*t'
         typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
-        for(typename Inherited::DependendDerivativePack& d : Inherited::m_base->derivatives()) {
+        for(typename Inherited::InputEqn::DerivativePack& d : Inherited::m_input->derivatives()) {
 
+            std::cout<<"Derivative: "<<std::endl<<d.first.transform()<<std::endl;
+            std::cout<<"Derivative Rot: "<<std::endl<<d.first.rotation()<<std::endl;
             dcm_assert(it != Inherited::derivatives().end());
             dcm_assert(it->second == d.second)
-            it->first = m_local.transformed(d.first.transform());        
+            it->first  = m_local.transformed(d.first.transform());
             ++it;
-        };*/
+        };
     };
         
 protected:
@@ -106,15 +127,18 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
 
         //we just want to set the derivatives for the translational parameters already in the init
         //function as they stay constant, no need to rewrite them every time
-        std::reverse_iterator<typename Inherited::DerivativePackIterator> it = Inherited::derivatives().rbegin();
+        typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
 
-        for(int i=2; i>=0; --i) {
+        for(int i=0; i<3; ++i) {
             it->first.translation()(i) = 1;
             ++it;
         }
     };
 
     CALCULATE() {
+        
+        //ensure the mapping was processed
+        Inherited::paramToStorage();
 
         //calculate the quaternion and rotation matrix from the parameter vector
         const Eigen::Quaternion<Scalar> Q = calculateTransform();
@@ -152,7 +176,7 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
         const Scalar dwc = -sn*NQFAKTOR*normQ(2);
 
         dcm_assert(Inherited::derivatives().size()==6);
-        typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
+        typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin() + 3;
 
         //dQ/dx
         Eigen::Matrix<Scalar,3,3>& diffx = it->first.rotation();
@@ -214,16 +238,16 @@ protected:
     using Inherited::m_parameterStorage;
     
     auto pTranslation() -> decltype(fusion::at_c<0>(m_parameterStorage)) {
-        return fusion::at_c<1>(m_parameterStorage);
+        return fusion::at_c<0>(m_parameterStorage);
     };
 
     auto pRotation() -> decltype(fusion::at_c<1>(m_parameterStorage)) {
-        return fusion::at_c<0>(m_parameterStorage);
+        return fusion::at_c<1>(m_parameterStorage);
     };
 
     typename Eigen::Quaternion<Scalar> calculateTransform() {
 
-        Scalar norm = pRotation().norm();
+        const Scalar norm = pRotation().norm();
         m_transformation.setIdentity();
 
         if(norm < 0.1) {
@@ -260,7 +284,7 @@ protected:
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, information) << "Reset cluster rotation:"<<std::endl<<trans;
 #endif
-
+        std::cout<<"Reset claster Rotation!"<<std::endl;
         trans = m_resetTransform.inverse()*trans;
 
         for(auto& fct : m_transformables)
@@ -281,6 +305,9 @@ protected:
         }
 
         pTranslation() = trans.translation().vector();
+        
+        //move the values to the parameters
+        Inherited::storageToParam();
     };
 
 
