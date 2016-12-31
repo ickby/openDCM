@@ -119,6 +119,7 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
                   public std::enable_shared_from_this<Equation<Kernel, Output>> {   
     
     typedef typename mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type Base;
+    using Base::operator=;
     
     typedef Kernel                                              KernelType;
     typedef Output                                              OutputType;
@@ -149,7 +150,9 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
      * \see output()
      * @return const Output&
      */    
-    operator const Output&() const {return output();}        
+    operator const Output&() const {return output();} 
+    
+    Output& operator=(const Output& in) {output() = in;};
     
     /**
      * @brief Access all initialized free parameters

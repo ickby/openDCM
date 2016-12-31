@@ -15,7 +15,7 @@ set(test_SRC  define.cpp
               #mapping.cpp
               #kernel.cpp
               #system.cpp
-              #numeric.cpp
+              numeric.cpp
               #constraint.cpp
 	      #clustergraph.cpp
 	      #reduction.cpp

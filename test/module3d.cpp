@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         BOOST_FAIL("Unknown exception");
     }
 };
-/*
+
 BOOST_AUTO_TEST_CASE(geometry) {
     
     Vector3 v;
@@ -219,5 +219,5 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         BOOST_FAIL("Unknown exception");
     }
 }
-*/
+
 BOOST_AUTO_TEST_SUITE_END();

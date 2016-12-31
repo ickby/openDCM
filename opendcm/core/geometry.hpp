@@ -123,6 +123,9 @@ namespace geometry {
  * \note The transform interface is not implemented by this class. Thats because it is impossible to determine
  * how each storage entry needs to be transformed. Also the space dimension is not known. Therefore it is 
  * the derived classes responibility to implement that interface. 
+ * 
+ * @note To allow easy access to the stored elements the template function at<Idx> is given, which returnes
+ *       the stored data at the given idex.
  *
  * \tparam Kernel The math \ref Kernel in use
  * \tparam StorageTypes Variadic sequence of storage types
@@ -133,9 +136,25 @@ struct Geometry {
     typedef mpl::vector< StorageTypes... >                               StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type Storage;
     
+    Geometry& operator=(const Storage& storage) {m_storage = storage;};
 protected:
     Storage m_storage;
+    
+    template<int Idx>
+    auto at()->decltype(fusion::at_c<Idx>(m_storage)) {
+        return fusion::at_c<Idx>(m_storage);
+    };
 };
+
+/**
+ * @brief Create a assignable storage for primitive Geometries
+ * 
+ * Helper function to easily group objects for assignement to an primitive geometry
+ */
+template<typename... StorageTypes> 
+typename fusion::result_of::make_vector<StorageTypes...>::type make_storage(const StorageTypes&... args) {
+    return fusion::make_vector(args...);
+}
 
 /**
  * @brief Extractor of geometry base from initialized type
@@ -327,6 +346,7 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
 
     typedef Equation<Kernel, Base<Kernel>> Inherited;
     typedef typename Kernel::Scalar        Scalar;
+    using Inherited::operator=;
 
     //mpl trickery to get a sequence counting from 0 to the size of stroage entries
     typedef mpl::range_c<int,0,
@@ -408,6 +428,7 @@ struct ParameterGeometry : public Equation<Kernel, Base<Kernel>> {
     typedef typename Kernel::Scalar         Scalar;
     typedef Equation<Kernel, Base<Kernel>>  Inherited;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
+    using Inherited::operator=;
     
     ParameterGeometry() {
         fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
@@ -474,6 +495,7 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
     typedef UnaryEquation<Kernel, Input<Kernel>, Output<Kernel>>                   Inherited;
     typedef typename Kernel::Scalar                                                Scalar;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
+    using Inherited::operator=;
 
     DependendGeometry() {
         fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));

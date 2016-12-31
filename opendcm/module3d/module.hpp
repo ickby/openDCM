@@ -244,8 +244,7 @@ struct Module3D {
                 //add the primitive constraint to the global edge
                 symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
                 tc->setPrimitiveConstraint(t);
-                //tc->setConstraintID(Final::template constraintIndex<T>::value);
-                pretty(T());
+                tc->setConstraintID(Final::template constraintIndex<T>::value);
                 cluster->template setProperty<ConstraintProperty>(fusion::at_c<1>(res), tc);
                 
                 t.setDefault();

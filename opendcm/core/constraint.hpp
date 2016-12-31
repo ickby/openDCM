@@ -46,7 +46,7 @@ enum class SolutionSpaces {Bidirectional, Positiv_directional, Negative_directio
  * @brief Constraint primitives handling
  *
  * Equivalent to the geometric primitives there is a definition for constraint primitives. A constraint 
- * primitive is a constraint type like distace, primitive in this context means that it holds only its type
+ * primitive is a constraint type like distance, primitive in this context means that it holds only its type
  * and all needed information to fully define it, called option. For a distance constraint this is for 
  * example the nuemeric distance value. A primitive is used to store and access the type and its data in a
  * compfortable and user friendly way.
@@ -82,30 +82,33 @@ enum class SolutionSpaces {Bidirectional, Positiv_directional, Negative_directio
  */
 namespace constraint {  
 
-    /**
-     * @brief Herlper class to create primitive constraints
-     * 
-     * The primitive constraint type concept formulates a few requirements on the used types. To achieve a full
-     * compatibility with the concept a certain boilerplate is needed. To circumvent this boilerplate this class
-     * is given. It accepts the option types for the constraint as template arguments and then provides
-     * all needed storages and assignment operators. 
-     * This only works for option types which are default constructible. The only second restriction is that the
-     * option types need to distuinguishable. To use a option type twice is not allowd, for example two times int.
-     * Otherwise the option assignement of single options would be ambigious. 
-     * The default value requirement is achieved through the constructor which acceppts the default values. If 
-     * the standart constructor is used then the default constructed values of the option types are used as 
-     * default values. Note that you must provide the constructors also in your derived class.
-     * An example cosntraint can look like this:
-     * @code
-     * struct TetstConstraint : public constraint::Constraint<int, char> {
-     *    TestConstraint(const int& i, const char& c) : Constraint(i,c) {};
-     * };
-     * TestConstraint test(1,'a');
-     * @endcode
-     * 
-     * \param OptionTypes a variadic sequence of copy constructable types which describe the stored options
-     */    
-template<typename ...OptionTypes>
+/**
+ * @brief Herlper class to create primitive constraints
+ * 
+ * The primitive constraint type concept formulates a few requirements on the used types. To achieve a full
+ * compatibility with the concept a certain boilerplate is needed. To circumvent this boilerplate this class
+ * is given. It accepts the option types for the constraint as template arguments and then provides
+ * all needed storages and assignment operators. 
+ * This only works for option types which are default constructible. The only second restriction is that the
+ * option types need to distuinguishable. To use a option type twice is not allowd, for example two times int.
+ * Otherwise the option assignement of single options would be ambigious. 
+ * The default value requirement is achieved through the constructor which acceppts the default values. If 
+ * the standart constructor is used then the default constructed values of the option types are used as 
+ * default values. Note that you must provide the constructors also in your derived class.
+ * An example constraint can look like this:
+ * @code
+ * struct TetstConstraint : public constraint::Constraint<TestConstraint, int, char> {
+ *    using Constraint::operator=;
+ *    TestConstraint() {};
+ *    TestConstraint(const int& i, const char& c) : Constraint(i,c) {};
+ * };
+ * TestConstraint test(1,'a');
+ * @endcode
+ * @note To allow easy access to the stored options the template function at<Idx> is given, which returnes
+ *       the stored data at the given idex. 
+ * \param OptionTypes a variadic sequence of copy constructable types which describe the stored options
+*/    
+template<typename Derived, typename ...OptionTypes>
 struct Constraint {
 
     typedef typename fusion::vector<OptionTypes...> Options;
@@ -117,34 +120,37 @@ struct Constraint {
         m_storage = m_defaults;
     };
     
+    Derived& derived() {return *static_cast<Derived*>(this);};
+    const Derived& derived() const {return *static_cast<const Derived*>(this);};
+    
     //Copy assign option. We provide this to allow the automatic copy constructor to be generated. 
     //This gives 2 operators for the price of implementing one, for this base and all derived classes.
     //As we have only one parameter in this function it would be ambigious with the single option 
     //operator(), hence we need to activate/deactivate both according to the provided type.
     template<typename T>
-    typename boost::disable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& c) {
+    typename boost::disable_if<mpl::contains<Options, T>, Derived&>::type operator()(const T& c) {
         m_storage = c.m_storage;
-        return *this;
+        return derived();
     };
 
     //Set a single option. As we have only one parameter in this function it would be ambigious with the 
     //copy operator(), hence we need to activate/deactivate both according to the provided type.
     template<typename T>
-    typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator()(const T& val) {
+    typename boost::enable_if<mpl::contains<Options, T>, Derived&>::type operator()(const T& val) {
         BOOST_MPL_ASSERT((mpl::contains<Options, T>));
         *fusion::find<T>(m_storage) = val;
-        return *this;
+        return derived();
     };
     
     //set multiple options at once.
-    Constraint& operator()(const OptionTypes&... val) {
+    Derived& operator()(const OptionTypes&... val) {
         m_storage = Options(val...);
-        return *this;
+        return derived();
     };
 
     //Assign option. Disable it to avoid confusion with the copy assignement operator
     template<typename T>
-    typename boost::enable_if<mpl::contains<Options, T>, Constraint&>::type operator=(const T& val) {
+    typename boost::enable_if<mpl::contains<Options, T>, Derived&>::type operator=(const T& val) {
         return operator()(val);
     };
     
@@ -173,6 +179,11 @@ struct Constraint {
 protected:
     Options       m_storage;
     const Options m_defaults;
+    
+    template<int Idx>
+    auto at()->decltype(fusion::at_c<Idx>(m_storage)) {
+        return fusion::at_c<Idx>(m_storage);
+    };
 };
 
 }//constraint
@@ -252,7 +263,7 @@ struct ConstraintBase : public BinaryEquation<Kernel, PG1, PG2, typename Kernel:
  * @brief Class for numeric evaluation of primitive constraints
  * 
  * Primitive constraints hold only their constraint type and the options to fully define their behaviour. 
- * As numeric evaluation of constraints may be needed in the solving procesm this information is not enough.
+ * As numeric evaluation of constraints may be needed in the solving process this information is not enough.
  * The governing equations for the primitive constraints and their various possible geometry combinations 
  * are needed. This and all derived classes provide a conviniet interface to handle all required equations.
  * 
@@ -624,29 +635,29 @@ struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Ker
 //every compiled file including this header would define these as global and the linker would find
 //multiple definitions of the same objects
 
-struct Distance : public dcm::constraint::Constraint<double, SolutionSpaces> {
+struct Distance : public dcm::constraint::Constraint<Distance, double, SolutionSpaces> {
     using Constraint::operator=;
     Distance(){};
     Distance(const double& i, SolutionSpaces s) : Constraint(i,s) {};
     
-    double&        distance() {return fusion::at_c<0>(m_storage);};
-    SolutionSpaces solutionSpace() {return fusion::at_c<1>(m_storage);};
+    double&        distance() {return at<0>();};
+    SolutionSpaces solutionSpace() {return at<1>();};
 };
 
-struct Orientation : public dcm::constraint::Constraint<Orientations> {
+struct Orientation : public dcm::constraint::Constraint<Orientation, Orientations> {
     using Constraint::operator=;
-    Orientation(){};
+    Orientation() {};
     Orientation(const Orientations& i) : Constraint(i) {};
     
-    Orientations& orientation() {return fusion::at_c<0>(m_storage);};
+    Orientations& orientation() {return at<0>();};
 };
 
-struct Angle : public dcm::constraint::Constraint<double> {
+struct Angle : public dcm::constraint::Constraint<Angle, double> {
     using Constraint::operator=;
-    Angle(){};
-    Angle(const double& i) : Constraint(i) {};
+    Angle() {};
+    Angle(const double& i) : Constraint(i) {}; 
     
-    double& angle() {return fusion::at_c<0>(m_storage);};
+    double& angle() {return at<0>();};
 };
 
 static Distance         distance(0, SolutionSpaces::Bidirectional);

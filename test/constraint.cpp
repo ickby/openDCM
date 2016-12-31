@@ -26,14 +26,14 @@
 typedef dcm::Eigen3Kernel<double> K;
 
 //two vectors perpendicular, maybe the easiest constraints of them all
-struct test_constraint1 : public dcm::constraint::Constraint<int> {
+struct test_constraint1 : public dcm::constraint::Constraint<test_constraint1, int> {
     using Constraint::operator=;
     test_constraint1(const int& i) : Constraint(i) {};
     
     int& radius() {return fusion::at_c<0>(m_storage);};
 };
 
-struct test_constraint2 : public dcm::constraint::Constraint< double, char> {
+struct test_constraint2 : public dcm::constraint::Constraint<test_constraint2,  double, char> {
     using Constraint::operator=;
     test_constraint2(const double& d, const char& c) : Constraint(d, c) {};
     

@@ -30,6 +30,7 @@
 #include "module3d/module.hpp"
 #include "module3d/geometry.hpp"
 #include "module3d/cluster.hpp"
+#include "module3d/distance.hpp"
 
 
 #endif //DCM_MODULE3D_H

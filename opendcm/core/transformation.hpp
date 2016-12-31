@@ -134,6 +134,8 @@ std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& o
  * transformation data. Hence it can be fully manipulated, which means it is default constructible,
  * and the multiplication operators returning Transform type work. The itnernal storage for rotations
  * is a quaternion, hence normalisation is cheap. 
+ * @note As this class uses Quaternion as storage, it cannot represent a [0] rotation matrix, hence 
+ *       using this for derivatives where the rotated part should become 0 is not possible.
  */
 template<typename Scalar_, int Dim>
 class Transform : public TransformBase<Transform<Scalar_, Dim>> {

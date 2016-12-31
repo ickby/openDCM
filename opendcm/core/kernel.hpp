@@ -287,7 +287,11 @@ private:
         
 public:
     Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec) : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->size())),
-                                                        m_equations(vec) {}; 
+                                                        m_equations(vec) {
+    
+        //make sure the equations are correctly initialised
+        m_equations->init(m_system);
+    }; 
 
     virtual void execute();
 };
@@ -384,8 +388,7 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
 template<typename Kernel>
 void Dogleg<Kernel>::execute() {
 
-    clock_t start = clock();
-
+    clock_t start = clock();   
     /*
     if(!m_system.isValid())
         throw solving_error() <<  boost::errinfo_errno(5) << error_message("invalid equation system");

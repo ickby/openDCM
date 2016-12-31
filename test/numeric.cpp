@@ -66,7 +66,7 @@ template<typename Kernel>
 struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>> {
 
     using geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>>::m_storage;
-    //using geometry::Geometry<Kernel, geometry::storage::Vector<3>>::operator=;
+    using geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>>::operator=;
    
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
@@ -76,6 +76,7 @@ struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3
 template<typename Kernel>
 struct TMatrix3 : public geometry::Geometry<Kernel, numeric::Matrix<Kernel, 3, 3>> {
 
+    using geometry::Geometry<Kernel, numeric::Matrix<Kernel, 3, 3>>::operator=;
     using geometry::Geometry<Kernel, numeric::Matrix<Kernel, 3, 3>>::m_storage;
     
     numeric::Matrix<Kernel, 3, 3>& value() {
@@ -90,6 +91,7 @@ struct TCylinder3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>
     typedef geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>,
                                  typename Kernel::Scalar, numeric::Vector<Kernel, 3>> Inherited;
     using Inherited::m_storage;
+    using Inherited::operator=;
     
     auto point() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
@@ -191,6 +193,11 @@ BOOST_AUTO_TEST_CASE(geometry) {
     
     numeric::LinearSystem<K> sys(20,20);    
     numeric::Geometry<K, TDirection3> dirGeom;
+    basic_vec.value() = Eigen::Vector3d(1.,2.,3.);
+    dirGeom = basic_vec;
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(1.,2.,3)));
+    dirGeom.value() = Eigen::Vector3d(0.,0.,0);
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(0.,0.,0)));
     
     BOOST_CHECK(dirGeom.newParameterCount() == 3);
     
@@ -211,14 +218,17 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.second.Value != 0);
         ++c;
     };
-    
+
+    TCylinder3<K> cylValue;
+    cylValue = dcm::geometry::make_storage(Eigen::Vector3d(0.,0.,0), 0, Eigen::Vector3d(0.,0.,0));    
     numeric::Geometry<K, TCylinder3> cylGeom;
-    
+    cylGeom = cylValue;
+    cylGeom = dcm::geometry::make_storage(Eigen::Vector3d(0.,0.,0), 0, Eigen::Vector3d(0.,0.,0)); 
     cylGeom.init(sys);
     BOOST_REQUIRE(cylGeom.parameters().size() == 7);
     BOOST_REQUIRE(cylGeom.derivatives().size() == 7);
    
-    typedef numeric::Geometry<K, TCylinder3>::DerivativePack        TCyl3Derivative;
+    typedef numeric::Geometry<K, TCylinder3>::DerivativePack     TCyl3Derivative;
     typedef numeric::Geometry<K, TCylinder3>::ParameterIterator  TCyl3ParIt;
     
     c=0;
@@ -241,7 +251,6 @@ BOOST_AUTO_TEST_CASE(geometry) {
         
         c++;
     };
-    
     //let's see if the mapping works
     sys.parameter().head<3>() = Eigen::Vector3d(7.1,8.2,9.3);
     dirGeom.execute();
@@ -261,7 +270,6 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(cylGeom.radius() == (3.3));
     BOOST_CHECK(cylGeom.direction().isApprox(Eigen::Vector3d(5.5,6.6,7.7)));
     BOOST_CHECK(cylGeom.point().isApprox(Eigen::Vector3d(0,0,0)));
-    
     
     //and check matrix types
     numeric::Geometry<K, TMatrix3> matGeom;

@@ -26,52 +26,48 @@
 #include <boost/math/special_functions.hpp>
 
 namespace dcm {
-
+namespace numeric {
+    
 template<typename Kernel>
-struct Distance::type< Kernel, tag::point3D, tag::point3D > {
+struct Constraint<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> 
+        : public numeric::ConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> {
+  
+    typedef numeric::ConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry1           Geometry1;
+    typedef typename Inherited::Derivative1         Derivative1;
+    typedef typename Inherited::Geometry2           Geometry2;
+    typedef typename Inherited::Derivative2         Derivative2;
+    
+    Constraint() {
+    };
+    
+    Scalar calculateError(Geometry1& g1, Geometry2& g2) {        
+        return (g1.point()-g2.point()).norm() - Inherited::distance();
+    };
 
-    typedef typename Kernel::number_type Scalar;
-    typedef typename Kernel::VectorMap   Vector;
-    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
+    Scalar calculateGradientFirst(Geometry1& g1, Geometry2& g2, Derivative1& dg1) {        
+        return (g1.point()-g2.point()).dot(dg1.point()) / (g1.point()-g2.point()).norm();
+    };
 
-    Scalar sc_value;
-    typename Distance::options values;
+    Scalar calculateGradientSecond(Geometry1& g1, Geometry2& g2, Derivative2& dg2) {        
+        return (g1.point()-g2.point()).dot(-dg2.point()) / (g1.point()-g2.point()).norm();
+    };
 
-    //template definition
-    void calculatePseudo(typename Kernel::Vector& param1, Vec& v1, typename Kernel::Vector& param2, Vec& v2) {};
-    void setScale(Scalar scale) {
-        sc_value = fusion::at_key<double>(values).second*scale;
+    Vector calculateGradientFirstComplete(Geometry1& g1, Geometry2& g2) {
+        return (g1.point()-g2.point()) / (g1.point()-g2.point()).norm();
     };
-    template <typename DerivedA,typename DerivedB>
-    Scalar calculate(const E::MatrixBase<DerivedA>& param1,  const E::MatrixBase<DerivedB>& param2) {
-        return (param1-param2).norm() - sc_value;
-    };
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    Scalar calculateGradientFirst(const E::MatrixBase<DerivedA>& param1,
-                                  const E::MatrixBase<DerivedB>& param2,
-                                  const E::MatrixBase<DerivedC>& dparam1) {
-        return (param1-param2).dot(dparam1) / (param1-param2).norm();
-    };
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    Scalar calculateGradientSecond(const E::MatrixBase<DerivedA>& param1,
-                                   const E::MatrixBase<DerivedB>& param2,
-                                   const E::MatrixBase<DerivedC>& dparam2) {
-        return (param1-param2).dot(-dparam2) / (param1-param2).norm();
-    };
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    void calculateGradientFirstComplete(const E::MatrixBase<DerivedA>& param1,
-                                        const E::MatrixBase<DerivedB>& param2,
-                                        E::MatrixBase<DerivedC>& gradient) {
-        gradient = (param1-param2) / (param1-param2).norm();
-    };
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    void calculateGradientSecondComplete(const E::MatrixBase<DerivedA>& param1,
-                                         const E::MatrixBase<DerivedB>& param2,
-                                         E::MatrixBase<DerivedC>& gradient) {
-        gradient = (param2-param1) / (param1-param2).norm();
+
+    Vector calculateGradientSecondComplete(Geometry1& g1, Geometry2& g2) {
+        return (g1.point()-g2.point()) / (g1.point()-g2.point()).norm();
     };
 };
 
+}//numeric
+}//dcm
+
+/*
 template<typename Kernel>
 struct Distance::type< Kernel, tag::point3D, tag::line3D > {
 
@@ -728,6 +724,6 @@ struct Distance::type< Kernel, tag::cylinder3D, tag::cylinder3D > : public Dista
 };
 
 }//namespace dcm
-
-#endif //GCM_DISTANCE3D_H
+*/
+#endif //DCM_DISTANCE3D_H
 
