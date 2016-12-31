@@ -60,28 +60,28 @@ BOOST_AUTO_TEST_CASE(cluster) {
         BOOST_CHECK(cluster->parameters().size()==6);
         BOOST_CHECK(cluster->derivatives().size()==6);
         
-//         //test if we change the result from the parameters
-//         auto p = cluster->parameters();
-//         for(int i=0; i<3; ++i) {
-//             auto initialR = cluster->rotation();
-//             auto initialT = cluster->translation();
-//             *p[i].Value = 10;
-//             cluster->calculate();
-//             BOOST_REQUIRE(!initialT.isApprox(cluster->translation()));
-//             BOOST_REQUIRE(initialR.isApprox(cluster->rotation()));
-//             BOOST_REQUIRE_EQUAL(cluster->translation()(i), 10);
-//         }
-//         for(int i=3; i<6; ++i) {
-//             auto initialR = cluster->rotation();
-//             auto initialT = cluster->translation();
-//             *p[i].Value = 10;
-//             cluster->calculate();
-//             BOOST_REQUIRE(initialT.isApprox(cluster->translation()));
-//             BOOST_REQUIRE(!initialR.isApprox(cluster->rotation()));
-//         }
-//         //reset transform
-//         for(auto p : cluster->parameters())
-//             *p.Value = 0;
+        //test if we change the result from the parameters
+        auto p = cluster->parameters();
+        for(int i=0; i<3; ++i) {
+            auto initialR = cluster->rotation();
+            auto initialT = cluster->translation();
+            *p[i].Value = 10;
+            cluster->calculate();
+            BOOST_REQUIRE(!initialT.isApprox(cluster->translation()));
+            BOOST_REQUIRE(initialR.isApprox(cluster->rotation()));
+            BOOST_REQUIRE_EQUAL(cluster->translation()(i), 10);
+        }
+        for(int i=3; i<6; ++i) {
+            auto initialR = cluster->rotation();
+            auto initialT = cluster->translation();
+            *p[i].Value = 10;
+            cluster->calculate();
+            BOOST_REQUIRE(initialT.isApprox(cluster->translation()));
+            BOOST_REQUIRE(!initialR.isApprox(cluster->rotation()));
+        }
+        //reset transform
+        for(auto p : cluster->parameters())
+            *p.Value = 0;
 
         auto clGeom = std::make_shared<dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>>();
         clGeom->setInputEquation(cluster);
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
 
         cluster->addClusterGeometry(clGeom);
         cluster->calculate();
-/*
+
         for(clDer& der : clGeom->derivatives())
             BOOST_CHECK(der.second.Value != nullptr);
 
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
                [&]() {
                    cluster->calculate();
                }
-        );*/
+        );
         
         //and check the derivatives for an arbitrary value
         clGeom->point() << 1,2,3;

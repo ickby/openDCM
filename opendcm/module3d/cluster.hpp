@@ -47,10 +47,12 @@ struct Cluster3d : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::M
         return fusion::at_c<1>(m_storage);
     };
     
-    details::Transform<Scalar, 3> transform() {
-        return details::Transform<Scalar, 3>(Eigen::Quaternion<Scalar>(rotation()),
-                                             Eigen::Translation<Scalar, 3>(translation()));
+    details::MapMatrixTransform<Scalar, 3> transform() {
+        return details::MapMatrixTransform<Scalar, 3>(rotation(), translation());
     };
+      
+protected:
+    //details::MapMatrixTransform<Scalar, 3> m_transform;
 };
 
 } //geometry
@@ -76,9 +78,7 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d,
      */
     void setupLocal() {
        dcm_assert(Inherited::m_input);
-       std::cout<<"setupLocal with transform: "<<std::endl<<Inherited::m_input->transform()<<std::endl;
-       m_local = Inherited::output().transform(Inherited::m_input->transform().invert());
-       std::cout<<"Local Value: "<<std::endl<<m_local.point()<<std::endl;
+       m_local = Inherited::output().transform(Inherited::m_input->transform().inverse());
     };
     
     void transformLocal(const details::Transform<Scalar, 3>& t) {
@@ -89,8 +89,6 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d,
         
         dcm_assert(Inherited::m_input);
         Inherited::output() = m_local.transformed(Inherited::m_input->transform());
-        std::cout<<"Calculate with transform: "<<std::endl<<Inherited::m_input->transform()<<std::endl;
-        std::cout<<"Calculate with m_local: "<<std::endl<<m_local.point()<<std::endl;
        
         //We already have a derivative for each cluster parameter, hence we don't need to create 
         //anything new. we just go other all input equation derivatives and use those to calculate 
@@ -98,8 +96,6 @@ struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d,
         typename Inherited::DerivativePackIterator it = Inherited::derivatives().begin();
         for(typename Inherited::InputEqn::DerivativePack& d : Inherited::m_input->derivatives()) {
 
-            std::cout<<"Derivative: "<<std::endl<<d.first.transform()<<std::endl;
-            std::cout<<"Derivative Rot: "<<std::endl<<d.first.rotation()<<std::endl;
             dcm_assert(it != Inherited::derivatives().end());
             dcm_assert(it->second == d.second)
             it->first  = m_local.transformed(d.first.transform());
@@ -284,7 +280,6 @@ protected:
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, information) << "Reset cluster rotation:"<<std::endl<<trans;
 #endif
-        std::cout<<"Reset claster Rotation!"<<std::endl;
         trans = m_resetTransform.inverse()*trans;
 
         for(auto& fct : m_transformables)

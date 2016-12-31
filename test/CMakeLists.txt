@@ -19,7 +19,7 @@ set(test_SRC  define.cpp
               #constraint.cpp
 	      #clustergraph.cpp
 	      #reduction.cpp
-	      #module3d.cpp
+	      module3d.cpp
               #clustermath.cpp
               #constraints3d.cpp
 	      #dof.cpp

@@ -73,7 +73,7 @@ public:
     Eigen::Transform<Scalar, Dimension, Eigen::AffineCompact> transformation();
 
     Derived& invert();
-    Derived  inverse();
+    Derived  inverse() const;
 
     //operators for value manipulation
     //********************************
@@ -230,7 +230,7 @@ public:
     
     MapMatrixTransform& invert() {
         m_rotation.transposeInPlace();
-        m_translation.vector() = (m_rotation*m_translation.vector());
+        m_translation = (m_rotation*m_translation);
         return *this;
     };
     
@@ -335,7 +335,7 @@ Derived& TransformBase<Derived>::invert() {
     return derived();
 };
 template<typename Derived>
-Derived TransformBase<Derived>::inverse() {
+Derived TransformBase<Derived>::inverse() const {
     Derived res(derived());
     res.invert();
     return res;
@@ -466,7 +466,7 @@ TransformBase<Derived>::transformation() {
 template<typename charT, typename traits, typename Derived>
 std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::TransformBase<Derived>& t) {
     os << "Rotation:    " << t.rotation()<< std::endl
-       << "Translation: " << t.derived().translationVector().transpose() <<std::endl;
+       << "Translation: " << t.derived().translationVector() <<std::endl;
     return os;
 }
 

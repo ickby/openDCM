@@ -40,12 +40,14 @@ struct Point3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>> {
         return fusion::at_c<0>(m_storage);
     };
     
-    Point3<Kernel>& transform(const details::Transform<Scalar, 3>& t) {
+    template<typename Derived>
+    Point3<Kernel>& transform(const details::TransformBase<Derived>& t) {
         point() = t*point();
         return *this;
     };
-
-    Point3<Kernel>  transformed(const details::Transform<Scalar, 3>& t) {
+    
+    template<typename Derived>
+    Point3<Kernel>  transformed(const details::TransformBase<Derived>& t) {
         Point3<Kernel> copy(*this);
         copy.transform(t);
         return copy;
@@ -65,6 +67,20 @@ struct Line3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vect
     auto direction()->decltype(fusion::at_c<1>(m_storage)) {
         return fusion::at_c<1>(m_storage);
     };
+    
+    template<typename Derived>
+    Line3<Kernel>& transform(const details::TransformBase<Derived>& t) {
+        t.transform(point());
+        t.rotate(direction());
+        return *this;
+    };
+    
+    template<typename Derived>
+    Line3<Kernel>  transformed(const details::TransformBase<Derived>& t) {
+        Line3<Kernel> copy(*this);
+        copy.transform(t);
+        return copy;
+    };
 };
 
 template<typename Kernel>
@@ -79,6 +95,20 @@ struct Plane : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vect
 
     auto direction()->decltype(fusion::at_c<1>(m_storage)) {
         return fusion::at_c<1>(m_storage);
+    };
+    
+    template<typename Derived>
+    Plane<Kernel>& transform(const details::TransformBase<Derived>& t) {
+        t.transform(point());
+        t.rotate(direction());
+        return *this;
+    };
+    
+    template<typename Derived>
+    Plane<Kernel>  transformed(const details::TransformBase<Derived>& t) {
+        Plane<Kernel> copy(*this);
+        copy.transform(t);
+        return copy;
     };
 };
 
@@ -99,6 +129,20 @@ struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::V
 
     Scalar& radius() {
         return Inherited::rmPtr(fusion::at_c<1>(m_storage));
+    };
+    
+    template<typename Derived>
+    Cylinder<Kernel>& transform(const details::TransformBase<Derived>& t) {
+        t.transform(point());
+        t.rotate(direction());
+        return *this;
+    };
+    
+    template<typename Derived>
+    Cylinder<Kernel>  transformed(const details::TransformBase<Derived>& t) {
+        Cylinder<Kernel> copy(*this);
+        copy.transform(t);
+        return copy;
     };
 };
 
