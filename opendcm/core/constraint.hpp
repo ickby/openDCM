@@ -237,7 +237,8 @@ namespace numeric {
  * To ease the specification of the parent classes for specilized numeric constraint classes as well 
  * as simplifying the needed types this class is given. It encapsulates all needed inheritance and 
  * typedefs. Note that the equation exposes a single scalar as result. This is due to the fact, that 
- * a constraint equation is always a error function for the numeric solver.
+ * a constraint equation is always a error function for the numeric solver. Hence this class also 
+ * ensures that the Calculatable newResidualCount() returns one. 
  */
 template<typename Kernel, typename PC, typename PG1, typename PG2>
 struct ConstraintBase : public BinaryEquation<Kernel, PG1, PG2, typename Kernel::Scalar>, 
@@ -256,6 +257,10 @@ struct ConstraintBase : public BinaryEquation<Kernel, PG1, PG2, typename Kernel:
         
         void assign(const PC& pc) {
             operator=(pc);
+        };
+        
+        ConstraintBase() {
+            Equation::m_residualCount = 1;
         };
 };
     

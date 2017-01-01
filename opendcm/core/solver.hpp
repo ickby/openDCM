@@ -185,6 +185,10 @@ struct FlowGraphExtractor : public boost::default_dfs_visitor {
 template<typename Kernel, typename Graph>
 std::shared_ptr<shedule::Executable> buildGraphNumericSystem(std::shared_ptr<Graph> g) {
     
+    //to ensure that we do not forget anything or that we have processed things twice we create a 
+    //vector to store what waas processed so far.
+    typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
+    std::map<graph::LocalVertex, CalcPtr> vProcessed;
     
     //we build up the numeric system for this graph. This also means finding parts that can be solved 
     //indivudual or simply after the main part (one-connected components)
@@ -243,16 +247,32 @@ std::shared_ptr<shedule::Executable> buildGraphNumericSystem(std::shared_ptr<Gra
     //iterate over all edges and create the equations for them
     auto edges = g->edges();
     for(; edges.first != edges.second; ++edges.first) {    
-        //this is the most stupid code ever as nearly all geometry equations are added twice
         typedef typename numeric::EquationBuilderProperty<Kernel> prop;
         numeric::EquationBuilder<Kernel>* builder = g->template getProperty<prop>(*edges.first); 
-        auto g1 = builder->createGeometry(g->source(*edges.first));
-        fg->addExecutable(g1);
-        auto g2 = builder->createGeometry(g->target(*edges.first));
-        fg->addExecutable(g2);
-        auto vec = builder->createEquations(g1, g2);
-        fg->append(vec);
+        auto source = g->source(*edges.first);
+        CalcPtr g1;
+        auto it = vProcessed.find(source);
+        if( it == vProcessed.end() ) {
+            g1 = builder->createGeometry(source);
+            fg->addExecutable(g1);
+            vProcessed[source] = g1;
+        }
+        else 
+            g1 = it->second;
         
+        auto target = g->target(*edges.first);
+        CalcPtr g2;
+        it = vProcessed.find(target);
+        if( it == vProcessed.end() ) {
+            g2 = builder->createGeometry(target);
+            fg->addExecutable(g2);
+            vProcessed[target] = g2;
+        }
+        else 
+            g2 = it->second;
+        
+        auto vec = builder->createEquations(g1, g2);
+        fg->append(vec);        
     }
    
     //build the solver object        

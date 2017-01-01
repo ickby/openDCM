@@ -211,9 +211,18 @@ struct Calculatable : shedule::Executable {
      */
     unsigned int newParameterCount() {return m_parameterCount;};
     
+    /**
+     * @brief Number of residuals this equation creates
+     * 
+     * Return the amount of residuals this equation will provide in the solving process. The amount is later
+     * mapped into the linear system on \ref init. It is possible to access this function before initialisation.
+     * @return void
+     */
+    unsigned int newResidualCount() {return m_residualCount;};
+    
 protected:
     unsigned int m_parameterCount = 0; //how many parameters are added by this equation?
-
+    unsigned int m_residualCount = 0; //how many residuals are added by this equation?
 };
 
 /**
@@ -250,13 +259,31 @@ struct CalculatableSequentialVector : public shedule::_SequentialVector<
      */
     unsigned int newParameterCount() {return m_parameterCount;};
     
+    /**
+     * @brief Number of residuals all stored equations create
+     * 
+     * Return the amount of residuals all equations in this vector will provide in the solving process. 
+     * @return void
+     */
+    unsigned int newResidualCount() {return m_residualCount;};
+    
     void addExecutable(std::shared_ptr<Calculatable<Kernel>> ex) {
         m_parameterCount += ex->newParameterCount();
+        m_residualCount += ex->newResidualCount();
         Base::m_executables.push_back(ex);
+    };
+    
+    void append(std::vector<std::shared_ptr<Calculatable<Kernel>>>& vec) {
+        Base::append(vec);
+        for(auto ptr : vec) {
+            m_parameterCount += ptr->newParameterCount();
+            m_residualCount += ptr->newResidualCount();
+        }
     };
     
 private:
     unsigned int m_parameterCount = 0;
+    unsigned int m_residualCount = 0;
 };
     
 //the standart eigen3 dogleg solver
@@ -286,14 +313,16 @@ private:
                        const double delta);
         
 public:
-    Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec) : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->size())),
-                                                        m_equations(vec) {
+    Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec) 
+        : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->newResidualCount())), m_equations(vec) {
     
         //make sure the equations are correctly initialised
         m_equations->init(m_system);
         
 #ifdef DCM_USE_LOGGING
         log.add_attribute("Tag",  attrs::constant<std::string>("DogLeg"));
+        BOOST_LOG_SEV(log, details::solving) << "Setup with "<< vec->newResidualCount() << " equations and "
+                                             << vec->newParameterCount() << " parameters";
 #endif
     }; 
 
