@@ -42,7 +42,7 @@ struct geometry_traits<Vector3> {
 typedef dcm::System<dcm::Module3D<Vector3>> System;
 
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
-
+/*
 BOOST_AUTO_TEST_CASE(cluster) {
 
     typedef dcm::numeric::Cluster3d<K>::ParameterIterator     cParIt;
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(constraint) {
         BOOST_FAIL("Unknown exception");
     }
 };
-
+*/
 BOOST_AUTO_TEST_CASE(basic_solve) {
     
     Vector3 v1, v2, v3, v4;
@@ -195,6 +195,7 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
     try {
         
         System s;
+        s.setLoggingFilter(dcm::details::severity >= dcm::details::severity_level::iteration);
         std::shared_ptr<System::Geometry3D> g1 = s.addGeometry3D(v1);
         std::shared_ptr<System::Geometry3D> g2 = s.addGeometry3D(v2);
         std::shared_ptr<System::Geometry3D> g3 = s.addGeometry3D(v3);

@@ -278,7 +278,7 @@ protected:
     void resetClusterRotation(details::Transform<Scalar, 3>& trans) {
 
 #ifdef DCM_USE_LOGGING
-        BOOST_LOG_SEV(log, information) << "Reset cluster rotation:"<<std::endl<<trans;
+        BOOST_LOG_SEV(log, details::information) << "Reset cluster rotation:"<<std::endl<<trans;
 #endif
         trans = m_resetTransform.inverse()*trans;
 
@@ -315,7 +315,7 @@ protected:
     std::vector<std::function<void(const details::Transform<Scalar, 3>&)>> m_transformables;
     
 #ifdef DCM_USE_LOGGING
-    dcm_logger log;
+    details::dcm_logger log;
 #endif
 };
 

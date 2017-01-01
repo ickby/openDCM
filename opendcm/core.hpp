@@ -42,6 +42,7 @@
 //#include "core/geometry.hpp"
 //#include "core/kernel.hpp"
 #include "core/system.hpp"
+#include "core/logging.hpp"
 
 /*
 #ifdef DCM_EXTERNAL_CORE

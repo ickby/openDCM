@@ -11,11 +11,11 @@ link_directories ( ${Boost_LIBRARY_DIRS} ${TBB_LIBRARY_DIR} )
 set(framework_SRC framework.cpp)
 
 set(test_SRC  define.cpp
-              transform.cpp
+              #transform.cpp
               #mapping.cpp
               #kernel.cpp
               #system.cpp
-              numeric.cpp
+              #numeric.cpp
               #constraint.cpp
 	      #clustergraph.cpp
 	      #reduction.cpp
@@ -33,11 +33,7 @@ set(test_SRC  define.cpp
 )
 
 if(LOGGING)
-set(LOG_LIBS  boost_log
-	      rt
-	      ${Boost_FILESYSTEM_LIBRARY}
-	      ${Boost_THREAD_LIBRARY}
-)
+set(LOG_LIBS  ${Boost_LIBRARIES})
 endif(LOGGING)
 
 add_library(framework ${framework_SRC})

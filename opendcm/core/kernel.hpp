@@ -264,7 +264,7 @@ template<typename Kernel>
 struct Dogleg  : shedule::Executable {
 
 #ifdef DCM_USE_LOGGING
-    dcm_logger log;
+    details::dcm_logger log;
 #endif
 private:
 
@@ -291,6 +291,10 @@ public:
     
         //make sure the equations are correctly initialised
         m_equations->init(m_system);
+        
+#ifdef DCM_USE_LOGGING
+        log.add_attribute("Tag",  attrs::constant<std::string>("DogLeg"));
+#endif
     }; 
 
     virtual void execute();
@@ -309,22 +313,22 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     // get the gauss-newton step
     const Vector h_gn = jacobi.fullPivLu().solve(-residual);
     const double eigen_error = (jacobi*h_gn + residual).norm();
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
     if(eigen_error>1e-9)
-        BOOST_LOG_SEV(log, error) << "Linear system solved incorrect: "<<eigen_error;
+        BOOST_LOG_SEV(log, details::error) << "Linear system solved incorrect: "<<eigen_error;
     
     if(!boost::math::isfinite(h_gn.norm())) {
-        BOOST_LOG_SEV(log, error) << "Unnormal gauss-newton detected: "<<h_gn.norm();
+        BOOST_LOG_SEV(log, details::error) << "Unnormal gauss-newton detected: "<<h_gn.norm();
     }
     else if(!boost::math::isfinite(h_sd.norm())) {
-        BOOST_LOG_SEV(log, error) << "Unnormal steepest descent detected: "<<h_sd.norm();
+        BOOST_LOG_SEV(log, details::error) << "Unnormal steepest descent detected: "<<h_sd.norm();
     }
     else if(!boost::math::isfinite(alpha)) {
-        BOOST_LOG_SEV(log, error) << "Unnormal alpha detected: "<<alpha;
+        BOOST_LOG_SEV(log, details::error) << "Unnormal alpha detected: "<<alpha;
     } 
     else {
-          BOOST_LOG_SEV(log, iteration) << "Steepest descent: "<<h_sd.transpose();
-          BOOST_LOG_SEV(log, iteration) << "Gauss-N  descent: "<<h_gn.transpose();
+          BOOST_LOG_SEV(log, details::iteration) << "Steepest descent: "<<h_sd.transpose();
+          BOOST_LOG_SEV(log, details::iteration) << "Gauss-N  descent: "<<h_gn.transpose();
     };
 
 #endif
@@ -332,17 +336,17 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
     // compute the dogleg step
     if(h_gn.norm() <= delta) {
         h_dl = h_gn;
-#ifdef USE_LOGGING
-        BOOST_LOG_SEV(log, iteration) << "Gauss-Newton step"; 
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(log, details::iteration) << "Gauss-Newton step"; 
 #endif
     }
     else if((alpha*h_sd).norm() >= delta) {
         //h_dl = alpha*h_sd;
         h_dl = (delta/(h_sd.norm()))*h_sd;
-#ifdef USE_LOGGING
-        BOOST_LOG_SEV(log, iteration) << "steepest descent step"; 
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(log, details::iteration) << "steepest descent step"; 
         if(!boost::math::isfinite(h_dl.norm())) {
-            BOOST_LOG_SEV(log, error) << "Unnormal dogleg descent detected: "<<h_dl.norm();
+            BOOST_LOG_SEV(log, details::error) << "Unnormal dogleg descent detected: "<<h_dl.norm();
         }
 
 #endif
@@ -367,18 +371,18 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
         // and update h_dl and dL with beta
         h_dl = alpha*h_sd + beta*(b-a);
 
-#ifdef USE_LOGGING
-        BOOST_LOG_SEV(log, iteration) << "Dogleg step"; 
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(log, details::iteration) << "Dogleg step"; 
         if(!boost::math::isfinite(c)) {
-            BOOST_LOG_SEV(log, error) << "Unnormal dogleg c detected: "<<c;
+            BOOST_LOG_SEV(log, details::error) << "Unnormal dogleg c detected: "<<c;
         }
 
         if(!boost::math::isfinite(bas)) {
-            BOOST_LOG_SEV(log, error) << "Unnormal dogleg bas detected: "<<bas;
+            BOOST_LOG_SEV(log, details::error) << "Unnormal dogleg bas detected: "<<bas;
         }
 
         if(!boost::math::isfinite(beta)) {
-            BOOST_LOG_SEV(log, error) << "Unnormal dogleg beta detected: "<<beta;
+            BOOST_LOG_SEV(log, details::error) << "Unnormal dogleg beta detected: "<<beta;
         }
 
 #endif
@@ -400,8 +404,8 @@ void Dogleg<Kernel>::execute() {
 
     m_equations->execute();
     
-#ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, solving) << "initial jacobi: "<<std::endl<<m_system.jacobi()<<std::endl
+#ifdef DCM_USE_LOGGING
+    BOOST_LOG_SEV(log, details::solving) << "initial jacobi: "<<std::endl<<m_system.jacobi()<<std::endl
                                 << "residual: "<<m_system.residuals().transpose()<<std::endl
                                 << "maximal differential: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>();
 #endif
@@ -410,8 +414,8 @@ void Dogleg<Kernel>::execute() {
     m_equations->execute();
     //sys.removeLocalGradientZeros(false);
     
-#ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, solving) << "LGZ jacobi: "<<std::endl<<m_system.jacobi()<<std::endl
+#ifdef DCM_USE_LOGGING
+    BOOST_LOG_SEV(log, details::solving) << "LGZ jacobi: "<<std::endl<<m_system.jacobi()<<std::endl
                                 << "maximal differential: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>();
 #endif
 
@@ -466,8 +470,8 @@ void Dogleg<Kernel>::execute() {
         //get the update step
         calculateStep(g, m_system.jacobi(), m_system.residuals(), h_dl, delta);
 
-#ifdef USE_LOGGING
-        BOOST_LOG_SEV(log, iteration) << "Step in iter "<<iter<<std::endl
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(log, details::iteration) << "Step in iter "<<iter<<std::endl
                                       << "Step: "<<h_dl.transpose()<<std::endl
                                       << "Jacobi: "<<m_system.jacobi()<<std::endl
                                       << "Residual: "<<m_system.residuals().transpose();
@@ -480,14 +484,14 @@ void Dogleg<Kernel>::execute() {
         m_system.parameter() += h_dl;
         m_equations->execute();
 
-#ifdef USE_LOGGING
+#ifdef DCM_USE_LOGGING
 
         if(!boost::math::isfinite(m_system.residuals().norm())) {
-            BOOST_LOG_SEV(log, error) << "Unnormal residual detected: "<<m_system.residuals().norm();
+            BOOST_LOG_SEV(log, details::error) << "Unnormal residual detected: "<<m_system.residuals().norm();
         }
 
         if(!boost::math::isfinite(m_system.jacobi().sum())) {
-            BOOST_LOG_SEV(log, error) << "Unnormal jacobi detected: "<<m_system.jacobi().sum();
+            BOOST_LOG_SEV(log, details::error) << "Unnormal jacobi detected: "<<m_system.jacobi().sum();
         }
 
 #endif
@@ -510,8 +514,8 @@ void Dogleg<Kernel>::execute() {
             nu = 2*nu;
         }
 
-#ifdef USE_LOGGING
-        BOOST_LOG_SEV(log, iteration)<<"Result of step dF: "<<dF<<", dL: "<<dL<<std::endl
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(log, details::iteration)<<"Result of step dF: "<<dF<<", dL: "<<dL<<std::endl
                                      << "New Residual: "<< m_system.residuals().transpose()<<std::endl;
 #endif
 
@@ -519,8 +523,8 @@ void Dogleg<Kernel>::execute() {
 /*
             //see if we got too high differentials
             if(m_system.jacobi().template lpNorm<Eigen::Infinity>() > 2) {
-#ifdef USE_LOGGING
-                BOOST_LOG_SEV(log, iteration)<< "High differential detected: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
+#ifdef DCM_USE_LOGGING
+                BOOST_LOG_SEV(log, details::iteration)<< "High differential detected: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
 #endif
                 rescale();
                 m_equations->execute();
@@ -543,8 +547,8 @@ void Dogleg<Kernel>::execute() {
             fx_inf = m_system.residuals().template lpNorm<Eigen::Infinity>();
         }
         else {
-#ifdef USE_LOGGING
-            BOOST_LOG_SEV(log, iteration)<< "Reject step in iter "<<iter<<", dF: "<<dF<<", dL: "<<dL;
+#ifdef DCM_USE_LOGGING
+            BOOST_LOG_SEV(log, details::iteration)<< "Reject step in iter "<<iter<<", dF: "<<dF<<", dL: "<<dL;
 #endif
             m_system.residuals() = F_old;
             m_system.jacobi() = J_old;
@@ -561,9 +565,9 @@ void Dogleg<Kernel>::execute() {
     clock_t end = clock();
     time = (double(end-start) * 1000.) / double(CLOCKS_PER_SEC);
 
-#ifdef USE_LOGGING
-    BOOST_LOG_SEV(log, solving)<<"Done solving: "<<err<<", iter: "<<iter<<", unused: "<<unused<<", reason:"<< stop;
-    BOOST_LOG_SEV(log, solving)<< "final jacobi: "<<std::endl<<m_system.jacobi()
+#ifdef DCM_USE_LOGGING
+    BOOST_LOG_SEV(log, details::solving)<<"Done solving: "<<err<<", iter: "<<iter<<", unused: "<<unused<<", reason:"<< stop;
+    BOOST_LOG_SEV(log, details::solving)<< "final jacobi: "<<std::endl<<m_system.jacobi()
                                << "residual: "<<m_system.residuals().transpose()<<std::endl
                                << "maximal differential: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>();
 #endif

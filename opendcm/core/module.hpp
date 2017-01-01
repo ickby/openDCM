@@ -93,11 +93,12 @@ struct remove_base {
 template<typename Final, typename MathKernel>
 struct ModuleCoreInit {
 
-    ModuleCoreInit() : m_graph(NULL)
+    ModuleCoreInit() : m_graph(NULL) {
 #ifdef DCM_USE_LOGGING
-        , sink(init_log())
+        sink = init_log();
+        log.add_attribute("Tag",  attrs::constant<std::string>("System"));
 #endif
-    {};
+    };
 
     ~ModuleCoreInit() {
 #ifdef DCM_USE_LOGGING
@@ -140,12 +141,13 @@ public:
         return m_graph;
     };
     
-private:
-    std::shared_ptr<graph::AccessGraphBase> m_graph;
+protected:
 #ifdef DCM_USE_LOGGING
+    details::dcm_logger log;
     boost::shared_ptr< sink_t > sink;
 #endif
-    
+private:
+    std::shared_ptr<graph::AccessGraphBase> m_graph;    
 };
 
 template<typename Final, typename Stacked>
@@ -203,7 +205,13 @@ struct ModuleCoreFinish : public Stacked {
         
         //build up the system and solve
         auto g = std::static_pointer_cast<Graph>(this->getGraph());
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Setup Solver";
+#endif
         auto solvable = solver::createSolvableSystem<Final>(g, m_converter);
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Execute Solver";
+#endif
         solvable->execute();
                        
         //post process the finished calculation. As solving throws an exception when not successfull we 
