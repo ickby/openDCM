@@ -57,21 +57,45 @@ struct Module3D {
         /**
          * @brief Container for 3D user geometry
          * 
+         * You can access the once set geometry in two ways. For one simply by using the get<>() function. However, this requires 
+         * to know the type of the geometry that is currently hold which must be passed as template argument. You can inquery if 
+         * a certain type is hold by using the holdsGeometryType functions. This could look like
+         * @code
+         * if(geometry->holdsGeometryType<MaPointClass>()) {
+         *     auto myPoint = geometry->get<MyPointClass>();
+         *     auto alternative = dcm::get<MyPointClass>(geometry);
+         * @endcode
+         * Alternatively it is possible to apply a visitor object which gets called with the stored geometry type. The visitor can 
+         * have a operator() for each expected type, or even a template operator if all should be handled equally. Note that the 
+         * operator() must be defined const if you pass in the visitor as copy. Also the return type of the visitor must be defined
+         * via the dcm::visitor<> template.
+         * @code 
+         * struct Visitor1 : dcm::visitor<int> {
+         *      int operator()(const MyPointClass& geometry) {return 1;};
+         * }
+         * struct Visitor2 : dcm::visitor<int> {
+         *      template<typename T>
+         *      int operator()(const T& geometry) const {return 1;};
+         * }
          * 
+         * Visitor1 visitor;
+         * int num = geometry->apply(visitor);
+         * int num = geometry->apply(Visitor2()); //works as the operator() is const
+         * @endcode
          */
-        struct Geometry3D : public Stacked::ObjectBase, public utilities::Variant<types...> {
+        struct Geometry3D : public Stacked::Object, public utilities::Variant<types...> {
 
             typedef utilities::Variant<types...> InheritedV;
-            typedef typename Stacked::ObjectBase InheritedO;
+            typedef typename Stacked::Object     InheritedO;
                        
             typedef symbolic::GeometryProperty GeometryProperty;
             typedef graph::VertexProperty      VertexProperty;
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (GeometryProperty)(VertexProperty) )
+            DCM_OBJECT_ADD_PROPERTIES( Final, (VertexProperty) )
             
         public:            
             Geometry3D(Final* system) 
-                : Stacked::ObjectBase( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
+                : Stacked::Object( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
                 m_system(system), m_type(-1) {};
             
             /**
@@ -89,35 +113,24 @@ struct Module3D {
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
                 typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
-                typedef symbolic::TypeGeometry<Kernel, extractor::template primitive> TypeGeometry;
-            
+                typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
+
                 BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
+                
+                //we may need to setup the graph. We do this here to allow to clear the geometry and later reinitialize by setting a new geometry.
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
+                if(!holdsGeometry()) {                    
+                    fusion::vector<graph::LocalVertex, graph::GlobalVertex> res = cluster->addVertex();
+                    cluster->template setProperty<details::GraphObjectProperty>(fusion::at_c<0>(res), InheritedO::shared_from_this());
+                    setVertexProperty(fusion::at_c<1>(res));
+                };
                 
                 //store the type
                 m_type = Final::template geometryIndex<extractor::template primitive>::value;
-                
-                //hold the given type in our variant
                 InheritedV::m_variant = geometry;
                 
-                //ensure correct property initialization
-                symbolic::Geometry* sg = getGeometryProperty();
-                if(sg) {delete sg;}                
-                sg = new TypeGeometry;
-                static_cast<TypeGeometry*>(sg)->setGeometryID(m_type);
-                setGeometryProperty(sg);
-
-                //store the value in internal data structure
-                (typename geometry_traits<T>::modell()).template extract<Scalar,
-                typename geometry_traits<T>::accessor >(geometry, 
-                    static_cast<TypeGeometry*>(sg)->getPrimitveGeometry());
-            
-                //setup the graph
-                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
-                fusion::vector<graph::LocalVertex, graph::GlobalVertex> res = cluster->addVertex();                     
-                cluster->template setProperty<GeometryProperty> (fusion::at_c<0>(res), sg);
-                setVertexProperty(fusion::at_c<1>(res));               
             };
-            
+                        
             /**
              * @brief Check if the Geometry3D holds a geometry type
              * 
@@ -168,21 +181,78 @@ struct Module3D {
         protected:
             Final* m_system;
             int    m_type;
+
+            virtual void preprocessVertex(std::shared_ptr<graph::AccessGraphBase> g, 
+                                          graph::LocalVertex lv, graph::GlobalVertex gv) override {
+                
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(g);
+                auto prop = cluster->template getProperty<GeometryProperty>(lv);
+                
+                //if the property is not available or does not hold the correct type we need to delete it, no way around
+                if(prop && prop->getType() != m_type) {
+                    delete prop;
+                    prop = nullptr;
+                }
+                
+                //if no property in existance we need to create it
+                if(!prop) {
+                    prop = InheritedV::apply(PropCreator());
+                    prop->setType(m_type);
+                    cluster->template setProperty<GeometryProperty>(lv, prop);
+                }
+                    
+                //we definitly need to set the value
+                InheritedV::apply(PropAssigner(prop));
+            };
+            
+            virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase>,
+                                           graph::LocalVertex, graph::GlobalVertex) override {
+                //TODO: Read the data from the graph back into the user type
+            };
+            
+        private:
+            struct PropCreator {  
+                typedef symbolic::Geometry* result_type;
+                
+                template<typename T>
+                result_type operator()(const T&) const {
+                    typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
+                    typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
+                    return new TypeGeometry();
+                };
+            };
+            
+            struct PropAssigner {  
+                typedef void result_type;
+                symbolic::Geometry* geom;
+                
+                PropAssigner(symbolic::Geometry* g) : geom(g) {};
+                
+                template<typename T>
+                result_type operator()(const T& geometry) const {
+                    typedef typename Final::Kernel::Scalar Scalar;
+                    typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
+                    typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
+
+                    (typename geometry_traits<T>::modell()).template extract<Scalar, typename geometry_traits<T>::accessor >(geometry, 
+                                                                                static_cast<TypeGeometry*>(geom)->getPrimitve());
+                };
+            };
         };
         
-        struct Constraint3D : public Stacked::ObjectBase {
+        struct Constraint3D : public Stacked::Object {
             
             typedef utilities::Variant<types...> InheritedV;
-            typedef typename Stacked::ObjectBase InheritedO;
+            typedef typename Stacked::Object     InheritedO;
                        
-            typedef symbolic::ConstraintProperty ConstraintProperty;
+            //typedef symbolic::ConstraintProperty ConstraintProperty;
             typedef graph::MultiEdgeProperty     MultiEdgeProperty;
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (ConstraintProperty)(MultiEdgeProperty) )
+            DCM_OBJECT_ADD_PROPERTIES( Final, (MultiEdgeProperty) )
             
         public:
             Constraint3D(Final* system) 
-                : Stacked::ObjectBase( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
+                : Stacked::Object ( Final::template objectTypeID<typename Final::Geometry3D>::ID::value ),
                 m_system(system){
                     
             };    
@@ -199,7 +269,7 @@ struct Module3D {
                
                 //ensure we do not have any constraints left in the graph
                 for(const graph::GlobalEdge& edge : vec) {
-                    symbolic::Constraint* c = cluster->template getProperty<ConstraintProperty>(edge);
+                    symbolic::Constraint* c = cluster->template getProperty<symbolic::ConstraintProperty>(edge);
                     if(c)
                         delete c;
                     cluster->removeEdge(edge);
@@ -243,9 +313,9 @@ struct Module3D {
                 
                 //add the primitive constraint to the global edge
                 symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
-                tc->setPrimitiveConstraint(t);
-                tc->setConstraintID(Final::template constraintIndex<T>::value);
-                cluster->template setProperty<ConstraintProperty>(fusion::at_c<1>(res), tc);
+                tc->setPrimitive(t);
+                tc->setType(Final::template constraintIndex<T>::value);
+                cluster->template setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(res), tc);
                 
                 t.setDefault();
                 

@@ -117,18 +117,18 @@ struct ModuleCoreInit {
     typedef MathKernel Kernel;
 
     //initialize the object handling
-    typedef Object<Final>  ObjectBase;
-    typedef mpl::vector0<> FullObjectList;
+    typedef details::Object<Final>      Object;
+    typedef mpl::vector0<>              FullObjectList;
     
     //initialize the geometry and constraint handling
     typedef mpl::vector<>                               GeometryList;
     typedef mpl::vector3<Distance, Orientation, Angle>  ConstraintList;
 
 protected:
-    typedef mpl::vector<numeric::EquationBuilderProperty<Kernel>>    EdgeProperties;
-    typedef mpl::vector<symbolic::ConstraintProperty>                GlobalEdgeProperties;
-    typedef mpl::vector<symbolic::GeometryProperty>                  VertexProperties;
-    typedef mpl::vector0<>                                           ClusterProperties;
+    typedef mpl::vector<numeric::EquationBuilderProperty<Kernel>>           EdgeProperties;
+    typedef mpl::vector<GraphObjectProperty, symbolic::ConstraintProperty>  GlobalEdgeProperties;
+    typedef mpl::vector<GraphObjectProperty, symbolic::GeometryProperty>    VertexProperties;
+    typedef mpl::vector0<>                                                  ClusterProperties;
    
 #ifdef DCM_TESTING
 public:
@@ -208,7 +208,7 @@ struct ModuleCoreFinish : public Stacked {
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Setup Solver";
 #endif
-        auto solvable = solver::createSolvableSystem<Final>(g, m_converter);
+        auto solvable = solver::Builder::createSolvableSystem<Final>(g, m_converter);
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Execute Solver";
 #endif

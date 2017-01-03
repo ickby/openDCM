@@ -39,18 +39,26 @@ struct Variant {
     typename Visitor::result_type apply(Visitor& vis) {
         return boost::apply_visitor(vis, m_variant);
     };
+    template<typename Visitor>
+    typename Visitor::result_type apply(const Visitor& vis) const{
+        return boost::apply_visitor(vis, m_variant);
+    };
     
     template<typename T>
     typename boost::add_reference<T>::type get() {
         return boost::get<T>(m_variant);
     };
-    
+        
     bool holdsType() {
         return m_variant.which()!=0;
     };
     
 protected:
     VariantType m_variant;
+    
+    void clearVariant() {
+        m_variant = boost::blank();
+    };
 };
 
 template<typename Sequence, template<class> class Functor>

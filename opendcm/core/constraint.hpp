@@ -194,27 +194,21 @@ namespace symbolic {
     
 struct Constraint {
     
+    void setType(int id) { type = id;}
+    int  getType() {return type;};
+    
+protected:
     int type;
 };
 
-template<typename PrimitiveConstraint>
+template<typename Primitive>
 struct TypeConstraint : public Constraint {
-    
-    PrimitiveConstraint& getPrimitiveConstraint() {
-        return m_constraint;
-    };
-    
-    void setPrimitiveConstraint(const PrimitiveConstraint& c) {
-        //type = id;
-        m_constraint = c;
-    };
-    
-    void setConstraintID(int id) {
-        type = id;
-    }
+
+    void       setPrimitive(const Primitive& c) {m_constraint = c;};    
+    Primitive& getPrimitive() {return m_constraint;};    
     
 protected:   
-    PrimitiveConstraint m_constraint;
+    Primitive m_constraint;
 };
 
 struct ConstraintProperty {
@@ -559,7 +553,7 @@ struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Ker
         
         auto tg1 = std::static_pointer_cast<numeric::Equation<Kernel, PG1>>(g1);
         auto tg2 = std::static_pointer_cast<numeric::Equation<Kernel, PG2>>(g2);
-        auto& pc  = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitiveConstraint();
+        auto& pc  = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitive();
         
         if(tg1->getComplexity() != Complexity::Complex && tg2->getComplexity() != Complexity::Complex) {
             auto equation = std::make_shared<ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2>>(); 
@@ -595,7 +589,7 @@ struct TypedConstraintEquationGenerator : public ConstraintEquationGenerator<Ker
        
         auto  tg1 = std::static_pointer_cast<numeric::Equation<Kernel, PG1>>(g1);
         auto  tg2 = std::static_pointer_cast<numeric::Equation<Kernel, PG2>>(g2);
-        auto& pc  = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitiveConstraint();
+        auto& pc  = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitive();
         
         if(tg1->getComplexity() != Complexity::Complex && tg2->getComplexity() != Complexity::Complex) {
             auto equation = std::make_shared<ConstraintSimplifiedEquation<Kernel, PC, PG1, PG2>>(); 

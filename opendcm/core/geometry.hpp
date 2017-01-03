@@ -563,26 +563,21 @@ namespace symbolic {
 
 struct Geometry {
     
+    void setType(int id) { type = id;}
+    int  getType() {return type;};
+    
+protected:
     int type;
 };
 
-template<typename Kernel, template<class> class G>
+template<typename Primitive>
 struct TypeGeometry : public Geometry {
 
-    typedef G<Kernel> PrimitiveGeometry; 
-    
-    PrimitiveGeometry& getPrimitveGeometry() {return m_geometry;};
-    
-    void setPrimitiveGeometry(const G<Kernel>& g) {
-        m_geometry = g;
-    }
-    
-    void setGeometryID(int id) {
-        type = id;
-    }
+    void       setPrimitive(const Primitive& g) {m_geometry = g;}
+    Primitive& getPrimitve() {return m_geometry;};
     
 protected:   
-    PrimitiveGeometry m_geometry;
+    Primitive m_geometry;
 };
 
 struct GeometryProperty {

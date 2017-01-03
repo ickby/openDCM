@@ -326,7 +326,7 @@ struct GlobalEdgeProperty {
  *
  * @tparam edge_prop a mpl::vector with properties which are added to local edges
  * @tparam globaledge_prop a mpl::vector with properties which are added to global edges
- * @tparam vertex_prop a mpl::vector with properties which are added to vertices
+ * @tparam vertex_prop a mpl::vector with properties which are added to vertices (global and local as both are equal)
  * @tparam cluster_prop a mpl::vector with properties which are added to all clusters
  * @tparam graph_base a boost graph type which shall be accessed with this class
  **/

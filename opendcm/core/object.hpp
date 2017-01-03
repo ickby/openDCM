@@ -20,6 +20,8 @@
 #ifndef DCM_OBJECT_H
 #define DCM_OBJECT_H
 
+#include <memory>
+
 #include "signal.hpp"
 #include "property.hpp"
 
@@ -44,6 +46,11 @@ namespace dcm {
 typedef int ObjectTypeID;
 //few standart signal names
 struct remove {};
+
+//we need this forward declaration to allow a friend statement later on 
+namespace solver {
+struct Builder;
+}
 
 namespace details {
 
@@ -105,15 +112,39 @@ namespace details {
 
 template<typename Obj, typename Prop>        
 struct object_has_property : public mpl::contains<typename Obj::Properties, Prop> {};
-        
+     
+/**
+ * @brief Obejct to be stored in the graph 
+ * This object type is intended to be added to the graph for utilizing pre and postprocess operations 
+ * which setup the global vertices and edges. Note that due to the graph manipulation algorithms the local 
+ * descriptors can be different and also valid in different graphs for pre and post process operations.
+ * It is therefore important to not store the local descriptors and graph but always use the ones passed 
+ * to the functions.
+ */
+struct GraphObject : std::enable_shared_from_this<GraphObject> {
+       
+protected:
+    virtual void preprocessVertex(std::shared_ptr<graph::AccessGraphBase>, graph::LocalVertex, graph::GlobalVertex) {};
+    virtual void preprocessEdge(std::shared_ptr<graph::AccessGraphBase>, graph::GlobalEdge) {};
+    
+    virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase>, graph::LocalVertex, graph::GlobalVertex) {};
+    virtual void postprocessEdge(std::shared_ptr<graph::AccessGraphBase>, graph::GlobalEdge) {};
+    
+    friend struct solver::Builder;
+};
+
+struct GraphObjectProperty {
+    typedef std::shared_ptr<GraphObject> type;
+};
+
 /** @defgroup Objects Objects
 *
-* @brief Concept and functionality of the dcm objects
-*
-*
+* @brief Concept and functionality of the dcm objects. 
+* They can be stored at graphs and provide property access methods.
+* 
 **/
 template<typename Final>
-struct Object {
+struct Object : public GraphObject {
 
     Object(int ID);
 

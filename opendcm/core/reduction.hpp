@@ -926,8 +926,8 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
         //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(target) != NULL);
 
         //get the primitive geometries
-        const SourceGeometry<Kernel>& pg1 = static_cast<symbolic::TypeGeometry<Kernel, SourceGeometry>*>(source)->getPrimitveGeometry();
-        const TargetGeometry<Kernel>& pg2 = static_cast<symbolic::TypeGeometry<Kernel, TargetGeometry>*>(target)->getPrimitveGeometry();
+        const SourceGeometry<Kernel>& pg1 = static_cast<symbolic::TypeGeometry<SourceGeometry<Kernel>>*>(source)->getPrimitve();
+        const TargetGeometry<Kernel>& pg2 = static_cast<symbolic::TypeGeometry<TargetGeometry<Kernel>>*>(target)->getPrimitve();
 
         //create a new treewalker and set it up. We need to make sure that the correct walker for the 
         //given reduction job is used
@@ -1051,9 +1051,9 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         
         std::vector<CalcPtr> equations;
         for(auto tuple : m_constraints)
-            equations.push_back(m_generatorArry[std::get<1>(tuple)->type]
-                                               [std::get<2>(tuple)->type]
-                                               [std::get<0>(tuple)->type]->buildEquation(g1, g2, std::get<0>(tuple)));
+            equations.push_back(m_generatorArry[std::get<1>(tuple)->getType()]
+                                               [std::get<2>(tuple)->getType()]
+                                               [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
         return equations;
     };
@@ -1064,9 +1064,9 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
     createEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
     
         if(m_constraints.size() == 1) {
-            auto node = m_generatorArry[std::get<1>(m_constraints[0])->type]
-                                       [std::get<2>(m_constraints[0])->type]
-                                       [std::get<0>(m_constraints[0])->type]->buildEquationNode(g1, g2, 
+            auto node = m_generatorArry[std::get<1>(m_constraints[0])->getType()]
+                                       [std::get<2>(m_constraints[0])->getType()]
+                                       [std::get<0>(m_constraints[0])->getType()]->buildEquationNode(g1, g2, 
                                                                                                 std::get<0>(m_constraints[0]),
                                                                                                 flow);
             std::vector<CalcPtr> vec(1);
@@ -1089,9 +1089,9 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         std::vector<CalcPtr> equations;
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
         for(auto tuple : *walker)
-            equations.push_back(m_generatorArry[std::get<1>(tuple)->type]
-                                               [std::get<2>(tuple)->type]
-                                               [std::get<0>(tuple)->type]->buildEquation(g1, g2, std::get<0>(tuple)));
+            equations.push_back(m_generatorArry[std::get<1>(tuple)->getType()]
+                                               [std::get<2>(tuple)->getType()]
+                                               [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
         return equations;
     };
@@ -1103,9 +1103,9 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
         if(walker->size() == 1) {
-            auto node = m_generatorArry[std::get<1>(walker->front())->type]
-                                       [std::get<2>(walker->front())->type]
-                                       [std::get<0>(walker->front())->type]->buildEquationNode(g1, g2, 
+            auto node = m_generatorArry[std::get<1>(walker->front())->getType()]
+                                       [std::get<2>(walker->front())->getType()]
+                                       [std::get<0>(walker->front())->getType()]->buildEquationNode(g1, g2, 
                                                                                                std::get<0>(walker->front()),
                                                                                                flow);
             std::vector<CalcPtr> vec(1);
@@ -1186,9 +1186,12 @@ struct NumericConverter {
         symbolic::Geometry* source = g->template getProperty<symbolic::GeometryProperty>(g->source(edge));
         symbolic::Geometry* target = g->template getProperty<symbolic::GeometryProperty>(g->target(edge));
         
+        dcm_assert(source);
+        dcm_assert(target);
+        
         //get the two reduction trees for this geometry combination
-        reduction::EdgeReductionTree* stTree = m_treeArray[source->type][target->type];
-        reduction::EdgeReductionTree* tsTree = m_treeArray[target->type][source->type];
+        reduction::EdgeReductionTree* stTree = m_treeArray[source->getType()][target->getType()];
+        reduction::EdgeReductionTree* tsTree = m_treeArray[target->getType()][source->getType()];
      
         //get all constraints and cluster geometries, is needed
         typedef typename Graph::global_edge_iterator iterator;
