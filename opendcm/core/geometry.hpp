@@ -575,7 +575,7 @@ struct TypeGeometry : public Geometry {
     
     void setPrimitiveGeometry(const G<Kernel>& g) {
         m_geometry = g;
-    };    
+    }
     
     void setGeometryID(int id) {
         type = id;

@@ -42,17 +42,31 @@ struct geometry_traits<Vector3> {
 typedef dcm::System<dcm::Module3D<Vector3>> System;
 
 BOOST_AUTO_TEST_SUITE(Module3D_test_suit);
-/*
+
 BOOST_AUTO_TEST_CASE(cluster) {
 
-    typedef dcm::numeric::Cluster3d<K>::ParameterIterator     cParIt;
-    typedef dcm::numeric::Cluster3d<K>::DerivativePack        cDer;
-    typedef dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>::DerivativePack clDer;
+    typedef dcm::numeric::Cluster3<K>::ParameterIterator     cParIt;
+    typedef dcm::numeric::Cluster3<K>::DerivativePack        cDer;
+    typedef dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3>::DerivativePack clDer;
 
     try {
-
+        //test primitive features
+        dcm::geometry::Cluster3<K> pcl;
+        pcl = dcm::geometry::make_storage(Eigen::Vector3d::Zero(), Eigen::Matrix3d::Identity());
+        BOOST_CHECK(pcl.rotation().isApprox(Eigen::Matrix3d::Identity()));
+        BOOST_CHECK(pcl.translation().isApprox(Eigen::Vector3d::Zero()));
+        BOOST_CHECK(pcl.transform().isApprox(dcm::details::Transform<double, 3>()));
+        
+        auto vec = Eigen::Vector3d(5., -2.1, -3.7);
+        auto trl = Eigen::Translation<double, 3>(1.,1.,1.);
+        auto tfm = dcm::details::Transform<double, 3>(Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()));
+        pcl.translation() = trl.vector();
+        BOOST_CHECK(pcl.translation().isApprox(Eigen::Vector3d(1.,1.,1.)));
+        BOOST_CHECK(pcl.transformed(tfm).transform().isApprox(tfm*dcm::details::Transform<double, 3>(trl)));
+        
+        //test numeric features
         dcm::numeric::LinearSystem<K> sys(10,10);
-        auto cluster = std::make_shared<dcm::numeric::Cluster3d<K>>();
+        auto cluster = std::make_shared<dcm::numeric::Cluster3<K>>();
 
         cluster->init(sys);
         cluster->calculate();
@@ -83,7 +97,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         for(auto p : cluster->parameters())
             *p.Value = 0;
 
-        auto clGeom = std::make_shared<dcm::numeric::Cluster3dGeometry<K, dcm::geometry::Point3>>();
+        auto clGeom = std::make_shared<dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3>>();
         clGeom->setInputEquation(cluster);
         clGeom->init(sys);
         clGeom->calculate();
@@ -183,7 +197,7 @@ BOOST_AUTO_TEST_CASE(constraint) {
         BOOST_FAIL("Unknown exception");
     }
 };
-*/
+
 BOOST_AUTO_TEST_CASE(basic_solve) {
     
     Vector3 v1, v2, v3, v4;
@@ -207,6 +221,16 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g1, g4, dcm::distance=6.);
         
         s.solve();
+        
+        //we are here if no exception was thrown
+        v1 = g1->get<Vector3>();
+        v2 = g2->get<Vector3>();
+        v3 = g3->get<Vector3>();
+        v4 = g4->get<Vector3>();
+        BOOST_CHECK_EQUAL((v1-v2).norm(), 3.);
+        BOOST_CHECK_EQUAL((v2-v3).norm(), 4.);
+        BOOST_CHECK_EQUAL((v3-v4).norm(), 5.);
+        BOOST_CHECK_EQUAL((v4-v1).norm(), 6.);
     
     }
     catch(boost::exception& x) {

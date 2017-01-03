@@ -34,10 +34,11 @@ namespace geometry {
 //Primitive geometry representing a rigid cluster, hence it exposes a translation and rotation
 //parameter
 template<typename Kernel>
-struct Cluster3d : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>> {
+struct Cluster3 : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>> {
 
     typedef typename Kernel::Scalar Scalar;
     using Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>>::m_storage;
+    using Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>>::operator=;
 
     auto translation()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -49,6 +50,19 @@ struct Cluster3d : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::M
     
     details::MapMatrixTransform<Scalar, 3> transform() {
         return details::MapMatrixTransform<Scalar, 3>(rotation(), translation());
+    };
+    
+    template<typename Derived>
+    Cluster3<Kernel>& transform(const details::TransformBase<Derived>& t) {
+        transform() = t*transform();
+        return *this;
+    };
+    
+    template<typename Derived>
+    Cluster3<Kernel>  transformed(const details::TransformBase<Derived>& t) {
+        Cluster3<Kernel> copy(*this);
+        copy.transform(t);
+        return copy;
     };
       
 protected:
@@ -64,10 +78,10 @@ namespace numeric {
 
     
 template<typename Kernel, template<class> class Base>
-struct Cluster3dGeometry : public DependendGeometry<Kernel, geometry::Cluster3d, Base> {
+struct Cluster3Geometry : public DependendGeometry<Kernel, geometry::Cluster3, Base> {
     
     typedef typename Kernel::Scalar Scalar;
-    typedef DependendGeometry<Kernel, geometry::Cluster3d, Base> Inherited;
+    typedef DependendGeometry<Kernel, geometry::Cluster3, Base> Inherited;
     
     /**
      * @brief Creates the internal local value
@@ -108,10 +122,10 @@ protected:
 };    
     
 template< typename Kernel>
-struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
+struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
         numeric::Vector<Kernel,3>, numeric::Vector<Kernel,3>> {
 
-    typedef ParameterGeometry<Kernel, geometry::Cluster3d,
+    typedef ParameterGeometry<Kernel, geometry::Cluster3,
             numeric::Vector<Kernel,3>, numeric::Vector<Kernel,3>> Inherited;
 
     typedef typename Kernel::Scalar Scalar;
@@ -223,9 +237,9 @@ struct Cluster3d : public ParameterGeometry<Kernel, geometry::Cluster3d,
     };
 
     template<template<class> class Base>
-    void addClusterGeometry(std::shared_ptr<Cluster3dGeometry<Kernel, Base>> g) {
+    void addClusterGeometry(std::shared_ptr<Cluster3Geometry<Kernel, Base>> g) {
         m_recalculateables.push_back(g);
-        m_transformables.emplace_back(std::bind(&Cluster3dGeometry<Kernel, Base>::transformLocal, g, 
+        m_transformables.emplace_back(std::bind(&Cluster3Geometry<Kernel, Base>::transformLocal, g, 
                                                 std::placeholders::_1));
     };
     

@@ -46,6 +46,7 @@ public:
     typedef typename transform_traits<Derived>::Rotation            Rotation;
     typedef typename transform_traits<Derived>::Translation         Translation;
     typedef typename transform_traits<Derived>::RotationMatrix      RotationMatrix;
+    typedef typename transform_traits<Derived>::TranslationVector   TranslationVector;
 
 public:
     TransformBase();
@@ -60,6 +61,7 @@ public:
     //access the single parts and manipulate them
     //***********************
     const Rotation& rotation() const;
+    RotationMatrix toRotationMatrix() const;
     template<typename OtherDerived>
     Derived& setRotation(const Eigen::RotationBase<OtherDerived,Dimension>& rotation);
     //rotate does not transform the translational part! For this use multiplication operators
@@ -67,6 +69,7 @@ public:
     Derived& rotate(const Eigen::RotationBase<OtherDerived,Dimension>& rotation);
 
     const Translation& translation() const;
+    const TranslationVector& translationVector() const;
     Derived& setTranslation(const Translation& translation);
     Derived& translate(const Translation& translation);
    
@@ -90,6 +93,8 @@ public:
     Derived& operator*=(const Eigen::RotationBase<OtherDerived,Dimension>& r);
 
     template<typename OtherDerived>
+    Derived& operator= (const TransformBase<OtherDerived>& other);
+    template<typename OtherDerived>
     Derived operator* (const TransformBase<OtherDerived>& other) const;
     template<typename OtherDerived>
     Derived& operator*= (const TransformBase<OtherDerived>& other);
@@ -110,7 +115,7 @@ public:
     //Stuff
     //*****
     template<typename OtherDerived>
-    bool isApprox(const TransformBase<OtherDerived>& other, Scalar prec) const;
+    bool isApprox(const TransformBase<OtherDerived>& other, Scalar prec = 1e-6) const;
     void setIdentity();
     static const Derived Identity();
 
@@ -142,6 +147,7 @@ class Transform : public TransformBase<Transform<Scalar_, Dim>> {
     
 public:
     typedef TransformBase<Transform<Scalar_, Dim>> Base;
+    using Base::operator=;
     
     typedef Scalar_ Scalar;
     static const int Dimension = Dim;
@@ -152,9 +158,15 @@ public:
     typedef typename Rotation::RotationMatrixType RotationMatrix;
     
     Transform() : Base() { setIdentity();}; //we need set identity here, base can't do it as it would override the map values
-    Transform(const Rotation& r) : Base(r) {};
+    template<typename Derived>
+    Transform(const Eigen::RotationBase<Derived, Dim>& r) : Base(Rotation(r.derived())) {};
+    template<typename Derived>
+    Transform(const Eigen::MatrixBase<Derived>& r) : Base(Rotation(r)) {};
     Transform(const Translation& t) : Base(t) {};
-    Transform(const Rotation& r, const Translation& t) : Base(r,t) {};
+    template<typename Derived>
+    Transform(const Eigen::RotationBase<Derived, Dim>& r, const Translation& t) : Base(Rotation(r.derived()),t) {};
+    template<typename Derived>
+    Transform(const Eigen::MatrixBase<Derived>& r, const Translation& t) : Base(Rotation(r),t) {};
     
     //create the functions needed from the base class
     void setIdentity() {
@@ -164,11 +176,12 @@ public:
     void normalize() {m_rotation.normalize();}
     Transform& invert() {
         m_rotation = m_rotation.inverse();
-        m_translation.vector() = (m_rotation*m_translation.vector());
+        m_translation.vector() = (m_rotation*-m_translation.vector());
         return *this;
     };
     
     const Rotation& rotation() const {return m_rotation;};
+    RotationMatrix toRotationMatrix() const {return m_rotation.toRotationMatrix();};
     const Translation& translation() const {return m_translation;};
     const TranslationVector& translationVector() const {return m_translation.vector();};
     
@@ -176,8 +189,15 @@ public:
     void setRotation(const Eigen::RotationBase<Derived, Dim>& r) {
         m_rotation = r.derived();
     };
+    template<typename Derived>
+    void setRotation(const Eigen::MatrixBase<Derived>& r) {
+        m_rotation = Eigen::Quaternion<Scalar>(r);
+    };
     void setTranslation(const Translation& t) {
         m_translation = t;
+    };
+    void setTranslation(const TranslationVector& t) {
+        m_translation.vector() = t;
     };
     
 private:
@@ -193,6 +213,7 @@ struct transform_traits<Transform<S,D>> {
     typedef Eigen::Quaternion<Scalar>             Rotation;
     typedef Eigen::Translation<Scalar, D>         Translation;
     typedef typename Rotation::RotationMatrixType RotationMatrix;
+    typedef Eigen::Matrix<Scalar, 3, 1>           TranslationVector;
 };
 
 
@@ -208,7 +229,8 @@ template<typename Scalar_, int Dim>
 class MapMatrixTransform : public TransformBase<MapMatrixTransform<Scalar_, Dim>> {
     
 public:
-    typedef TransformBase<Transform<Scalar_, Dim>> Base;
+    typedef TransformBase<MapMatrixTransform<Scalar_, Dim>> Base;
+    using Base::operator=;
     
     typedef Scalar_ Scalar;
     static const int Dimension = Dim;
@@ -216,6 +238,7 @@ public:
     typedef Eigen::Map<Eigen::Matrix<Scalar, Dim, Dim>>  Rotation;
     typedef Eigen::Map<Eigen::Matrix<Scalar, Dim, 1  >>  Translation;
     typedef Eigen::Matrix<Scalar, Dim, Dim>              RotationMatrix;
+    typedef Translation                                  TranslationVector;
        
     template<typename D1, typename D2>
     MapMatrixTransform(Eigen::MatrixBase<D1>& rot, Eigen::MatrixBase<D2>& trans) 
@@ -232,21 +255,27 @@ public:
     
     MapMatrixTransform& invert() {
         m_rotation.transposeInPlace();
-        m_translation = (m_rotation*m_translation);
+        m_translation = (m_rotation*-m_translation);
         return *this;
     };
     
     const Rotation& rotation() const {return m_rotation;};
+    RotationMatrix toRotationMatrix() const {return m_rotation;};
     const Translation& translation() const {return m_translation;};
-    const Translation& translationVector() const {return m_translation;};
+    const TranslationVector& translationVector() const {return m_translation;};
     
     template<typename Derived>
     void setRotation(const Eigen::RotationBase<Derived, Dim>& r) {
         m_rotation = r.derived().toRotationMatrix();
     };
-    void setTranslation(const Translation& t) {
-        m_translation = t;
+    template<typename Derived>
+    void setRotation(const Eigen::MatrixBase<Derived>& r) {
+        m_rotation = r;
     };
+    template<typename Derived>
+    void setTranslation(const Eigen::MatrixBase<Derived>& t) {
+        m_translation = t;
+    }
     
 private:
     Rotation m_rotation;
@@ -261,6 +290,7 @@ struct transform_traits<MapMatrixTransform<S,D>> {
     typedef Eigen::Map<Eigen::Matrix<Scalar, D, D>> Rotation;
     typedef Eigen::Map<Eigen::Matrix<Scalar, D, 1>> Translation;
     typedef Eigen::Matrix<Scalar, D, D>             RotationMatrix;
+    typedef Translation                             TranslationVector;
 };
 
 /**********************************************************************************************************************************
@@ -301,6 +331,11 @@ const typename TransformBase<Derived>::Rotation& TransformBase<Derived>::rotatio
 }
 
 template<typename Derived>
+typename TransformBase<Derived>::RotationMatrix TransformBase<Derived>::toRotationMatrix() const {
+    return derived().toRotationMatrix();
+}
+
+template<typename Derived>
 template<typename OtherDerived>
 Derived& TransformBase<Derived>::setRotation(const Eigen::RotationBase<OtherDerived,Dimension>& rotation) {
     derived().setRotation(rotation);
@@ -317,6 +352,11 @@ Derived& TransformBase<Derived>::rotate(const Eigen::RotationBase<OtherDerived,D
 template<typename Derived>
 const typename TransformBase<Derived>::Translation& TransformBase<Derived>::translation() const {
     return derived().translation();
+}
+
+template<typename Derived>
+const typename TransformBase<Derived>::TranslationVector& TransformBase<Derived>::translationVector() const {
+    return derived().translationVector();
 }
 
 template<typename Derived>
@@ -352,7 +392,7 @@ inline Derived& TransformBase<Derived>::operator=(const Translation& t) {
 template<typename Derived>
 inline Derived TransformBase<Derived>::operator*(const Translation& t) const {
     Derived res = derived();
-    res.translate(t);
+    res *= t;
     return res;
 }
 template<typename Derived>
@@ -372,17 +412,26 @@ template<typename Derived>
 template<typename OtherDerived>
 inline Derived TransformBase<Derived>::operator*(const Eigen::RotationBase<OtherDerived,Dimension>& r) const {
     Derived res = derived();
-    res.rotate(r.derived());
+    res *= r;
     return res;
 }
 template<typename Derived>
 template<typename OtherDerived>
 inline Derived& TransformBase<Derived>::operator*=(const Eigen::RotationBase<OtherDerived,Dimension>& r) {
     rotate(r);
-    derived().setTranslation(r*derived().translationVector());
+    derived().setTranslation(r*translationVector());
     return derived();
 }
 
+template<typename Derived>
+template<typename OtherDerived>
+inline Derived& TransformBase<Derived>::operator= (const TransformBase<OtherDerived>& other)  {
+    
+    setIdentity();
+    derived().setRotation(other.rotation());
+    derived().setTranslation(other.translationVector());
+    return derived();
+}
 template<typename Derived>
 template<typename OtherDerived>
 inline Derived TransformBase<Derived>::operator* (const TransformBase<OtherDerived>& other) const  {
@@ -393,8 +442,8 @@ inline Derived TransformBase<Derived>::operator* (const TransformBase<OtherDeriv
 template<typename Derived>
 template<typename OtherDerived>
 inline Derived& TransformBase<Derived>::operator*= (const TransformBase<OtherDerived>& other) {
-    rotate(other.rotation());
-    derived().setTranslation(Translation(other.rotation()*derived().translationVector() + other.derived().translationVector()));
+    rotate(Rotation(other.rotation()));
+    derived().setTranslation(Translation(other.rotation()*translationVector() + other.translationVector()));
     return derived();
 }
 
@@ -415,14 +464,14 @@ inline OtherDerived& TransformBase<Derived>::translate(Eigen::MatrixBase<OtherDe
 template<typename Derived>
 template<typename OtherDerived>
 inline OtherDerived& TransformBase<Derived>::transform(Eigen::MatrixBase<OtherDerived>& vec) const {
-    vec = (rotation()*vec + derived().translationVector());
+    vec = (rotation()*vec + translationVector());
     return vec.derived();
 }
 
 template<typename Derived>
 template<typename OtherDerived>
 inline OtherDerived TransformBase<Derived>::operator*(const Eigen::MatrixBase<OtherDerived>& vec) const {
-    return (rotation()*vec + derived().translationVector());
+    return (rotation()*vec + translationVector());
 }
 
 template<typename Derived>
@@ -434,8 +483,8 @@ inline void TransformBase<Derived>::operator()(Eigen::MatrixBase<OtherDerived>& 
 template<typename Derived>
 template<typename OtherDerived>
 bool TransformBase<Derived>::isApprox(const TransformBase<OtherDerived>& other, Scalar prec) const {
-    return rotation().isApprox(other.rotation(), prec)
-           && ((derived().translationVector()- other.derived().translationVector()).norm() < prec);
+    return toRotationMatrix().isApprox(other.toRotationMatrix(), prec)
+           && translationVector().isApprox(other.translationVector());
 };
 
 template<typename Derived>
@@ -465,10 +514,16 @@ TransformBase<Derived>::transformation() {
  * when the first operand is of the class type.For stream operators, the first operand
  * is the stream and not (usually) the custom class.
 */
+template<typename charT, typename traits, typename type>
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const Eigen::Quaternion<type>& t) {
+    os << t.coeffs().transpose();
+    return os;
+}
+
 template<typename charT, typename traits, typename Derived>
 std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::TransformBase<Derived>& t) {
-    os << "Rotation:    " << t.rotation().coeffs()<< std::endl
-       << "Translation: " << t.derived().translationVector() <<std::endl;
+    os << "Rotation:    " << std::endl << t.rotation()<< std::endl
+       << "Translation: " << t.translationVector().transpose() <<std::endl;
     return os;
 }
 

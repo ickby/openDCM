@@ -198,7 +198,6 @@ bool Object<Final>::isType() {
     return Final::template objectTypeID<Obj>::ID::value == m_id;
 }
 
-
 }; //details
 }; //dcm
 

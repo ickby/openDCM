@@ -46,15 +46,19 @@ BOOST_AUTO_TEST_CASE(Transform3D) {
     
     t2.transform(vec);
     BOOST_CHECK(vec.isApprox(Eigen::Vector3d(1.,2.,3.)));
+    BOOST_CHECK(vec.isApprox(t2*Eigen::Vector3d(0,0,0)));
     
     t3.transform(vec);
     BOOST_CHECK(vec.isApprox(Eigen::Vector3d(1.,-2.,-3.)));
-    
-    auto tn = t1*t2*t3;
-    BOOST_CHECK((tn*Eigen::Vector3d(0,0,0)).isApprox(vec));
+    BOOST_CHECK(vec.isApprox((t1*t2*t3)*Eigen::Vector3d(0.,0.,0.)));
     
     t1 *= t2*t3;
     BOOST_CHECK((t1*Eigen::Vector3d(0,0,0)).isApprox(vec));
+    BOOST_CHECK((t1.inverse()*vec).isApprox(Eigen::Vector3d(0,0,0)));
+    
+    BOOST_CHECK(t1.invert().isApprox(t3.inverse()*t2.inverse()));
+    BOOST_CHECK((t1*vec).isApprox(t3.inverse()*t2.inverse()*vec));
+    BOOST_CHECK((t1*vec).isApprox(Eigen::Vector3d(0,0,0)));
     
     testfunc(t1);
 };
@@ -78,6 +82,34 @@ BOOST_AUTO_TEST_CASE(MapMatrixTransform3D) {
     BOOST_CHECK(vec.isApprox(Eigen::Vector3d(2.,1.,2.)));
     
     testfunc(t);
+    
+    //check if we can assign to and can be assigned by the normal transform
+    dcm::details::Transform<double,3> normal;
+    t = normal;
+    normal = t;   
+}
+
+BOOST_AUTO_TEST_CASE(CombineTransforms) {
+    
+    //the default transform types
+    typedef dcm::details::Transform<double, 3>  Transform;
+    Transform t1(Eigen::AngleAxisd(1*M_PI, Eigen::Vector3d::UnitX()), Eigen::Translation<double,3>(Eigen::Vector3d(1., 2., 3.)));
+    Transform t2(Eigen::AngleAxisd(1.3*M_PI, Eigen::Vector3d(1.,1.,1.).normalized()), Eigen::Translation<double,3>(Eigen::Vector3d(-1., 2., -1.)));
+   
+    auto vec = Eigen::Vector3d(1.,1.,1.);
+    t1.transform(vec);
+    t2.transform(vec);
+    auto t = t1*t2;
+    BOOST_CHECK(vec.isApprox(t*Eigen::Vector3d(1.,1.,1.)));
+    
+    auto vecL = Eigen::Vector3d(1.,1.,1.);
+    auto vecC = t1*vecL;
+    auto vecG = t2*vecC;
+    
+    BOOST_CHECK(((t1*t2)*vecL).isApprox(vecG));
+    BOOST_CHECK((t*vecL).isApprox(vecG));
+    BOOST_CHECK(((t.inverse()*t1)*vecG).isApprox(vecC));
+    BOOST_CHECK(((t2*t.inverse())*vecC).isApprox(vecL));
 }
 
 

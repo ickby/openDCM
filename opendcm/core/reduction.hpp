@@ -1202,7 +1202,7 @@ struct NumericConverter {
              
             symbolics.push_back(std::make_tuple(c, sg, tg));
         }
-       
+        
         //calculate both results
         auto* stWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(source, target, symbolics));
         auto* tsWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(tsTree->apply(target, source, symbolics));
