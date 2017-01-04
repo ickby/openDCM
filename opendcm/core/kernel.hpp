@@ -93,7 +93,11 @@ struct LinearSystem {
                 Eigen::Dynamic>                      MatrixX;
     
     LinearSystem(int p, int e) : m_parameterCount(p), m_equationCount(e),
-            m_jacobi(e, p), m_parameters(p),  m_residuals(e) {};
+            m_jacobi(e, p), m_parameters(p),  m_residuals(e) {
+                m_jacobi.setZero();
+                m_parameters.setZero();
+                m_residuals.setZero();
+            };
     
     
     VectorEntry<Kernel> mapParameter() {

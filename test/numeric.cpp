@@ -305,6 +305,7 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     
     BOOST_CHECK(cylGeom.newParameterCount() == 1);
     
+    cylGeom = dcm::geometry::make_storage(Eigen::Vector3d(0,0,0), 0, Eigen::Vector3d(0,0,0));
     cylGeom.init(sys);       
     
     //check default constructed derivatives

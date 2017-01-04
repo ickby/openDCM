@@ -380,7 +380,7 @@ struct ConstraintWalker : public TreeWalker {
     template<typename T>
     symbolic::TypeConstraint<T>* getConstraint(int type) {
         for(auto tuple : m_constraintPool) {
-            if(std::get<0>(tuple)->type == type)
+            if(std::get<0>(tuple)->getType() == type)
                 return static_cast<symbolic::TypeConstraint<T>*>(std::get<0>(tuple));
         }
         return nullptr;
@@ -394,7 +394,7 @@ struct ConstraintWalker : public TreeWalker {
     SymbolicTuple getConstraintTuple(int ConstraintType) {
     
         for(auto tuple : m_constraintPool) {
-            if(std::get<0>(tuple)->type == ConstraintType)
+            if(std::get<0>(tuple)->getType() == ConstraintType)
                 return tuple;
         }
         return SymbolicTuple();
@@ -608,10 +608,10 @@ struct ConstraintEqualValue {
             if(!cons)
                 return false;
             
-            if(cons->getPrimitiveConstraint().template getOption<0>() != option)
+            if(cons->getPrimitive().template getOption<0>() != option)
                 return false;
             
-            m_functor(cons->getPrimitiveConstraint());            
+            m_functor(cons->getPrimitive());            
             cwalker->acceptConstraint(cons);
             return Connection::apply(walker);
         };
@@ -887,7 +887,7 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
     typedef typename GeometryNode<Kernel>::FlowNode FlowNode;
     typedef typename GeometryNode<Kernel>::Equation Equation;
     
-    virtual Equation buildGeometryEquation(TreeWalker* walker) const {
+    virtual Equation buildGeometryEquation(TreeWalker* walker) const override {
         auto* gwalker = static_cast<TargetWalker<Kernel, geometry::extractor<Output>::template primitive>*>(walker);
         //create the new primitive geometry and set the initial value
         auto geom = std::make_shared<DerivedG>();       
@@ -901,7 +901,7 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         return geom;
     }
     
-    virtual std::pair< Equation, FlowNode > buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const {
+    virtual std::pair< Equation, FlowNode > buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const override {
         
         auto* gwalker = static_cast<TargetWalker<Kernel, geometry::extractor<Output>::template primitive>*>(walker);
         //create the new primitive geometry and set the initial value

@@ -80,9 +80,9 @@ struct TestModule1 {
             return 1;
         };
 
-        struct TestType1 : public Stacked::ObjectBase {
+        struct TestType1 : public Stacked::Object {
 
-            TestType1() : Stacked::ObjectBase( Final::template objectTypeID<typename Final::TestType1>::ID::value ) {};
+            TestType1() : Stacked::Object( Final::template objectTypeID<typename Final::TestType1>::ID::value ) {};
             int function1() {
                 return 1;
             };
@@ -90,9 +90,9 @@ struct TestModule1 {
             DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty1)(TestProperty2) )
         };
         
-        struct TestType2 : public Stacked::ObjectBase {
+        struct TestType2 : public Stacked::Object {
                     
-            TestType2() : Stacked::ObjectBase( Final::template objectTypeID<typename Final::TestType2>::ID::value ) {};
+            TestType2() : Stacked::Object( Final::template objectTypeID<typename Final::TestType2>::ID::value ) {};
                         
             DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty3) )
         };
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(module_functions) {
 BOOST_AUTO_TEST_CASE(object_handling) {
 
     boost::shared_ptr<System::TestType1>  t(new System::TestType1);
-    boost::shared_ptr<System::ObjectBase> b(t);
+    boost::shared_ptr<System::Object> b(t);
     
     //test the type ID stuff
     BOOST_CHECK(t->isType<System::TestType1>());

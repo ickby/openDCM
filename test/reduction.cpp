@@ -147,20 +147,20 @@ BOOST_AUTO_TEST_CASE(tree) {
 
     //build the data 
     TDirection3<K> g1, g2;
-    auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
-    auto sg2 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
-    sg1->setPrimitiveGeometry(g1);
-    sg2->setPrimitiveGeometry(g2);
+    auto sg1 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    auto sg2 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    sg1->setPrimitive(g1);
+    sg2->setPrimitive(g2);
     
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
-    c1->setPrimitiveConstraint(dcm::distance);
-    c1->setConstraintID(Sys::template constraintIndex<dcm::Distance>::value);
-    c1->getPrimitiveConstraint().distance() = 0;
+    c1->setPrimitive(dcm::distance);
+    c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
+    c1->getPrimitive().distance() = 0;
     
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
-    c2->setPrimitiveConstraint(dcm::angle);
-    c2->setConstraintID(Sys::template constraintIndex<dcm::Angle>::value);
-    c2->getPrimitiveConstraint().angle() = 0;
+    c2->setPrimitive(dcm::angle);
+    c2->setType(Sys::template constraintIndex<dcm::Angle>::value);
+    c2->getPrimitive().angle() = 0;
     Tree::SymbolicVector cvec;
     cvec.push_back(std::make_tuple(c1, sg1, sg2));
     cvec.push_back(std::make_tuple(c2, sg1, sg2));
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(tree) {
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
         auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value);
-        if(dist && dist->getPrimitiveConstraint().distance()==0) {
+        if(dist && dist->getPrimitive().distance()==0) {
                 
             cwalker->acceptConstraint(dist);        
             return true;
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(tree) {
     
     //lets test conditional constraints 
     delete walker;
-    c1->getPrimitiveConstraint().distance() = 1;
+    c1->getPrimitive().distance() = 1;
     auto fixed = tree.getTreeNode<FixedPoint<K>>();
 
     tree.getSourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 0>>(fixed, [](const dcm::Angle& angle){});  
@@ -222,27 +222,27 @@ BOOST_AUTO_TEST_CASE(convertion) {
     TDirection3<K> g1, g2;
     g1.value() << 1,2,3;
     g2.value() << 4,5,6;
-    auto sg1 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
-    auto sg2 = new dcm::symbolic::TypeGeometry<K, TDirection3>();
-    sg1->setPrimitiveGeometry(g1);
-    sg2->setPrimitiveGeometry(g2);
+    auto sg1 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    auto sg2 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    sg1->setPrimitive(g1);
+    sg2->setPrimitive(g2);
     g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v1), sg1);
     g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v2), sg2);
 
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
-    c1->setPrimitiveConstraint(dcm::distance);
-    c1->setConstraintID(Sys::constraintIndex<dcm::Distance>::value);
+    c1->setPrimitive(dcm::distance);
+    c1->setType(Sys::constraintIndex<dcm::Distance>::value);
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
-    c2->setPrimitiveConstraint(dcm::angle);
-    c2->setConstraintID(Sys::constraintIndex<dcm::Angle>::value);
+    c2->setPrimitive(dcm::angle);
+    c2->setType(Sys::constraintIndex<dcm::Angle>::value);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
 
     symbolic::NumericConverter<K, typename Sys::GeometryList, typename Sys::ConstraintList, typename Sys::Graph> reducer;
-    reducer.setupEquationBuilder(g, fusion::at_c<0>(e1));
+    reducer.setupEquationHandler(g, fusion::at_c<0>(e1));
     
     //check the result
-    numeric::EquationBuilder<K>* builder = g->getProperty<numeric::EquationBuilderProperty<K>>(fusion::at_c<0>(e1));
+    numeric::EquationHandler<K>* builder = g->getProperty<numeric::EquationHandlerProperty<K>>(fusion::at_c<0>(e1));
     BOOST_CHECK(builder != nullptr);
     
     auto eg1 = std::static_pointer_cast<numeric::Equation<K, TDirection3<K>>>(builder->createGeometry(fusion::at_c<0>(v1)));
