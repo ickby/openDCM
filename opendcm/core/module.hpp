@@ -125,7 +125,7 @@ struct ModuleCoreInit {
     typedef mpl::vector3<Distance, Orientation, Angle>  ConstraintList;
 
 protected:
-    typedef mpl::vector<numeric::EquationBuilderProperty<Kernel>>           EdgeProperties;
+    typedef mpl::vector<numeric::EquationHandlerProperty<Kernel>>           EdgeProperties;
     typedef mpl::vector<GraphObjectProperty, symbolic::ConstraintProperty>  GlobalEdgeProperties;
     typedef mpl::vector<GraphObjectProperty, symbolic::GeometryProperty>    VertexProperties;
     typedef mpl::vector0<>                                                  ClusterProperties;
@@ -206,18 +206,18 @@ struct ModuleCoreFinish : public Stacked {
         //build up the system and solve
         auto g = std::static_pointer_cast<Graph>(this->getGraph());
 #ifdef DCM_USE_LOGGING
-        BOOST_LOG_SEV(Stacked::log, details::solving) << "Setup Solver";
-#endif
-        auto solvable = solver::Builder::createSolvableSystem<Final>(g, m_converter);
-#ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Execute Solver";
 #endif
-        solvable->execute();
-                       
+        solver::Builder::solveSystem<Final>(g, m_converter);
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done Solver, postprocess";
+#endif
         //post process the finished calculation. As solving throws an exception when not successfull we 
         //are sure that we finished and that we can process the solution
-                
-        
+        solver::Builder::postprocessSystem(g);
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done postprocessing";
+#endif 
     };
     
 private:

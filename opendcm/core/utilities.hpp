@@ -150,6 +150,9 @@ get(std::shared_ptr<utilities::Variant<Types>> variant) {
     return *result;
 };
 
+template<typename T = void>
+using visitor = boost::static_visitor<T>;
+
 }//dcm
 
 #endif //DCM_UTILITIES_H

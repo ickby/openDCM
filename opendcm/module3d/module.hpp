@@ -66,12 +66,12 @@ struct Module3D {
          *     auto alternative = dcm::get<MyPointClass>(geometry);
          * @endcode
          * Alternatively it is possible to apply a visitor object which gets called with the stored geometry type. The visitor can 
-         * have a operator() for each expected type, or even a template operator if all should be handled equally. Note that the 
-         * operator() must be defined const if you pass in the visitor as copy. Also the return type of the visitor must be defined
-         * via the dcm::visitor<> template.
+         * have a operator() for each expected type, or even a template operator if all should be handled equally. Note that if 
+         * you pass in the visitor as temporary object the operator() as well as the passed type must be defined const. 
+         * Note also that the return type of the visitor must be defined via the dcm::visitor<> template.
          * @code 
          * struct Visitor1 : dcm::visitor<int> {
-         *      int operator()(const MyPointClass& geometry) {return 1;};
+         *      int operator()(MyPointClass& geometry) {return 1;};
          * }
          * struct Visitor2 : dcm::visitor<int> {
          *      template<typename T>
@@ -205,15 +205,17 @@ struct Module3D {
                 InheritedV::apply(PropAssigner(prop));
             };
             
-            virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase>,
-                                           graph::LocalVertex, graph::GlobalVertex) override {
-                //TODO: Read the data from the graph back into the user type
+            virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase> g,
+                                           graph::LocalVertex lv, graph::GlobalVertex) override {
+                
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(g);
+                auto prop = cluster->template getProperty<GeometryProperty>(lv);
+                auto functor = PropRetriever(prop);
+                InheritedV::apply(functor);
             };
             
         private:
-            struct PropCreator {  
-                typedef symbolic::Geometry* result_type;
-                
+            struct PropCreator : dcm::visitor<symbolic::Geometry*> {              
                 template<typename T>
                 result_type operator()(const T&) const {
                     typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
@@ -222,10 +224,8 @@ struct Module3D {
                 };
             };
             
-            struct PropAssigner {  
-                typedef void result_type;
-                symbolic::Geometry* geom;
-                
+            struct PropAssigner : dcm::visitor<>{  
+                symbolic::Geometry* geom;                
                 PropAssigner(symbolic::Geometry* g) : geom(g) {};
                 
                 template<typename T>
@@ -235,6 +235,21 @@ struct Module3D {
                     typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
 
                     (typename geometry_traits<T>::modell()).template extract<Scalar, typename geometry_traits<T>::accessor >(geometry, 
+                                                                                static_cast<TypeGeometry*>(geom)->getPrimitve());
+                };
+            };
+            
+            struct PropRetriever : dcm::visitor<> {  
+                symbolic::Geometry* geom;                
+                PropRetriever(symbolic::Geometry* g) : geom(g) {};
+                
+                template<typename T>
+                void operator()(T& geometry) const {
+                    typedef typename Final::Kernel::Scalar Scalar;
+                    typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
+                    typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
+
+                    (typename geometry_traits<T>::modell()).template inject<Scalar, typename geometry_traits<T>::accessor >(geometry, 
                                                                                 static_cast<TypeGeometry*>(geom)->getPrimitve());
                 };
             };

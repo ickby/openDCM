@@ -228,10 +228,10 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         v2 = g2->get<Vector3>();
         v3 = g3->get<Vector3>();
         v4 = g4->get<Vector3>();
-        BOOST_CHECK_EQUAL((v1-v2).norm(), 3.);
-        BOOST_CHECK_EQUAL((v2-v3).norm(), 4.);
-        BOOST_CHECK_EQUAL((v3-v4).norm(), 5.);
-        BOOST_CHECK_EQUAL((v4-v1).norm(), 6.);
+        BOOST_CHECK_CLOSE((v1-v2).norm(), 3., 1e-6);
+        BOOST_CHECK_CLOSE((v2-v3).norm(), 4., 1e-6);
+        BOOST_CHECK_CLOSE((v3-v4).norm(), 5., 1e-6);
+        BOOST_CHECK_CLOSE((v4-v1).norm(), 6., 1e-6);
     
     }
     catch(boost::exception& x) {

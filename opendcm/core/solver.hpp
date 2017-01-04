@@ -100,7 +100,7 @@ void reduceGraph(std::shared_ptr<Graph> g, Converter& c) {
         auto fedges = g->template filterRange<typename Graph::edge_changed>(g->edges());
         shedule::for_each(fedges.first, fedges.second, [&](graph::LocalEdge& e) {
             
-            c.setupEquationBuilder(g, e);
+            c.setupEquationHandler(g, e);
             g->acknowledgeEdgeChanges(e);
         });
   
@@ -185,7 +185,7 @@ struct Builder {
     * the set parameters in the graph
     */
     template<typename Kernel, typename Graph>
-    static std::shared_ptr<shedule::Executable> buildGraphNumericSystem(std::shared_ptr<Graph> g) {
+    static void solveGraphNumericSystem(std::shared_ptr<Graph> g) {
         
         //to ensure that we do not forget anything or that we have processed things twice we create a 
         //vector to store what waas processed so far.
@@ -249,8 +249,8 @@ struct Builder {
         //iterate over all edges and create the equations for them
         auto edges = g->edges();
         for(; edges.first != edges.second; ++edges.first) {    
-            typedef typename numeric::EquationBuilderProperty<Kernel> prop;
-            numeric::EquationBuilder<Kernel>* builder = g->template getProperty<prop>(*edges.first); 
+            typedef typename numeric::EquationHandlerProperty<Kernel> prop;
+            numeric::EquationHandler<Kernel>* builder = g->template getProperty<prop>(*edges.first); 
             auto source = g->source(*edges.first);
             CalcPtr g1;
             auto it = vProcessed.find(source);
@@ -277,8 +277,16 @@ struct Builder {
             fg->append(vec);        
         }
     
-        //build the solver object        
-        return std::make_shared<numeric::Dogleg<Kernel>>(fg);
+        //build the solver object and solve
+        numeric::Dogleg<Kernel> solver(fg);
+        solver.calculate();
+        
+        //we need to make sure that after solving all results are written back
+        edges = g->edges();
+        for(; edges.first != edges.second; ++edges.first) {
+              auto* builder = g->template getProperty<typename numeric::EquationHandlerProperty<Kernel>>(*edges.first); 
+              builder->writeToSymbolic();
+        }
     };
         
 
@@ -290,7 +298,7 @@ struct Builder {
     * numeric equation system is minimal. Excecute will trigger the solving.
     */
     template<typename Final, typename Graph, typename Converter>
-    static std::shared_ptr<shedule::Executable> createSolvableSystem(std::shared_ptr<Graph> g, Converter& c) {
+    static void solveSystem(std::shared_ptr<Graph> g, Converter& c) {
 
         //first do all the needed preprocessing
         auto vit = g->vertices();
@@ -322,40 +330,53 @@ struct Builder {
         //solved, as the graph depends on the finished subcluster values. However, all subclusters can be solved
         //in parallel
         auto iter = g->clusters();
-        auto s1 = std::make_shared<shedule::ParallelConcurrentVector>();
         shedule::for_each(iter.first, iter.second, 
             [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
-                auto fg = createSolvableSystem<Final>(sub.second, c);
-                s1->addExecutable(fg);
+                solveSystem<Final>(sub.second, c);
             }
-        );        
+        );
 
-        //now identify all individual components and create a executable for each
-        std::shared_ptr<shedule::Executable> s2;
-        if(components > 1) {       
-            auto vec = std::make_shared<shedule::ParallelConcurrentVector>();
+        //now identify all individual disconnected components and solve them
+        if(components>1) {
             shedule::for_each(0, components, 1, [&](int i) {
-                auto filter = graph::make_filter_graph(g, i);
-                vec->addExecutable(buildGraphNumericSystem<typename Final::Kernel>(filter));        
+                    auto filter = graph::make_filter_graph(g, i);
+                    solveGraphNumericSystem<typename Final::Kernel>(filter);        
             });
-            s2 = vec;
         }
-        else {
-            s2 = buildGraphNumericSystem<typename Final::Kernel>(g);   
-        }
+        else 
+            solveGraphNumericSystem<typename Final::Kernel>(g);
         
-        
-        //to calculate everthing we need to make sure that all subclusters are calculated before the 
-        //main graph is handled.
-        if(s1->empty()) {
-            s1.reset();
-            return s2;
-        }    
-        return shedule::make_executable([s1, s2](){
-            s1->execute();
-            s2->execute();
-        });
+        //we cant postprocess now, as we don't know if we are the toplevel cluster        
     }
+    
+    template<typename Graph>
+    static void postprocessSystem(std::shared_ptr<Graph> g) {
+    
+        //as we need to access abolutely every node in the cluste rstructure we do this recursive
+        //first process all subcluster
+        auto iter = g->clusters();
+        std::for_each(iter.first, iter.second, 
+            [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
+                postprocessSystem(sub.second);
+            }
+        );
+        
+        auto vit = g->vertices();
+        std::for_each(vit.first, vit.second, [g](const graph::LocalVertex& v) {
+            auto prop = g->template getProperty<details::GraphObjectProperty>(v);
+            if(prop)
+                prop->postprocessVertex(g, v, g->template getProperty<graph::VertexProperty>(v));
+        });
+        auto eit = g->edges();
+        std::for_each(eit.first, eit.second, [g](const graph::LocalEdge& e) {
+            auto geit = g->getGlobalEdges(e);
+            std::for_each(geit.first, geit.second, [g](const graph::GlobalEdge& ge) {
+                auto prop = g->template getProperty<details::GraphObjectProperty>(ge);
+                if(prop)
+                    prop->postprocessEdge(g, ge);
+            });
+        });
+    };
 };
 
 } //solver

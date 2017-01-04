@@ -22,6 +22,7 @@
 
 #include <Eigen/Core>
 
+#include "defines.hpp"
 #include "geometry.hpp"
 #include "clustergraph.hpp"
 #include "constraint.hpp"
@@ -42,22 +43,37 @@ namespace numeric {
 /**
  * @brief Structure to setup the numeric equations for a solver at a graph edge
  *
- * This struct is the entry point for the numeric solver setup. It has all the functions needed to get the
- * numeric geometries and constraints for a \ref ClusterGraph edge. As the usage of vertices as un- or 
- * dependend geometry is not yet decided at creation time this clas offers the possibility to create both, 
- * dependend on the callers needs. The caller is responsible for calling the appropriate functions for 
- * reduced/unreduced geometry and constraints and to not mix them. Futhermore the class provides functions
- * to create equations directly in a \ref FlowGraph which allows for more efficient calculation than adding 
- * the equation to a \ref FlowGraph after the creation. When using the provided methods a minimal amount of
- * virtual calls is assured.
- * 
+ * This class is the entry point to the numeric solver setup, it is the only place were a symbolic graph 
+ * node and its numeric representation meet, it is the interface between numeric and symbolic worlds. 
+ * It is centered around the graph edges. As the setup of dependend geometry depends on the base as well
+ * as the dependend geometry, having the numeric initializer at the edge comes natural. Only there, 
+ * with information about source and target vertices as well as constraints, the equation building has 
+ * all needed informations. 
+ * It has all the functions needed to get the numeric geometries and constraints for a \ref ClusterGraph 
+ * edge and its source/target vertices. As the usage of vertices as un- or dependend geometry is not yet 
+ * decided at creation time, this class offers the possibility to create both, dependend on the callers 
+ * needs. The caller is responsible for calling the appropriate functions for reduced/unreduced geometry
+ * and constraints and to not mix them. Futhermore the class provides functions to create equations
+ * directly in a \ref FlowGraph which allows for more efficient calculation than adding the equation to
+ * a \ref FlowGraph after the creation. When using the provided methods a minimal amount of virtual calls 
+ * is assured.
  * @note The returned equations are not yet initialised and hence cannot be used directly. It is the
  * callers responsibility to call \ref init for all equations
+ * 
+ * As this class is the only point where symbolic and numeric representations meet, it is not only 
+ * required to create a equation from the graph, but also to write back all numeric results into the
+ * graph. This means the created equations are getting stored, so that a mapping from vertex and edge
+ * to equation is possible. Functions for accessing those equations by graph entity are provided. There 
+ * is also a more general function available to do the backwriting \ref writeToSymbolic
+ * @note The equations are stored as a unique entry for each graph entity, this means if you call the 
+ *       creation methods multiple times they will be overriden and the older equations cannot be 
+ *       mapped to the graph anymore
+ * 
  */
 template<typename Kernel>
-struct EquationBuilder {
+struct EquationHandler {
     
-    virtual ~EquationBuilder(){};
+    virtual ~EquationHandler(){};
     
     typedef shedule::FlowGraph::Node  Node;
     typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
@@ -67,7 +83,7 @@ struct EquationBuilder {
      * @brief Create a undependend geometry equation 
      * 
      * This function creates the undependend geometry equation for a given vertex. This vertex must 
-     * be the source or target of the edge where the EquationBuilder is added to. The result does 
+     * be the source or target of the edge where the EquationHandler is added to. The result does 
      * ignore all reduction results done on the edge.
      * 
      * @param vertex The vertex that describes the geometry in the clustergraph
@@ -80,7 +96,7 @@ struct EquationBuilder {
      * 
      * This function creates the undependend geometry equation for a given vertex directly in a 
      * \ref FlowGraph The given vertex must be the source or target of the edge where the 
-     * EquationBuilder is added to. The result does ignore all reduction results done on the edge. 
+     * EquationHandler is added to. The result does ignore all reduction results done on the edge. 
      * The returned node is unconnected. To allow initialisation of the equation it creates it is 
      * provided too.
      * 
@@ -95,9 +111,9 @@ struct EquationBuilder {
      * @brief Create a dependend geometry equation
      * 
      * This function creates the dependend geometry equation for a given vertex. This vertex must 
-     * be the source or target of the edge where the EquationBuilder is added to. The created equation 
+     * be the source or target of the edge where the EquationHandler is added to. The created equation 
      * is a \ref InputEquation depending on the edges other vertex geometry, which is not provided, and
-     * the constraints which have been used for the reduction. Hence if this EquationBuilder is
+     * the constraints which have been used for the reduction. Hence if this EquationHandler is
      * added to a certain edge, this function called with the target vertex creates a geometry of the
      * target type dependend on the source type and the constraints of this edge.
      * @param vertex The vertex of the depending geometry to create
@@ -126,7 +142,7 @@ struct EquationBuilder {
      * 
      * This function creates numeric equations for all available constraints, no matter what the 
      * reduction did result in. The created equations of type BinaryEquation have the geometries 
-     * as input, which are at the EquationBuilders edge source/target. The geometries at source and target vertex
+     * as input, which are at the EquationHandlers edge source/target. The geometries at source and target vertex
      * of the edge should be used as source and target equation for this function, mixing those will
      * lead to faulty equation claculation! 
      * 
@@ -160,7 +176,7 @@ struct EquationBuilder {
      * 
      * This function creates numeric equations for the remaining constraints after the reduction 
      * process. The created equations of type BinaryEquation have the geometries 
-     * as input, which are at the EquationBuilders edge source/target. The geometries at source and 
+     * as input, which are at the EquationHandlers edge source/target. The geometries at source and 
      * target vertex of the edge should be used as source and target equation for this function, mixing 
      * those will lead to faulty equation claculation! 
      * \note It is possible that there are no remaining equations and the returned vector is empty
@@ -191,24 +207,56 @@ struct EquationBuilder {
     virtual std::pair<std::vector<CalcPtr>, Node>
     createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr sourceGeometry, 
                                CalcPtr targetGeometry, shedule::FlowGraph& flow) = 0;
+        
+         
+    /**
+     * @brief Writes the numeric quations back to their symbolic counterpart
+     * When creating the numeric equations, the symbolic geometry values are writen to the numeric equations.
+     * Once the solving is done,  the process needs to be reversed, the numeric values need to be passed to
+     * the symbolic representations. This is done with this equation. It used the mapping between graph 
+     * entity and equation that was build up during equation creation.
+     */
+    virtual void writeToSymbolic() = 0;
+    
+    /**
+     * @brief Returns the equation created for given vertex
+     * @param v Vertex descriptor for which to inquery the equation
+     * @return CalcPtr The created equation, nullptr if not created yet
+     */
+    CalcPtr getVertexEquation(const graph::LocalVertex& v) {return m_vertexEquation[v];};
+    
+    /**
+     * @brief Returns the equations created for th processed edge
+     * 
+     * @return std::vector< CalcPtr > Vector of equations, empty if non created yet
+     */
+    std::vector<CalcPtr> getEdgeEquations() {return m_edgeEquations;};
+    
+protected:
+    void setVertexEquation(CalcPtr ptr, const graph::LocalVertex& v) {m_vertexEquation[v] = ptr;};
+    void setEdgeEquations(std::vector<CalcPtr> v) {m_edgeEquations = v;};
+    
+private:
+    std::map<graph::LocalVertex, CalcPtr> m_vertexEquation;
+    std::vector<CalcPtr>                  m_edgeEquations;
 };
 
 /**
- * @brief Store a EquationBuilder at a graph edge
+ * @brief Store a EquationHandler at a graph edge
  *
- * EquationBuilder class is used to convert a symbolic edge with its symbolic vertices to numeric 
- * equations. This builder is the result of an symbolic analysis and must be stored at the edge which
- * was analysed. This property does make this possible, it is added as a LocalEdge property to the 
- * ClusterGraph. It stores the EquationBuilder as pointer to allow polymoprphism. The initial value 
- * is a nullptr, hence always check for validity! 
+ * EquationHandler class is used to convert a symbolic edge with its symbolic vertices to numeric 
+ * equations (and back). This builder is the result of an symbolic analysis and must be stored at 
+ * the edge which was analysed. This property does make this possible, it is added as a LocalEdge 
+ * property to the ClusterGraph. It stores the EquationHandler as pointer to allow polymoprphism. 
+ * The initial value is a nullptr, hence always check for validity! 
  * 
  * \tparam Kernel The Kernel used 
  **/
 template<typename Kernel>
-struct EquationBuilderProperty {
-    typedef EquationBuilder<Kernel>* type;
+struct EquationHandlerProperty {
+    typedef EquationHandler<Kernel>* type;
     struct default_value {
-        EquationBuilder<Kernel>* operator()() {
+        EquationHandler<Kernel>* operator()() {
             return nullptr;
         };
     };
@@ -403,13 +451,13 @@ struct TargetWalker : public ConstraintWalker<Kernel> {
     typedef std::shared_ptr<numeric::Equation<Kernel, Primitive<Kernel>>> Geometry;
     typedef std::shared_ptr<numeric::Calculatable<Kernel>>                Equation;
     
-    TargetWalker(const Primitive<Kernel>& prim) : m_targetPrimitive(prim) {};
+    TargetWalker(Primitive<Kernel>& prim) : m_targetPrimitive(prim) {};
  
     /**
      * @brief Access the primitive geometry stored at the edges target vertex
      * @return const Primitive< Kernel >& The stored primitive geometry
      */
-    const Primitive<Kernel>& getTargetPrimitive() {return m_targetPrimitive;};
+    Primitive<Kernel>& getTargetPrimitive() {return m_targetPrimitive;};
         
     /**
      * @brief Set the commulative input equation
@@ -423,8 +471,8 @@ struct TargetWalker : public ConstraintWalker<Kernel> {
     Equation    getInputEquation() {return m_inputEqn;};
     
 private:
-    const Primitive<Kernel>&    m_targetPrimitive; //primitive holding the value
-    Equation                    m_inputEqn;  //cummulative input equation
+    Primitive<Kernel>&    m_targetPrimitive; //primitive holding the value
+    Equation              m_inputEqn;  //cummulative input equation
 };
 
 /**
@@ -439,17 +487,17 @@ private:
 template<typename Kernel, template<class> class SourcePrimitive, template<class> class TargetPrimitive>
 struct SourceTargetWalker : public TargetWalker<Kernel, TargetPrimitive>{
   
-    SourceTargetWalker(const SourcePrimitive<Kernel>& sprim, const TargetPrimitive<Kernel>& tprim) 
+    SourceTargetWalker(SourcePrimitive<Kernel>& sprim, TargetPrimitive<Kernel>& tprim) 
                             : TargetWalker<Kernel, TargetPrimitive>(tprim), m_sourcePrimitive(sprim) {};
     
     /**
      * @brief Access the primitive geometry stored at the edges source vertex
      * @return const SourcePrimitive< Kernel >& The stored primitive geometry
      */
-    const SourcePrimitive<Kernel>& getSourcePrimitive() {return m_sourcePrimitive;};
+    SourcePrimitive<Kernel>& getSourcePrimitive() {return m_sourcePrimitive;};
 
 private:
-    const SourcePrimitive<Kernel>&    m_sourcePrimitive; //primitive holding the value
+    SourcePrimitive<Kernel>&    m_sourcePrimitive; //primitive holding the value
 
 };
 
@@ -740,6 +788,7 @@ inline bool Connection::apply(TreeWalker* walker) const {
  * numeric Geometry must not be created at traversal time, but as the node reached in traversal is stored 
  * in the TreeWalker one can always access it later and use the functons provided here to create the 
  * appropriate numeric equations.
+ * The node is also responsible for writing back the numeric results to the symbolic representation.
  */
 template<typename Kernel>
 struct GeometryNode : public Node {
@@ -766,7 +815,16 @@ struct GeometryNode : public Node {
      */
     virtual std::pair< Equation, FlowNode>
     buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const = 0;
+    
+    /**
+     * @brief Write the numeric equation to the symbolic graph representation
+     * 
+     * @param walker The TreeWalker holding all relevant data needed for accessing the symbolic world
+     * @param eqn The numeric equation whichs result shall be transfered to the symbolic world
+     */
+    virtual void writeToSymbolic(TreeWalker* walker, Equation eqn) = 0;
 };
+
 
 /**
  * @brief Node for Undependend Geometry
@@ -804,6 +862,12 @@ struct UndependendGeometryNode : public GeometryNode<Kernel> {
         return std::make_pair(geom, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             geom->calculate();
         }));
+    };
+    
+    void writeToSymbolic(TreeWalker* walker, Equation eqn) override {
+        TargetWalker<Kernel, G>* gwalker = static_cast<TargetWalker<Kernel, G>*>(walker);
+        auto geom = std::static_pointer_cast<numeric::Geometry<Kernel, G>>(eqn);
+        gwalker->getTargetPrimitive() = geom->output();
     };
 };
 
@@ -853,6 +917,12 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
             geom->calculate();
         }));
     };
+    
+    void writeToSymbolic(TreeWalker* walker, Equation eqn) override {
+        auto* gwalker = static_cast<TargetWalker<Kernel, geometry::extractor<Output>::template primitive>*>(walker);
+        auto geom = std::static_pointer_cast<DerivedG>(eqn);
+        gwalker->getTargetPrimitive() = geom->output();
+    }; 
 };
 
 /**
@@ -926,8 +996,8 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
         //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(target) != NULL);
 
         //get the primitive geometries
-        const SourceGeometry<Kernel>& pg1 = static_cast<symbolic::TypeGeometry<SourceGeometry<Kernel>>*>(source)->getPrimitve();
-        const TargetGeometry<Kernel>& pg2 = static_cast<symbolic::TypeGeometry<TargetGeometry<Kernel>>*>(target)->getPrimitve();
+        SourceGeometry<Kernel>& pg1 = static_cast<symbolic::TypeGeometry<SourceGeometry<Kernel>>*>(source)->getPrimitve();
+        TargetGeometry<Kernel>& pg2 = static_cast<symbolic::TypeGeometry<TargetGeometry<Kernel>>*>(target)->getPrimitve();
 
         //create a new treewalker and set it up. We need to make sure that the correct walker for the 
         //given reduction job is used
@@ -954,7 +1024,7 @@ namespace numeric {
     * 
     */
 template<typename Kernel>
-struct EdgeBuilder : public numeric::EquationBuilder<Kernel> {
+struct EdgeEquationHandler : public numeric::EquationHandler<Kernel> {
     
     //the general reduction result: how many parameters can be eliminated
     int parameterReduction() {
@@ -970,21 +1040,22 @@ private:
  * 
  */
 template<typename Kernel>
-struct ConstraintBuilder : public EdgeBuilder<Kernel> {
+struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     
+    typedef EdgeEquationHandler<Kernel>                                               Base;
     typedef shedule::FlowGraph::Node                                                  Node;
     typedef std::shared_ptr<numeric::Calculatable<Kernel>>                            CalcPtr;
     typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> SymbolicTuple;
     typedef std::vector<SymbolicTuple>                                                SymbolicVector;   
     typedef boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>       GeneratorArray;
     
-    ConstraintBuilder(const graph::LocalVertex& source, const graph::LocalVertex& target,
+    ConstraintEquationHandler(const graph::LocalVertex& source, const graph::LocalVertex& target,
                       reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw,
                       const SymbolicVector& defaultConstraints, const GeneratorArray& cg) 
         : m_sourceVertex(source), m_targetVertex(target), m_sourceWalker(sw), m_targetWalker(tw), 
           m_constraints(defaultConstraints), m_generatorArry(cg) {};
     
-    virtual ~ConstraintBuilder() {
+    virtual ~ConstraintEquationHandler() {
         //we own the walkers
         delete m_sourceWalker;
         delete m_targetWalker;
@@ -995,12 +1066,18 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
                
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
-            return node->buildGeometryEquation(m_sourceWalker);
+            auto eqn = node->buildGeometryEquation(m_sourceWalker);
+            Base::setVertexEquation(eqn, vertex);
+            return eqn;
         }
-        else  {
+        else if(vertex == m_targetVertex)   {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getInitialNode());
-            return node->buildGeometryEquation(m_targetWalker);
+            auto eqn = node->buildGeometryEquation(m_targetWalker);
+            Base::setVertexEquation(eqn, vertex);
+            return eqn;
         }
+        else 
+            throw solving_error() <<  boost::errinfo_errno(41) << error_message("No equations can be created for given vertex");
     };
 
     virtual std::pair< CalcPtr, Node>
@@ -1008,12 +1085,18 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
-            return node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
+            auto eqn = node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
+            Base::setVertexEquation(eqn.first, vertex);
+            return eqn;
         }
-        else  {
+        else if(vertex == m_targetVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getInitialNode());
-            return node->buildGeometryEquationNode(m_targetWalker, flowgraph);
+            auto eqn = node->buildGeometryEquationNode(m_targetWalker, flowgraph);
+            Base::setVertexEquation(eqn.first, vertex);
+            return eqn;
         }
+        else 
+            throw solving_error() <<  boost::errinfo_errno(41) << error_message("No equations can be created for given vertex");
     };
     
     //this function creates a reduced numeric geometry equation. For this the equation it depends on 
@@ -1022,12 +1105,18 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
-            return node->buildGeometryEquation(m_sourceWalker);
+            auto eqn = node->buildGeometryEquation(m_sourceWalker);
+            Base::setVertexEquation(eqn, vertex);
+            return eqn;
         }
-        else  {
+        else if(vertex == m_targetVertex)  {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
-            return node->buildGeometryEquation(m_targetWalker);
+            auto eqn = node->buildGeometryEquation(m_targetWalker);
+            Base::setVertexEquation(eqn, vertex);
+            return eqn;
         }
+        else 
+            throw solving_error() <<  boost::errinfo_errno(41) << error_message("No equations can be created for given vertex");
     };
      
     //this function is used to create a reduced numeric geometry equation and a node for it in the 
@@ -1037,12 +1126,18 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
         
         if(vertex == m_sourceVertex) {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
-            return node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
+            auto eqn = node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
+            Base::setVertexEquation(eqn.first, vertex);
+            return eqn;
         }
-        else  {
+        else if(vertex == m_targetVertex)  {
             auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
-            return node->buildGeometryEquationNode(m_targetWalker, flowgraph);
+            auto eqn = node->buildGeometryEquationNode(m_targetWalker, flowgraph);
+            Base::setVertexEquation(eqn.first, vertex);
+            return eqn;
         }
+        else 
+            throw solving_error() <<  boost::errinfo_errno(41) << error_message("No equations can be created for given vertex");
     };
     
     //this function is used to create all default constraint equations
@@ -1055,6 +1150,7 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
                                                [std::get<2>(tuple)->getType()]
                                                [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
+        Base::setEdgeEquations(equations);
         return equations;
     };
                        
@@ -1071,11 +1167,13 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
                                                                                                 flow);
             std::vector<CalcPtr> vec(1);
             vec.push_back(node.first);
+            Base::setEdgeEquations(vec);
             return std::make_pair(vec, node.second);
         }
                 
         //if we have multiple constraints we need to call the virtual functions anyway
         auto equations = createEquations(g1,g2);
+        Base::setEdgeEquations(equations);
         return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
                 cons->execute();
@@ -1093,6 +1191,7 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
                                                [std::get<2>(tuple)->getType()]
                                                [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
+        Base::setEdgeEquations(equations);
         return equations;
     };
                        
@@ -1110,15 +1209,32 @@ struct ConstraintBuilder : public EdgeBuilder<Kernel> {
                                                                                                flow);
             std::vector<CalcPtr> vec(1);
             vec.push_back(node.first);
+            Base::setEdgeEquations(vec);
             return std::make_pair(vec, node.second);   
         }
                 
         //if we have multiple constraints we need to call the virtual functions anyway
         auto equations = createReducedEquations(target,g1,g2);
+        Base::setEdgeEquations(equations);
         return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
                 cons->execute();
         }));
+    };
+    
+    //this function must make sure the numeric results are writen to the symbolic graph entities
+    void writeToSymbolic() override {
+        //the constraints have no intteresting results, hence we only write back the vertex equations
+        auto eqn = Base::getVertexEquation(m_sourceVertex);
+        if(eqn) {
+            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
+            node->writeToSymbolic(m_sourceWalker, eqn);
+        }
+        eqn = Base::getVertexEquation(m_targetVertex);
+        if(eqn) {
+            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
+            node->writeToSymbolic(m_targetWalker, eqn);
+        }
     };
     
 private:
@@ -1139,7 +1255,7 @@ namespace symbolic {
  * for it. It searchews for the best possible numeric implementation by combining geometries and 
  * constraints appropriately. Note that at the time of reduction it is not yet known if the symbolic
  * system really should be converted to generalized coordinates, hence the numeric system is not 
- * directly created. Instead the NumericConverter adds an EquationBuilder to the graph which can be 
+ * directly created. Instead the NumericConverter adds an EquationHandler to the graph which can be 
  * used to create the generalized or cartesian coordinate equations dependend on other analysis results.
  * 
  * @note This class is very heavy to initiate, it should not be created on the stack
@@ -1180,7 +1296,7 @@ struct NumericConverter {
      * @brief ...
      * 
      */
-    void setupEquationBuilder(std::shared_ptr<Graph> g, graph::LocalEdge edge) {
+    void setupEquationHandler(std::shared_ptr<Graph> g, graph::LocalEdge edge) {
         
         //get the geometry used in this edge
         symbolic::Geometry* source = g->template getProperty<symbolic::GeometryProperty>(g->source(edge));
@@ -1212,13 +1328,13 @@ struct NumericConverter {
         
         //build the reduction and set store it in the graph. Make sure any pointer already stored is
         //deleted properly, especially the walkers
-        auto reduction = g->template getProperty<numeric::EquationBuilderProperty<Kernel>>(edge);
+        auto reduction = g->template getProperty<numeric::EquationHandlerProperty<Kernel>>(edge);
         if(reduction)
             delete reduction;
         
-        reduction = new numeric::ConstraintBuilder<Kernel>(g->source(edge), g->target(edge), 
+        reduction = new numeric::ConstraintEquationHandler<Kernel>(g->source(edge), g->target(edge), 
                                                            tsWalker, stWalker, symbolics, m_generatorArray);
-        g->template setProperty<numeric::EquationBuilderProperty<Kernel>>(edge, reduction);
+        g->template setProperty<numeric::EquationHandlerProperty<Kernel>>(edge, reduction);
     };
     
 private:

@@ -326,7 +326,8 @@ public:
 #endif
     }; 
 
-    virtual void execute();
+    void calculate();
+    virtual void execute() {calculate();};
 };
 
 template<typename Kernel>
@@ -419,7 +420,7 @@ void Dogleg<Kernel>::calculateStep(const Eigen::MatrixBase<Derived>& g, const Ei
 };
 
 template<typename Kernel>
-void Dogleg<Kernel>::execute() {
+void Dogleg<Kernel>::calculate() {
 
     clock_t start = clock();   
     /*
