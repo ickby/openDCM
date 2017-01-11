@@ -621,12 +621,14 @@ BOOST_AUTO_TEST_CASE(filter_graph) {
         c++;
     BOOST_CHECK(c==1);
     BOOST_CHECK(g2eit.first == g2eit.second);
+    BOOST_CHECK(filter->edgeCount() == c);
     
     gvit = filter->vertices();
     auto g2vit = filter2->vertices();
     for(c=0;gvit.first != gvit.second; ++gvit.first)
         c++;
     BOOST_CHECK(c==2);    
+    BOOST_CHECK(filter->vertexCount() == c);
     for(c=0;g2vit.first != g2vit.second; ++g2vit.first)
         c++;
     BOOST_CHECK(c==2); 

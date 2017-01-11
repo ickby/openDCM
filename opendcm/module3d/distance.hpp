@@ -29,19 +29,16 @@ namespace dcm {
 namespace numeric {
     
 template<typename Kernel>
-struct Constraint<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> 
-        : public numeric::ConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> {
+struct BinaryConstraint<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> 
+        : public numeric::BinaryConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>> {
   
-    typedef numeric::ConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>>  Inherited;
+    typedef numeric::BinaryConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<Kernel>>  Inherited;
     typedef typename Kernel::Scalar                 Scalar;
     typedef typename Inherited::Vector              Vector;
     typedef typename Inherited::Geometry1           Geometry1;
     typedef typename Inherited::Derivative1         Derivative1;
     typedef typename Inherited::Geometry2           Geometry2;
     typedef typename Inherited::Derivative2         Derivative2;
-    
-    Constraint() {
-    };
     
     Scalar calculateError(Geometry1& g1, Geometry2& g2) {        
         return (g1.point()-g2.point()).norm() - Inherited::distance();
@@ -60,128 +57,105 @@ struct Constraint<Kernel, Distance, geometry::Point3<Kernel>, geometry::Point3<K
     };
 
     Vector calculateGradientSecondComplete(Geometry1& g1, Geometry2& g2) {
-        return (g1.point()-g2.point()) / (g1.point()-g2.point()).norm();
+        return (g2.point()-g1.point()) / (g1.point()-g2.point()).norm();
     };
 };
 
+
+template<typename Kernel>
+struct BinaryConstraint< Kernel, Distance, geometry::Point3<Kernel>, geometry::Line3<Kernel> >
+         : public numeric::BinaryConstraintBase< Kernel, Distance, geometry::Point3<Kernel>, geometry::Line3<Kernel> > {
+
+    typedef numeric::BinaryConstraintBase<Kernel, Distance, geometry::Point3<Kernel>, geometry::Line3<Kernel>>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry1           Geometry1;
+    typedef typename Inherited::Derivative1         Derivative1;
+    typedef typename Inherited::Geometry2           Geometry2;
+    typedef typename Inherited::Derivative2         Derivative2;
+
+    typedef Eigen::Matrix<Scalar, 3, 1> Vector3;
+    Vector3 diff, dist;
+
+#ifdef DCM_USE_LOGGING
+    details::dcm_logger log;
+    BinaryConstraint() {
+        log.add_attribute("Tag", attrs::mutable_constant< std::string >("Distance point3D line3D"));
+    };
+#endif
+
+    Scalar calculateError(Geometry1& point, Geometry2& line) {
+        //diff = point1 - point2
+        diff = line.point() - point.point();
+        dist = diff - diff.dot(line.direction())*line.direction();
+        const Scalar res = dist.norm() - Inherited::distance();
+#ifdef DCM_USE_LOGGING
+        if(!boost::math::isfinite(res))
+            BOOST_LOG_SEV(log, details::error) << "Unnormal residual detected: "<<res;
+#endif
+        return res;
+    };
+
+    Scalar calculateGradientFirst(Geometry1& point, Geometry2& line, Derivative1& dpoint) {
+        if(dist.norm() == 0)
+            return 1.;
+
+        const Vector3 d_dist = -dpoint.point() + dpoint.point().dot(line.direction())*line.direction();
+        const Scalar res = dist.dot(d_dist)/dist.norm();
+#ifdef DCM_USE_LOGGING
+        if(!boost::math::isfinite(res))
+            BOOST_LOG_SEV(log, details::error) << "Unnormal first cluster gradient detected: "<<res
+                           <<" with point: "<<point.point().transpose()<<", line: "<<line.point().transpose()
+                           << line.direction().transpose() <<" and dpoint: "<<dpoint.point().transpose();
+#endif
+        return res;
+    };
+
+    Scalar calculateGradientSecond(Geometry1& point, Geometry2& line, Derivative2& dline) {
+        if(dist.norm() == 0)
+            return 1.;
+
+        const Vector3 d_diff = dline.point();
+        const Vector3 d_n  = dline.direction();
+        const Vector3 d_dist = d_diff - ((d_diff.dot(line.direction())+diff.dot(d_n))*line.direction() + diff.dot(line.direction())*d_n);
+        const Scalar res = dist.dot(d_dist)/dist.norm();
+#ifdef DCM_USE_LOGGING
+        if(!boost::math::isfinite(res))
+            BOOST_LOG_SEV(log, details::error) << "Unnormal second cluster gradient detected: "<<res
+                           <<" with point: "<<point.point().transpose()<<", line: "<< line.point().transpose()
+                           << line.direction().transpose()<< ", and dline: "<<dline.point().transpose() 
+                           << dline.direction().transpose();
+#endif
+        return res;
+    };
+
+    Vector calculateGradientFirstComplete(Geometry1& point, Geometry2& line) {
+        if(dist.norm() == 0)
+            return Vector3::Ones();
+        
+        const Vector res = (line.direction()*line.direction().transpose())*dist - dist;
+        return res/dist.norm();
+    };
+
+    Vector calculateGradientSecondComplete(Geometry1& point, Geometry2& line)
+    {
+        if(dist.norm() == 0)
+            return Eigen::Matrix<Scalar, 6, 1>::Ones();
+
+        auto grad = Eigen::Matrix<Scalar, 6, 1>();
+        const Vector3 res = (-line.direction()*line.direction().transpose())*dist + dist;
+        grad.head(3) = res/dist.norm();
+
+        const Scalar mult = line.direction().transpose()*dist;
+        grad.template segment<3>(3) = -(mult*diff + diff.dot(line.direction())*dist)/dist.norm();
+        
+        return grad;
+    };
+};
 }//numeric
 }//dcm
 
 /*
-template<typename Kernel>
-struct Distance::type< Kernel, tag::point3D, tag::line3D > {
-
-    typedef typename Kernel::number_type Scalar;
-    typedef typename Kernel::VectorMap   Vector;
-    typedef typename Kernel::Vector3     Vector3;
-    typedef std::vector<typename Kernel::Vector3, Eigen::aligned_allocator<typename Kernel::Vector3> > Vec;
-
-    Scalar sc_value;
-    typename Distance::options values;
-    Vector3 diff, n, dist;
-
-#ifdef DCM_USE_LOGGING
-    dcm_logger log;
-    attrs::mutable_constant< std::string > tag;
-
-    type() : tag("Distance point3D line3D") {
-        log.add_attribute("Tag", tag);
-    };
-#endif
-
-    //template definition
-    void calculatePseudo(typename Kernel::Vector& point, Vec& v1, typename Kernel::Vector& line, Vec& v2) {
-        Vector3 pp = line.head(3) + (line.head(3)-point.head(3)).norm()*line.template segment<3>(3);
-#ifdef DCM_USE_LOGGING
-        if(!boost::math::isnormal(pp.norm()))
-            BOOST_LOG_SEV(log, error) << "Unnormal pseudopoint detected";
-#endif
-        v2.push_back(pp);
-    };
-    void setScale(Scalar scale) {
-        sc_value = fusion::at_key<double>(values).second*scale;
-    };
-    template <typename DerivedA,typename DerivedB>
-    Scalar calculate(const E::MatrixBase<DerivedA>& point,  const E::MatrixBase<DerivedB>& line) {
-        //diff = point1 - point2
-        n = line.template segment<3>(3);
-        diff = line.template head<3>() - point.template head<3>();
-        dist = diff - diff.dot(n)*n;
-        const Scalar res = dist.norm() - sc_value;
-#ifdef DCM_USE_LOGGING
-        if(!boost::math::isfinite(res))
-            BOOST_LOG_SEV(log, error) << "Unnormal residual detected: "<<res;
-#endif
-        return res;
-    };
-
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    Scalar calculateGradientFirst(const E::MatrixBase<DerivedA>& point,
-                                  const E::MatrixBase<DerivedB>& line,
-                                  const E::MatrixBase<DerivedC>& dpoint) {
-        if(dist.norm() == 0)
-            return 1.;
-
-        const Vector3 d_diff = -dpoint.template head<3>();
-        const Vector3 d_dist = d_diff - d_diff.dot(n)*n;
-        const Scalar res = dist.dot(d_dist)/dist.norm();
-#ifdef DCM_USE_LOGGING
-        if(!boost::math::isfinite(res))
-            BOOST_LOG_SEV(log, error) << "Unnormal first cluster gradient detected: "<<res
-                           <<" with point: "<<point.transpose()<<", line: "<<line.transpose()
-                           <<" and dpoint: "<<dpoint.transpose();
-#endif
-        return res;
-    };
-
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    Scalar calculateGradientSecond(const E::MatrixBase<DerivedA>& point,
-                                   const E::MatrixBase<DerivedB>& line,
-                                   const E::MatrixBase<DerivedC>& dline) {
-        if(dist.norm() == 0)
-            return 1.;
-
-        const Vector3 d_diff = dline.template head<3>();
-        const Vector3 d_n  = dline.template segment<3>(3);
-        const Vector3 d_dist = d_diff - ((d_diff.dot(n)+diff.dot(d_n))*n + diff.dot(n)*d_n);
-        const Scalar res = dist.dot(d_dist)/dist.norm();
-#ifdef DCM_USE_LOGGING
-        if(!boost::math::isfinite(res))
-            BOOST_LOG_SEV(log, error) << "Unnormal second cluster gradient detected: "<<res
-                           <<" with point: "<<point.transpose()<<", line: "<<line.transpose()
-                           << "and dline: "<<dline.transpose();
-#endif
-        return res;
-    };
-
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    void calculateGradientFirstComplete(const E::MatrixBase<DerivedA>& point,
-                                        const E::MatrixBase<DerivedB>& line,
-                                        E::MatrixBase<DerivedC>& gradient) {
-        if(dist.norm() == 0) {
-            gradient.head(3).setOnes();
-            return;
-        }
-
-        const Vector3 res = (n*n.transpose())*dist - dist;
-        gradient.head(3) = res/dist.norm();
-    };
-
-    template <typename DerivedA,typename DerivedB, typename DerivedC>
-    void calculateGradientSecondComplete(const E::MatrixBase<DerivedA>& point,
-                                         const E::MatrixBase<DerivedB>& line,
-                                         E::MatrixBase<DerivedC>& gradient) {
-        if(dist.norm() == 0) {
-            gradient.head(6).setOnes();
-            return;
-        }
-
-        const Vector3 res = (-n*n.transpose())*dist + dist;
-        gradient.head(3) = res/dist.norm();
-
-        const Scalar mult = n.transpose()*dist;
-        gradient.template segment<3>(3) = -(mult*diff + diff.dot(n)*dist)/dist.norm();
-    };
 };
 
 template<typename Kernel>

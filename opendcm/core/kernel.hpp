@@ -318,7 +318,8 @@ private:
         
 public:
     Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec) 
-        : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->newResidualCount())), m_equations(vec) {
+        : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->newResidualCount())), m_equations(vec),
+          tolx(1e-6), tolg(1e-6) {
     
         //make sure the equations are correctly initialised
         m_equations->init(m_system);
@@ -507,6 +508,7 @@ void Dogleg<Kernel>::calculate() {
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(log, details::iteration) << "Step in iter "<<iter<<std::endl
                                       << "Step: "<<h_dl.transpose()<<std::endl
+                                      << "Parameter: "<<m_system.parameter().transpose()<<std::endl
                                       << "Jacobi: "<<m_system.jacobi()<<std::endl
                                       << "Residual: "<<m_system.residuals().transpose();
 #endif

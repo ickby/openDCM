@@ -85,12 +85,13 @@ class FilterGraph : public AccessGraph<typename Graph::edgeprop,
                                        details::create_filtered_graph<Graph>::template type> {
     
     typedef details::group_filter<Graph> Filter;
-    
+
     typedef AccessGraph<typename Graph::edgeprop,
                         typename Graph::globaledgeprop,
                         typename Graph::vertexprop, 
                         typename Graph::clusterprop, 
                         details::create_filtered_graph<Graph>::template type> Base;
+    typedef typename Base::Graph BaseGraph;
         
 public:
     FilterGraph(std::shared_ptr<Graph> g, int group) : Base(m_graph), m_cluster(g), m_group(group),
@@ -145,9 +146,12 @@ public:
      * @return :size_t
      **/
     std::size_t numClusters() const;
-       
+    
+    typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::edges_size_type edgeCount() const override;
+    typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::vertices_size_type vertexCount() const override;
+    
 private:
-    typename Base::Graph   m_graph;
+    BaseGraph              m_graph;
     std::shared_ptr<Graph> m_cluster;
     int                    m_group;
 };
@@ -177,7 +181,29 @@ std::size_t FilterGraph<Graph>::numClusters() const {
     
     int c=0;
     auto it = clusters();
-    for(; it.first != it.second; ++it)
+    for(; it.first != it.second; ++it.first)
+        ++c;
+    
+    return c;       
+};
+
+template<typename Graph>
+typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::edges_size_type FilterGraph<Graph>::edgeCount() const {
+    //filtered_graph does not change the boost::num_edge calls, so we need to do it on our own
+    typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::edges_size_type c=0;
+    auto it = boost::edges(m_graph);
+    for(; it.first != it.second; ++it.first)
+        ++c;
+    
+    return c;       
+};
+
+template<typename Graph>
+typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::vertices_size_type FilterGraph<Graph>::vertexCount() const {
+    //filtered_graph does not change the boost::num_edge calls, so we need to do it on our own
+    typename boost::graph_traits<typename FilterGraph<Graph>::BaseGraph>::vertices_size_type c=0;
+    auto it = boost::vertices(m_graph);
+    for(; it.first != it.second; ++it.first)
         ++c;
     
     return c;       

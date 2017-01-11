@@ -271,6 +271,10 @@ struct EquationHandlerProperty {
  */
 namespace reduction {
    
+/** @addtogroup Reduction
+ * @{
+ * */
+    
 struct Connection;
 struct Node;
 
@@ -286,28 +290,28 @@ struct Node;
 struct TreeWalker {
     
     /** @brief Retrieve node where the tree traversal started
-     * @return dcm::reduction::Node* Pointer to initial node
+     * @return std::shared_ptr<reduction::Node> Pointer to initial node
      */
-    Node* getInitialNode()      {return m_initialNode;};
+    std::shared_ptr<reduction::Node> getInitialNode()      {return m_initialNode;};
     
     /** @brief Set initial node before starting the traversal
      */    
-    void  setInitialNode(Node* n) {m_initialNode = n;};
+    void  setInitialNode(std::shared_ptr<reduction::Node> n) {m_initialNode = n;};
 
     /**
      * @brief Retrieve the node at which the tree traversal ended     * 
-     * @return dcm::reduction::Node* Pointer to final node
+     * @return std::shared_ptr<reduction::Node> Pointer to final node
      */
-    Node* getFinalNode()      {return m_finalNode;};
+    std::shared_ptr<reduction::Node> getFinalNode()      {return m_finalNode;};
     
     /**
      * @brief Set the node at which the walker currently is during traversal
      */
-    void  setCurrentNode(Node* n) {m_finalNode = n;};
+    void  setCurrentNode(std::shared_ptr<reduction::Node> n) {m_finalNode = n;};
     
 private:
-    Node* m_initialNode;
-    Node* m_finalNode;
+    std::shared_ptr<reduction::Node> m_initialNode;
+    std::shared_ptr<reduction::Node> m_finalNode;
 };
 
 /**
@@ -325,45 +329,23 @@ template<typename Kernel>
 struct ConstraintWalker : public TreeWalker {
     
     typedef std::shared_ptr<numeric::Calculatable<Kernel>>                            Equation;
-    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> SymbolicTuple;
-    typedef std::vector<SymbolicTuple>                                                SymbolicVector;    
-    typedef typename SymbolicVector::const_iterator                                   Iterator;  
+    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> BinarySymbolicTuple;
+    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*>                     UnarySymbolicTuple;
+    typedef std::vector<BinarySymbolicTuple>                                          BinarySymbolicVector;    
+    typedef std::vector<UnarySymbolicTuple>                                           UnarySymbolicVector;  
+    typedef typename BinarySymbolicVector::const_iterator                             Iterator;  
+    typedef typename UnarySymbolicVector::const_iterator                              VertexIterator; 
     
     /** @brief Fill constraint pool with available symbolic constraints
      */
-    void setConstraintPool(const SymbolicVector& vec) {m_constraintPool = vec;};
+    void setConstraintPools(const BinarySymbolicVector& vec, const UnarySymbolicVector& vertexVec) {
+        m_binaryConstraintPool = vec; 
+        m_unaryConstraintPool = vertexVec;
+    };
     
     //interface for accessing constraints
-    /** @brief Check if constraint pools is empty      
-     * @return bool true if no constraints are available
-     */
-    bool     empty() const {return m_constraintPool.empty();}
-    
-    /** @brief Retrieve the amount of available constraints     
-     * @return int number of available constraints
-     */
-    int      size()  const {return m_constraintPool.size();}
-    
-    /** @brief Iterator to start constraint traversal
-     * @return Iterator Iterator which points at the first element in the sequence 
-     */
-    Iterator begin() const {return m_constraintPool.begin();};
-    
-    /** @brief Iterator to test end of sequence
-     * @return Iterator Iterator which points after the last constraint element
-     */
-    Iterator end()   const {return m_constraintPool.end();};
-    
-    /** @brief First constraint in the sequence
-     * @return const symbolic::Constraint* First symbolic constraint
-     */
-    const SymbolicTuple front() const {return m_constraintPool.front();};
-    
-    /** @brief Last constraint in the sequence
-     * @return const symbolic::Constraint* Last symbolic constraint
-     */
-    const SymbolicTuple back() const {return m_constraintPool.back();};
-    
+    const BinarySymbolicVector& binaryConstraintPool() {return m_binaryConstraintPool;};
+    const UnarySymbolicVector&  unaryConstraintPool()  {return m_unaryConstraintPool;};
     
     /**
      * @brief Get constraint by type if available
@@ -378,26 +360,49 @@ struct ConstraintWalker : public TreeWalker {
      *                                      nullptr if not available
      */
     template<typename T>
-    symbolic::TypeConstraint<T>* getConstraint(int type) {
-        for(auto tuple : m_constraintPool) {
-            if(std::get<0>(tuple)->getType() == type)
-                return static_cast<symbolic::TypeConstraint<T>*>(std::get<0>(tuple));
+    symbolic::TypeConstraint<T>* getConstraint(int type, int arity) {
+        if(arity == 2) {
+            for(const auto& tuple : m_binaryConstraintPool) {
+                if(std::get<0>(tuple)->getType() == type)
+                    return static_cast<symbolic::TypeConstraint<T>*>(std::get<0>(tuple));
+            }
+        }
+        else if(arity == 1) {
+            //maybe this constraint exist at the vertex
+            for(const auto& tuple : m_unaryConstraintPool) {
+                if(std::get<0>(tuple)->getType() == type)
+                    return static_cast<symbolic::TypeConstraint<T>*>(std::get<0>(tuple));
+            }
         }
         return nullptr;
     };
     
     /**
-     * @brief Get constraint tuple including geometries by constraint type
+     * @brief Get constraint tuple (constraint and geometries) by constraint type
      * 
-     * @return const SymbolicTuple& Tuple of constraint and zource/zarget geometry
+     * @return const BinarySymbolicTuple& Tuple of constraint, source and target geometry
      */
-    SymbolicTuple getConstraintTuple(int ConstraintType) {
+    BinarySymbolicTuple getBinaryConstraintTuple(int ConstraintType) {
     
-        for(auto tuple : m_constraintPool) {
+        for(auto tuple : m_binaryConstraintPool) {
             if(std::get<0>(tuple)->getType() == ConstraintType)
                 return tuple;
         }
-        return SymbolicTuple();
+        return BinarySymbolicTuple();
+    };
+    
+    /**
+     * @brief Get constraint  vertex tuple (constraint and geometry) by constraint type
+     * 
+     * @return const UnarySymbolicTuple& Tuple of constraint and target geometry
+     */
+    UnarySymbolicTuple getUnaryConstraintTuple(int ConstraintType) {
+    
+        for(auto tuple : m_unaryConstraintPool) {
+            if(std::get<0>(tuple)->getType() == ConstraintType)
+                return tuple;
+        }
+        return UnarySymbolicTuple();
     };
     
     /**
@@ -408,10 +413,22 @@ struct ConstraintWalker : public TreeWalker {
      * from the pool
      */   
     void acceptConstraint(symbolic::Constraint* c) {
-        for(auto tuple : m_constraintPool) {
-            if(std::get<0>(tuple) == c) {
-                acceptConstraintTuple(tuple);
-                break;
+        //remove the constraint
+        if(c->getArity() == 2) {
+            for(const auto& tuple : m_binaryConstraintPool) {
+                if(std::get<0>(tuple) == c) {
+                    acceptConstraintTuple(tuple);
+                    return;
+                }
+            }
+        }
+        else {
+            //maybe this constraint exist at the vertex
+            for(const auto& tuple : m_unaryConstraintPool) {
+                if(std::get<0>(tuple) == c) {
+                    acceptConstraintTuple(tuple);
+                    break;
+                }
             }
         }
     };
@@ -423,12 +440,17 @@ struct ConstraintWalker : public TreeWalker {
      * the constraint pool. This method is used for this: when called the given constraint tuple is removed
      * from the pool
      */ 
-    void acceptConstraintTuple(const SymbolicTuple& tuple) {
-        m_constraintPool.erase(std::remove(m_constraintPool.begin(), m_constraintPool.end(), tuple), m_constraintPool.end());
+    void acceptConstraintTuple(const BinarySymbolicTuple& tuple) {
+        m_binaryConstraintPool.erase(std::remove(m_binaryConstraintPool.begin(), m_binaryConstraintPool.end(), tuple), m_binaryConstraintPool.end());
+    }
+    
+    void acceptConstraintTuple(const UnarySymbolicTuple& tuple) {
+        m_unaryConstraintPool.erase(std::remove(m_unaryConstraintPool.begin(), m_unaryConstraintPool.end(), tuple), m_unaryConstraintPool.end());
     }
     
 private:
-    SymbolicVector  m_constraintPool;  //all the constraints we want to reduce
+    BinarySymbolicVector m_binaryConstraintPool;  //all the double geometry constraints we want to reduce
+    UnarySymbolicVector  m_unaryConstraintPool;  //all the single geometry constraints we want to reduce
 };
 
 /**
@@ -512,8 +534,8 @@ private:
  */
 struct Connection {
 
-    Node* source;
-    Node* target;
+    std::shared_ptr<reduction::Node> source;
+    std::shared_ptr<reduction::Node> target;
 
     virtual ~Connection() {};
     
@@ -580,7 +602,7 @@ private:
  * template<typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
  * using EqualValue = ConstraintEqualValue<Final, Constraint, option>;
  * 
- * Node* mynode = ...
+ * std::shared_ptr<reduction::Node> mynode = ...
  * mynode->connectConditional<EqualValue<dcm::Distance, 0>>([](const dcm::Distance&) { ...;});
  * @endcode
  * 
@@ -604,7 +626,8 @@ struct ConstraintEqualValue {
         virtual bool apply(TreeWalker* walker) const {
             
             auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value);
+            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value,
+                                                                    Final::template constraintIndex<Constraint>::arity);
             if(!cons)
                 return false;
             
@@ -642,7 +665,8 @@ struct ConstraintUnequalValue {
         virtual bool apply(TreeWalker* walker) const {
             
             auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value);
+            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value,
+                                                                    Final::template constraintIndex<Constraint>::arity);
             if(!cons)
                 return false;
             
@@ -671,7 +695,7 @@ struct ConstraintUnequalValue {
  * This class provides the interface for conecting Nodes together as well as for traversing the 
  * reduction tree by calling apply
  */
-struct Node {
+struct Node : std::enable_shared_from_this<Node> {
   
     virtual ~Node() {    
         //we own the edges,  hence we are responsible for deleting them
@@ -691,7 +715,7 @@ struct Node {
      * \param edge The GeometryConnection which evaluates the condition for the transition
      */   
     template<typename Functor>
-    void connect(Node* node, Functor func);    
+    void connect(std::shared_ptr<reduction::Node> node, Functor func);    
     
     /**
     * @brief Add predicate determined connection
@@ -723,7 +747,7 @@ struct Node {
     * the predicate passes to it.
     */
     template<typename Predicate, typename Functor> 
-    void connectConditional(Node* node, Functor func) {
+    void connectConditional(std::shared_ptr<reduction::Node> node, Functor func) {
         typedef typename Predicate::template Type<Functor> ConnectionType;
         connect(node, static_cast<Connection*>(new ConnectionType(func)));
     };
@@ -742,7 +766,7 @@ struct Node {
      */
     bool apply(TreeWalker* walker) {
 
-        walker->setCurrentNode(this);
+        walker->setCurrentNode(shared_from_this());
         for (Connection* e : m_edges) {
             if (e->apply(walker)) {
                 return true;
@@ -757,16 +781,16 @@ private:
 };
 
 template<typename Functor>
-void Node::connect(Node* node, Functor func) {
+void Node::connect(std::shared_ptr<reduction::Node> node, Functor func) {
 
     auto edge = new FunctorConnection<Functor>(func);
     connect(node, static_cast<Connection*>(edge));
 };
 
 template<>
-inline void Node::connect<Connection*>(Node* node, Connection* edge) {
+inline void Node::connect<Connection*>(std::shared_ptr<reduction::Node> node, Connection* edge) {
 
-    edge->source = this;
+    edge->source = shared_from_this();
     edge->target  = node;
     m_edges.push_back(edge);
 };
@@ -926,28 +950,82 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
 };
 
 /**
- * @brief ...
- * 
+ * @brief Connected-Node graph to analyse geometry constraint combinations
+ * This grpah is the data structure to handle Node and Connection datatypes in a graph like manner. 
+ * It stores the entry point of the graph traversal, the source node. All other nodes can be stored 
+ * in this class, this is however optional. The EdgeReductionGraph also allows to start the graph
+ * traversal for given symbolic geometries and constraints and returns the used TreeWalker.
  */
-struct EdgeReductionTree {
+struct EdgeReductionGraph {
 
-    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> SymbolicTuple;
-    typedef std::vector<SymbolicTuple>                                                SymbolicVector;
+    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> BinarySymbolicTuple;
+    typedef std::vector<BinarySymbolicTuple>                                                BinarySymbolicVector;
+    typedef std::tuple<symbolic::Constraint*, symbolic::Geometry*>                    UnarySymbolicTuple;
+    typedef std::vector<UnarySymbolicTuple>                                          UnarySymbolicVector;
 
-    virtual ~EdgeReductionTree() {};
+    virtual ~EdgeReductionGraph() {};
     
-    /** @brief Analyses the global edges and finds the best reduction result
+    /** @brief Analyses the given geometry/constraint pair and find the best reduction
      *
-     * The caller owns the returned TreeWalker pointer.
+     * This function tries to find the best reduction for the given geometry/constraint combination.
+     * The source and target parameters are the symbolic geometries to replace by reductions. The 
+     * constraints are given view the vec parameter of BinarySymbolicVector type. Note that this vector does
+     * not only contain the constraints, but for each constraint the symbolic geometires it connects. 
+     * Normally the vec geometries are equal to source and target, however, that is not the case if 
+     * one connects a cluster. Than source or target are a cluster geometry and the constraint connect
+     * different primitives like points or lines.
+     * \note The caller owns the returned TreeWalker pointer.
      * 
      * @remark The function is reentrant but is not safe to be called on the same data from multiple threads
      *
-     * @param g The graph the local edge belongs to
-     * @param e The local edge to analyse for reduction
-     * @return void
+     * @param source The symbolic source geometry
+     * @param target The symbolic target geometry
+     * @param vec The vector of symbolic tuples describing the constraint type and the connected geometries
      */
     virtual reduction::TreeWalker* apply(symbolic::Geometry* source, symbolic::Geometry* target,
-                                         const SymbolicVector& vec) = 0;
+                                         const BinarySymbolicVector& vec, 
+                                         const UnarySymbolicVector& targetSymbolics) = 0;
+                                         
+
+    /**
+    * @brief Get the initial node of the tree
+    * Returns the inital node where the whole reduction process starts.
+    * @return std::shared_ptr< dcm::reduction::Node > The starting node for all reductions
+    */
+    std::shared_ptr<reduction::Node> sourceNode() {return m_sourceNode;};
+    
+    /**
+     * @brief Replces the initial reduction node
+     * 
+     * As the source node gets auto created by the tree it may not be what you want. This function allows
+     * to replace the current source node with a custom one. 
+     * \note The connections of the replaced node will not be copied over
+     */
+    void replaceSourceNode(std::shared_ptr<Node> node) {m_sourceNode = node;};
+    
+    /**
+     * @brief Gets or creates the tree node for the given dependend geometry type
+     * 
+     * It is important to access nodes after the creation time to add new connections to it. To ease
+     * this process the EdgeReductionGraph offers a way to store created nodes an access them by type. 
+     * With getTreeNode<MyType>() one acceses the previously created node, or if not created yet, 
+     * creates a new one. 
+     * \note It is not enforced to create nodes this way, one can easily mixed custom created nodes 
+     *       with the ones created and stored by this function. 
+     */    
+    template<typename T>
+    std::shared_ptr<reduction::Node> getTreeNode() { 
+        auto iter = m_nodesMap.find(std::type_index(typeid(T)));
+        if(iter != m_nodesMap.end())
+            return iter->second;
+        
+        m_nodesMap[std::type_index(typeid(T))] = std::make_shared<DependendGeometryNode<T>>();
+        return m_nodesMap[std::type_index(typeid(T))];
+    };
+    
+protected:
+    std::shared_ptr<reduction::Node> m_sourceNode;
+    std::unordered_map<std::type_index, std::shared_ptr<reduction::Node>> m_nodesMap;
 };
 
 /**
@@ -955,41 +1033,22 @@ struct EdgeReductionTree {
  * 
  */
 template<typename Kernel, template<class> class SourceGeometry, template<class> class TargetGeometry>
-struct GeometryEdgeReductionTree : public EdgeReductionTree {
+struct GeometryEdgeReductionGraph : public EdgeReductionGraph {
 
     typedef typename Kernel::Scalar Scalar;
-    typedef EdgeReductionTree::SymbolicVector SymbolicVector;
+    typedef EdgeReductionGraph::BinarySymbolicVector BinarySymbolicVector;
+    typedef EdgeReductionGraph::UnarySymbolicVector UnarySymbolicVector;
 
-    GeometryEdgeReductionTree() {
+    GeometryEdgeReductionGraph() {
         //create the tree source note, it must always be available
-        m_sourceNode = new reduction::UndependendGeometryNode<Kernel, TargetGeometry>();
+        m_sourceNode = std::make_shared<reduction::UndependendGeometryNode<Kernel, TargetGeometry>>();
     };
     
-    virtual ~GeometryEdgeReductionTree() {
-        //we own all nodes, delete them!      
-        delete m_sourceNode;
-        for(auto& iter : m_nodesMap) {
-            if(iter.second) 
-                delete iter.second;
-            
-        }
-    };
+    virtual ~GeometryEdgeReductionGraph() {};
     
-    reduction::Node* getSourceNode() {return m_sourceNode;};
-    
-    template<typename T>
-    reduction::Node* getTreeNode() { 
-        auto iter = m_nodesMap.find(std::type_index(typeid(T)));
-        if(iter != m_nodesMap.end())
-            return iter->second;
-        
-        m_nodesMap[std::type_index(typeid(T))] = new DependendGeometryNode<T>();
-        return m_nodesMap[std::type_index(typeid(T))];
-    };
-
-
     virtual reduction::TreeWalker* apply(symbolic::Geometry* source, symbolic::Geometry* target,
-                                         const SymbolicVector& symbolics) override {
+                                         const BinarySymbolicVector& symbolics, 
+                                         const UnarySymbolicVector& targetSymbolics) override {
 
         dcm_assert(source != target);
         //dcm_assert(dynamic_cast<TypeGeometry<Kernel, SourceGeometry>*>(source) != NULL);
@@ -1002,18 +1061,16 @@ struct GeometryEdgeReductionTree : public EdgeReductionTree {
         //create a new treewalker and set it up. We need to make sure that the correct walker for the 
         //given reduction job is used
         ConstraintWalker<Kernel>* walker = new SourceTargetWalker<Kernel, SourceGeometry, TargetGeometry>(pg1, pg2);
-        walker->setConstraintPool(symbolics);        
-        walker->setInitialNode(getSourceNode());        
+        walker->setConstraintPools(symbolics, targetSymbolics);        
+        walker->setInitialNode(sourceNode());        
         
         //start the calculation
-        getSourceNode()->apply(walker);
+        sourceNode()->apply(walker);
         return walker;
     };
-    
-protected:
-    reduction::UndependendGeometryNode<Kernel, TargetGeometry>* m_sourceNode;
-    std::unordered_map<std::type_index, reduction::Node*>       m_nodesMap;
 };
+
+// @}
 
 } //reduction
 
@@ -1045,15 +1102,20 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     typedef EdgeEquationHandler<Kernel>                                               Base;
     typedef shedule::FlowGraph::Node                                                  Node;
     typedef std::shared_ptr<numeric::Calculatable<Kernel>>                            CalcPtr;
-    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> SymbolicTuple;
-    typedef std::vector<SymbolicTuple>                                                SymbolicVector;   
-    typedef boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>       GeneratorArray;
+    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> BinarySymbolicTuple;
+    typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*>                     UnarySymbolicTuple;
+    typedef std::vector<BinarySymbolicTuple>                                                BinarySymbolicVector;   
+    typedef std::vector<UnarySymbolicTuple>                                          UnarySymbolicVector; 
+    typedef boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>  UnaryGeneratorArray;
+    typedef boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3> BinaryGeneratorArray;
     
     ConstraintEquationHandler(const graph::LocalVertex& source, const graph::LocalVertex& target,
                       reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw,
-                      const SymbolicVector& defaultConstraints, const GeneratorArray& cg) 
+                      const BinarySymbolicVector& defaultConstraints, const UnarySymbolicVector& svConstraints, 
+                      const UnarySymbolicVector& tvConstraints, const BinaryGeneratorArray& cg) 
         : m_sourceVertex(source), m_targetVertex(target), m_sourceWalker(sw), m_targetWalker(tw), 
-          m_constraints(defaultConstraints), m_generatorArry(cg) {};
+          m_constraints(defaultConstraints), m_sourceConstraints(svConstraints), m_targetConstraints(tvConstraints),
+          m_binaryGeneratorArray(cg) {};
     
     virtual ~ConstraintEquationHandler() {
         //we own the walkers
@@ -1065,13 +1127,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     virtual CalcPtr createGeometry(const graph::LocalVertex& vertex) override {
                
         if(vertex == m_sourceVertex) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getInitialNode());
             auto eqn = node->buildGeometryEquation(m_sourceWalker);
             Base::setVertexEquation(eqn, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex)   {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getInitialNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getInitialNode());
             auto eqn = node->buildGeometryEquation(m_targetWalker);
             Base::setVertexEquation(eqn, vertex);
             return eqn;
@@ -1084,13 +1146,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) override {
         
         if(vertex == m_sourceVertex) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getInitialNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getInitialNode());
             auto eqn = node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getInitialNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getInitialNode());
             auto eqn = node->buildGeometryEquationNode(m_targetWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
             return eqn;
@@ -1104,13 +1166,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex) override {
         
         if(vertex == m_sourceVertex) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
             auto eqn = node->buildGeometryEquation(m_sourceWalker);
             Base::setVertexEquation(eqn, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex)  {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getFinalNode());
             auto eqn = node->buildGeometryEquation(m_targetWalker);
             Base::setVertexEquation(eqn, vertex);
             return eqn;
@@ -1125,13 +1187,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createReducedGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) override {
         
         if(vertex == m_sourceVertex) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
             auto eqn = node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex)  {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getFinalNode());
             auto eqn = node->buildGeometryEquationNode(m_targetWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
             return eqn;
@@ -1146,7 +1208,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         
         std::vector<CalcPtr> equations;
         for(auto tuple : m_constraints)
-            equations.push_back(m_generatorArry[std::get<1>(tuple)->getType()]
+            equations.push_back(m_binaryGeneratorArray[std::get<1>(tuple)->getType()]
                                                [std::get<2>(tuple)->getType()]
                                                [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
@@ -1160,7 +1222,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
     
         if(m_constraints.size() == 1) {
-            auto node = m_generatorArry[std::get<1>(m_constraints[0])->getType()]
+            auto node = m_binaryGeneratorArray[std::get<1>(m_constraints[0])->getType()]
                                        [std::get<2>(m_constraints[0])->getType()]
                                        [std::get<0>(m_constraints[0])->getType()]->buildEquationNode(g1, g2, 
                                                                                                 std::get<0>(m_constraints[0]),
@@ -1186,8 +1248,8 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         
         std::vector<CalcPtr> equations;
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
-        for(auto tuple : *walker)
-            equations.push_back(m_generatorArry[std::get<1>(tuple)->getType()]
+        for(auto tuple : walker->binaryConstraintPool())
+            equations.push_back(m_binaryGeneratorArray[std::get<1>(tuple)->getType()]
                                                [std::get<2>(tuple)->getType()]
                                                [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
@@ -1201,12 +1263,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
         
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
-        if(walker->size() == 1) {
-            auto node = m_generatorArry[std::get<1>(walker->front())->getType()]
-                                       [std::get<2>(walker->front())->getType()]
-                                       [std::get<0>(walker->front())->getType()]->buildEquationNode(g1, g2, 
-                                                                                               std::get<0>(walker->front()),
-                                                                                               flow);
+        if(walker->binaryConstraintPool().size() == 1) {
+            auto front = walker->binaryConstraintPool().front();
+            auto node = m_binaryGeneratorArray[std::get<1>(front)->getType()]
+                                       [std::get<2>(front)->getType()]
+                                       [std::get<0>(front)->getType()]->buildEquationNode(g1, g2, 
+                                                                                          std::get<0>(front),
+                                                                                          flow);
             std::vector<CalcPtr> vec(1);
             vec.push_back(node.first);
             Base::setEdgeEquations(vec);
@@ -1227,26 +1290,31 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         //the constraints have no intteresting results, hence we only write back the vertex equations
         auto eqn = Base::getVertexEquation(m_sourceVertex);
         if(eqn) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_sourceWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
             node->writeToSymbolic(m_sourceWalker, eqn);
         }
         eqn = Base::getVertexEquation(m_targetVertex);
         if(eqn) {
-            auto node = static_cast<reduction::GeometryNode<Kernel>*>(m_targetWalker->getFinalNode());
+            auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getFinalNode());
             node->writeToSymbolic(m_targetWalker, eqn);
         }
     };
     
 private:
     graph::LocalVertex                   m_sourceVertex, m_targetVertex;
-    reduction::ConstraintWalker<Kernel>* m_sourceWalker;  //reduction result for the source geometry
-    reduction::ConstraintWalker<Kernel>* m_targetWalker;  //reduction result for the target geometry 
-    SymbolicVector                       m_constraints;   //all constraints in the edge together with its geometries
-    const GeneratorArray&                m_generatorArry; //array with ConstraintGenerators for this special geometry combination
+    reduction::ConstraintWalker<Kernel>* m_sourceWalker;        //reduction result for the source geometry
+    reduction::ConstraintWalker<Kernel>* m_targetWalker;        //reduction result for the target geometry 
+    BinarySymbolicVector                 m_constraints;         //all constraints in the edge
+    UnarySymbolicVector                  m_sourceConstraints;   //all constraints at the source vertex
+    UnarySymbolicVector                  m_targetConstraints;   //all constraints at the target vertex
+    const BinaryGeneratorArray&          m_binaryGeneratorArray;//array with ConstraintGenerators for this special geometry combination
 };
 } //numeric
 
 namespace symbolic {
+    
+//base class to allow retrieving the numeric converter without knowing its type at runtime
+struct NumericConverterBase {};
     
 /**
  * @brief Converts symbolic constraint systems into numeric equations
@@ -1261,8 +1329,9 @@ namespace symbolic {
  * @note This class is very heavy to initiate, it should not be created on the stack
  */
 #include <boost/type_traits/is_same.hpp>
-template<typename Kernel, typename GeometryList, typename ConstraintList, typename Graph>
-struct NumericConverter {
+template<typename Kernel, typename GeometryList, typename ConstraintList, 
+         typename UnaryConstraintList, typename Graph>
+struct NumericConverter : NumericConverterBase {
               
     NumericConverter() {     
         
@@ -1280,16 +1349,37 @@ struct NumericConverter {
         
         //do all the same for the constraints
         int constraints = mpl::size<ConstraintList>::type::value;
-        m_generatorArray.resize(boost::extents[size][size][constraints]);        
-        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>::template type> g(m_generatorArray);
+        m_binaryGeneratorArray.resize(boost::extents[size][size][constraints]);        
+        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>::template type> g(m_binaryGeneratorArray);
         mpl::for_each<StorageRange>(g);
+        
+        //and single geometry constraints
+        constraints = mpl::size<UnaryConstraintList>::type::value;
+        m_unaryGeneratorArray.resize(boost::extents[size][constraints]);        
+        utilities::SequenceApplyer<GeometryList, UnaryConstraintGeneratorCreator<UnaryConstraintList>::template type> gs(m_unaryGeneratorArray);
+        mpl::for_each<StorageRange>(gs);
     };
     
     ~NumericConverter() {
-        //delete all reduction nodes
-        int size = std::pow(mpl::size<GeometryList>::value, 2);
-        //for(int i=0; i<size; ++i) 
-        //    delete m_treeArray(i);
+        //delete all reduction graphs
+        for(int i=0; i<m_treeArray.num_elements(); ++i) 
+            delete m_treeArray.data()[i];
+        
+        //delete all constraint creators. be carefull as we use generators twice!
+        int geometries = mpl::size<GeometryList>::value;
+        int constraints = mpl::size<ConstraintList>::value;
+        for(int i=0; i<geometries; ++i) {
+            for(int j=i; j<geometries; ++j) {
+                for(int k=0; k<constraints; ++k) {
+                    delete m_binaryGeneratorArray[i][j][k];
+                }
+            }
+        }
+        
+        //delete all single geometry constraints
+        for(int i=0; i<m_unaryGeneratorArray.num_elements(); ++i) 
+            delete m_unaryGeneratorArray.data()[i];
+        
     };
     
     /**
@@ -1306,25 +1396,33 @@ struct NumericConverter {
         dcm_assert(target);
         
         //get the two reduction trees for this geometry combination
-        reduction::EdgeReductionTree* stTree = m_treeArray[source->getType()][target->getType()];
-        reduction::EdgeReductionTree* tsTree = m_treeArray[target->getType()][source->getType()];
+        reduction::EdgeReductionGraph* stTree = m_treeArray[source->getType()][target->getType()];
+        reduction::EdgeReductionGraph* tsTree = m_treeArray[target->getType()][source->getType()];
      
-        //get all constraints and cluster geometries, is needed
+        //get all constraints and cluster geometries, they are needed
         typedef typename Graph::global_edge_iterator iterator;
         std::pair<iterator, iterator> it = g->getGlobalEdges(edge);
-        std::vector<std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*>> symbolics;
+        std::vector<std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*>> stSymbolics, tsSymbolics;
         for (; it.first != it.second; ++it.first) {
             auto c = g->template getProperty<symbolic::ConstraintProperty>(*it.first);
             //in case we have a cluster we need to access the global edge vertices directly
             auto sg = g->template getProperty<symbolic::GeometryProperty>((*it.first).source);
             auto tg = g->template getProperty<symbolic::GeometryProperty>((*it.first).target);
              
-            symbolics.push_back(std::make_tuple(c, sg, tg));
+            stSymbolics.push_back(std::make_tuple(c, sg, tg));
+            tsSymbolics.push_back(std::make_tuple(c, tg, sg));
         }
         
+        //get all vertex constraint symbolics
+        std::vector<std::tuple<symbolic::Constraint*,symbolic::Geometry*>> sourceSymbolics, targetSymbolics;
+        for(symbolic::Constraint* constraint : g->template getProperty<symbolic::ConstraintListProperty>(g->source(edge)))
+            sourceSymbolics.push_back(std::make_tuple(constraint, source));
+        for(symbolic::Constraint* constraint : g->template getProperty<symbolic::ConstraintListProperty>(g->target(edge)))
+            targetSymbolics.push_back(std::make_tuple(constraint, target));
+        
         //calculate both results
-        auto* stWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(source, target, symbolics));
-        auto* tsWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(tsTree->apply(target, source, symbolics));
+        auto* stWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(stTree->apply(source, target, stSymbolics, targetSymbolics));
+        auto* tsWalker = static_cast<reduction::ConstraintWalker<Kernel>*>(tsTree->apply(target, source, tsSymbolics, sourceSymbolics));
         
         //build the reduction and set store it in the graph. Make sure any pointer already stored is
         //deleted properly, especially the walkers
@@ -1333,20 +1431,26 @@ struct NumericConverter {
             delete reduction;
         
         reduction = new numeric::ConstraintEquationHandler<Kernel>(g->source(edge), g->target(edge), 
-                                                           tsWalker, stWalker, symbolics, m_generatorArray);
+                                                           tsWalker, stWalker, stSymbolics, sourceSymbolics,
+                                                           targetSymbolics, m_binaryGeneratorArray);
         g->template setProperty<numeric::EquationHandlerProperty<Kernel>>(edge, reduction);
     };
     
+    reduction::EdgeReductionGraph* getReductionGraph(int source, int target) {
+        return m_treeArray[source][target];
+    };
+    
 private:
-    boost::multi_array<reduction::EdgeReductionTree*,2>                 m_treeArray;
-    boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3> m_generatorArray;
+    boost::multi_array<reduction::EdgeReductionGraph*,2>                        m_treeArray;
+    boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>    m_unaryGeneratorArray;
+    boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>   m_binaryGeneratorArray;
        
     template<typename Sequence>
     struct ReductionTreeCreator {
     
-        boost::multi_array<reduction::EdgeReductionTree*,2>& m_treeArray;
+        boost::multi_array<reduction::EdgeReductionGraph*,2>& m_treeArray;
         
-        ReductionTreeCreator(boost::multi_array<reduction::EdgeReductionTree*,2>& r) 
+        ReductionTreeCreator(boost::multi_array<reduction::EdgeReductionGraph*,2>& r) 
             : m_treeArray(r) {};
             
         template<typename N1, typename N2>
@@ -1355,19 +1459,23 @@ private:
             typedef typename mpl::at<Sequence, N1>::type t1;
             typedef typename mpl::at<Sequence, N2>::type t2;
             
-            auto node1 = new reduction::GeometryEdgeReductionTree<Kernel, 
-                                geometry::extractor<t1>::template primitive,
-                                geometry::extractor<t2>::template primitive >();
-                                
-            auto node2 = new reduction::GeometryEdgeReductionTree<Kernel, 
-                                geometry::extractor<t2>::template primitive,
-                                geometry::extractor<t1>::template primitive >();
-        
             int idx1 = utilities::index<GeometryList, t1>::value;
             int idx2 = utilities::index<GeometryList, t2>::value;
             
+            auto node1 = new reduction::GeometryEdgeReductionGraph<Kernel, 
+                                geometry::extractor<t1>::template primitive,
+                                geometry::extractor<t2>::template primitive >();
+            
             m_treeArray[idx1][idx2] = node1;
-            m_treeArray[idx2][idx1] = node2;
+            
+            //if we have the same indexes we would override the first pointer and hence create a memory leak
+            if(idx1 != idx2) {
+                auto node2 = new reduction::GeometryEdgeReductionGraph<Kernel, 
+                                    geometry::extractor<t2>::template primitive,
+                                    geometry::extractor<t1>::template primitive >();
+                  
+                m_treeArray[idx2][idx1] = node2;
+            }
         };
     };
     
@@ -1377,9 +1485,9 @@ private:
     
         template<typename GeometrySequence>
         struct type {
-            boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& generator;
+            boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
             
-            type(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& r) 
+            type(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) 
                 : generator(r) {};
                 
             template<typename N1, typename N2>
@@ -1399,17 +1507,57 @@ private:
             template<typename G1, typename G2, int n1, int n2>
             struct InnerLoop {
                 
-                boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& generator;
+                boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
             
-                InnerLoop(boost::multi_array<numeric::ConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
+                InnerLoop(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
                 
                 template<typename T>
                 void operator()(const T& t) {
                 
-                    generator[n1][n2][T::value] = new numeric::TypedConstraintEquationGenerator<Kernel, 
+                    generator[n1][n2][T::value] = new numeric::TypedBinaryConstraintEquationGenerator<Kernel, 
                                                         typename mpl::at<ConstraintList, T>::type, G1, G2>();
                                                                             
                     generator[n2][n1][T::value] = generator[n1][n2][T::value];
+                };
+            };
+        };
+    };
+    
+    template<typename ConstraitSequence>
+    struct UnaryConstraintGeneratorCreator {
+    
+        template<typename GeometrySequence>
+        struct type {
+            boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
+            
+            type(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) 
+                : generator(r) {};
+                
+            template<typename N, int n>
+            void operator()() {
+            
+                typedef typename mpl::at<GeometrySequence, N>::type G;
+                
+                typedef mpl::range_c<int,0,
+                    mpl::size<ConstraitSequence>::value> StorageRange;
+                //now iterate that sequence so we can access all storage elements with knowing the position
+                //we are at
+                InnerLoop<G, n> functor(generator);
+                mpl::for_each<StorageRange>(functor);
+            };
+            
+            template<typename G, int n>
+            struct InnerLoop {
+                
+                boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
+            
+                InnerLoop(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) : generator(r) {};
+                
+                template<typename T>
+                void operator()(const T& t) {
+                
+                    generator[n][T::value] = new numeric::TypedUnaryConstraintEquationGenerator<Kernel, 
+                                                        typename mpl::at<UnaryConstraintList, T>::type, G>();
                 };
             };
         };

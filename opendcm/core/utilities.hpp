@@ -62,6 +62,24 @@ protected:
 };
 
 template<typename Sequence, template<class> class Functor>
+struct SequenceApplyer {
+    
+    Functor<Sequence> functor;
+    
+    template<typename T>
+    SequenceApplyer(T& param) 
+        : functor(Functor<Sequence>(param)) {};
+        
+    SequenceApplyer(SequenceApplyer& r) 
+        : functor(r.functor) {};
+        
+    template<typename T>
+    void operator()(const T& t) {        
+        functor.template operator()<T, T::value>();
+    };
+};
+
+template<typename Sequence, template<class> class Functor>
 struct RecursiveSequenceApplyer {
     
     Functor<Sequence> functor;
@@ -99,7 +117,7 @@ template<typename Sequence, typename G>
 struct index {
     typedef typename mpl::find<Sequence, G>::type iterator;
     typedef boost::is_same<iterator, typename mpl::end<Sequence>::type> valid;
-    BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, CONSTRAINT_TYPE_NOT_REGISTERT, (G));
+    BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, TYPE_NOT_REGISTERT_IN_SEQUENCE, (G));
     
     typedef typename mpl::distance<typename mpl::begin<Sequence>::type,
                         iterator>::type type; 

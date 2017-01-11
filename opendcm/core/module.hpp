@@ -75,11 +75,16 @@ namespace mpl = boost::mpl;
     typedef typename mpl::fold<TmpGeometryList, typename stacked::GeometryList, \
          mpl::push_back<mpl::_1, mpl::_2>>::type GeometryList;
    
-#define DCM_MODULE_ADD_CONSTRAINTS(stacked, seq) \
-    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpConstraintList;\
-    typedef typename mpl::fold<TmpConstraintList, typename stacked::ConstraintList, \
-        mpl::push_back<mpl::_1, mpl::_2>>::type ConstraintList;
+#define DCM_MODULE_ADD_BINARY CONSTRAINTS(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpBinaryConstraintList;\
+    typedef typename mpl::fold<TmpBinaryConstraintList, typename stacked::BinaryConstraintList, \
+        mpl::push_back<mpl::_1, mpl::_2>>::type BinaryConstraintList;
 
+#define DCM_MODULE_ADD_UNARY_CONSTRAINTS(stacked, seq) \
+    typedef mpl::vector<BOOST_PP_SEQ_ENUM(seq)> TmpUnaryConstraintList;\
+    typedef typename mpl::fold<TmpUnaryConstraintList, typename stacked::UnaryConstraintList, \
+        mpl::push_back<mpl::_1, mpl::_2>>::type UnaryConstraintList;
+        
 namespace dcm {
 namespace details {
 
@@ -98,6 +103,9 @@ struct ModuleCoreInit {
         sink = init_log();
         log.add_attribute("Tag",  attrs::constant<std::string>("System"));
 #endif
+        
+        //ensure the graph and fix cluster is initialised
+        getFixCluster();
     };
 
     ~ModuleCoreInit() {
@@ -105,6 +113,11 @@ struct ModuleCoreInit {
         stop_log(sink);
 #endif
     };
+    
+    //this function allows to initialize modules after all constructors are done. It wil be called 
+    //for every module that implements it, and it is than that modules responsibility to call init 
+    //on its base class.
+    void init() {};
 
 #ifdef DCM_USE_LOGGING
     template<typename Expr>
@@ -122,14 +135,28 @@ struct ModuleCoreInit {
     
     //initialize the geometry and constraint handling
     typedef mpl::vector<>                               GeometryList;
-    typedef mpl::vector3<Distance, Orientation, Angle>  ConstraintList;
-
+    typedef mpl::vector3<Distance, Orientation, Angle>  BinaryConstraintList;
+    typedef mpl::vector1<Fix>                           UnaryConstraintList;
+    
 protected:
-    typedef mpl::vector<numeric::EquationHandlerProperty<Kernel>>           EdgeProperties;
-    typedef mpl::vector<GraphObjectProperty, symbolic::ConstraintProperty>  GlobalEdgeProperties;
-    typedef mpl::vector<GraphObjectProperty, symbolic::GeometryProperty>    VertexProperties;
-    typedef mpl::vector0<>                                                  ClusterProperties;
+    typedef mpl::vector1<numeric::EquationHandlerProperty<Kernel>> EdgeProperties;
+    typedef mpl::vector2<GraphObjectProperty, 
+                         symbolic::ConstraintProperty>             GlobalEdgeProperties;
+    typedef mpl::vector3<GraphObjectProperty, 
+                         symbolic::GeometryProperty, 
+                         symbolic::ConstraintListProperty>         VertexProperties;
+    typedef mpl::vector0<>                                         ClusterProperties;
    
+#ifdef DCM_USE_LOGGING
+    details::dcm_logger log;
+    boost::shared_ptr< sink_t > sink;
+#endif
+    
+    
+    //function for setting up the reduction tree in the modules. As we don't know the generator 
+    //type of tree types now we simply go with the source node, that is all that is needed
+    virtual reduction::EdgeReductionGraph* getReductionGraph(int Type1, int Type2) = 0;
+
 #ifdef DCM_TESTING
 public:
 #endif
@@ -141,13 +168,21 @@ public:
         return m_graph;
     };
     
-protected:
-#ifdef DCM_USE_LOGGING
-    details::dcm_logger log;
-    boost::shared_ptr< sink_t > sink;
-#endif
+    std::shared_ptr<graph::AccessGraphBase> getFixCluster() {
+        
+        if(!m_fixCluster) {
+            std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(this->getGraph());  
+            auto result = cluster->createCluster();
+            m_fixCluster = result.first;
+            result.first->template setProperty<graph::Type>(graph::FixCluster);
+            cluster->template setProperty<graph::Type>(result.second, graph::FixCluster);
+        }
+            
+        return m_fixCluster;
+    };
+    
 private:
-    std::shared_ptr<graph::AccessGraphBase> m_graph;    
+    std::shared_ptr<graph::AccessGraphBase> m_graph, m_fixCluster;    
 };
 
 template<typename Final, typename Stacked>
@@ -190,11 +225,25 @@ struct ModuleCoreFinish : public Stacked {
     };
    
     template<typename G>
-    struct constraintIndex : utilities::index<typename Stacked::ConstraintList, G>{};
+    struct constraintIndex {
+        typedef typename Stacked::UnaryConstraintList  Unary;
+        typedef typename Stacked::BinaryConstraintList Binary;
+        typedef typename mpl::if_<mpl::contains<Unary, G>, utilities::index<Unary, G>, utilities::index<Binary, G>>::type type;
+        
+        const static long value = type::value;
+        const static int  arity = G::Arity;
+    };
     
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;        
 
+            
+    ModuleCoreFinish() {
+    
+        //now all relevant constructors are done, so let's init everything!
+        //calling init should be processed by whatever module implements it and than be passed upwards.
+        Stacked::init();
+    };
             
     /**
      * @brief Solves the constraint geometry system 
@@ -220,9 +269,16 @@ struct ModuleCoreFinish : public Stacked {
 #endif 
     };
     
+protected:
+    //function for setting up the reduction tree in the modules. As we don't know the generator 
+    //type of tree types now we simply go with the source node, that is all that is needed
+    virtual reduction::EdgeReductionGraph* getReductionGraph(int Type1, int Type2) override {
+        return m_converter.getReductionGraph(Type1, Type2);
+    };
+    
 private:
-    symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, 
-                               typename Stacked::ConstraintList, Graph> m_converter;
+    symbolic::NumericConverter<Kernel, typename Stacked::GeometryList, typename Stacked::BinaryConstraintList,
+                               typename Stacked::UnaryConstraintList, Graph> m_converter;
 };
 
 

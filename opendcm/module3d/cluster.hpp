@@ -130,7 +130,7 @@ struct Cluster3 : public ParameterGeometry<Kernel, geometry::Cluster3,
 
     typedef typename Kernel::Scalar Scalar;
     
-    virtual void init(LinearSystem<Kernel>& sys) {
+    virtual void init(LinearSystem<Kernel>& sys) override {
 
         //the normal parameter initialisation is actually good enough...
         Inherited::init(sys);

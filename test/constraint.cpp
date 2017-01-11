@@ -26,14 +26,14 @@
 typedef dcm::Eigen3Kernel<double> K;
 
 //two vectors perpendicular, maybe the easiest constraints of them all
-struct test_constraint1 : public dcm::constraint::Constraint<test_constraint1, int> {
+struct test_constraint1 : public dcm::constraint::Constraint<test_constraint1, 2, int> {
     using Constraint::operator=;
     test_constraint1(const int& i) : Constraint(i) {};
     
     int& radius() {return fusion::at_c<0>(m_storage);};
 };
 
-struct test_constraint2 : public dcm::constraint::Constraint<test_constraint2,  double, char> {
+struct test_constraint2 : public dcm::constraint::Constraint<test_constraint2, 2, double, char> {
     using Constraint::operator=;
     test_constraint2(const double& d, const char& c) : Constraint(d, c) {};
     
@@ -55,9 +55,9 @@ namespace dcm {
 namespace numeric {
 
 template<typename Kernel>
-struct Constraint<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> : public ConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> {
+struct BinaryConstraint<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> : public BinaryConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> {
   
-    typedef ConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>>  Inherited;
+    typedef BinaryConstraintBase<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>>  Inherited;
     typedef typename Kernel::Scalar                 Scalar;
     typedef typename Inherited::Vector              Vector;
     typedef typename Inherited::Geometry1           Geometry1;
@@ -65,7 +65,7 @@ struct Constraint<Kernel, dcm::Distance, TPoint3<Kernel>, TPoint3<Kernel>> : pub
     typedef typename Inherited::Geometry2           Geometry2;
     typedef typename Inherited::Derivative2         Derivative2;
     
-    Constraint() {
+    BinaryConstraint() {
     };
     
     Scalar calculateError(Geometry1& g1, Geometry2& g2) {        
@@ -144,10 +144,10 @@ BOOST_AUTO_TEST_CASE(numeric) {
    p1->value() = Eigen::Vector3d(1,0,0);
    p2->value() = Eigen::Vector3d(0,0,0);
    
-   typedef dcm::numeric::ConstraintSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>        ggc;
-   typedef dcm::numeric::ConstraintComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>           ccc;
-   typedef dcm::numeric::ConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> gcc;
-   typedef dcm::numeric::ConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> cgc;
+   typedef dcm::numeric::BinaryConstraintSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>        ggc;
+   typedef dcm::numeric::BinaryConstraintComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>>           ccc;
+   typedef dcm::numeric::BinaryConstraintSimplifiedComplexEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> gcc;
+   typedef dcm::numeric::BinaryConstraintComplexSimplifiedEquation<K, dcm::Distance, TPoint3<K>, TPoint3<K>> cgc;
    
    std::shared_ptr<ggc> gg_constraint(new ggc());
    std::shared_ptr<ccc> cc_constraint(new ccc());

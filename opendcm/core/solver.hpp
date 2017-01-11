@@ -187,6 +187,10 @@ struct Builder {
     template<typename Kernel, typename Graph>
     static void solveGraphNumericSystem(std::shared_ptr<Graph> g) {
         
+        //maybe we don't need to do anything for example when the graph is a disconnected geometry or cluster
+        if(g->edgeCount() == 0)
+            return;
+        
         //to ensure that we do not forget anything or that we have processed things twice we create a 
         //vector to store what waas processed so far.
         typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
@@ -299,7 +303,7 @@ struct Builder {
     */
     template<typename Final, typename Graph, typename Converter>
     static void solveSystem(std::shared_ptr<Graph> g, Converter& c) {
-
+       
         //first do all the needed preprocessing
         auto vit = g->vertices();
         std::for_each(vit.first, vit.second, [g](const graph::LocalVertex& v) {
@@ -307,6 +311,7 @@ struct Builder {
             if(prop)
                 prop->preprocessVertex(g, v, g->template getProperty<graph::VertexProperty>(v));
         });
+                
         auto eit = g->edges();
         std::for_each(eit.first, eit.second, [g](const graph::LocalEdge& e) {
             auto geit = g->getGlobalEdges(e);
@@ -316,6 +321,11 @@ struct Builder {
                     prop->preprocessEdge(g, ge);
             });
         });
+        
+        //maybe we don't need to do anything. Preprocessing need to be done even if vertices only,
+        //but from here we can omit anything when no constraints are available. (for example fix cluster)
+        if(g->edgeCount() == 0)
+            return;
         
         //simplify the graph as much as possible. This has to be done before the subcluste processing as it is
         //possible that subclusters are groupt into yet annother subcluster
@@ -329,6 +339,7 @@ struct Builder {
         //reduce the toplevel cluster. A subcluster has to be reduced and solved before the cluster graph is 
         //solved, as the graph depends on the finished subcluster values. However, all subclusters can be solved
         //in parallel
+        //TODO: exclude fix cluster
         auto iter = g->clusters();
         shedule::for_each(iter.first, iter.second, 
             [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {

@@ -37,9 +37,11 @@ struct TestEquation : public numeric::Equation<K, Eigen::Vector3d> {
     TestEquation() : Base(), m_map(nullptr) {};
     TestEquation(const Eigen::Vector3d& val) : Base(val), m_map(nullptr) {};
     
-    virtual void init(numeric::LinearSystem< K >& sys) {
+    virtual void init(numeric::LinearSystem< K >& sys) override {
         
-        Base::m_parameters = sys.mapParameter(m_map);
+        auto vec = sys.mapParameter(m_map);
+        for(auto& entry : vec)
+            Base::m_parameters.push_back(Parameter(entry));
         
         for(auto& param : Base::m_parameters) 
             Base::m_derivatives.push_back(std::make_pair(Eigen::Vector3d(), param));
@@ -214,8 +216,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.value()(c)==1);
         BOOST_CHECK(der.first.value().sum()==1);
         BOOST_CHECK(der.second == *(it++));
-        BOOST_CHECK(der.second.Value != nullptr);
-        BOOST_CHECK(der.second.Value != 0);
+        BOOST_CHECK(der.second.getEntry().Value != nullptr);
+        BOOST_CHECK(der.second.getEntry().Value != 0);
         ++c;
     };
 
@@ -246,8 +248,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
         BOOST_CHECK(der.first.direction()(1)==res(5));
         BOOST_CHECK(der.first.direction()(2)==res(6));
         BOOST_CHECK(der.second == *(cylIt++));
-        BOOST_CHECK(der.second.Value != nullptr);
-        BOOST_CHECK(der.second.Value != 0);
+        BOOST_CHECK(der.second.getEntry().Value != nullptr);
+        BOOST_CHECK(der.second.getEntry().Value != 0);
         
         c++;
     };
@@ -288,13 +290,39 @@ BOOST_AUTO_TEST_CASE(geometry) {
     BOOST_CHECK(basic_vec_2.value().isApprox(basic_vec.value()));
     
     //check if we can use the parameters within the numeric geometry
-    *dirGeom.parameters()[0].Value = 1.;
-    *dirGeom.parameters()[1].Value = 2.;
-    *dirGeom.parameters()[2].Value = 3.;
+    *dirGeom.parameters()[0].getEntry().Value = 1.;
+    *dirGeom.parameters()[1].getEntry().Value = 2.;
+    *dirGeom.parameters()[2].getEntry().Value = 3.;
     dirGeom.execute();
     BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(1.,2., 3.)));
 };
     
+BOOST_AUTO_TEST_CASE(fix_geometry) {
+    
+     
+    numeric::LinearSystem<K> sys(20,20);    
+    numeric::Geometry<K, TDirection3> dirGeom;
+    dirGeom.output().value() = Eigen::Vector3d(1.,2.,3.);
+    
+    BOOST_CHECK_EQUAL(dirGeom.outputId().value()(0), 0);
+    BOOST_CHECK_EQUAL(dirGeom.outputId().value()(1), 1);
+    BOOST_CHECK_EQUAL(dirGeom.outputId().value()(2), 2);
+    
+    BOOST_CHECK_EQUAL(dirGeom.newParameterCount(), 3);
+    BOOST_CHECK(dirGeom.canFixOutput(dirGeom.outputId().value()(2)));
+    BOOST_CHECK(dirGeom.fixOutput(dirGeom.outputId().value()(2)));
+    BOOST_CHECK_EQUAL(dirGeom.newParameterCount(), 2);
+    dirGeom.init(sys);
+    
+    BOOST_CHECK_EQUAL(dirGeom.parameters().size(), 2);
+    BOOST_CHECK_EQUAL(dirGeom.derivatives().size(), 2);
+    BOOST_CHECK(sys.parameter().head<3>().isApprox(Eigen::Vector3d(1.,2.,0.)));
+    
+    sys.parameter().head<3>() = Eigen::Vector3d(4.,5.,6.);
+    dirGeom.calculate();
+    
+    BOOST_CHECK(dirGeom.value().isApprox(Eigen::Vector3d(4., 5., 3.)));
+}
 
 BOOST_AUTO_TEST_CASE(parameter_geometry) {
 
@@ -307,6 +335,7 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     
     cylGeom = dcm::geometry::make_storage(Eigen::Vector3d(0,0,0), 0, Eigen::Vector3d(0,0,0));
     cylGeom.init(sys);       
+    BOOST_CHECK(sys.parameter().isApprox(init));
     
     //check default constructed derivatives
     BOOST_CHECK(cylGeom.parameters().size()==1);
@@ -330,21 +359,18 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     numeric::Equation<K, TCylinder3<K>>* Geom = &cylGeom;
     
     BOOST_CHECK(Geom->point().isApprox(Eigen::Vector3d(1,2,3)));
-    BOOST_CHECK(sys.parameter().isApprox(init));
     
     cylGeom.direction() = Eigen::Vector3d(4,5,6);
     BOOST_CHECK(Geom->direction().isApprox(Eigen::Vector3d(4,5,6)));
-    BOOST_CHECK(sys.parameter().isApprox(init));
     
     Geom->radius() = 7;
     BOOST_CHECK(cylGeom.radius() == 7);
-    BOOST_CHECK(sys.parameter().isApprox(init));
     
     //check if the parameter mapping worked
     BOOST_CHECK(cylGeom.parameters()[0] == cylGeom.derivatives()[0].second);
-    *cylGeom.parameters()[0].Value = 5;
-    BOOST_CHECK(cylGeom.derivatives()[0].second.Value != nullptr);
-    BOOST_CHECK(*cylGeom.derivatives()[0].second.Value == 5);
+    *cylGeom.parameters()[0].getEntry().Value = 5;
+    BOOST_CHECK(cylGeom.derivatives()[0].second.getEntry().Value != nullptr);
+    BOOST_CHECK(*cylGeom.derivatives()[0].second.getEntry().Value == 5);
     
     //check assign and copy-constructability
     numeric::ParameterGeometry<K, TCylinder3, double>  cylGeom2(cylGeom);
@@ -360,5 +386,27 @@ BOOST_AUTO_TEST_CASE(parameter_geometry) {
     BOOST_CHECK(cylGeom2.radius() == cylGeom.radius());
 };
 
+BOOST_AUTO_TEST_CASE(fix_parameter_geometry) {
+    
+    numeric::LinearSystem<K> sys(10,10);   
+    numeric::ParameterGeometry<K, TCylinder3, double> cylGeom;
+    
+    BOOST_CHECK(cylGeom.newParameterCount() == 1);
+    BOOST_CHECK(!cylGeom.canFixOutput(cylGeom.outputId().radius()));
+    BOOST_CHECK(!cylGeom.fixOutput(cylGeom.outputId().radius()));
+    BOOST_CHECK(cylGeom.newParameterCount() == 1);
+    
+    cylGeom = dcm::geometry::make_storage(Eigen::Vector3d(2,2,2), 3, Eigen::Vector3d(4,4,4));
+    cylGeom.parameterIdAt<0>() = cylGeom.outputId().radius();
+    BOOST_CHECK(cylGeom.canFixOutput(cylGeom.outputId().radius()));
+    BOOST_CHECK(cylGeom.fixOutput(cylGeom.outputId().radius()));
+    BOOST_CHECK(cylGeom.newParameterCount() == 0);
+    
+    cylGeom.init(sys);       
+    
+    //check default constructed derivatives
+    BOOST_CHECK(cylGeom.parameters().size()==0);
+    BOOST_CHECK(cylGeom.derivatives().size()==0);
+}
 
 BOOST_AUTO_TEST_SUITE_END();

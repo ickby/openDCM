@@ -19,20 +19,7 @@
 
 #include "opendcm/core.hpp"
 #include "opendcm/module3d.hpp"
-#include "opendcm/modulepart.hpp"
-#include "opendcm/moduleshape3d.hpp"
 
-#ifdef DCM_EXTERNAL_CORE
-#include "opendcm/core/imp/system_imp.hpp"
-#endif
-
-#ifdef DCM_EXTERNAL_3D
-#include "opendcm/module3d/imp/constraint3d_imp.hpp"
-#include "opendcm/module3d/imp/geometry3d_imp.hpp"
-#include "opendcm/module3d/imp/module_imp.hpp"
-#include "opendcm/module3d/imp/clustermath_imp.hpp"
-#include "opendcm/module3d/imp/solver_imp.hpp"
-#endif
 
 #include <boost/mpl/vector.hpp>
 #include <boost/test/unit_test.hpp>
@@ -43,83 +30,8 @@ namespace mpl = boost::mpl;
 typedef Eigen::Matrix<double, 3,1> point_t;
 struct line_t : public Eigen::Matrix<double, 6,1> {};
 struct plane_t : public Eigen::Matrix<double, 6,1> {};
-struct segment_t : public Eigen::Matrix<double, 6,1> {};
 struct cylinder_t : public Eigen::Matrix<double, 7,1> {};
-
-struct place {
-    Eigen::Quaterniond quat;
-    Eigen::Vector3d trans;
-
-    place():quat(1,2,3,4) {
-        quat.normalize();
-        trans<<1,2,3;
-    };
-};
-struct place_accessor {
-
-    template<typename Scalar, int ID, typename T>
-    Scalar get(T& t) {
-        switch(ID) {
-        case 0:
-            return t.quat.w();
-
-        case 1:
-            return t.quat.x();
-
-        case 2:
-            return t.quat.y();
-
-        case 3:
-            return t.quat.z();
-
-        case 4:
-            return t.trans(0);
-
-        case 5:
-            return t.trans(1);
-
-        case 6:
-            return t.trans(2);
-
-        default:
-            return 0;
-        };
-    };
-    template<typename Scalar, int ID, typename T>
-    void set(Scalar value, T& t) {
-        switch(ID) {
-        case 0:
-            t.quat.w() = value;
-            break;
-
-        case 1:
-            t.quat.x() = value;
-            break;
-
-        case 2:
-            t.quat.y() = value;
-            break;
-
-        case 3:
-            t.quat.z() = value;
-            break;
-
-        case 4:
-            t.trans(0) = value;
-            break;
-
-        case 5:
-            t.trans(1) = value;
-            break;
-
-        case 6:
-            t.trans(2) = value;
-            break;
-        };
-    };
-    template<typename T>
-    void finalize(T& t) {};
-};
+struct sphere_t : public Eigen::Matrix<double, 4,1> {};
 
 
 namespace dcm {
@@ -147,24 +59,10 @@ struct geometry_traits<line_t> {
 };
 
 template<>
-struct geometry_traits<segment_t> {
-    typedef tag::segment3D  tag;
-    typedef modell::XYZ2 modell;
-    typedef orderd_roundbracket_accessor accessor;
-};
-
-template<>
 struct geometry_traits<cylinder_t> {
     typedef tag::cylinder3D  tag;
     typedef modell::XYZ2P modell;
     typedef orderd_roundbracket_accessor accessor;
-};
-
-template<>
-struct geometry_traits< place > {
-    typedef tag::part  tag;
-    typedef modell::quaternion_wxyz_vec3 modell;
-    typedef place_accessor accessor;
 };
 
 }

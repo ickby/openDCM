@@ -31,7 +31,7 @@
 
 namespace dcm {
 
-namespace detail {
+namespace details {
     
     
 
@@ -67,7 +67,116 @@ private:
     Pod m_pod;
 };
 
-} //detail
+//Identifier type that auto assigns unique value on creation. It can be reset if only local uique ids 
+//are needed.
+struct Identifier {
+    
+    Identifier() : m_index(getId()) {};
+    Identifier(const int& i) : m_index(i) {};
+    Identifier(const Identifier& i) : m_index(i.m_index) {};
+    
+    //two operators to make it behave like a normal integer
+    Identifier& operator=(const int& i) {m_index = i; return *this;};
+    operator const int& () const {return m_index;};
+    
+    //allow comparison
+    bool operator==(const Identifier& other) const {return m_index == other.m_index;};
+    bool operator==(const int& other) const {return m_index == other;};
+    
+    //reset is handy if only local uniqueness is needed
+    static void resetIdGenerator() {id() = -1;};
+
+protected:
+    int m_index;
+    
+    //this allows to initialise static variable in a header. Note that it still is only initialized once
+    static int& id() {
+        static int i = -1;
+        return i;
+    };
+    static int getId() {
+        int& j = id(); 
+        ++j; 
+        return j;
+    };
+};
+
+template<typename charT, typename traits>
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::Identifier& t) {
+    os << int(t) << std::endl;
+    return os;
+};
+
+
+/**
+ * @brief Metfunction to transform equation output to a map f indexes
+ * 
+ */
+template<typename Type>
+struct IdentifierOutputType {
+    typedef Identifier type;
+};
+
+template<template<class> class Base, typename Kernel>
+struct IdentifierOutputType<Base<Kernel>> {
+    struct IdentifierKernel {
+        typedef Identifier Scalar;
+    };
+    
+    typedef Base<IdentifierKernel> type;
+};
+
+template<typename Type, int Row, int Col>
+struct IdentifierOutputType<Eigen::Matrix<Type, Row, Col>> {
+    
+    typedef Eigen::Matrix<Identifier, Row, Col> type;
+};
+
+template<typename Kernel>
+struct Parameter {
+
+    typedef typename Kernel::Scalar      Scalar;
+    typedef Scalar*                      ScalarPtr;
+    typedef numeric::VectorEntry<Kernel> VectorEntry;
+    
+    Parameter() : m_storage(nullptr) {};
+    Parameter(const numeric::VectorEntry<Kernel>& entry) : m_entry(entry), m_storage(nullptr) {};
+    Parameter(const numeric::VectorEntry<Kernel>& entry, Scalar* storage) 
+                                        : m_entry(entry), m_storage(storage) {};
+    
+    VectorEntry& getEntry() {return m_entry;};
+    Scalar&      getStorage() {return m_storage;};
+                  
+    bool operator==(const Parameter& e) {
+        return (m_entry == e.m_entry) && (m_storage == e.m_storage);
+    };
+    
+    operator Scalar&() {return *m_entry.Value;};
+    
+    void operator=(const Scalar& in) {
+       *m_entry.Value = in;
+    }
+    void operator=(const Parameter& in) {
+       m_entry = in.m_entry;
+       m_storage = in.m_storage;
+    }
+    
+    void toStorage() {*m_storage = m_entry;};
+    void fromStorage() {m_entry = *m_storage;};
+    
+protected:        
+    VectorEntry m_entry;
+    ScalarPtr   m_storage;
+};
+
+template<typename charT, typename traits, typename Kernel>
+std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>& os, const dcm::details::Parameter<Kernel>& t) {
+    os << "Value:    " << *t.getEntry().Value
+       << " at index: " << t.getEntry().Index << std::endl;
+    return os;
+};
+
+} //details
 
 namespace numeric {
     
@@ -83,7 +192,7 @@ enum class Complexity { Fixed, Simple, Complex };
 //polymorphic calculation, but also implement calculate() for exeution without virtual calls. Futhermore 
 //using them as functors in heplpful. This macro provides the boilerplate needed for all of this.
 #define CALCULATE() \
-    virtual void execute() {\
+    virtual void execute() override {\
         calculate();\
     }; \
     void operator()() {\
@@ -103,34 +212,36 @@ enum class Complexity { Fixed, Simple, Complex };
     * derivatives of the result from all relevant parameters. As both is not unique but implementation 
     * dependend no values are assigned in this base class. 
     * 
-    * \ref Equation doe inherit the \ref Output template parameter. This means it can directly be used
+    * \ref Equation does inherit the \ref Output template parameter. This means it can directly be used
     * as result y as well as equation f(x).
     * 
     * \note This class can be used as a fixed value equation when given the value to the constructor. 
     *       It does than not have any free parameters or derivatives but can be usefull as input for
     *       other equations.
-    * 
+    * toStorage
     * \tparam Kernel The mathematical kernel to be used 
     * \tparam Output The result type y that the equation calculates
     */
 template<typename Kernel, typename Output>
-struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type, 
+struct Equation : public mpl::if_<boost::is_pod<Output>, details::PodBase<Output>, Output>::type, 
                   public Calculatable<Kernel>,
                   public std::enable_shared_from_this<Equation<Kernel, Output>> {   
     
-    typedef typename mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>, Output>::type Base;
+    typedef typename mpl::if_<boost::is_pod<Output>, details::PodBase<Output>, Output>::type Base;
     using Base::operator=;
-    
-    typedef Kernel                                              KernelType;
-    typedef Output                                              OutputType;
-    typedef VectorEntry<Kernel>                                 Parameter;
-    typedef typename std::vector<Parameter>::iterator           ParameterIterator;
-    typedef Output                                              Derivative;
-    typedef std::pair<Output, Parameter>                        DerivativePack;
-    typedef typename std::vector<DerivativePack>::iterator      DerivativePackIterator;
+
+    typedef details::Identifier                                   Id;    
+    typedef Kernel                                                KernelType;
+    typedef Output                                                OutputType;
+    typedef typename details::IdentifierOutputType<Output>::type  OutputIdType;
+    typedef details::Parameter<Kernel>                            Parameter;
+    typedef typename std::vector<Parameter>::iterator             ParameterIterator;
+    typedef Output                                                Derivative;
+    typedef std::pair<Output, Parameter>                          DerivativePack;
+    typedef typename std::vector<DerivativePack>::iterator        DerivativePackIterator;
     
     //set values in case this is a fixed equation
-    Equation() {};
+    Equation() {details::Identifier::resetIdGenerator();};
     Equation(const Output& val) : Base(val) {};
     
     /**
@@ -153,6 +264,17 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
     operator const Output&() const {return output();} 
     
     Output& operator=(const Output& in) {output() = in; return *this;};
+    
+    /**
+     * @brief Returns id's of all individual output scalars
+     * Returns the exact same type as output, but it now holds an Id instead of an scalar. 
+     * For example, if the output type is a double, this function returns now an Identifier. If it 
+     * holds an Eigen::Matrix, this function returns an Eigen::Matrix of id's. Hence this 
+     * function allows to access the unique id's of the output in the exact same manner as the 
+     * output itself.
+     * @return const OutputIdType& The output type holding id's
+     */
+    OutputIdType& outputId() {return m_outputId;};
     
     /**
      * @brief Access all initialized free parameters
@@ -188,11 +310,52 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, detail::PodBase<Output>
      * Returns a hint on how this equation is calculated:
      * Fixed:   No free parameters, fixed output value
      * Simple:  Every value of the output is an free parameter, equation depends on no additional ones
-     * Complex: Output is calculated from free parameters of the own or other equations
+     * Complex: Output is calculated from free parameters of the own and other equations
      * 
      * @return dcm::numeric::Complexity Complexity of the equation
      */
     Complexity getComplexity() {return m_complexity;};
+    
+    /**
+     * @brief Checks if a part of the output can be set fix
+     * In equations sometimes a output is also a free parameter, there may be a direct mapping. In this
+     * case it is possible to fix this output, set its value as given, which may be useful for some 
+     * applications. Then there is no free parameter needed to represent this output. This function 
+     * checks if this is the case for the given output id. Note that it is always not possible for 
+     * eqations of complexity Fixed, and alwaays possible for Simple. However, in the case of 
+     * a Complex equation it cannot be said in a universal manner and the individual implementations 
+     * need t decide. This can be done by overrideing this function.
+     * @return bool True if the output corresponds to a free parameter and can be fixed
+     */
+    virtual bool canFixOutput(const Id& id) {
+        if(getComplexity() == Complexity::Simple)
+            return true;
+        return false;
+    };
+    
+    /**
+     * @brief Fixes a part of the output and prevents free parameter creation
+     * In equations sometimes a output is also a free parameter, there may be a direct mapping. In this
+     * case it is possible to fix this output, set its value as given, which may be useful for some 
+     * applications. Then there is no free parameter needed to represent this output. This function is 
+     * used to set a part of the output as fixed. Note that this means that the current output value 
+     * stays and will not be changed internally. This means before calling it it must be ensured that 
+     * the correct value is set, and also it mused be ensured that the output is not overridden by 
+     * anyone after calling this function.
+     * \note It is the derived classes implementations responisibility to respect the fixed values 
+     *       during initialization and calculation
+     * \return bool True if fixing was possible, false otherwise
+     */
+    bool fixOutput(const Id& id) {
+        if(!canFixOutput(id))
+            return false;
+        
+        m_fixedOutputs.push_back(id);
+        //we now need one parameter less, we need to inform the world
+        --Calculatable<Kernel>::m_parameterCount;
+        return true;
+    };
+    
     
 #ifdef DCM_DEBUG
     bool isInitialized() {
@@ -205,9 +368,22 @@ protected:
     std::vector< Parameter >            m_parameters;
     std::vector< DerivativePack >       m_derivatives; 
     Complexity                          m_complexity = Complexity::Fixed;
+    OutputIdType                        m_outputId;
+    std::vector<Id>                     m_fixedOutputs;
+    
 #ifdef DCM_DEBUG
     bool m_init = false;
-#endif
+#endif  
+    
+    void paramToStorage() {
+        for(auto& entry : m_parameters)
+            entry.toStorage();
+    };
+    
+    void storageToParam() {
+        for(auto& entry : m_parameters)
+            entry.fromStorage();
+    };
     
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -395,7 +571,7 @@ struct ExpressionUnaryEquation : public UnaryEquation<Kernel, Input, Output> {
     
     ExpressionUnaryEquation(const CExp& c, const DExp& d) : m_cExp(c), m_dExp(d) {}
     
-    virtual void init(LinearSystem<Kernel>& k) {
+    virtual void init(LinearSystem<Kernel>& k) override {
         
         dcm_assert(Base::m_input);
         if(Base::hasInputOwnership())
@@ -665,7 +841,7 @@ struct ExpressionBinaryEquation : public BinaryEquation<Kernel, Input1, Input2, 
     ExpressionBinaryEquation(const CExp& c, const DExp1& d1, const DExp2& d2) 
         : m_cExp(c), m_dExp1(d1), m_dExp2(d2) {}
     
-    virtual void init(LinearSystem<Kernel>& k) {
+    virtual void init(LinearSystem<Kernel>& k) override {
         
         dcm_assert(Base::m_input1);
         dcm_assert(Base::m_input2);

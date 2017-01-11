@@ -178,66 +178,80 @@ struct extractor<Base<Kernel>> {
 
 }//geometry
 
-namespace detail {
+namespace details {
 //helper classes for numeric geometry
-template<typename Kernel, typename StorageType, typename Equation, bool InitDerivative = true>
+template<typename Equation, typename StorageType, typename IdStorageType, bool InitDerivative = true>
 struct Initializer {
 
-    typedef typename Kernel::Scalar Scalar;
+    typedef typename Equation::KernelType       Kernel;
+    typedef typename Kernel::Scalar             Scalar;
+    typedef typename Equation::Parameter        Parameter;
     
     numeric::LinearSystem<Kernel>&                  m_system;
-    std::vector<typename Equation::Parameter>&      m_entries;
+    std::vector<Parameter>&                         m_parameters;
     std::vector<typename Equation::DerivativePack>& m_derivatives;
     StorageType&                                    m_storage;
-
-    Initializer(numeric::LinearSystem<Kernel>& s, StorageType& st, std::vector<typename Equation::Parameter>& vec,
-                std::vector<typename Equation::DerivativePack>& der) : m_system(s), m_entries(vec),
-        m_derivatives(der), m_storage(st) {};
+    IdStorageType&                                  m_ids; 
+    std::vector<typename Equation::Id>&             m_fixedOutputs;
+    
+    Initializer(Equation* eqn,
+                numeric::LinearSystem<Kernel>& s, 
+                StorageType& st, 
+                IdStorageType& idstore)                        
+        : m_system(s), m_parameters(eqn->m_parameters), m_derivatives(eqn->m_derivatives), m_storage(st), 
+          m_fixedOutputs(eqn->m_fixedOutputs), m_ids(idstore) {};
 
     template<typename T>
     void operator()(T t) {
 
         //get the parameter
         auto& t1 = fusion::at<T>(m_storage);
-        std::vector<typename Equation::Parameter> v = map(t1);
-
-        //create and set derivatives
-        for(int i=0; i<v.size(); ++i) {
-            m_derivatives.emplace_back(typename Equation::DerivativePack(typename Equation::OutputType(),  v[i]));
-            
-            if(InitDerivative) {
-                auto& t2 = fusion::at<T>(m_derivatives.back().first.m_storage);
-                setOne(t2, i);
-            }
-        };
-
-        //set parameters
-        std::move(v.begin(), v.end(), std::back_inserter(m_entries));
+        auto& id = fusion::at<T>(m_ids);
+        map<T>(t1, id);
     }
-
-    template<typename T>
-    void setOne(Eigen::MatrixBase<T>& m, int n) {
-        m(n) = 1;
+    
+    template<typename Idx, typename T, typename T2>
+    void map(Eigen::MatrixBase<T>& m, Eigen::MatrixBase<T2>& id) {
+        
+        for(int i=0; i<m.cols(); ++i) {
+            for(int j=0; j<m.rows(); ++j) {
+                //we need to ensure that only unfixed outputs get a free parameter
+                if(!isFixed(id(j,i))) {
+                    
+                    m_parameters.push_back(Parameter(m_system.mapParameter(), &m(j,i)));
+                    m_derivatives.emplace_back(typename Equation::DerivativePack(typename Equation::OutputType(), m_parameters.back()));
+                    if(InitDerivative) {
+                        auto& t2 = fusion::at<Idx>(m_derivatives.back().first.m_storage);
+                        setOne(t2,j,i);
+                    }
+                }
+            }
+        }                
     };
-    void setOne(Scalar& s, int n)               {
+    
+    template<typename Idx>
+    void map(Scalar& s, typename Equation::Id& id) {
+        
+        if(!isFixed(id)) {
+            m_parameters.push_back(Parameter(m_system.mapParameter(), &s));
+            m_derivatives.emplace_back(typename Equation::DerivativePack(typename Equation::OutputType(),  m_parameters.back()));
+            if(InitDerivative) {
+                auto& t2 = fusion::at<Idx>(m_derivatives.back().first.m_storage);
+                setOne(t2,0,0);
+            }
+        }
+    };
+    
+    bool isFixed(typename Equation::Id& id) {
+        return std::find(m_fixedOutputs.begin(), m_fixedOutputs.end(), id) != m_fixedOutputs.end();
+    };
+    
+    template<typename T>
+    void setOne(Eigen::MatrixBase<T>& m, int row, int col) {
+        m(row, col) = 1;
+    };
+    void setOne(Scalar& s, int row, int col) {
         s = 1;
-    };
-    
-    template<typename T>
-    std::vector<typename Equation::Parameter> map(const Eigen::MatrixBase<T>& m) const {
-        std::vector<typename Equation::Parameter> vec(m.rows()*m.cols());
-        
-        for(int i=0; i<(m.rows()*m.cols()); ++i) 
-            vec[i] = m_system.mapParameter();
-        
-        return vec;
-    };
-    
-    std::vector<typename Equation::Parameter> map(const Scalar& s) const {
-        std::vector<typename Equation::Parameter> vec(1);
-        vec[0] = m_system.mapParameter();
-        
-        return vec;
     };
 };
 
@@ -272,49 +286,40 @@ struct Counter {
     };
 };
 
-template<typename Equation>
-struct Assigner {
-
-    int& m_count;
-    std::vector<typename Equation::Parameter>& m_params;
-
-    Assigner(std::vector<typename Equation::Parameter>& p, int& c) : m_params(p), m_count(c) {
-        m_count = -1;
-    };
-
+//ID map handling: set everything to undefined
+template<typename Id>
+struct IdInitalizer {
+       
     template<typename T>
-    void operator()(Eigen::MatrixBase<T>& t) const {
-        for(int i=0; i<(t.rows()*t.cols()); ++i)
-            t(i) = m_params[++m_count];
-    }
-    
-    void operator()(typename Equation::KernelType::Scalar& t) const {
-        t = m_params[++m_count];
-    }
+    void operator()(Eigen::MatrixBase<T>& val) const {
+        val.setConstant(-1);        
+    };
+    void operator()(Id& s) const {
+        s = -1;
+    };
 };
 
-template<typename Equation>
-struct RevertAssigner {
+//ID map handling: find id in given storage
+template<typename Id>
+struct IdFinder {
 
-    int& m_count;
-    std::vector<typename Equation::Parameter>& m_params;
-
-    RevertAssigner(std::vector<typename Equation::Parameter>& p, int& c) : m_params(p), m_count(c) {
-        m_count = -1;
-    };
-
-    template<typename T>
-    void operator()(Eigen::MatrixBase<T>& t) const {
-        for(int i=0; i<(t.rows()*t.cols()); ++i)
-            m_params[++m_count] = t(i);
-    }
+    const Id& m_id;
+    bool&     m_result;
     
-    void operator()(typename Equation::KernelType::Scalar& t) const {
-        m_params[++m_count] = t;
-    }
+    IdFinder(const Id& id, bool& result) : m_id(id), m_result(result) {};
+        
+    template<typename T>
+    void operator()(Eigen::MatrixBase<T>& val) const {
+        if((val.array() == m_id).any())
+            m_result = true;
+    };
+    void operator()(Id& s) const {
+        if(s == m_id)
+            m_result = true;
+    };
 };
 
-};//detail
+};//details
     
 namespace numeric {
 
@@ -353,8 +358,8 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
             mpl::size<typename Inherited::StorageSequence>::value> StorageRange;
                 
     Geometry() {
-        Inherited::m_complexity = Complexity::Complex;
-        fusion::for_each(Inherited::m_storage, detail::Counter<Kernel>(Inherited::m_parameterCount));
+        Inherited::m_complexity = Complexity::Simple;
+        fusion::for_each(Inherited::m_storage, details::Counter<Kernel>(Inherited::m_parameterCount));
     };
     
 
@@ -367,7 +372,7 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
 
     //the assumptions made here are only valid for pure geometry, so the derived
     //types must override the initialisaion behaviour
-    virtual void init(LinearSystem<Kernel>& sys) {
+    virtual void init(LinearSystem<Kernel>& sys) override {
 #ifdef DCM_DEBUG
         dcm_assert(!Inherited::m_init);
         Inherited::m_init = true;
@@ -377,34 +382,34 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
                 mpl::size<typename Inherited::StorageSequence>::value> StorageRange;
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(detail::Initializer<Kernel, typename Inherited::Storage, Inherited>(sys,
-                                    Inherited::m_storage, Inherited::m_parameters, 
-                                    Inherited::m_derivatives));
+        typedef typename Inherited::OutputIdType::Storage IdStorage;
+        mpl::for_each<StorageRange>(details::Initializer<Geometry, typename Inherited::Storage, IdStorage>(
+                                        this, sys, Inherited::m_storage, Inherited::m_outputId.m_storage));
         
         //setup the parameter values
-        storageToParam();
+        this->storageToParam();
     };
     
     //we actually do not really need to calculate anything, but we need to make sure the mapped 
     //values are moved over to the output
     CALCULATE() {
-        paramToStorage();
+        this->paramToStorage();
     };
     
 protected:
-    void paramToStorage() {
-        fusion::for_each(Inherited::m_storage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
-    };
-    
-    void storageToParam() {
-        fusion::for_each(Inherited::m_storage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
-    };
     
     bool m_independent = true;
     
 protected:
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
                         //for every recalculate
+                           
+    using Inherited::m_parameters;
+    using Inherited::m_derivatives;
+    using Inherited::m_fixedOutputs;
+    
+    template<typename, typename, typename, bool>
+    friend struct details::Initializer;
 };
 
 /**
@@ -424,18 +429,25 @@ protected:
  */
 template< typename Kernel, template<class> class Base, typename... ParameterStorageTypes>
 struct ParameterGeometry : public Equation<Kernel, Base<Kernel>> {
+    
+private:
+    typedef typename mpl::transform<mpl::vector<ParameterStorageTypes...>, details::IdentifierOutputType<mpl::_1>>::type IdVector;
+    typedef typename fusion::result_of::as_vector<IdVector>::type ParameterIdStorage;
 
+public:    
     typedef typename Kernel::Scalar         Scalar;
     typedef Equation<Kernel, Base<Kernel>>  Inherited;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
     using Inherited::operator=;
     
     ParameterGeometry() {
-        fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
+        Inherited::m_complexity = Complexity::Complex;
+        fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
+        fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());
     };
     
     //make sure the parameter storage is used, not the geometry one, for initialisation
-    virtual void init(LinearSystem<Kernel>& sys) {
+    virtual void init(LinearSystem<Kernel>& sys) override {
 #ifdef DCM_DEBUG
         dcm_assert(!Inherited::m_init);
         Inherited::m_init = true;
@@ -445,31 +457,43 @@ struct ParameterGeometry : public Equation<Kernel, Base<Kernel>> {
         
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited, false>(sys,
-                                    m_parameterStorage, Inherited::m_parameters, 
-                                    Inherited::m_derivatives));
+        mpl::for_each<StorageRange>(details::Initializer<ParameterGeometry, ParameterStorage, ParameterIdStorage, false>(
+                                                            this, sys, m_parameterStorage, m_parameterIdStorage));
         
         //setup the parameter values correctly 
-        storageToParam();
+        this->storageToParam();
     };
     
     CALCULATE() {
-        paramToStorage();  
+        this->paramToStorage();  
+    };
+    
+    template<int I>
+    typename fusion::result_of::at_c<ParameterIdStorage, I>::type parameterIdAt() {
+        return fusion::at_c<I>(m_parameterIdStorage);
+    };
+    
+    virtual bool canFixOutput(const typename Inherited::Id& id) override {
+        bool result = false;
+        fusion::for_each(m_parameterIdStorage, details::IdFinder<typename Inherited::Id>(id, result));
+        return result;
     };
 
 protected:
-    void paramToStorage() {
-        fusion::for_each(m_parameterStorage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
-    };
     
-    void storageToParam() {
-        fusion::for_each(m_parameterStorage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
-    };
-    
-    ParameterStorage     m_parameterStorage;
+    ParameterStorage                                               m_parameterStorage;
+    ParameterIdStorage                                             m_parameterIdStorage;
+    std::vector<std::pair<typename Inherited::Parameter, Scalar*>> m_paramStorageMap;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
                         //for every recalculate
+                        
+    using Inherited::m_parameters;
+    using Inherited::m_derivatives;
+    using Inherited::m_fixedOutputs;
+    
+    template<typename, typename, typename, bool>
+    friend struct details::Initializer;
 };
 
 /**
@@ -492,17 +516,24 @@ template< typename Kernel, template<class> class Input,
           template<class> class Output, typename... ParameterStorageTypes>
 struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Kernel>>  {
     
+private:
+    typedef typename mpl::transform<mpl::vector<ParameterStorageTypes...>, details::IdentifierOutputType<mpl::_1>>::type IdVector;
+    typedef typename fusion::result_of::as_vector<IdVector>::type ParameterIdStorage;
+
+public:
     typedef UnaryEquation<Kernel, Input<Kernel>, Output<Kernel>>                   Inherited;
     typedef typename Kernel::Scalar                                                Scalar;
     typedef typename geometry::Geometry<Kernel, ParameterStorageTypes...>::Storage ParameterStorage;
     using Inherited::operator=;
 
     DependendGeometry() {
-        fusion::for_each(m_parameterStorage, detail::Counter<Kernel>(Inherited::m_parameterCount));
+        Inherited::m_complexity = Complexity::Complex;
+        fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
+        fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());       
     };
     
     //make sure the parameter storage is used, not the geometry one, for initialisation
-    virtual void init(LinearSystem<Kernel>& sys) {
+    virtual void init(LinearSystem<Kernel>& sys) override {
 #ifdef DCM_DEBUG
         dcm_assert(!Inherited::m_init);
         Inherited::m_init = true;
@@ -519,9 +550,8 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
         
         //now iterate that sequence so we can access all storage elements with knowing the position
         //we are at (that is important to access the correct derivative storage position too)
-        mpl::for_each<StorageRange>(detail::Initializer<Kernel, ParameterStorage, Inherited>(sys,
-                                    m_parameterStorage, Inherited::m_parameters, 
-                                    Inherited::m_derivatives));
+        mpl::for_each<StorageRange>(details::Initializer<DependendGeometry, ParameterStorage, ParameterIdStorage, false>(
+                                        this, sys, m_parameterStorage, m_parameterIdStorage));
         
         //now add the derivatives we take over from the input geometry
         Inherited::m_derivatives.clear();
@@ -529,7 +559,7 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
             Inherited::m_derivatives.push_back(std::make_pair(typename Inherited::OutputType(), param));
         
         //make sure the parameters have the correct values
-        storageToParam();
+        this->storageToParam();
     };
     
     CALCULATE() {
@@ -542,19 +572,32 @@ struct DependendGeometry : public UnaryEquation<Kernel, Input<Kernel>, Output<Ke
         //by the derived class
     };
     
+    template<int I>
+    typename fusion::result_of::at_c<ParameterIdStorage, I>::type parameterIdAt() {
+        return fusion::at_c<I>(m_parameterIdStorage);
+    };
+    
+    virtual bool canFixOutput(const typename Inherited::Id& id) override {
+        bool result = false;
+        fusion::for_each(m_parameterIdStorage, details::IdFinder<typename Inherited::Id>(id, result));
+        return result;
+    };
+    
 protected:
-    void paramToStorage() {
-        fusion::for_each(m_parameterStorage, detail::Assigner<Inherited>(Inherited::m_parameters, m_counter)); 
-    };
     
-    void storageToParam() {
-        fusion::for_each(m_parameterStorage, detail::RevertAssigner<Inherited>(Inherited::m_parameters, m_counter));
-    };
-    
-    ParameterStorage     m_parameterStorage;
+    ParameterStorage                                               m_parameterStorage;
+    ParameterIdStorage                                             m_parameterIdStorage;
+    std::vector<std::pair<typename Inherited::Parameter, Scalar*>> m_paramStorageMap;
 
     int m_counter = -1; //we need a counter for every calculate, and we do not want a memory allocation 
                         //for every recalculate
+                        
+    using Inherited::m_parameters;
+    using Inherited::m_derivatives;
+    using Inherited::m_fixedOutputs;
+    
+    template<typename, typename, typename, bool>
+    friend struct details::Initializer;
 };
 
 } //numeric

@@ -106,13 +106,13 @@ struct DerivativeTest {
 
             for(int i=0; i<int(RANGE/STEP); i++) {
 
-                *(der.second.Value) += STEP - DELTA;
+                *(der.second.getEntry().Value) += STEP - DELTA;
                 recalc();
                 //save the current value
                 Base left;
                 left.m_storage = g->m_storage;
                 
-                *(der.second.Value) += 2*DELTA;
+                *(der.second.getEntry().Value) += 2*DELTA;
                 recalc();
                 //save the current value
                 Base right;

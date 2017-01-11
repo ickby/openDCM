@@ -88,7 +88,9 @@ struct AccessGraphBase {};
  * diffrent purposes. 
  * 
  * 0 - Geometry
- * 1 - Cluster
+ * 1 - UserCluster
+ * 2 - TemporaraCluster
+ * 3 - FixCluster
  **/
 struct Type {
     //states the type of a entity
@@ -100,8 +102,10 @@ struct Type {
         };
     };
 };
-static int Cluster  = 1;
 static int Geometry = 0;
+static int UserCluster  = 1;
+static int TemporaryCluster  = 2;
+static int FixCluster  = 3;
 
 
 //cluster in graph changed?
@@ -160,7 +164,7 @@ typedef boost::adjacency_list_traits<boost::listS, boost::listS, boost::undirect
  * relation to the graphs storage. Therefore they change value on moving entitiys to diffrent clusters or
  * clone actions. This class is used to overcome this problem.
  **/
-typedef int universalID;
+typedef unsigned int universalID;
 
 /**
  * @brief Exception thrown from the graph at any occuring error
@@ -333,7 +337,7 @@ struct GlobalEdgeProperty {
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, 
             template<class, class, class, class, class> class graph_base>
 class  AccessGraph : public AccessGraphBase, public boost::noncopyable, 
-            public PropertyOwner<typename ensure_property<cluster_prop, bgl_c_props>::type>,
+            public PropertyOwner<typename ensure_properties<cluster_prop, bgl_c_props>::type>,
             public std::enable_shared_from_this<AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base> > {
 
 public:
@@ -390,7 +394,7 @@ public:
      * The cluster properties supplied as template argument to the AccessGraph are extended with graph
      * specific properties as Type.
      **/
-    typedef typename ensure_property<cluster_prop, bgl_c_props>::type cluster_properties;
+    typedef typename ensure_properties<cluster_prop, bgl_c_props>::type cluster_properties;
     
     
     /**
@@ -501,11 +505,11 @@ public:
         return m_graph;
     };
     
-    typename boost::graph_traits<Graph>::edges_size_type edgeCount() const {
+    virtual typename boost::graph_traits<Graph>::edges_size_type edgeCount() const {
         return boost::num_edges(m_graph);
     };
 
-    typename boost::graph_traits<Graph>::vertices_size_type vertexCount() const {
+    virtual typename boost::graph_traits<Graph>::vertices_size_type vertexCount() const {
         return boost::num_vertices(m_graph);
     };
     
@@ -595,14 +599,29 @@ public:
     /**
      * @brief Returns the edge between the global vertices
      * 
-     * The edge retrievel function for global vertices. Note that the function fails if the global edges are 
-     * not part of the same cluster.
+     * The edge retrievel function for global vertices. The function returns a local edge of this graph
+     * as longs as the global vertices are in this cluster or any subcluster, but not in the same 
+     * subcluster (as then their is no local edge in this graph). If no edge can be found the boolean 
+     * value will return false.
      * @param r1 GlobalVertex from which the edge starts
      * @param r2 GlobalVertex where the edge ends
      * @return std::pair<LocalEdge, bool> with the local edge descriptor if existing and a bool value if the edge
      * is valid. It is false if the edge does not exist.
      */
     std::pair<LocalEdge, bool> edge(GlobalVertex source, GlobalVertex target);
+    
+    /**
+     * @brief Returns all global edges beween two vertices
+     * This function searches gives all global edges between two vertices. This can be different than 
+     * all global edges in the local edge between the global vertices, as this can also contain other
+     * global edges if the vertices are in clusters.
+     * \note This function only works if both global vertices are in this cluster or any subcluster,
+     * not a parent one.
+     * @param source GlobalVertex from which the global edges start
+     * @param target GlobalVertex from where the global edges end
+     * @return std::vector<GlobalEdge> All connecting global edges. Empty if non existing r vertices not found
+     */
+    std::vector<GlobalEdge> edges(GlobalVertex source, GlobalVertex target);
 
     /**
      * @brief Get an iterator to all the global edges hold by this local edge
@@ -1216,6 +1235,30 @@ AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::
         return std::make_pair(LocalEdge(), false);
         
     return edge(r1.first, r2.first);
+};
+
+template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>
+std::vector<GlobalEdge> 
+AccessGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop, graph_base>::edges(GlobalVertex source, GlobalVertex target) {
+    
+    bool res;
+    LocalEdge e;
+    boost::tie(e, res) = edge(source, target);
+    
+    std::vector<GlobalEdge> vec;
+    
+    if(!res)
+        return vec;
+    
+    auto globals = getGlobalEdges(e);
+    std::for_each(globals.first, globals.second, [&](const GlobalEdge& ge) {
+        if( (ge.source == source && ge.target==target) ||
+            (ge.source == target && ge.target==source) ) {
+            
+            vec.push_back(ge);
+        }            
+    });
+    return vec;
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop, template<class, class, class, class, class> class graph_base>

@@ -155,10 +155,7 @@ public:
      *
      * @param g the parent cluster graph
      **/
-    ClusterGraph(std::shared_ptr<ClusterGraph> g) : Base(m_graph), m_parent(g), m_id(new IDgen) {
-        if(g)
-            m_id = g->m_id;
-    };
+    ClusterGraph(std::shared_ptr<ClusterGraph> g) : Base(m_graph), m_parent(g), m_id(g->m_id) {};
     
     ~ClusterGraph() {};  
     

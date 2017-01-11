@@ -107,6 +107,7 @@
  * parameter of the ClusterGraph. It's important that the parameters are mpl::vector's and that
  * every type in it is a property as defined in \ref Property .
  * 
+ * \subsection filtergraph Filtering subgraphs
  *@}
  */
 

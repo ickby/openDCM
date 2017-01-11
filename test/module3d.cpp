@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         for(int i=0; i<3; ++i) {
             auto initialR = cluster->rotation();
             auto initialT = cluster->translation();
-            *p[i].Value = 10;
+            *p[i].getEntry().Value = 10;
             cluster->calculate();
             BOOST_REQUIRE(!initialT.isApprox(cluster->translation()));
             BOOST_REQUIRE(initialR.isApprox(cluster->rotation()));
@@ -88,14 +88,14 @@ BOOST_AUTO_TEST_CASE(cluster) {
         for(int i=3; i<6; ++i) {
             auto initialR = cluster->rotation();
             auto initialT = cluster->translation();
-            *p[i].Value = 10;
+            *p[i].getEntry().Value = 10;
             cluster->calculate();
             BOOST_REQUIRE(initialT.isApprox(cluster->translation()));
             BOOST_REQUIRE(!initialR.isApprox(cluster->rotation()));
         }
         //reset transform
         for(auto p : cluster->parameters())
-            *p.Value = 0;
+            *p.getEntry().Value = 0;
 
         auto clGeom = std::make_shared<dcm::numeric::Cluster3Geometry<K, dcm::geometry::Point3>>();
         clGeom->setInputEquation(cluster);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(cluster) {
         cluster->calculate();
 
         for(clDer& der : clGeom->derivatives())
-            BOOST_CHECK(der.second.Value != nullptr);
+            BOOST_CHECK(der.second.getEntry().Value != nullptr);
 
         //let's test the derivatives and see if we calculate them correct for 0 values
         DerivativeTest::isCorrect(std::static_pointer_cast<dcm::numeric::Equation<K, dcm::geometry::Point3<K>>>(clGeom), 
@@ -156,8 +156,8 @@ BOOST_AUTO_TEST_CASE(geometry) {
    
     //have a look if we have the correct information in the graph
     auto graph = std::static_pointer_cast<System::Graph>(s.getGraph());
-    BOOST_CHECK(graph->vertexCount() == 1);
-    BOOST_CHECK(graph->edgeCount() == 0);    
+    BOOST_CHECK_EQUAL(graph->vertexCount(), 2); //including the fix cluster
+    BOOST_CHECK_EQUAL(graph->edgeCount(), 0);    
 };
 
 BOOST_AUTO_TEST_CASE(constraint) {
@@ -177,10 +177,10 @@ BOOST_AUTO_TEST_CASE(constraint) {
     
     //have a look if we have the correct information in the graph
     std::shared_ptr<System::Graph> graph = std::static_pointer_cast<System::Graph>(s.getGraph());
-    BOOST_CHECK(graph->vertexCount() == 2);
+    BOOST_REQUIRE_EQUAL(graph->vertexCount(), 3); //including the fix cluster
     BOOST_CHECK(graph->edgeCount() == 1);
     auto it = graph->vertices();
-    auto v1 = *it.first;
+    auto v1 = *(++it.first);
     auto v2 = *(++it.first);
     BOOST_CHECK(graph->getProperty<dcm::details::GraphObjectProperty>(v1) == g1);
     BOOST_CHECK(graph->getProperty<dcm::details::GraphObjectProperty>(v2) == g2);
@@ -216,10 +216,10 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         std::shared_ptr<System::Geometry3D> g3 = s.addGeometry3D(v3);
         std::shared_ptr<System::Geometry3D> g4 = s.addGeometry3D(v4);
         
-        std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=3.);
-        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g2, g3, dcm::distance=4.);
-        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g3, g4, dcm::distance=5.);
-        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g1, g4, dcm::distance=6.);
+        std::shared_ptr<System::Constraint3D> c1 = s.addConstraint3D(g1, g2, dcm::distance=4.);
+        std::shared_ptr<System::Constraint3D> c2 = s.addConstraint3D(g2, g3, dcm::distance=5.);
+        std::shared_ptr<System::Constraint3D> c3 = s.addConstraint3D(g3, g4, dcm::distance=6.);
+        std::shared_ptr<System::Constraint3D> c4 = s.addConstraint3D(g1, g4, dcm::distance=7.);
         
         s.solve();
         
@@ -228,10 +228,10 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         v2 = g2->get<Vector3>();
         v3 = g3->get<Vector3>();
         v4 = g4->get<Vector3>();
-        BOOST_CHECK_CLOSE((v1-v2).norm(), 3., 1e-6);
-        BOOST_CHECK_CLOSE((v2-v3).norm(), 4., 1e-6);
-        BOOST_CHECK_CLOSE((v3-v4).norm(), 5., 1e-6);
-        BOOST_CHECK_CLOSE((v4-v1).norm(), 6., 1e-6);
+        BOOST_CHECK_CLOSE((v1-v2).norm(), 4., 1e-6);
+        BOOST_CHECK_CLOSE((v2-v3).norm(), 5., 1e-6);
+        BOOST_CHECK_CLOSE((v3-v4).norm(), 6., 1e-6);
+        BOOST_CHECK_CLOSE((v4-v1).norm(), 7., 1e-6);
     
     }
     catch(boost::exception& x) {
@@ -242,7 +242,59 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
             BOOST_FAIL("Unknown boost exception");
     }
     catch(std::exception& x) {
-        BOOST_FAIL("Unknown exception");
+        BOOST_FAIL(x.what());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(cluster_solve) {
+    
+    Vector3 v1, v2, v3, v4, v5;
+    v1<<1,2,3;
+    v2<<4,5,6;
+    v3<<7,8,9;
+    v4<<10,11,12;
+    v5<<13,14,15;
+    
+    try {
+        
+        System s;
+        //s.setLoggingFilter(dcm::details::severity >= dcm::details::severity_level::iteration);
+        auto g1 = s.addGeometry3D(v1);
+        auto g2 = s.addGeometry3D(v2);
+        auto g3 = s.addGeometry3D(v3);
+        auto g4 = s.addGeometry3D(v4);
+        auto g5 = s.addGeometry3D(v5);
+        
+        auto c1 = s.addConstraint3D(g1, g2, dcm::distance=0.);
+        auto c2 = s.addConstraint3D(g2, g3, dcm::distance=4.);
+        auto c3 = s.addConstraint3D(g3, g4, dcm::distance=0.);
+        auto c4 = s.addConstraint3D(g4, g5, dcm::distance=6.);
+        auto c5 = s.addConstraint3D(g1, g5, dcm::distance=3.);
+        
+        s.solve();
+        
+        //we are here if no exception was thrown
+        v1 = g1->get<Vector3>();
+        v2 = g2->get<Vector3>();
+        v3 = g3->get<Vector3>();
+        v4 = g4->get<Vector3>();
+        v5 = g5->get<Vector3>();
+        BOOST_CHECK_CLOSE((v1-v2).norm(), 0., 1e-14); //should be solved symbolically
+        BOOST_CHECK_CLOSE((v2-v3).norm(), 4., 1e-5);
+        BOOST_CHECK_CLOSE((v3-v4).norm(), 0., 1e-14); //should be solved symbolically
+        BOOST_CHECK_CLOSE((v4-v5).norm(), 6., 1e-5);
+        BOOST_CHECK_CLOSE((v1-v5).norm(), 3., 1e-5);
+    
+    }
+    catch(boost::exception& x) {
+        std::string* message = boost::get_error_info<dcm::error_message>(x);
+        if(message) 
+            BOOST_FAIL(*message);
+        else 
+            BOOST_FAIL("Unknown boost exception");
+    }
+    catch(std::exception& x) {
+        BOOST_FAIL(x.what());
     }
 }
 

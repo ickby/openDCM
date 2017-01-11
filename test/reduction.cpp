@@ -78,10 +78,10 @@ struct FixedPoint : public numeric::DependendGeometry<Kernel, TDirection3, TDire
 namespace dcm { namespace numeric {
  
 template<typename Kernel>
-struct Constraint<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>> 
-    : public ConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  {
+struct BinaryConstraint<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>> 
+    : public BinaryConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  {
 
-    typedef ConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
+    typedef BinaryConstraintBase<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
     typedef typename Kernel::Scalar                 Scalar;
     typedef typename Inherited::Vector              Vector;
     typedef typename Inherited::Geometry1           Geometry1;
@@ -89,7 +89,7 @@ struct Constraint<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel
     typedef typename Inherited::Geometry2           Geometry2;
     typedef typename Inherited::Derivative2         Derivative2;
     
-    Constraint() {
+    BinaryConstraint() {
     };
     
     Scalar calculateError(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return 1;};
@@ -100,9 +100,9 @@ struct Constraint<Kernel, dcm::Distance, TDirection3<Kernel>, TDirection3<Kernel
 };
 
 template<typename Kernel>
-struct Constraint<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>> : public ConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  {
+struct BinaryConstraint<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>> : public BinaryConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  {
 
-    typedef ConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
+    typedef BinaryConstraintBase<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>>  Inherited;
     typedef typename Kernel::Scalar                 Scalar;
     typedef typename Inherited::Vector              Vector;
     typedef typename Inherited::Geometry1           Geometry1;
@@ -110,7 +110,7 @@ struct Constraint<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Kernel>> 
     typedef typename Inherited::Geometry2           Geometry2;
     typedef typename Inherited::Derivative2         Derivative2;
     
-    Constraint() {
+    BinaryConstraint() {
     };
         
     Scalar calculateError(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return 1;};
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_SUITE(Reduction);
 
 BOOST_AUTO_TEST_CASE(tree) {
         
-    typedef dcm::reduction::GeometryEdgeReductionTree<K, TDirection3, TDirection3> Tree;
+    typedef dcm::reduction::GeometryEdgeReductionGraph<K, TDirection3, TDirection3> Tree;
 
     //build the data 
     TDirection3<K> g1, g2;
@@ -155,27 +155,32 @@ BOOST_AUTO_TEST_CASE(tree) {
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitive(dcm::distance);
     c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
+    c1->setArity(Sys::template constraintIndex<dcm::Distance>::arity);
     c1->getPrimitive().distance() = 0;
     
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitive(dcm::angle);
     c2->setType(Sys::template constraintIndex<dcm::Angle>::value);
+    c2->setArity(Sys::template constraintIndex<dcm::Angle>::arity);
     c2->getPrimitive().angle() = 0;
-    Tree::SymbolicVector cvec;
+    Tree::BinarySymbolicVector cvec;
     cvec.push_back(std::make_tuple(c1, sg1, sg2));
     cvec.push_back(std::make_tuple(c2, sg1, sg2));
+    
+    Tree::UnarySymbolicVector vvec;
     
     //build up an example reduction tree
     Tree tree;
     
     //add a dependend geometry node 
-    dcm::reduction::Node* node = tree.getTreeNode<PointLineGlider<K>>();
+    std::shared_ptr<reduction::Node> node = tree.getTreeNode<PointLineGlider<K>>();
     
     //connect the node with a custom connection
-    tree.getSourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
+    tree.sourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-        auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value);
+        auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value,
+                                                          Sys::template constraintIndex<dcm::Distance>::arity);
         if(dist && dist->getPrimitive().distance()==0) {
                 
             cwalker->acceptConstraint(dist);        
@@ -186,25 +191,25 @@ BOOST_AUTO_TEST_CASE(tree) {
     );       
     
     //apply should execute both nodes and the connection
-    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
+    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, vvec));
     
     BOOST_CHECK(!walker->getInputEquation());
-    BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
+    BOOST_CHECK(walker->getInitialNode() == tree.sourceNode());
     BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<PointLineGlider<K>>());
-    BOOST_CHECK(walker->size() == 1);
+    BOOST_CHECK_EQUAL(walker->binaryConstraintPool().size(), 1);
     
     //lets test conditional constraints 
     delete walker;
     c1->getPrimitive().distance() = 1;
     auto fixed = tree.getTreeNode<FixedPoint<K>>();
 
-    tree.getSourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 0>>(fixed, [](const dcm::Angle& angle){});  
-    walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec));
+    tree.sourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 0>>(fixed, [](const dcm::Angle& angle){});  
+    walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, vvec));
 
     BOOST_CHECK(!walker->getInputEquation());
-    BOOST_CHECK(walker->getInitialNode() == tree.getSourceNode());
+    BOOST_CHECK(walker->getInitialNode() == tree.sourceNode());
     BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<FixedPoint<K>>());
-    BOOST_CHECK(walker->size() == 1);
+    BOOST_CHECK_EQUAL(walker->binaryConstraintPool().size(), 1);
 }
 
 BOOST_AUTO_TEST_CASE(convertion) {
@@ -232,13 +237,16 @@ BOOST_AUTO_TEST_CASE(convertion) {
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitive(dcm::distance);
     c1->setType(Sys::constraintIndex<dcm::Distance>::value);
+    c1->setArity(Sys::constraintIndex<dcm::Distance>::arity);
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitive(dcm::angle);
     c2->setType(Sys::constraintIndex<dcm::Angle>::value);
+    c1->setArity(Sys::constraintIndex<dcm::Distance>::arity);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
 
-    symbolic::NumericConverter<K, typename Sys::GeometryList, typename Sys::ConstraintList, typename Sys::Graph> reducer;
+    symbolic::NumericConverter<K, typename Sys::GeometryList, typename Sys::BinaryConstraintList,
+                               typename Sys::UnaryConstraintList, typename Sys::Graph> reducer;
     reducer.setupEquationHandler(g, fusion::at_c<0>(e1));
     
     //check the result

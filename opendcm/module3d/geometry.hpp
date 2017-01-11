@@ -113,6 +113,35 @@ struct Plane : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vect
 };
 
 template<typename Kernel>
+struct Sphere: public Geometry<Kernel, numeric::Vector<Kernel, 3>, typename Kernel::Scalar> {
+
+    typedef typename Kernel::Scalar Scalar;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Inherited;
+    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar>::m_storage;
+
+    auto point()->decltype(fusion::at_c<0>(m_storage)) {
+        return fusion::at_c<0>(m_storage);
+    };
+
+    Scalar& radius() {
+        return Inherited::rmPtr(fusion::at_c<1>(m_storage));
+    };
+    
+    template<typename Derived>
+    Sphere<Kernel>& transform(const details::TransformBase<Derived>& t) {
+        t.transform(point());
+        return *this;
+    };
+    
+    template<typename Derived>
+    Sphere<Kernel>  transformed(const details::TransformBase<Derived>& t) {
+        Sphere<Kernel> copy(*this);
+        copy.transform(t);
+        return copy;
+    };
+};
+
+template<typename Kernel>
 struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, typename Kernel::Scalar> {
 
     typedef typename Kernel::Scalar Scalar;
@@ -128,7 +157,7 @@ struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::V
     };
 
     Scalar& radius() {
-        return Inherited::rmPtr(fusion::at_c<1>(m_storage));
+        return Inherited::rmPtr(fusion::at_c<2>(m_storage));
     };
     
     template<typename Derived>
@@ -151,8 +180,9 @@ struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::V
 //the user-exposed geometry types for use in the geometry traits
 typedef geometry::Point3<DummyKernel>     Point3;
 typedef geometry::Line3<DummyKernel>      Line3;
-typedef geometry::Plane<DummyKernel>      Plane3;
-typedef geometry::Cylinder<DummyKernel>   Cylinder3;
+typedef geometry::Plane<DummyKernel>      Plane;
+typedef geometry::Cylinder<DummyKernel>   Cylinder;
+typedef geometry::Sphere<DummyKernel>     Sphere;
 
 namespace modell {
     
