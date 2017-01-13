@@ -261,6 +261,7 @@ struct Builder {
             if( it == vProcessed.end() ) {
                 g1 = builder->createGeometry(source);
                 fg->addExecutable(g1);
+                fg->append(builder->createUnaryEquations(source, g1));
                 vProcessed[source] = g1;
             }
             else 
@@ -272,13 +273,15 @@ struct Builder {
             if( it == vProcessed.end() ) {
                 g2 = builder->createGeometry(target);
                 fg->addExecutable(g2);
+                fg->append(builder->createUnaryEquations(target, g2));
                 vProcessed[target] = g2;
             }
             else 
                 g2 = it->second;
             
-            auto vec = builder->createEquations(g1, g2);
-            fg->append(vec);        
+            auto vec = builder->createBinaryEquations(g1, g2);
+            fg->append(vec);    
+ 
         }
     
         //build the solver object and solve

@@ -99,7 +99,7 @@ struct _SequentialVector : public Executable {
         m_executables.push_back(ex);
     };
     
-    void append(Vector& vec) {
+    void append(const Vector& vec) {
         m_executables.insert(m_executables.end(), vec.begin(), vec.end());  
     };
     

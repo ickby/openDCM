@@ -103,7 +103,7 @@ struct EquationHandler {
      * @param vertex The vertex that describes the geometry in the clustergraph
      * @param flowgraph The \ref FlowGraph the node should be created in
      * @return td::pair< CalcPtr, Node> The numeric eqution and the Node in the \ref FlowGraph
-     */
+     */ 
     virtual std::pair< CalcPtr, Node>
     createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) = 0;
     
@@ -140,8 +140,8 @@ struct EquationHandler {
     /**
      * @brief Creates numeric equations for all available constraints
      * 
-     * This function creates numeric equations for all available constraints, no matter what the 
-     * reduction did result in. The created equations of type BinaryEquation have the geometries 
+     * This function creates numeric equations for all available binary constraints, no matter what the 
+     * reduction did result in. The created equations of type BinaryEquation should have the geometries 
      * as input, which are at the EquationHandlers edge source/target. The geometries at source and target vertex
      * of the edge should be used as source and target equation for this function, mixing those will
      * lead to faulty equation claculation! 
@@ -151,8 +151,22 @@ struct EquationHandler {
      * @return std::vector< CalcPtr > The vector with BinaryEquation of all constraints 
      */    
     virtual std::vector<CalcPtr>
-    createEquations(CalcPtr sourceGeometry, CalcPtr targetGeometry) = 0;
-                       
+    createBinaryEquations(CalcPtr sourceGeometry, CalcPtr targetGeometry) = 0;
+         
+    /**
+     * @brief Creates numeric equations for the given vertex
+     * 
+     * This function creates numeric equations for all available unary constraints at the given vertex,
+     * no matter what the reduction did result in. The created equations of type UnaryEquation have the 
+     * geometry as input, which is provided with this function. It is the callers responsibility to ensure
+     * that the given geometry equation is the one that belongs to the given vertex.
+     * 
+     * @param sourceGeometry Geometry equation at the edges source vertex
+     * @param targetGeometry Geometry equation at the edges target vertex
+     * @return std::vector< CalcPtr > The vector with BinaryEquation of all constraints 
+     */    
+    virtual std::vector<CalcPtr>
+    createUnaryEquations(const graph::LocalVertex& vertec, CalcPtr Geometry) = 0;
 
     /**
      * @brief Creates numeric equations for all available constraints directly in a \ref FlowGraph
@@ -169,7 +183,22 @@ struct EquationHandler {
      *                                                   in the \ref FlowGraph
      */
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createEquationsNode(CalcPtr sourceGeometry, CalcPtr targetGeometry, shedule::FlowGraph& flow) = 0;
+    createBinaryEquationsNode(CalcPtr sourceGeometry, CalcPtr targetGeometry, shedule::FlowGraph& flow) = 0;
+    
+        /**
+     * @brief Creates numeric equations for the given vertex directly in a \ref FlowGraph
+     * 
+     * This function creates numeric equations for all available unary constraints at the given vertex,
+     * no matter what the reduction did result in. The created equations of type UnaryEquation have the 
+     * geometry as input, which is provided with this function. It is the callers responsibility to ensure
+     * that the given geometry equation is the one that belongs to the given vertex.
+     * 
+     * @param sourceGeometry Geometry equation at the edges source vertex
+     * @param targetGeometry Geometry equation at the edges target vertex
+     * @return std::vector< CalcPtr > The vector with BinaryEquation of all constraints 
+     */    
+    virtual std::pair<std::vector<CalcPtr>, Node>
+    createUnaryEquationsNode(const graph::LocalVertex& vertec, CalcPtr Geometry, shedule::FlowGraph& flow) = 0;
 
     /**
      * @brief Creates numeric equations the remaining constraints in a \ref FlowGraph
@@ -226,7 +255,7 @@ struct EquationHandler {
     CalcPtr getVertexEquation(const graph::LocalVertex& v) {return m_vertexEquation[v];};
     
     /**
-     * @brief Returns the equations created for th processed edge
+     * @brief Returns the equations created for the processed edge
      * 
      * @return std::vector< CalcPtr > Vector of equations, empty if non created yet
      */
@@ -1112,10 +1141,11 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     ConstraintEquationHandler(const graph::LocalVertex& source, const graph::LocalVertex& target,
                       reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw,
                       const BinarySymbolicVector& defaultConstraints, const UnarySymbolicVector& svConstraints, 
-                      const UnarySymbolicVector& tvConstraints, const BinaryGeneratorArray& cg) 
+                      const UnarySymbolicVector& tvConstraints, const BinaryGeneratorArray& cg, 
+                      const UnaryGeneratorArray& ucg) 
         : m_sourceVertex(source), m_targetVertex(target), m_sourceWalker(sw), m_targetWalker(tw), 
           m_constraints(defaultConstraints), m_sourceConstraints(svConstraints), m_targetConstraints(tvConstraints),
-          m_binaryGeneratorArray(cg) {};
+          m_binaryGeneratorArray(cg), m_unaryGeneratorArray(ucg) {};
     
     virtual ~ConstraintEquationHandler() {
         //we own the walkers
@@ -1204,7 +1234,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     
     //this function is used to create all default constraint equations
     virtual std::vector<CalcPtr>
-    createEquations(CalcPtr g1, CalcPtr g2) override {
+    createBinaryEquations(CalcPtr g1, CalcPtr g2) override {
         
         std::vector<CalcPtr> equations;
         for(auto tuple : m_constraints)
@@ -1215,11 +1245,33 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         Base::setEdgeEquations(equations);
         return equations;
     };
+    
+    virtual std::vector<CalcPtr>
+    createUnaryEquations(const graph::LocalVertex& vertex, CalcPtr Geometry) override {
+        
+        std::vector<CalcPtr> equations;
+        UnarySymbolicVector  constraints;
+        if(vertex == m_sourceVertex)
+            constraints = m_sourceConstraints;
+        else 
+            constraints = m_targetConstraints;
+        
+        for(auto tuple : constraints) {
+            auto* gen = m_unaryGeneratorArray[std::get<1>(tuple)->getType()]
+                                             [std::get<0>(tuple)->getType()];
+            
+            if(!gen->applyToEquation(Geometry, std::get<0>(tuple)))
+                equations.push_back(gen->buildEquation(Geometry, std::get<0>(tuple)));
+        }
+        
+        //Base::setVertexEquations(equations);
+        return equations;
+    };
                        
     //this function is used to create a node in the calculation flow graph with all default
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
+    createBinaryEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
     
         if(m_constraints.size() == 1) {
             auto node = m_binaryGeneratorArray[std::get<1>(m_constraints[0])->getType()]
@@ -1234,7 +1286,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         }
                 
         //if we have multiple constraints we need to call the virtual functions anyway
-        auto equations = createEquations(g1,g2);
+        auto equations = createBinaryEquations(g1,g2);
         Base::setEdgeEquations(equations);
         return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
@@ -1242,6 +1294,38 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         }));
     };
 
+    virtual std::pair<std::vector<CalcPtr>, Node>
+    createUnaryEquationsNode(const graph::LocalVertex& vertex, CalcPtr Geometry, shedule::FlowGraph& flow) override {
+        
+        UnarySymbolicVector  constraints;
+        if(vertex == m_sourceVertex)
+            constraints = m_sourceConstraints;
+        else 
+            constraints = m_targetConstraints;
+        
+        if(constraints.size() == 1) {
+            auto gen = m_unaryGeneratorArray[std::get<1>(constraints[0])->getType()]
+                                            [std::get<0>(constraints[0])->getType()];
+                                            
+            if(!gen->applyToEquation(Geometry, std::get<0>(constraints[0]))) {
+                auto node = gen->buildEquationNode(Geometry, std::get<0>(constraints[0]), flow);
+                std::vector<CalcPtr> vec(1);
+                vec.push_back(node.first);
+                Base::setEdgeEquations(vec);
+                return std::make_pair(vec, node.second);
+            }
+            else return std::make_pair(std::vector<CalcPtr>(), flow.newActionNode([](const shedule::FlowGraph::ContinueMessage& m){}));
+        }
+                
+        //if we have multiple constraints we need to call the virtual functions anyway
+        auto equations = createUnaryEquations(vertex, Geometry);
+        //Base::setEdgeEquations(equations);
+        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            for(auto cons : equations)
+                cons->execute();
+        }));
+    };
+    
     //this function is used to create all default constraint equations
     virtual std::vector<CalcPtr>
     createReducedEquations(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2) override {
@@ -1253,6 +1337,15 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                                                [std::get<2>(tuple)->getType()]
                                                [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
         
+        //TODO: Not sure if this mapping works
+        CalcPtr vertexPtr = (target==m_sourceVertex) ? g1 : g2;
+        for(auto tuple : walker->unaryConstraintPool()) {
+            auto gen = m_unaryGeneratorArray[std::get<1>(tuple)->getType()]
+                                            [std::get<0>(tuple)->getType()];
+            if(!gen->applyToEquation(vertexPtr, std::get<0>(tuple)))
+                equations.push_back(gen->buildEquation(vertexPtr, std::get<0>(tuple)));
+        }
+        
         Base::setEdgeEquations(equations);
         return equations;
     };
@@ -1263,11 +1356,11 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
         
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
-        if(walker->binaryConstraintPool().size() == 1) {
+        if((walker->binaryConstraintPool().size() == 1) && walker->unaryConstraintPool().empty()) {
             auto front = walker->binaryConstraintPool().front();
             auto node = m_binaryGeneratorArray[std::get<1>(front)->getType()]
-                                       [std::get<2>(front)->getType()]
-                                       [std::get<0>(front)->getType()]->buildEquationNode(g1, g2, 
+                                              [std::get<2>(front)->getType()]
+                                              [std::get<0>(front)->getType()]->buildEquationNode(g1, g2, 
                                                                                           std::get<0>(front),
                                                                                           flow);
             std::vector<CalcPtr> vec(1);
@@ -1308,6 +1401,7 @@ private:
     UnarySymbolicVector                  m_sourceConstraints;   //all constraints at the source vertex
     UnarySymbolicVector                  m_targetConstraints;   //all constraints at the target vertex
     const BinaryGeneratorArray&          m_binaryGeneratorArray;//array with ConstraintGenerators for this special geometry combination
+    const UnaryGeneratorArray&           m_unaryGeneratorArray; //array of constraint generators for unary constraitns
 };
 } //numeric
 
@@ -1432,7 +1526,7 @@ struct NumericConverter : NumericConverterBase {
         
         reduction = new numeric::ConstraintEquationHandler<Kernel>(g->source(edge), g->target(edge), 
                                                            tsWalker, stWalker, stSymbolics, sourceSymbolics,
-                                                           targetSymbolics, m_binaryGeneratorArray);
+                                                           targetSymbolics, m_binaryGeneratorArray, m_unaryGeneratorArray);
         g->template setProperty<numeric::EquationHandlerProperty<Kernel>>(edge, reduction);
     };
     

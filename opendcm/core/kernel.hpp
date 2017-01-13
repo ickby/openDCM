@@ -277,7 +277,7 @@ struct CalculatableSequentialVector : public shedule::_SequentialVector<
         Base::m_executables.push_back(ex);
     };
     
-    void append(std::vector<std::shared_ptr<Calculatable<Kernel>>>& vec) {
+    void append(const std::vector<std::shared_ptr<Calculatable<Kernel>>>& vec) {
         Base::append(vec);
         for(auto ptr : vec) {
             m_parameterCount += ptr->newParameterCount();

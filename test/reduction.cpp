@@ -258,7 +258,7 @@ BOOST_AUTO_TEST_CASE(convertion) {
     BOOST_CHECK( eg1->output().value().isApprox(Eigen::Vector3d(1,2,3), 1e-9) );
     BOOST_CHECK( eg2->output().value().isApprox(Eigen::Vector3d(4,5,6), 1e-9) );
      
-    auto ecv = builder->createEquations(eg1, eg2);
+    auto ecv = builder->createBinaryEquations(eg1, eg2);
     //BOOST_CHECK_EQUAL(ecv.size(),2);
     auto ec = std::static_pointer_cast<numeric::BinaryEquation<K, TDirection3<K>, TDirection3<K>, double>>(ecv.front());
     BOOST_REQUIRE( ec );

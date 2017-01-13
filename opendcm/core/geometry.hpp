@@ -30,6 +30,7 @@
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/range_c.hpp>
 #include <boost/mpl/for_each.hpp>
+#include <boost/mpl/transform.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/make_vector.hpp>
 #include <boost/fusion/include/as_vector.hpp>

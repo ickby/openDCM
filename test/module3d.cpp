@@ -210,7 +210,9 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
     try {
         
         System s;
+#ifdef DCM_USE_LOGGING
         s.setLoggingFilter(dcm::details::severity >= dcm::details::severity_level::iteration);
+#endif
         std::shared_ptr<System::Geometry3D> g1 = s.addGeometry3D(v1);
         std::shared_ptr<System::Geometry3D> g2 = s.addGeometry3D(v2);
         std::shared_ptr<System::Geometry3D> g3 = s.addGeometry3D(v3);
