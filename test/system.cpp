@@ -80,21 +80,18 @@ struct TestModule1 {
             return 1;
         };
 
-        struct TestType1 : public Stacked::Object {
+        struct TestType1 : public Stacked::Object, public dcm::details::PropertyOwner<mpl::vector<TestProperty1,TestProperty2>> {
 
             TestType1() : Stacked::Object( Final::template objectTypeID<typename Final::TestType1>::ID::value ) {};
             int function1() {
                 return 1;
             };
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty1)(TestProperty2) )
         };
         
-        struct TestType2 : public Stacked::Object {
+        struct TestType2 : public Stacked::Object, public dcm::details::PropertyOwner<mpl::vector<TestProperty3>> {
                     
             TestType2() : Stacked::Object( Final::template objectTypeID<typename Final::TestType2>::ID::value ) {};
-                        
-            DCM_OBJECT_ADD_PROPERTIES( Final, (TestProperty3) )
         };
 
         DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1)(TestType2))
@@ -114,12 +111,11 @@ struct TestModule2 {
             return 2;
         };
 
-        struct TestType1 : public Stacked::TestType1 {
+        struct TestType1 : public Stacked::TestType1, public dcm::details::PropertyOwner<mpl::vector<TestProperty4>> {
             int function2() {
                 return 2;
             };
             
-            DCM_OBJECT_ADD_PROPERTIES(Final, (TestProperty4))
         };
         
         DCM_MODULE_ADD_OBJECTS(Stacked, (TestType1))

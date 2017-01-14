@@ -120,6 +120,23 @@ struct BinaryConstraint<Kernel, dcm::Angle, TDirection3<Kernel>, TDirection3<Ker
     Vector calculateGradientSecondComplete(const TDirection3<Kernel>& g1, const TDirection3<Kernel>& g2) {return Eigen::Vector2d(1,2);};
 };
 
+template<typename Kernel>
+struct UnaryConstraint<Kernel, dcm::Fix, TDirection3<Kernel>> 
+    : public UnaryConstraintBase<Kernel, dcm::Fix, TDirection3<Kernel>>  {
+
+    typedef UnaryConstraintBase<Kernel, dcm::Fix, TDirection3<Kernel>>  Inherited;
+    typedef typename Kernel::Scalar                 Scalar;
+    typedef typename Inherited::Vector              Vector;
+    typedef typename Inherited::Geometry            Geometry;
+    typedef typename Inherited::Derivative          Derivative;
+    typedef typename Inherited::InputEquation       InputEquation;
+    
+    bool   applyToEquation(std::shared_ptr<InputEquation> eqn) {return false;};
+    Scalar calculateError(const TDirection3<Kernel>& g1) {return 1;};
+    Scalar calculateGradient(const TDirection3<Kernel>& g1, const Derivative& dg1) {return 1;};
+    Vector calculateGradientComplete(const TDirection3<Kernel>& g1) {return Eigen::Vector2d(1,2);};
+};
+
 }}
 
 struct ReductionModule {
@@ -153,16 +170,14 @@ BOOST_AUTO_TEST_CASE(tree) {
     sg2->setPrimitive(g2);
     
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
-    c1->setPrimitive(dcm::distance);
+    c1->setPrimitive(dcm::distance = 1.);
     c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
     c1->setArity(Sys::template constraintIndex<dcm::Distance>::arity);
-    c1->getPrimitive().distance() = 0;
     
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
-    c2->setPrimitive(dcm::angle);
+    c2->setPrimitive(dcm::angle=2.);
     c2->setType(Sys::template constraintIndex<dcm::Angle>::value);
     c2->setArity(Sys::template constraintIndex<dcm::Angle>::arity);
-    c2->getPrimitive().angle() = 0;
     Tree::BinarySymbolicVector cvec;
     cvec.push_back(std::make_tuple(c1, sg1, sg2));
     cvec.push_back(std::make_tuple(c2, sg1, sg2));
@@ -181,7 +196,8 @@ BOOST_AUTO_TEST_CASE(tree) {
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
         auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value,
                                                           Sys::template constraintIndex<dcm::Distance>::arity);
-        if(dist && dist->getPrimitive().distance()==0) {
+        auto val = dist->getPrimitive().distance();
+        if(dist && std::abs((dist->getPrimitive().distance()-1))<1e-6) {
                 
             cwalker->acceptConstraint(dist);        
             return true;
@@ -200,10 +216,10 @@ BOOST_AUTO_TEST_CASE(tree) {
     
     //lets test conditional constraints 
     delete walker;
-    c1->getPrimitive().distance() = 1;
+    c1->getPrimitive().distance() = 2;
     auto fixed = tree.getTreeNode<FixedPoint<K>>();
 
-    tree.sourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 0>>(fixed, [](const dcm::Angle& angle){});  
+    tree.sourceNode()->connectConditional<reduction::ConstraintEqualValue<Sys, dcm::Angle, 2>>(fixed, [](const dcm::Angle& angle){});  
     walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, vvec));
 
     BOOST_CHECK(!walker->getInputEquation());
@@ -270,6 +286,65 @@ BOOST_AUTO_TEST_CASE(convertion) {
         std::cout<<"unexpected error " << *boost::get_error_info<boost::errinfo_errno>(e)
                     << " raised: " << boost::get_error_info<dcm::error_message>(e)->c_str()<<std::endl;
     };
+}
+
+BOOST_AUTO_TEST_CASE(unary) {
+ 
+    typedef dcm::reduction::GeometryEdgeReductionGraph<K, TDirection3, TDirection3> Tree;
+
+    //build the data 
+    TDirection3<K> g1, g2;
+    auto sg1 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    auto sg2 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
+    sg1->setPrimitive(g1);
+    sg2->setPrimitive(g2);
+    
+    auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
+    c1->setPrimitive(dcm::distance);
+    c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
+    c1->setArity(Sys::template constraintIndex<dcm::Distance>::arity);
+    c1->getPrimitive().distance() = 0;
+    
+    auto c2 = new dcm::symbolic::TypeConstraint<dcm::Fix>();
+    c2->setPrimitive(dcm::fix=dcm::Fixables::pointY);
+    c2->getPrimitive().fixed() = dcm::Fixables::pointY;
+    c2->setType(Sys::template constraintIndex<dcm::Fix>::value);
+    c2->setArity(Sys::template constraintIndex<dcm::Fix>::arity);
+    Tree::BinarySymbolicVector cvec;
+    cvec.push_back(std::make_tuple(c1, sg1, sg2));
+   
+    Tree::UnarySymbolicVector vvec;
+    vvec.push_back(std::make_tuple(c2, sg2));
+    
+    //build up an example reduction tree
+    Tree tree;
+    
+    //add a dependend geometry node 
+    std::shared_ptr<reduction::Node> node = tree.getTreeNode<PointLineGlider<K>>();
+    
+    //connect the node with a custom connection
+    tree.sourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
+        
+        auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
+        auto dist = cwalker->getConstraint<dcm::Fix>(Sys::template constraintIndex<dcm::Fix>::value,
+                                                     Sys::template constraintIndex<dcm::Fix>::arity);
+        if(dist && dist->getPrimitive().fixed()==dcm::Fixables::pointY) {
+                
+            cwalker->acceptConstraint(dist);
+            return true;
+        }            
+        return false;
+    }
+    );       
+    
+    //apply should execute both nodes and the connection
+    auto walker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(tree.apply(sg1, sg2, cvec, vvec));
+    
+    BOOST_CHECK(!walker->getInputEquation());
+    BOOST_CHECK(walker->getInitialNode() == tree.sourceNode());
+    BOOST_CHECK(walker->getFinalNode()  == tree.getTreeNode<PointLineGlider<K>>());
+    BOOST_CHECK_EQUAL(walker->binaryConstraintPool().size(), 1);
+    BOOST_CHECK_EQUAL(walker->unaryConstraintPool().size(), 0);    
 }
 
 BOOST_AUTO_TEST_SUITE_END();

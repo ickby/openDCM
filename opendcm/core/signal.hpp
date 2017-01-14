@@ -31,32 +31,10 @@
 
 #include <boost/fusion/include/as_vector.hpp>
 
-#include <boost/preprocessor.hpp>
-#include <boost/preprocessor/repetition/repeat.hpp>
-#include <boost/preprocessor/cat.hpp>
-#include <boost/preprocessor/repetition/enum.hpp>
-#include <boost/preprocessor/repetition/enum_params.hpp>
-#include <boost/preprocessor/repetition/enum_trailing_params.hpp>
-#include <boost/preprocessor/repetition/enum_binary_params.hpp>
-
 #include <boost/enable_shared_from_this.hpp>
 
 namespace mpl = boost::mpl;
 namespace fusion = boost::fusion;
-
-/* Preprocessor implementation of emit signal. As we need many overloads with diffrent number of
- * templated parameters we use boost preprocessor to do the hard repetive work. The definition and
- * implementation are definded first as they need to be known before usage
- * */
-#define EMIT_SIGNAL_CALL_DEF(z, n, data) \
-    template < \
-    typename S  \
-    BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
-    > \
-    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
-    emitSignal( \
-                     BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
-                   );
 
 namespace dcm {
 
@@ -84,7 +62,8 @@ struct SignalOwner {
     * @return void
     **/
     template<typename S>
-    Connection connectSignal(typename mpl::at<SigMap, S>::type function);
+    typename boost::enable_if<mpl::has_key<SigMap, S>, Connection>::type
+    connectSignal(typename mpl::at<SigMap, S>::type function);
 
     /**
     * @brief Disconnects a slot for a specific signal.
@@ -97,10 +76,8 @@ struct SignalOwner {
     * @return void
     **/
     template<typename S>
-    void disconnectSignal(Connection c);
-
-    //with no vararg templates before c++11 we need preprocessor to create the overloads of emit signal we need
-    BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEF, ~)
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type
+    disconnectSignal(Connection c);
 
 protected:
     /*signal handling
@@ -118,6 +95,9 @@ protected:
 
     Signals m_signals;
     int  m_signal_count;
+    
+    template <typename S, typename ...Arg>
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type  emitSignal(Arg&... args);
 };
 
 /***************************************************************************************************************
@@ -126,34 +106,13 @@ protected:
  * 
  * *************************************************************************************************************/
 
-#define EMIT_ARGUMENTS(z, n, data) \
-    BOOST_PP_CAT(data, n)
-    
-#define EMIT_SIGNAL_CALL_DEC(z, n, data) \
-    template<typename SigMap> \
-    template < \
-    typename S  \
-    BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
-    > \
-    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
-    SignalOwner<SigMap>::emitSignal( \
-            BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
-                                              ) \
-    { \
-        typedef typename mpl::find<sig_name, S>::type iterator; \
-        typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
-        typedef typename fusion::result_of::value_at<Signals, distance>::type map_type; \
-        map_type& map = fusion::at<distance>(m_signals); \
-        for (typename map_type::iterator it=map.begin(); it != map.end(); it++) \
-            (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
-    };
-
 template<typename SigMap>
 SignalOwner<SigMap>::SignalOwner() : m_signal_count(0) {};
 
 template<typename SigMap>
 template<typename S>
-Connection SignalOwner<SigMap>::connectSignal(typename mpl::at<SigMap, S>::type function)
+typename boost::enable_if<mpl::has_key<SigMap, S>, Connection>::type
+SignalOwner<SigMap>::connectSignal(typename mpl::at<SigMap, S>::type function)
 {
     typedef typename mpl::find<sig_name, S>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
@@ -165,7 +124,8 @@ Connection SignalOwner<SigMap>::connectSignal(typename mpl::at<SigMap, S>::type 
 
 template<typename SigMap>
 template<typename S>
-void SignalOwner<SigMap>::disconnectSignal(Connection c)
+typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type
+SignalOwner<SigMap>::disconnectSignal(Connection c)
 {
     typedef typename mpl::find<sig_name, S>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
@@ -175,7 +135,18 @@ void SignalOwner<SigMap>::disconnectSignal(Connection c)
     map.erase(c);
 };
 
-BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEC, ~)
+template<typename SigMap>
+template <typename S, typename ...Arg>
+typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type
+SignalOwner<SigMap>::emitSignal(Arg&... args) { 
+    
+    typedef typename mpl::find<sig_name, S>::type iterator;
+    typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance;
+    typedef typename fusion::result_of::value_at<Signals, distance>::type map_type;
+    map_type& map = fusion::at<distance>(m_signals);
+    for (typename map_type::iterator it=map.begin(); it != map.end(); it++)
+        (it->second)(args...);
+};
 
 }; //details
 }; //dcm
