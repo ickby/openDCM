@@ -114,7 +114,7 @@ namespace dcm {
  * 
  * @code
  * ProeprtyOwner<mpl::vector<test_property>> owner;
- * int t = owner->getProperty<test_property>();
+ * int t = owner->get<test_property>();
  * owner->setProperty<test_property>(5);
  * @endcode
  * 
@@ -243,7 +243,7 @@ struct bs { //bool sequence
 /**
  * @brief Property vector to a fusion signal map of change events
  *
- * It creates a signal map which can be uses as input for SignalOwner class. Each property gets a
+ * It creates a signal map which can be uses as input for SignalOwner class. Each proeprty gets a
  * onChange<Propert> signal
  **/
 template<typename T>
@@ -278,15 +278,12 @@ struct apply_default {
  * To ease the work with properties this class is provided. It receives all the properties, which shall be
  * handled, in a mpl::vector typelist as its template argument. Than easy access to all properties by get
  * and set functions is achieved. Furthermore change tracking is available for individual properties and the
- * whole set. On changes a signal is emmited to which one can connect arbitrary functions.
+ * whole set. On changes a signal is emmited to whcih one can connect arbitrary functions.
  *
  **/
 template<typename PropertyList>
 struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::type> {
 
-    //for external access
-    typedef PropertyList Properties;
-    
     /**
     * @brief Constructor assigning default values
     *
@@ -304,8 +301,7 @@ struct PropertyOwner : public SignalOwner<typename details::sm<PropertyList>::ty
     * @return const Prop::type& a reference to the properties actual value.
     **/
     template<typename Prop>
-    typename boost::enable_if<has_property<Prop, PropertyList>, const typename Prop::type&>::type
-    getProperty() const;
+    const typename Prop::type& getProperty() const;
 
     /**
        * @brief Set properties
@@ -389,14 +385,14 @@ private:
     /* It's imortant to not store the properties but their types. These types are
      * stored and accessed as fusion vector.
      * */
-    typedef typename details::pts<PropertyList>::type PropertyStorage;
+    typedef typename details::pts<PropertyList>::type Properties;
 
     /* To track changes to properties we store boolean state variables
      * */
     typedef typename details::bs<PropertyList>::type States;
 
-    PropertyStorage  m_properties;
-    States           m_states;
+    Properties  m_properties;
+    States      m_states;
 };
 
 template<typename PropertyList>
@@ -437,8 +433,7 @@ struct PropertyOwner<mpl::void_> {
 
 template<typename PropertyList>
 template<typename Prop>
-typename boost::enable_if<has_property<Prop, PropertyList>, const typename Prop::type&>::type
-PropertyOwner<PropertyList>::getProperty() const {
+const typename Prop::type& PropertyOwner<PropertyList>::getProperty() const {
 
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
     typedef typename mpl::distance<typename mpl::begin<PropertyList>::type, iterator>::type distance;

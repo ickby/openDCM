@@ -198,6 +198,16 @@ struct ModuleCoreFinish : public Stacked {
     typedef typename mpl::fold<typename Stacked::FullObjectList, typename Stacked::FullObjectList,
             remove_base< mpl::_1, mpl::_2 > >::type ObjectList;
 
+    //Metafunction to filter out the exact object type which holds a specific property. As a property can by definition
+    //only added once to a object this operation should yield the only relevant type.
+    template<typename Prop>
+    struct objectByProperty {
+        typedef typename mpl::find_if<typename Stacked::FullObjectList, object_has_property<mpl::_1, Prop> >::type iter;
+        BOOST_MPL_ASSERT((mpl::not_< boost::is_same<iter, typename mpl::end<ObjectList>::type> >));
+
+        typedef typename mpl::deref< iter >::type type;
+    };
+
     //Metafunction to extract the objects type id as integral constant
     template<typename Object>
     struct objectTypeID {

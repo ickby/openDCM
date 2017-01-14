@@ -27,7 +27,13 @@
 
 #include <boost/mpl/equal_to.hpp>
 #include <boost/mpl/remove_if.hpp>
-#include <boost/mpl/range_c.hpp>
+#include <boost/preprocessor.hpp>
+#include <boost/preprocessor/repetition/repeat.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
+#include <boost/preprocessor/tuple/size.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/seq/enum.hpp>
+#include <boost/preprocessor/cat.hpp>
 
 #ifndef DCM_MAX_OBJECTS
 #define DCM_MAX_OBJECTS 10
@@ -46,9 +52,64 @@ namespace solver {
 struct Builder;
 }
 
-namespace details {  
+namespace details {
 
-//if a object was derived from a PropertyOwner than the Properties vector is not empty
+#define EMIT_OBJECT_SIGNAL_CALL_DEC(z, n, data) \
+    template<typename SigMap> \
+    template < \
+    typename S  \
+    BOOST_PP_ENUM_TRAILING_PARAMS(n, typename Arg) \
+    > \
+    typename boost::enable_if<mpl::has_key<SigMap, S>, void>::type \
+    SignalOwner<SigMap>::emitSignal( \
+            BOOST_PP_ENUM_BINARY_PARAMS(n, Arg, const& arg) \
+                                              ) \
+    { \
+        typedef typename mpl::find<sig_name, S>::type iterator; \
+        typedef typename mpl::distance<typename mpl::begin<sig_name>::type, iterator>::type distance; \
+        typedef typename fusion::result_of::value_at<Signals, distance>::type map_type; \
+        map_type& map = fusion::at<distance>(m_signals); \
+        for (typename map_type::iterator it=map.begin(); it != map.end(); it++) \
+            (it->second)(BOOST_PP_ENUM(n, EMIT_ARGUMENTS, arg)); \
+    };
+
+#define CHECK_TYPE(z, n, data) \
+    case n :\
+        return mpl::contains< Filtered, typename mpl::at<List, mpl::int_<n> >::type >::value;\
+        break;
+    
+#define CHECK_TYPE_DEF(z, n, data) \
+    template <typename List, typename Filtered> \
+    typename boost::enable_if<mpl::equal_to<mpl::size<List>, mpl::int_<n> >, bool>::type \
+    isOneOfTypes() \
+    { \
+        switch(m_id) { \
+        BOOST_PP_REPEAT(n, CHECK_TYPE, ~); \
+            default: \
+                return false; \
+        }; \
+    };
+    
+    
+//macros to ease the handling of object handling
+#define PROPERTY_HANDLING_FUNCTIONS(r, data, elem) \
+    public: \
+        const typename elem::type& BOOST_PP_CAT(get, elem)() { \
+            return m_properties.getProperty< elem >(); \
+        }; \
+        void BOOST_PP_CAT(set, elem)(const typename elem::type& value) { \
+            m_properties.setProperty< elem >(value); \
+        };
+    
+#define DCM_OBJECT_ADD_PROPERTIES(final, seq) \
+    BOOST_PP_SEQ_FOR_EACH(PROPERTY_HANDLING_FUNCTIONS, _, seq ) \
+    typedef mpl::vector< \
+        BOOST_PP_SEQ_ENUM( seq ) \
+        > Properties; \
+    protected: \
+        friend struct dcm::details::Object<final>; \
+        dcm::details::PropertyOwner< Properties > m_properties;
+
 template<typename Obj, typename Prop>        
 struct object_has_property : public mpl::contains<typename Obj::Properties, Prop> {};
      
@@ -86,14 +147,15 @@ template<typename Final>
 struct Object : public GraphObject {
 
     Object(int ID);
-/*
-    typedef mpl::vector0<> Properties;
-    //functions for accessing properties without the need to transform the object manual
+
+    //functions for accessing stacked properties. we basicly mirror the PropertyOwner interface
+    //so that it looks to the user like we actually are a propertyowner but then access the propertyowner
+    //which holds the property for query
     template<typename Prop>
     const typename Prop::type& getProperty();
     template<typename Prop>
     void setProperty(const typename Prop::type& value);
- */
+ 
     /*template<typename S>
     Connection connectSignal(typename mpl::at<SigMap, S>::type function);
     template<typename S>
@@ -105,6 +167,11 @@ struct Object : public GraphObject {
     bool isType();
 
 protected:    
+    //with no vararg templates before c++11 we need preprocessor to create the overloads of emit signal we need
+    //BOOST_PP_REPEAT(5, EMIT_SIGNAL_CALL_DEF, ~)
+
+    BOOST_PP_REPEAT(DCM_MAX_OBJECTS, CHECK_TYPE_DEF, ~)
+
     const ObjectTypeID m_id;
 };
 
@@ -117,35 +184,20 @@ void pretty(T t) {
     std::cout<<__PRETTY_FUNCTION__<<std::endl;
 };
 
-template<typename List, typename Prop>
-struct objGetProp {
-  
-    objGetProp(void* obj, int id) : m_object(obj) {};
-    
-    template<typename T>
-    void operator()(const T& t) const {
-        if(T::value == id)
-            m_store = &static_cast<typename mpl::at<List, T>::type>(m_object)->template getProperty<Prop>();
-    }
-    
-    const typename Prop::type& getResult() {return m_store;};
-    
-private:
-    typename Prop::type* m_store = nullptr;
-    void* m_object = nullptr;
-    int id;
-};
-/*
 template<typename Final>
 template<typename Prop>
 const typename Prop::type& Object<Final>::getProperty() {
    
-    //iterate over all base objects to find the one we are
-    typedef mpl::range_c<int,0,
-            mpl::size<typename Final::ObjectList>::value> Range;
-    auto func = objGetProp<typename Final::ObjectList, Prop>(this, getTypeID());
-    mpl::for_each<Range>(func);
-    return func->getResult();
+    typedef typename Final::template objectByProperty<Prop>::type Object;
+    //filteres list of all types inheriting from Object
+    typedef typename mpl::remove_if<
+    typename Final::ObjectList,
+             mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
+                     
+    if(isOneOfTypes<typename Final::ObjectList, Filtered>())
+        return static_cast<Object*>(this)->m_properties.template getProperty<Prop>();
+    else
+        throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
 
 template<typename Final>
@@ -163,7 +215,7 @@ void Object<Final>::setProperty(const typename Prop::type& value) {
     else
         throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
-*/
+
 template<typename Final>
 const ObjectTypeID Object<Final>::getTypeID() {
     
