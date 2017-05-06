@@ -56,7 +56,7 @@ struct Module3D {
             Stacked::init();
             
             //we create our default edge reduction trees
-            int pointID = Final::template geometryIndex<geometry::Point3>::value;
+            int pointID = geometry::Point3<Kernel>::index();
             module3d::setupPointPointReduction<Final>(this->getReductionGraph(pointID, pointID));
         };
         
@@ -119,7 +119,8 @@ struct Module3D {
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
                 typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
-                typedef symbolic::TypeGeometry<typename extractor::template primitive<typename Final::Kernel>> TypeGeometry;
+                typedef typename extractor::template primitive<typename Final::Kernel> Geometry;
+                typedef symbolic::TypeGeometry<Geometry> TypeGeometry;
 
                 BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
                 
@@ -132,7 +133,7 @@ struct Module3D {
                 };
                 
                 //store the type
-                m_type = Final::template geometryIndex<extractor::template primitive>::value;
+                m_type = Geometry::index();
                 InheritedV::m_variant = geometry;
                 
             };
@@ -175,12 +176,12 @@ struct Module3D {
             template<typename T>
             typename boost::enable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryIndex<geometry::extractor<typename geometry_traits<T>::type>::template primitive>::value;
+                return m_type == geometry::extractor<typename geometry_traits<T>::type>::template primitive<Kernel>::index();
             };
             template<typename T>
             typename boost::disable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == Final::template geometryIndex<geometry::extractor<T>::template primitive>::value;
+                return m_type == geometry::extractor<T>::template primitive<Kernel>::index();
             };
            
             
@@ -351,24 +352,24 @@ struct Module3D {
             template<typename T>
             int createGraphRepresentation(T& t, std::vector<symbolic::Constraint*>& vec) {
                 
-                if(t.geometryCount() != m_geometries.size())
+                if(T::Arity != m_geometries.size())
                     throw creation_error() <<  boost::errinfo_errno(25) << error_message("Constraint does not support given amount of geometries");
                
                 symbolic::TypeConstraint<T>* tc;
                 
                 //single geometry constraints are created in a special manner
-                if(t.geometryCount() == 1) {
+                if(T::Arity == 1) {
                     //add the primitive constraint to the vertex
                     tc = new symbolic::TypeConstraint<T>();
                     tc->setPrimitive(t);
-                    tc->setType(Final::template constraintIndex<T>::value);
-                    tc->setArity(Final::template constraintIndex<T>::arity);
+                    tc->setType(T::index());
+                    tc->setArity(T::Arity);
                     
                     std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                     auto& cons = cluster->template getPropertyAccessible<symbolic::ConstraintListProperty>(m_geometries[0]->getVertexProperty());
                     cons.push_back(tc);
                 }
-                else if(t.geometryCount() == 2) {
+                else if(T::Arity == 2) {
         
                     //let's create a new global edge for this constraint
                     std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
@@ -380,10 +381,10 @@ struct Module3D {
                         throw creation_error() <<  boost::errinfo_errno(22) << error_message("Graph representation of constraint could not be created");                
                     
                     //add the primitive constraint to the global edge
-                    symbolic::TypeConstraint<T>* tc = new symbolic::TypeConstraint<T>();
+                    tc = new symbolic::TypeConstraint<T>();
                     tc->setPrimitive(t);
-                    tc->setType(Final::template constraintIndex<T>::value);
-                    tc->setArity(Final::template constraintIndex<T>::arity);
+                    tc->setType(T::index());
+                    tc->setArity(T::Arity);
                     cluster->template setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(res), tc);
                 }
                 else 

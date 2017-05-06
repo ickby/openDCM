@@ -94,6 +94,14 @@ namespace dcm {
  */
 namespace geometry {
 
+class GeometryIndex {
+protected:      
+    static int generateIndex(){
+        static int idx = -1;
+        return ++idx;
+    }
+};
+
 /**
  * @brief Helper base struct for creating primitive gepometry types
  *
@@ -132,12 +140,20 @@ namespace geometry {
  * \tparam StorageTypes Variadic sequence of storage types
  */
 template<typename Kernel, typename... StorageTypes>
-struct Geometry {
+struct Geometry : GeometryIndex {
 
     typedef mpl::vector< StorageTypes... >                               StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type Storage;
     
     Geometry& operator=(const Storage& storage) {m_storage = storage; return *this;};
+    
+    /**
+     * @brief Returns the index of the geometry
+     */
+    static int index() {
+        static int idx = generateIndex();
+        return idx;
+    }
 protected:
     Storage m_storage;
     
@@ -178,6 +194,7 @@ struct extractor<Base<Kernel>> {
 };
 
 }//geometry
+
 
 namespace details {
 //helper classes for numeric geometry

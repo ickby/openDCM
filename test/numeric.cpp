@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE(equations) {
 BOOST_AUTO_TEST_CASE(geometry) {
   
     TDirection3<K> basic_vec;
-    
+       
     basic_vec.value()[0] = 5;    
     BOOST_CHECK(basic_vec.value()[0] == 5);
 

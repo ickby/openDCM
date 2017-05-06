@@ -171,13 +171,13 @@ BOOST_AUTO_TEST_CASE(tree) {
     
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitive(dcm::distance = 1.);
-    c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
-    c1->setArity(Sys::template constraintIndex<dcm::Distance>::arity);
+    c1->setType(dcm::Distance::index());
+    c1->setArity(dcm::Distance::Arity);
     
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitive(dcm::angle=2.);
-    c2->setType(Sys::template constraintIndex<dcm::Angle>::value);
-    c2->setArity(Sys::template constraintIndex<dcm::Angle>::arity);
+    c2->setType(dcm::Angle::index());
+    c2->setArity(dcm::Angle::Arity);
     Tree::BinarySymbolicVector cvec;
     cvec.push_back(std::make_tuple(c1, sg1, sg2));
     cvec.push_back(std::make_tuple(c2, sg1, sg2));
@@ -194,8 +194,8 @@ BOOST_AUTO_TEST_CASE(tree) {
     tree.sourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-        auto dist = cwalker->getConstraint<dcm::Distance>(Sys::template constraintIndex<dcm::Distance>::value,
-                                                          Sys::template constraintIndex<dcm::Distance>::arity);
+        auto dist = cwalker->getConstraint<dcm::Distance>(dcm::Distance::index(),
+                                                          dcm::Distance::Arity);
         auto val = dist->getPrimitive().distance();
         if(dist && std::abs((dist->getPrimitive().distance()-1))<1e-6) {
                 
@@ -246,23 +246,26 @@ BOOST_AUTO_TEST_CASE(convertion) {
     auto sg1 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
     auto sg2 = new dcm::symbolic::TypeGeometry<TDirection3<K>>();
     sg1->setPrimitive(g1);
+    sg1->setType(TDirection3<K>::index());
     sg2->setPrimitive(g2);
+    sg2->setType(TDirection3<K>::index());
     g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v1), sg1);
     g->setProperty<symbolic::GeometryProperty>(fusion::at_c<0>(v2), sg2);
 
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitive(dcm::distance);
-    c1->setType(Sys::constraintIndex<dcm::Distance>::value);
-    c1->setArity(Sys::constraintIndex<dcm::Distance>::arity);
+    c1->setType(dcm::Distance::index());
+    c1->setArity(dcm::Distance::Arity);
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Angle>();
     c2->setPrimitive(dcm::angle);
-    c2->setType(Sys::constraintIndex<dcm::Angle>::value);
-    c1->setArity(Sys::constraintIndex<dcm::Distance>::arity);
+    c2->setType(dcm::Angle::index());
+    c1->setArity(dcm::Distance::Arity);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e1), c1);
     g->setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(e2), c2);
 
     symbolic::NumericConverter<K, typename Sys::GeometryList, typename Sys::BinaryConstraintList,
                                typename Sys::UnaryConstraintList, typename Sys::Graph> reducer;
+                               
     reducer.setupEquationHandler(g, fusion::at_c<0>(e1));
     
     //check the result
@@ -273,7 +276,7 @@ BOOST_AUTO_TEST_CASE(convertion) {
     auto eg2 = std::static_pointer_cast<numeric::Equation<K, TDirection3<K>>>(builder->createGeometry(fusion::at_c<0>(v2)));
     BOOST_CHECK( eg1->output().value().isApprox(Eigen::Vector3d(1,2,3), 1e-9) );
     BOOST_CHECK( eg2->output().value().isApprox(Eigen::Vector3d(4,5,6), 1e-9) );
-     
+    
     auto ecv = builder->createBinaryEquations(eg1, eg2);
     //BOOST_CHECK_EQUAL(ecv.size(),2);
     auto ec = std::static_pointer_cast<numeric::BinaryEquation<K, TDirection3<K>, TDirection3<K>, double>>(ecv.front());
@@ -301,15 +304,15 @@ BOOST_AUTO_TEST_CASE(unary) {
     
     auto c1 = new dcm::symbolic::TypeConstraint<dcm::Distance>();
     c1->setPrimitive(dcm::distance);
-    c1->setType(Sys::template constraintIndex<dcm::Distance>::value);
-    c1->setArity(Sys::template constraintIndex<dcm::Distance>::arity);
+    c1->setType(dcm::Distance::index());
+    c1->setArity(dcm::Distance::Arity);
     c1->getPrimitive().distance() = 0;
     
     auto c2 = new dcm::symbolic::TypeConstraint<dcm::Fix>();
     c2->setPrimitive(dcm::fix=dcm::Fixables::pointY);
     c2->getPrimitive().fixed() = dcm::Fixables::pointY;
-    c2->setType(Sys::template constraintIndex<dcm::Fix>::value);
-    c2->setArity(Sys::template constraintIndex<dcm::Fix>::arity);
+    c2->setType(dcm::Fix::index());
+    c2->setArity(dcm::Fix::Arity);
     Tree::BinarySymbolicVector cvec;
     cvec.push_back(std::make_tuple(c1, sg1, sg2));
    
@@ -326,8 +329,8 @@ BOOST_AUTO_TEST_CASE(unary) {
     tree.sourceNode()->connect(node, [](dcm::reduction::TreeWalker* walker)->bool{
         
         auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-        auto dist = cwalker->getConstraint<dcm::Fix>(Sys::template constraintIndex<dcm::Fix>::value,
-                                                     Sys::template constraintIndex<dcm::Fix>::arity);
+        auto dist = cwalker->getConstraint<dcm::Fix>(dcm::Fix::index(),
+                                                     dcm::Fix::Arity);
         if(dist && dist->getPrimitive().fixed()==dcm::Fixables::pointY) {
                 
             cwalker->acceptConstraint(dist);

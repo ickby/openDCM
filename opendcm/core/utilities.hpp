@@ -75,39 +75,38 @@ struct SequenceApplyer {
         
     template<typename T>
     void operator()(const T& t) {        
-        functor.template operator()<T, T::value>();
+        functor.template operator()<T>();
     };
 };
 
-template<typename Sequence, template<class> class Functor>
+template<typename Sequence, typename Functor>
 struct RecursiveSequenceApplyer {
     
-    Functor<Sequence> functor;
+    Functor functor;
     
     template<typename T>
     RecursiveSequenceApplyer(T& param) 
-        : functor(Functor<Sequence>(param)) {};
+        : functor(Functor(param)) {};
     
     RecursiveSequenceApplyer(RecursiveSequenceApplyer& r) 
         : functor(r.functor) {};
         
     template<typename T>
     void operator()(const T& t) {        
-            typedef mpl::range_c<int, T::value, mpl::size<Sequence>::value> StorageRange;
-            boost::mpl::for_each<StorageRange>(InnerLoop<T>(functor));
+            boost::mpl::for_each<Sequence>(InnerLoop<T>(functor));
     };
     
-    template<typename Number>
+    template<typename T1>
     struct InnerLoop {
 
-        Functor<Sequence>& functor;
+        Functor& functor;
         
-        InnerLoop(Functor<Sequence>& f) 
+        InnerLoop(Functor& f) 
             : functor(f) {};
             
-        template<typename T>
-        void operator()(const T& t) {            
-            functor.template operator()<Number, T>();
+        template<typename T2>
+        void operator()(const T2& t) {            
+            functor.template operator()<T1, T2>();
         };
     };
 };

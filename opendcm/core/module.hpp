@@ -215,25 +215,6 @@ struct ModuleCoreFinish : public Stacked {
         typedef typename mpl::distance<typename mpl::begin<ObjectList>::type, iterator>::type ID;
     };
     
-    template<typename G>
-    struct initGeometryIndex : utilities::index<typename Stacked::GeometryList, G>{};
-    
-    template<template<class> class G>
-    struct geometryIndex {
-        typedef typename initGeometryIndex<G<Kernel>>::type type; 
-        const static long value = type::value;
-    };
-   
-    template<typename G>
-    struct constraintIndex {
-        typedef typename Stacked::UnaryConstraintList  Unary;
-        typedef typename Stacked::BinaryConstraintList Binary;
-        typedef typename mpl::if_<mpl::contains<Unary, G>, utilities::index<Unary, G>, utilities::index<Binary, G>>::type type;
-        
-        const static long value = type::value;
-        const static int  arity = G::Arity;
-    };
-    
     typedef graph::ClusterGraph<typename Stacked::EdgeProperties, typename Stacked::GlobalEdgeProperties,
             typename Stacked::VertexProperties, typename Stacked::ClusterProperties> Graph;        
 

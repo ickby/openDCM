@@ -28,6 +28,7 @@
 #include <boost/exception/errinfo_errno.hpp>
 
 #include <iostream>
+#include <type_traits>
 #include "geometry.hpp"
 #include "defines.hpp"
 
@@ -87,6 +88,15 @@ enum class Fixables {pointX, pointY, pointZ, directionX, directionY, directionZ,
  */
 namespace constraint {  
 
+template<int Arity>
+class ConstraintIndex {
+protected:      
+    static int generateIndex(){
+        static int idx = -1;
+        return ++idx;
+    }
+};
+
 /**
  * @brief Herlper class to create primitive constraints
  * 
@@ -116,7 +126,7 @@ namespace constraint {
  * \tparam OptionTypes a variadic sequence of copy constructable types which describe the stored options
 */    
 template<typename Derived, int GCount, typename ...OptionTypes>
-struct Constraint {
+struct Constraint : public ConstraintIndex<GCount> {
 
     const static int Arity = GCount;
     typedef typename fusion::vector<OptionTypes...> Options;
@@ -187,6 +197,14 @@ struct Constraint {
     const Options& getOptions() {
         return m_storage;
     };
+    
+    /**
+     * @brief Returns the index of the geometry
+     */
+    static int index() {
+        static int idx = ConstraintIndex<Arity>::generateIndex();
+        return idx;
+    }
        
 protected:
     Options       m_storage;

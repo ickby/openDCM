@@ -655,11 +655,13 @@ struct ConstraintEqualValue {
         virtual bool apply(TreeWalker* walker) const {
             
             auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value,
-                                                                    Final::template constraintIndex<Constraint>::arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
+                                                                    Constraint::Arity);
             if(!cons)
                 return false;
             
+            auto o = cons->getPrimitive().template getOption<0>();
+            auto o2 = option;
             if(cons->getPrimitive().template getOption<0>() != option)
                 return false;
             
@@ -679,7 +681,7 @@ struct ConstraintEqualValue {
  * This class works like ConstraintUnequalValue with the difference for searching for unequal constraint 
  * values. See \ref ConstraintEqualValue for documentation on usage.
  * 
- * @tparam Final The fully qualified dcm::system in use 
+ * @tparam Final 
  * @tparam Constraint The primitive constraint type for which the connection should be used 
  * @tparam option The value of the primary optionn of the primitive constraint which must be met
  */
@@ -694,8 +696,8 @@ struct ConstraintUnequalValue {
         virtual bool apply(TreeWalker* walker) const {
             
             auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Final::template constraintIndex<Constraint>::value,
-                                                                    Final::template constraintIndex<Constraint>::arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
+                                                                    Constraint::Arity);
             if(!cons)
                 return false;
             
@@ -1432,26 +1434,21 @@ struct NumericConverter : NumericConverterBase {
         int size = mpl::size<GeometryList>::type::value;
         m_treeArray.resize(boost::extents[size][size]);
         
-        //build up the default reduction nodes
-        //mpl trickery to get a sequence counting from 0 to the size of stroage entries
-        typedef mpl::range_c<int,0,
-                mpl::size<GeometryList>::value> StorageRange;
-        //now iterate that sequence so we can access all storage elements with knowing the position
-        //we are at
+        //nsetup all geometry combinations
         utilities::RecursiveSequenceApplyer<GeometryList, ReductionTreeCreator> r(m_treeArray);
-        mpl::for_each<StorageRange>(r);
+        mpl::for_each<GeometryList>(r);
         
         //do all the same for the constraints
         int constraints = mpl::size<ConstraintList>::type::value;
         m_binaryGeneratorArray.resize(boost::extents[size][size][constraints]);        
-        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>::template type> g(m_binaryGeneratorArray);
-        mpl::for_each<StorageRange>(g);
+        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>> g(m_binaryGeneratorArray);
+        mpl::for_each<GeometryList>(g);
         
         //and single geometry constraints
         constraints = mpl::size<UnaryConstraintList>::type::value;
         m_unaryGeneratorArray.resize(boost::extents[size][constraints]);        
-        utilities::SequenceApplyer<GeometryList, UnaryConstraintGeneratorCreator<UnaryConstraintList>::template type> gs(m_unaryGeneratorArray);
-        mpl::for_each<StorageRange>(gs);
+        utilities::RecursiveSequenceApplyer<UnaryConstraintList, UnaryConstraintGeneratorCreator> gs(m_unaryGeneratorArray);
+        mpl::for_each<GeometryList>(gs);
     };
     
     ~NumericConverter() {
@@ -1539,7 +1536,6 @@ private:
     boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>    m_unaryGeneratorArray;
     boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>   m_binaryGeneratorArray;
        
-    template<typename Sequence>
     struct ReductionTreeCreator {
     
         boost::multi_array<reduction::EdgeReductionGraph*,2>& m_treeArray;
@@ -1547,26 +1543,23 @@ private:
         ReductionTreeCreator(boost::multi_array<reduction::EdgeReductionGraph*,2>& r) 
             : m_treeArray(r) {};
             
-        template<typename N1, typename N2>
+        template<typename T1, typename T2>
         void operator()() {
-        
-            typedef typename mpl::at<Sequence, N1>::type t1;
-            typedef typename mpl::at<Sequence, N2>::type t2;
-            
-            int idx1 = utilities::index<GeometryList, t1>::value;
-            int idx2 = utilities::index<GeometryList, t2>::value;
+                    
+            int idx1 = T1::index();
+            int idx2 = T2::index();
             
             auto node1 = new reduction::GeometryEdgeReductionGraph<Kernel, 
-                                geometry::extractor<t1>::template primitive,
-                                geometry::extractor<t2>::template primitive >();
+                                geometry::extractor<T1>::template primitive,
+                                geometry::extractor<T2>::template primitive >();
             
             m_treeArray[idx1][idx2] = node1;
             
             //if we have the same indexes we would override the first pointer and hence create a memory leak
             if(idx1 != idx2) {
                 auto node2 = new reduction::GeometryEdgeReductionGraph<Kernel, 
-                                    geometry::extractor<t2>::template primitive,
-                                    geometry::extractor<t1>::template primitive >();
+                                    geometry::extractor<T2>::template primitive,
+                                    geometry::extractor<T1>::template primitive >();
                   
                 m_treeArray[idx2][idx1] = node2;
             }
@@ -1577,83 +1570,53 @@ private:
     template<typename ConstraitSequence>
     struct ConstraintGeneratorCreator {
     
-        template<typename GeometrySequence>
-        struct type {
+        boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
+        
+        ConstraintGeneratorCreator(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) 
+            : generator(r) {};
+            
+        template<typename G1, typename G2>
+        void operator()() {
+        
+            InnerLoop<G1, G2> functor(generator);
+            mpl::for_each<ConstraitSequence>(functor);
+        };
+        
+        template<typename G1, typename G2>
+        struct InnerLoop {
+            
             boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
+        
+            InnerLoop(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
             
-            type(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) 
-                : generator(r) {};
+            template<typename Constraint>
+            void operator()(const Constraint& t) {
                 
-            template<typename N1, typename N2>
-            void operator()() {
-            
-                typedef typename mpl::at<GeometrySequence, N1>::type G1;
-                typedef typename mpl::at<GeometrySequence, N2>::type G2;
-                
-                typedef mpl::range_c<int,0,
-                    mpl::size<ConstraitSequence>::value> StorageRange;
-                //now iterate that sequence so we can access all storage elements with knowing the position
-                //we are at
-                InnerLoop<G1, G2, N1::value, N2::value> functor(generator);
-                mpl::for_each<StorageRange>(functor);
-            };
-            
-            template<typename G1, typename G2, int n1, int n2>
-            struct InnerLoop {
-                
-                boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
-            
-                InnerLoop(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
-                
-                template<typename T>
-                void operator()(const T& t) {
-                
-                    generator[n1][n2][T::value] = new numeric::TypedBinaryConstraintEquationGenerator<Kernel, 
-                                                        typename mpl::at<ConstraintList, T>::type, G1, G2>();
-                                                                            
-                    generator[n2][n1][T::value] = generator[n1][n2][T::value];
-                };
+                size_t idx1 = G1::index();
+                size_t idx2 = G2::index();
+                size_t idxC = Constraint::index();
+                generator[idx1][idx2][idxC] = new numeric::TypedBinaryConstraintEquationGenerator<Kernel, 
+                                                    Constraint, G1, G2>();
+                                                                        
+                generator[idx2][idx1][idxC] = generator[idx1][idx2][idxC];
             };
         };
     };
     
-    template<typename ConstraitSequence>
     struct UnaryConstraintGeneratorCreator {
     
-        template<typename GeometrySequence>
-        struct type {
-            boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
-            
-            type(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) 
+        boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
+        
+        UnaryConstraintGeneratorCreator(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) 
                 : generator(r) {};
                 
-            template<typename N, int n>
-            void operator()() {
+        template<typename G, typename Constraint>
+        void operator()() {
             
-                typedef typename mpl::at<GeometrySequence, N>::type G;
-                
-                typedef mpl::range_c<int,0,
-                    mpl::size<ConstraitSequence>::value> StorageRange;
-                //now iterate that sequence so we can access all storage elements with knowing the position
-                //we are at
-                InnerLoop<G, n> functor(generator);
-                mpl::for_each<StorageRange>(functor);
-            };
-            
-            template<typename G, int n>
-            struct InnerLoop {
-                
-                boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
-            
-                InnerLoop(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) : generator(r) {};
-                
-                template<typename T>
-                void operator()(const T& t) {
-                
-                    generator[n][T::value] = new numeric::TypedUnaryConstraintEquationGenerator<Kernel, 
-                                                        typename mpl::at<UnaryConstraintList, T>::type, G>();
-                };
-            };
+            size_t idxG = G::index();
+            size_t idxC = Constraint::index();
+            generator[idxG][idxC] = new numeric::TypedUnaryConstraintEquationGenerator<Kernel, 
+                                                Constraint, G>();
         };
     };
 };
