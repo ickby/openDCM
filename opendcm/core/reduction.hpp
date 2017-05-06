@@ -875,6 +875,15 @@ struct GeometryNode : public Node {
      * @param eqn The numeric equation whichs result shall be transfered to the symbolic world
      */
     virtual void writeToSymbolic(TreeWalker* walker, Equation eqn) = 0;
+    
+    
+    /**
+     * @brief Returns the parameters this nodes geometry needs
+     * Note that this is the static parameter count, meaning its the maximum. It does not consider 
+     * any parameter reductions due to unary constraints. 
+     * @return int Amount of parameters needed by the nodes geometry.
+     */
+    virtual int staticParameterCount() = 0;
 };
 
 
@@ -920,6 +929,10 @@ struct UndependendGeometryNode : public GeometryNode<Kernel> {
         TargetWalker<Kernel, G>* gwalker = static_cast<TargetWalker<Kernel, G>*>(walker);
         auto geom = std::static_pointer_cast<numeric::Geometry<Kernel, G>>(eqn);
         gwalker->getTargetPrimitive() = geom->output();
+    };
+    
+    int staticParameterCount() override {
+        return numeric::Geometry<Kernel, G>::staticParameterCount();
     };
 };
 
@@ -975,6 +988,10 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         auto geom = std::static_pointer_cast<DerivedG>(eqn);
         gwalker->getTargetPrimitive() = geom->output();
     }; 
+    
+    int staticParameterCount() override {
+        return DerivedG::staticParameterCount();
+    };
 };
 
 /**
@@ -1116,7 +1133,7 @@ struct EdgeEquationHandler : public numeric::EquationHandler<Kernel> {
         return m_paramReduction;
     }
 
-private:
+protected:
     int m_paramReduction; // the amount of degrees of freedom reduced by this reduction
 };
 
@@ -1144,7 +1161,13 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                       const UnaryGeneratorArray& ucg) 
         : m_sourceVertex(source), m_targetVertex(target), m_sourceWalker(sw), m_targetWalker(tw), 
           m_constraints(defaultConstraints), m_sourceConstraints(svConstraints), m_targetConstraints(tvConstraints),
-          m_binaryGeneratorArray(cg), m_unaryGeneratorArray(ucg) {};
+          m_binaryGeneratorArray(cg), m_unaryGeneratorArray(ucg) {
+              
+        //we need to setup the parameter reduction
+        auto init = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(sw->getInitialNode())->staticParameterCount();
+        auto end  = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(sw->getFinalNode())->staticParameterCount();
+        EdgeEquationHandler<Kernel>::m_paramReduction = init - end;
+    };
     
     virtual ~ConstraintEquationHandler() {
         //we own the walkers

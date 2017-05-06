@@ -380,6 +380,16 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
         fusion::for_each(Inherited::m_storage, details::Counter<Kernel>(Inherited::m_parameterCount));
     };
     
+    /** 
+     * @brief Returns the maximal parameters this nodes geometry needs
+     * Note that this is the static parameter count, meaning its the maximum. It does not consider 
+     * any parameter reductions due to unary constraints. 
+     */
+    static unsigned int staticParameterCount() {
+        unsigned int val;
+        mpl::for_each<typename Inherited::Storage>(details::Counter<Kernel>(val));
+        return val;
+    };
 
     //sometimes it is possible to optimize constraint derivative calculation when we are
     //a normal geometry (where parameret == value). To enable those optimisations we need
@@ -462,6 +472,17 @@ public:
         Inherited::m_complexity = Complexity::Complex;
         fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
         fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());
+    };
+    
+    /** 
+     * @brief Returns the maximal parameters this nodes geometry needs
+     * Note that this is the static parameter count, meaning its the maximum. It does not consider 
+     * any parameter reductions due to unary constraints. 
+     */
+    static unsigned int staticParameterCount() {
+        unsigned int val;
+        mpl::for_each<ParameterStorage>(details::Counter<Kernel>(val));
+        return val;
     };
     
     //make sure the parameter storage is used, not the geometry one, for initialisation
@@ -548,6 +569,17 @@ public:
         Inherited::m_complexity = Complexity::Complex;
         fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
         fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());       
+    };
+    
+    /** 
+     * @brief Returns the maximal parameters this nodes geometry needs
+     * Note that this is the static parameter count, meaning its the maximum. It does not consider 
+     * any parameter reductions due to unary constraints. 
+     */
+    static unsigned int staticParameterCount() {
+        unsigned int val;
+        mpl::for_each<ParameterStorage>(details::Counter<Kernel>(val));
+        return val;
     };
     
     //make sure the parameter storage is used, not the geometry one, for initialisation
