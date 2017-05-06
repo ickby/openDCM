@@ -224,20 +224,21 @@ namespace symbolic {
     
 struct Constraint {
     
-    void setType(int id) { type = id;};
-    int  getType() {return type;};
-    
-    void setArity(int a) {arity = a;};
-    int  getArity() {return arity;};
+    int  getType() {return m_type;};   
+    int  getArity() {return m_arity;};
     
 protected:
-    int type, arity;
+    int m_type=-1, m_arity=-1;
 };
 
 template<typename Primitive>
 struct TypeConstraint : public Constraint {
 
-    void       setPrimitive(const Primitive& c) {m_constraint = c;};    
+    void       setPrimitive(const Primitive& c) {
+        m_constraint = c;
+        m_type = c.index();
+        m_arity = Primitive::Arity;
+    };    
     Primitive& getPrimitive() {return m_constraint;};    
     
 protected:   

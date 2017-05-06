@@ -624,17 +624,19 @@ namespace symbolic {
 
 struct Geometry {
     
-    void setType(int id) { type = id;}
-    int  getType() {return type;};
+    int  getType() {return m_type;};
     
 protected:
-    int type;
+    int m_type;
 };
 
 template<typename Primitive>
 struct TypeGeometry : public Geometry {
 
-    void       setPrimitive(const Primitive& g) {m_geometry = g;}
+    void       setPrimitive(const Primitive& g) {
+        m_geometry = g;
+        m_type = g.index();
+    }
     Primitive& getPrimitve() {return m_geometry;};
     
 protected:   

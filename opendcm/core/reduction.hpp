@@ -623,28 +623,25 @@ private:
  * do its action and which must not handle the validity check or the return type.
  * This class is intended to be used soley with Node::connectConditional. 
  * 
- * @note It is needed for the class to get the Final dcm system as template parameter. Hence it can 
- *       only be used in the context of a module 
- * 
  * A example of the inteded usage:
  * @code{.cpp}
  * template<typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
- * using EqualValue = ConstraintEqualValue<Final, Constraint, option>;
+ * using EqualValue = ConstraintEqualValue<Kernel, Constraint, option>;
  * 
  * std::shared_ptr<reduction::Node> mynode = ...
  * mynode->connectConditional<EqualValue<dcm::Distance, 0>>([](const dcm::Distance&) { ...;});
  * @endcode
  * 
  * @note The value cannot be a floating point number! If the option type is floating it gets convertet 
- *       to integer. This is a restriction coming from the c++ compiler which dies not allow floating 
+ *       to integer. This is a restriction coming from the c++ compiler which does not allow floating 
  *       point numbers as type template arguments
  * 
  * @see ConstraintUnequalValue
- * @tparam Final The fully qualified dcm::system in use 
+ * @tparam Kernel The mathematical kernel in use 
  * @tparam Constraint The primitive constraint type for which the connection should be used 
  * @tparam option The value of the primary optionn of the primitive constraint which must be met
  */
-template<typename Final, typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
+template<typename Kernel, typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
 struct ConstraintEqualValue {
     
     template<typename Functor>
@@ -654,7 +651,7 @@ struct ConstraintEqualValue {
         
         virtual bool apply(TreeWalker* walker) const {
             
-            auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
+            auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
             auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
                                                                     Constraint::Arity);
             if(!cons)
@@ -681,11 +678,11 @@ struct ConstraintEqualValue {
  * This class works like ConstraintUnequalValue with the difference for searching for unequal constraint 
  * values. See \ref ConstraintEqualValue for documentation on usage.
  * 
- * @tparam Final 
+ * @tparam Kernel The mathematical kernel in use
  * @tparam Constraint The primitive constraint type for which the connection should be used 
  * @tparam option The value of the primary optionn of the primitive constraint which must be met
  */
-template<typename Final, typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
+template<typename Kernel, typename Constraint, typename utilities::non_floating<typename Constraint::PimaryOptionType>::type option>
 struct ConstraintUnequalValue {
     
     template<typename Functor>
@@ -695,7 +692,7 @@ struct ConstraintUnequalValue {
         
         virtual bool apply(TreeWalker* walker) const {
             
-            auto cwalker = static_cast<ConstraintWalker<typename Final::Kernel>*>(walker);
+            auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
             auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
                                                                     Constraint::Arity);
             if(!cons)

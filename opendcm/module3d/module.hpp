@@ -57,7 +57,7 @@ struct Module3D {
             
             //we create our default edge reduction trees
             int pointID = geometry::Point3<Kernel>::index();
-            module3d::setupPointPointReduction<Final>(this->getReductionGraph(pointID, pointID));
+            module3d::setupPointPointReduction<Kernel>(this->getReductionGraph(pointID, pointID));
         };
         
         /**
@@ -204,7 +204,6 @@ struct Module3D {
                 //if no property in existance we need to create it
                 if(!prop) {
                     prop = InheritedV::apply(PropCreator());
-                    prop->setType(m_type);
                     cluster->template setProperty<GeometryProperty>(lv, prop);
                 }
                     
@@ -362,8 +361,6 @@ struct Module3D {
                     //add the primitive constraint to the vertex
                     tc = new symbolic::TypeConstraint<T>();
                     tc->setPrimitive(t);
-                    tc->setType(T::index());
-                    tc->setArity(T::Arity);
                     
                     std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                     auto& cons = cluster->template getPropertyAccessible<symbolic::ConstraintListProperty>(m_geometries[0]->getVertexProperty());
@@ -383,8 +380,6 @@ struct Module3D {
                     //add the primitive constraint to the global edge
                     tc = new symbolic::TypeConstraint<T>();
                     tc->setPrimitive(t);
-                    tc->setType(T::index());
-                    tc->setArity(T::Arity);
                     cluster->template setProperty<symbolic::ConstraintProperty>(fusion::at_c<1>(res), tc);
                 }
                 else 

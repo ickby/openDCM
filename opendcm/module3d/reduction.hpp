@@ -37,11 +37,10 @@ struct FixedPoint : public numeric::DependendGeometry<Kernel, geometry::Point3, 
     };
 };
 
-template<typename Final>
+template<typename Kernel>
 void setupPointPointReduction(reduction::EdgeReductionGraph* graph) {
 
-    typedef typename Final::Kernel Kernel;   
-    typedef reduction::ConstraintEqualValue<Final, dcm::Distance, 0> ZeroDistance;
+    typedef reduction::ConstraintEqualValue<Kernel, dcm::Distance, 0> ZeroDistance;
     
     auto fixPoint = graph->template getTreeNode<FixedPoint<Kernel>>();
     graph->sourceNode()->template connectConditional<ZeroDistance>(fixPoint, [](const dcm::Distance& dist){});      
