@@ -25,6 +25,7 @@
 #include "geometry.hpp"
 #include "scheduler.hpp"
 #include "reduction.hpp"
+#include "cyclebasis.hpp"
 
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/undirected_dfs.hpp>
@@ -94,6 +95,7 @@ template<typename , typename Graph, typename Converter>
 void reduceGraph(std::shared_ptr<Graph> g, Converter& c) {
     
     bool done = false;
+    graph::CycleBasis<Graph> basis(g);
     
     while(!done) {
         //start with edge analysing
@@ -108,13 +110,12 @@ void reduceGraph(std::shared_ptr<Graph> g, Converter& c) {
         //TODO: create cluster from rigid edges
         
         //go on with cycle analysis and reduce into cluster if possible
-        //TODO: find all cycles and analyse those for rigidy.
-        
-        //TODO: If we have reduced clusters we need to reiterate on the edges, so done ==false
-        done = true;
+        basis.findCycles();
+        //TODO: analyse cycles for rigidy.
+        done = true; //TODO: If we have reduced clusters we need to reiterate on the edges, so done ==false
     }
-        
-    //return c;
+
+    
 };
 
 } //symbolic

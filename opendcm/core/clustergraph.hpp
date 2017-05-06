@@ -643,7 +643,7 @@ template<typename Functor>
 void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::copyInto(std::shared_ptr<ClusterGraph> into, Functor& functor) const {
 
     //lists does not provide vertex index, so we have to build our own (cant use the internal
-    //vertex_indexerty as we would need to reset the indices and that's not possible in const graph)
+    //vertex_index property as we would need to reset the indices and that's not possible in const graph)
     typedef std::map<LocalVertex, int> IndexMap;
     IndexMap mapIndex;
     boost::associative_property_map<IndexMap> propmapIndex(mapIndex);
