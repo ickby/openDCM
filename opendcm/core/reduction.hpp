@@ -487,8 +487,8 @@ private:
  * 
  * This class extends the ConstraintWalker with additional information about the edges target, namely
  * the geometry it holds. It allows to access PrimitiveGeometry stored at the target vertex. As for 
- * this walker it is known that the target is holds a geometry an that the goal is to reduce the 
- * constraints to build a dependend geometrie it also provides an interface to build up the input 
+ * this walker it is known that the target holds a geometry an that the goal is to reduce the 
+ * constraints to build a dependend geometry it also provides an interface to build up the input 
  * equation for this DependendGeometry. It allows to set and access the Equation used as input and 
  * hence allows to build up an stacked equation step by step.
  * 

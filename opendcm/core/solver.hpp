@@ -146,15 +146,20 @@ struct Builder {
 
         FlowGraphExtractor( std::shared_ptr<shedule::FlowGraph> flow, 
                             std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> eqns,
-                            std::vector<graph::LocalEdge>& tree,
+                            std::vector<graph::LocalEdge> tree,
                             std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& pMap,
-                            std::vector<graph::LocalEdge>& unhandled,
                             std::shared_ptr<AccessGraph> graph) 
-                : m_flow(flow), m_eqns(eqns), m_tree(tree), m_graph(graph), m_processMap(pMap), m_unhandled(unhandled) {};
+                : m_flow(flow), m_eqns(eqns), m_tree(tree), m_graph(graph), m_processMap(pMap) {};
 
-        template<typename Graph>
-        void start_vertex(graph::LocalVertex v, const Graph& g) {
-            m_current = v;
+        void run(graph::LocalVertex start) {
+            
+            startVertex(start);
+            handleVertex(start);
+        };
+        
+    private:
+        void startVertex(graph::LocalVertex v) {
+
             auto e = *m_graph->outEdges(v).first;
             numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
             auto res = builder->createGeometryNode(v, m_flow);
@@ -172,29 +177,25 @@ struct Builder {
             m_eqns->append(eqn.first);
         };
         
-        template<typename Graph>
-        void discover_vertex(graph::LocalVertex v, const Graph& g) {
-            m_current = v;
-        };
-
-        //don't use examine_edge as this also receives already handled edges
-        template<typename Graph>
-        void tree_edge(graph::LocalEdge e, const Graph& g) { handleEdge(e);};
-        template<typename Graph>
-        void back_edge(graph::LocalEdge e, const Graph& g) { handleEdge(e);};
-        
-        void handleEdge(graph::LocalEdge e) {
-                    
-            //we only use spanning tree edges
-            if(std::find(m_tree.begin(), m_tree.end(), e) == m_tree.end()) {
-                m_unhandled.push_back(e);
-                return;
-            }
+        //we look at all out edges and process the ones that are in the tree and not yet handled
+        void handleVertex(graph::LocalVertex v) {
             
-            auto target = (m_graph->source(e)==m_current) ? m_graph->target(e) : m_graph->source(e);
+            auto out = m_graph->outEdges(v);
+            for(; out.first != out.second; ++out.first) {
+             
+                if(std::find(m_tree.begin(), m_tree.end(), *out.first) != m_tree.end()) {
+                    m_tree.erase(std::remove(m_tree.begin(), m_tree.end(), *out.first), m_tree.end());
+                    handleEdge(*out.first, v);
+                }
+            }
+        };
+                
+        void handleEdge(graph::LocalEdge e, graph::LocalVertex start) {
+
+            auto target = (m_graph->source(e)==start) ? m_graph->target(e) : m_graph->source(e);
             numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
             
-            auto it = m_processMap.find(m_current);
+            auto it = m_processMap.find(start);
             assert(it != m_processMap.end()); 
             std::pair<CalcPtr, shedule::FlowGraph::Node> g1 = it->second;
             
@@ -218,16 +219,17 @@ struct Builder {
             m_eqns->addExecutable(g2.first);
             m_eqns->append(ueqn.first);
             m_eqns->append(beqn.first);
+            
+            //go on iterating
+            handleVertex(target);
         };
         
     private:
         std::shared_ptr<AccessGraph> m_graph;
         std::shared_ptr<shedule::FlowGraph> m_flow;
         std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> m_eqns;
-        std::vector<graph::LocalEdge>& m_tree;
+        std::vector<graph::LocalEdge> m_tree;
         std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& m_processMap;
-        std::vector<graph::LocalEdge>& m_unhandled;
-        graph::LocalVertex m_current;
     };
     
     class adress_writer {
@@ -282,37 +284,36 @@ struct Builder {
                                              std::back_inserter(spanningTree), 
                                              boost::vertex_index_map(imap).weight_map(propmapWeight));
 
-        //find the starting point TODO: don't use random as now but use fixed
 
-        //build the flowgraph from the spanning tree. As the visitor gets copied we need to pass 
-        //everything we want as reference
+        //build the flowgraph from the spanning tree. 
         auto flow = std::make_shared<shedule::FlowGraph>();
         auto eqns = std::make_shared<numeric::CalculatableSequentialVector<Kernel>>();
         typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
         std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>> processMap;
-        std::vector<graph::LocalEdge> unhandled;
 
-        FlowGraphExtractor<Graph, Kernel> extractor(flow, eqns, spanningTree, processMap, unhandled, g);
-        graph::property_map<graph::Color, Graph, graph::LocalEdge>   ecmap(g);
-        graph::property_map<graph::Color, Graph, graph::LocalVertex> vcmap(g);        
-        boost::undirected_dfs(g->getDirectAccess(), boost::visitor(extractor).vertex_color_map(vcmap).edge_color_map(ecmap));
-
-        //the back non spanning tree edges have not been build. let's do that now
-        for( graph::LocalEdge edge : unhandled ) {
+        FlowGraphExtractor<Graph, Kernel> extractor(flow, eqns, spanningTree, processMap, g);
+        extractor.run(*g->vertices().first);  //TODO: don't use starting point random as now but use fixed
+        
+        //the non spanning tree edges have not been build. let's do that now
+        edges = g->edges();
+        for(;edges.first != edges.second; ++edges.first) {
             
-            typedef typename numeric::EquationHandlerProperty<Kernel> prop;
-            numeric::EquationHandler<Kernel>* builder = g->template getProperty<prop>(edge); 
-            
-            auto g1 = processMap[g->source(edge)];
-            auto g2 = processMap[g->target(edge)];
-            
-            auto res = builder->createBinaryEquationsNode(g1.first, g2.first, flow);
-            if(!res.first.empty()) {
-                flow->connect(g1.second, res.second);
-                flow->connect(g2.second, res.second);
+            auto edge = *edges.first;
+            if(std::find(spanningTree.begin(), spanningTree.end(), edge) == spanningTree.end()) {
+                typedef typename numeric::EquationHandlerProperty<Kernel> prop;
+                numeric::EquationHandler<Kernel>* builder = g->template getProperty<prop>(edge); 
+                
+                auto g1 = processMap[g->source(edge)];
+                auto g2 = processMap[g->target(edge)];
+                
+                auto res = builder->createBinaryEquationsNode(g1.first, g2.first, flow);
+                if(!res.first.empty()) {
+                    flow->connect(g1.second, res.second);
+                    flow->connect(g2.second, res.second);
+                }
+                
+                eqns->append(res.first);
             }
-            
-            eqns->append(res.first);
         }
             
         //build the solver object and solve
