@@ -259,12 +259,12 @@ struct Builder {
         //create the vertex index
         g->initIndexMaps();
         graph::property_map<graph::Index, Graph, graph::LocalVertex> imap(g);
-        
+        /*
         std::cout<<std::endl<<std::endl;
         boost::write_graphviz(std::cout, g->getDirectAccess(), adress_writer(), 
                               boost::default_writer(), boost::default_writer(), imap);
         std::cout<<std::endl<<std::endl;
-        
+        */
         //we build up the numeric system for this graph. This means finding the reduction sequence that
         //gives the minimal possible parameter count. For this we use a minimum spanning tree.
         

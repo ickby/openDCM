@@ -35,8 +35,9 @@
 #include <boost/preprocessor/seq/size.hpp>
 #include <boost/preprocessor/seq/fold_left.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
-
 #include <boost/mpl/int.hpp>
+
+#include <chrono>
 
 namespace mpl = boost::mpl;
 
@@ -233,6 +234,7 @@ struct ModuleCoreFinish : public Stacked {
      */
     void solve() {       
         
+        auto start = std::chrono::system_clock::now();
         //build up the system and solve
         auto g = std::static_pointer_cast<Graph>(this->getGraph());
 #ifdef DCM_USE_LOGGING
@@ -246,8 +248,10 @@ struct ModuleCoreFinish : public Stacked {
         //are sure that we finished and that we can process the solution
         solver::Builder::postprocessSystem(g);
 #ifdef DCM_USE_LOGGING
-        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done postprocessing";
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done postprocessing. Solver time: ";
 #endif 
+        auto end = std::chrono::system_clock::now();
+        std::cout<<"solver time: "<<std::chrono::duration_cast<std::chrono::microseconds>(end-start).count()<<std::endl;
     };
     
 protected:
