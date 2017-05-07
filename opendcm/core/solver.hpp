@@ -201,7 +201,7 @@ struct Builder {
             
             it = m_processMap.find(target);
             assert( it == m_processMap.end() );
-            std::pair<CalcPtr, shedule::FlowGraph::Node> g2 = builder->createReducedGeometryNode(target, m_flow);
+            std::pair<CalcPtr, shedule::FlowGraph::Node> g2 = builder->createReducedGeometryNode(target, g1.first, m_flow);
             m_processMap[target] = g2;
                       
             m_flow->connect(g1.second, g2.second);

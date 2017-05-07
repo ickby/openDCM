@@ -119,7 +119,7 @@ struct EquationHandler {
      * @param vertex The vertex of the depending geometry to create
      * @return CalcPtr The numeric eqution
      */
-    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex) = 0;
+    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex, CalcPtr g) = 0;
      
     
     /**
@@ -134,7 +134,7 @@ struct EquationHandler {
      * @return std::pair< CalcPtr, Node > The numeric eqution and the Node in the \ref FlowGraph
      */
     virtual std::pair< CalcPtr, Node>
-    createReducedGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) = 0;
+    createReducedGeometryNode(const graph::LocalVertex& vertex, CalcPtr g, std::shared_ptr<shedule::FlowGraph> flowgraph) = 0;
     
 
     /**
@@ -346,6 +346,7 @@ private:
     std::shared_ptr<reduction::Node> m_initialNode;
     std::shared_ptr<reduction::Node> m_finalNode;
     
+protected:
     std::vector<std::pair<const Connection*, symbolic::Constraint*>> m_transformStack;
 };
 
@@ -483,20 +484,46 @@ struct ConstraintWalker : public TreeWalker {
         m_unaryConstraintPool.erase(std::remove(m_unaryConstraintPool.begin(), m_unaryConstraintPool.end(), tuple), m_unaryConstraintPool.end());
     }
     
+    /**
+     * @brief Set the commulative input equation
+     * It is intended to use this in the connections Transform methods
+     */
+    void        setInputEquation(Equation e) {m_inputEqn = e;};
+    
+    /**
+     * @brief Retrieve the earlyer set input equation
+     * It is intended to use this in the connections Transform methods
+     * @return Equation Can be empty pointer if no equation was set earlyer
+     */    
+    Equation    getInputEquation() {return m_inputEqn;};
+    
+    /**
+     * @brief Transforms the current input equation to a type wihch fits to the final node as input equation
+     * 
+     * With this call the equation set with setInputEquation wll be transformed to annother equation,
+     * which has a type that fits into the dependend geometrie created by finalNode. The intended usage 
+     * is to firt set the source geometry as input (meaning the geometry equation created at the other
+     * side of the edge) with setInputEquation(). Than the transform call. Afterwards the equation
+     * obtained via getInputEquation cann be used as input for the dependend geometry created by 
+     * finalNode.
+     */
+    void transformCurrentToFinalNodeInput() {
+        for(auto trans : m_transformStack) {
+            trans.first->transform(this, trans.second);
+        };
+    };
+    
 private:
-    BinarySymbolicVector m_binaryConstraintPool;  //all the double geometry constraints we want to reduce
+    BinarySymbolicVector m_binaryConstraintPool; //all the double geometry constraints we want to reduce
     UnarySymbolicVector  m_unaryConstraintPool;  //all the single geometry constraints we want to reduce
+    Equation             m_inputEqn;             //temporary storage fro the transform functions
 };
 
 /**
  * @brief TreeWalker with information about the edges target geometry
  * 
  * This class extends the ConstraintWalker with additional information about the edges target, namely
- * the geometry it holds. It allows to access PrimitiveGeometry stored at the target vertex. As for 
- * this walker it is known that the target holds a geometry an that the goal is to reduce the 
- * constraints to build a dependend geometry it also provides an interface to build up the input 
- * equation for this DependendGeometry. It allows to set and access the Equation used as input and 
- * hence allows to build up an stacked equation step by step.
+ * the geometry it holds. It allows to access PrimitiveGeometry stored at the target vertex. 
  * 
  * @tparam Kernel The math Kernel in use
  * @tparam Primitive The primitive geometry type stored at the edges source vertex
@@ -506,7 +533,6 @@ struct TargetWalker : public ConstraintWalker<Kernel> {
     
     typedef ConstraintWalker<Kernel>                                      Inherited;
     typedef std::shared_ptr<numeric::Equation<Kernel, Primitive<Kernel>>> Geometry;
-    typedef std::shared_ptr<numeric::Calculatable<Kernel>>                Equation;
     
     TargetWalker(Primitive<Kernel>& prim) : m_targetPrimitive(prim) {};
  
@@ -515,21 +541,9 @@ struct TargetWalker : public ConstraintWalker<Kernel> {
      * @return const Primitive< Kernel >& The stored primitive geometry
      */
     Primitive<Kernel>& getTargetPrimitive() {return m_targetPrimitive;};
-        
-    /**
-     * @brief Set the commulative input equation
-     */
-    void        setInputEquation(Equation e) {m_inputEqn = e;};
-    
-    /**
-     * @brief Retrieve the earlyer set input equation
-     * @return Equation Can be empty pointer if no equation was set earlyer
-     */    
-    Equation    getInputEquation() {return m_inputEqn;};
     
 private:
     Primitive<Kernel>&    m_targetPrimitive; //primitive holding the value
-    Equation              m_inputEqn;  //cummulative input equation
 };
 
 /**
@@ -1271,15 +1285,24 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     
     //this function creates a reduced numeric geometry equation. For this the equation it depends on 
     //is required
-    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex) override {
+    virtual CalcPtr createReducedGeometry(const graph::LocalVertex& vertex, CalcPtr g) override {
         
         if(vertex == m_sourceVertex) {
+            //build the correct input equation
+            m_sourceWalker->setInputEquation(g);
+            m_sourceWalker->transformCurrentToFinalNodeInput();
+            
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
             auto eqn = node->buildGeometryEquation(m_sourceWalker);
             Base::setVertexEquation(eqn, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex)  {
+            //build the correct input equation
+            //build the correct input equation
+            m_targetWalker->setInputEquation(g);
+            m_targetWalker->transformCurrentToFinalNodeInput();
+            
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getFinalNode());
             auto eqn = node->buildGeometryEquation(m_targetWalker);
             Base::setVertexEquation(eqn, vertex);
@@ -1292,15 +1315,23 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     //this function is used to create a reduced numeric geometry equation and a node for it in the 
     //corresponding flow graph. For this the equation it depends on is required
     virtual std::pair< CalcPtr, Node>
-    createReducedGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) override {
+    createReducedGeometryNode(const graph::LocalVertex& vertex, CalcPtr g, std::shared_ptr<shedule::FlowGraph> flowgraph) override {
         
         if(vertex == m_sourceVertex) {
+            //build the correct input equation
+            m_sourceWalker->setInputEquation(g);
+            m_sourceWalker->transformCurrentToFinalNodeInput();
+            
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
             auto eqn = node->buildGeometryEquationNode(m_sourceWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
             return eqn;
         }
         else if(vertex == m_targetVertex)  {
+            //build the correct input equation
+            m_targetWalker->setInputEquation(g);
+            m_targetWalker->transformCurrentToFinalNodeInput();
+            
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_targetWalker->getFinalNode());
             auto eqn = node->buildGeometryEquationNode(m_targetWalker, flowgraph);
             Base::setVertexEquation(eqn.first, vertex);
