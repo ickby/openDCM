@@ -379,6 +379,7 @@ struct Geometry : public Equation<Kernel, Base<Kernel>> {
         Inherited::m_complexity = Complexity::Simple;
         fusion::for_each(Inherited::m_storage, details::Counter<Kernel>(Inherited::m_parameterCount));
     };
+    virtual ~Geometry(){};
     
     /** 
      * @brief Returns the maximal parameters this nodes geometry needs
@@ -473,6 +474,7 @@ public:
         fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
         fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());
     };
+    virtual ~ParameterGeometry(){};
     
     /** 
      * @brief Returns the maximal parameters this nodes geometry needs
@@ -570,6 +572,7 @@ public:
         fusion::for_each(m_parameterStorage, details::Counter<Kernel>(Inherited::m_parameterCount));
         fusion::for_each(m_parameterIdStorage, details::IdInitalizer<typename Inherited::Id>());       
     };
+    virtual ~DependendGeometry(){};
     
     /** 
      * @brief Returns the maximal parameters this nodes geometry needs

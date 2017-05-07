@@ -105,7 +105,7 @@ struct EquationHandler {
      * @return td::pair< CalcPtr, Node> The numeric eqution and the Node in the \ref FlowGraph
      */ 
     virtual std::pair< CalcPtr, Node>
-    createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) = 0;
+    createGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) = 0;
     
     /**
      * @brief Create a dependend geometry equation
@@ -134,7 +134,7 @@ struct EquationHandler {
      * @return std::pair< CalcPtr, Node > The numeric eqution and the Node in the \ref FlowGraph
      */
     virtual std::pair< CalcPtr, Node>
-    createReducedGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) = 0;
+    createReducedGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) = 0;
     
 
     /**
@@ -183,7 +183,7 @@ struct EquationHandler {
      *                                                   in the \ref FlowGraph
      */
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createBinaryEquationsNode(CalcPtr sourceGeometry, CalcPtr targetGeometry, shedule::FlowGraph& flow) = 0;
+    createBinaryEquationsNode(CalcPtr sourceGeometry, CalcPtr targetGeometry, std::shared_ptr<shedule::FlowGraph> flow) = 0;
     
         /**
      * @brief Creates numeric equations for the given vertex directly in a \ref FlowGraph
@@ -198,7 +198,7 @@ struct EquationHandler {
      * @return std::vector< CalcPtr > The vector with BinaryEquation of all constraints 
      */    
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createUnaryEquationsNode(const graph::LocalVertex& vertec, CalcPtr Geometry, shedule::FlowGraph& flow) = 0;
+    createUnaryEquationsNode(const graph::LocalVertex& vertec, CalcPtr Geometry, std::shared_ptr<shedule::FlowGraph> flow) = 0;
 
     /**
      * @brief Creates numeric equations the remaining constraints in a \ref FlowGraph
@@ -235,7 +235,7 @@ struct EquationHandler {
      */
     virtual std::pair<std::vector<CalcPtr>, Node>
     createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr sourceGeometry, 
-                               CalcPtr targetGeometry, shedule::FlowGraph& flow) = 0;
+                               CalcPtr targetGeometry, std::shared_ptr<shedule::FlowGraph> flow) = 0;
         
          
     /**
@@ -866,7 +866,7 @@ struct GeometryNode : public Node {
      * @return Equation Numeric equation representing the nodes geometry type
      */
     virtual std::pair< Equation, FlowNode>
-    buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const = 0;
+    buildGeometryEquationNode(TreeWalker* walker, std::shared_ptr<shedule::FlowGraph> flowgraph) const = 0;
     
     /**
      * @brief Write the numeric equation to the symbolic graph representation
@@ -913,14 +913,14 @@ struct UndependendGeometryNode : public GeometryNode<Kernel> {
     };
     
     std::pair< Equation, FlowNode > 
-    buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const override {
+    buildGeometryEquationNode(TreeWalker* walker, std::shared_ptr<shedule::FlowGraph> flowgraph) const override {
         
         TargetWalker<Kernel, G>* gwalker = static_cast<TargetWalker<Kernel, G>*>(walker);
         //create the new primitive geometry and set the initial value
         auto geom = std::make_shared<numeric::Geometry<Kernel, G>>();       
         geom->output() = gwalker->getTargetPrimitive();
         
-        return std::make_pair(geom, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(geom, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             geom->calculate();
         }));
     };
@@ -966,7 +966,7 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         return geom;
     }
     
-    virtual std::pair< Equation, FlowNode > buildGeometryEquationNode(TreeWalker* walker, shedule::FlowGraph& flowgraph) const override {
+    virtual std::pair< Equation, FlowNode > buildGeometryEquationNode(TreeWalker* walker, std::shared_ptr<shedule::FlowGraph> flowgraph) const override {
         
         auto* gwalker = static_cast<TargetWalker<Kernel, geometry::extractor<Output>::template primitive>*>(walker);
         //create the new primitive geometry and set the initial value
@@ -978,7 +978,7 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         geom->setInputEquation(eqn);
         geom->takeInputOwnership(true);
         
-        return std::make_pair(geom, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(geom, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             geom->calculate();
         }));
     };
@@ -1195,7 +1195,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     };
 
     virtual std::pair< CalcPtr, Node>
-    createGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) override {
+    createGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) override {
         
         if(vertex == m_sourceVertex) {
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getInitialNode());
@@ -1236,7 +1236,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     //this function is used to create a reduced numeric geometry equation and a node for it in the 
     //corresponding flow graph. For this the equation it depends on is required
     virtual std::pair< CalcPtr, Node>
-    createReducedGeometryNode(const graph::LocalVertex& vertex, shedule::FlowGraph& flowgraph) override {
+    createReducedGeometryNode(const graph::LocalVertex& vertex, std::shared_ptr<shedule::FlowGraph> flowgraph) override {
         
         if(vertex == m_sourceVertex) {
             auto node = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(m_sourceWalker->getFinalNode());
@@ -1293,7 +1293,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     //this function is used to create a node in the calculation flow graph with all default
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createBinaryEquationsNode(CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
+    createBinaryEquationsNode(CalcPtr g1, CalcPtr g2, std::shared_ptr<shedule::FlowGraph> flow) override {
     
         if(m_constraints.size() == 1) {
             auto node = m_binaryGeneratorArray[std::get<1>(m_constraints[0])->getType()]
@@ -1301,8 +1301,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                                        [std::get<0>(m_constraints[0])->getType()]->buildEquationNode(g1, g2, 
                                                                                                 std::get<0>(m_constraints[0]),
                                                                                                 flow);
-            std::vector<CalcPtr> vec(1);
-            vec.push_back(node.first);
+            std::vector<CalcPtr> vec = {node.first};
             Base::setEdgeEquations(vec);
             return std::make_pair(vec, node.second);
         }
@@ -1310,14 +1309,14 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         //if we have multiple constraints we need to call the virtual functions anyway
         auto equations = createBinaryEquations(g1,g2);
         Base::setEdgeEquations(equations);
-        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(equations, flow->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
                 cons->execute();
         }));
     };
 
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createUnaryEquationsNode(const graph::LocalVertex& vertex, CalcPtr Geometry, shedule::FlowGraph& flow) override {
+    createUnaryEquationsNode(const graph::LocalVertex& vertex, CalcPtr Geometry, std::shared_ptr<shedule::FlowGraph> flow) override {
         
         UnarySymbolicVector  constraints;
         if(vertex == m_sourceVertex)
@@ -1331,18 +1330,17 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                                             
             if(!gen->applyToEquation(Geometry, std::get<0>(constraints[0]))) {
                 auto node = gen->buildEquationNode(Geometry, std::get<0>(constraints[0]), flow);
-                std::vector<CalcPtr> vec(1);
-                vec.push_back(node.first);
+                std::vector<CalcPtr> vec = {node.first};
                 Base::setEdgeEquations(vec);
                 return std::make_pair(vec, node.second);
             }
-            else return std::make_pair(std::vector<CalcPtr>(), flow.newActionNode([](const shedule::FlowGraph::ContinueMessage& m){}));
+            else return std::make_pair(std::vector<CalcPtr>(), flow->newActionNode([](const shedule::FlowGraph::ContinueMessage& m){}));
         }
                 
         //if we have multiple constraints we need to call the virtual functions anyway
         auto equations = createUnaryEquations(vertex, Geometry);
         //Base::setEdgeEquations(equations);
-        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(equations, flow->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
                 cons->execute();
         }));
@@ -1375,7 +1373,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     //this function is used to create a node in the calculation flow graph with all remaining
     //constraint Equations
     virtual std::pair<std::vector<CalcPtr>, Node>
-    createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, shedule::FlowGraph& flow) override {
+    createReducedEquationsNode(const graph::LocalVertex& target, CalcPtr g1, CalcPtr g2, std::shared_ptr<shedule::FlowGraph> flow) override {
         
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
         if((walker->binaryConstraintPool().size() == 1) && walker->unaryConstraintPool().empty()) {
@@ -1385,8 +1383,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                                               [std::get<0>(front)->getType()]->buildEquationNode(g1, g2, 
                                                                                           std::get<0>(front),
                                                                                           flow);
-            std::vector<CalcPtr> vec(1);
-            vec.push_back(node.first);
+            std::vector<CalcPtr> vec = {node.first};
             Base::setEdgeEquations(vec);
             return std::make_pair(vec, node.second);   
         }
@@ -1394,7 +1391,7 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         //if we have multiple constraints we need to call the virtual functions anyway
         auto equations = createReducedEquations(target,g1,g2);
         Base::setEdgeEquations(equations);
-        return std::make_pair(equations, flow.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(equations, flow->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             for(auto cons : equations)
                 cons->execute();
         }));

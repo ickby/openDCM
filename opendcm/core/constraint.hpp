@@ -294,6 +294,8 @@ struct UnaryConstraintBase : public UnaryEquation<Kernel, PG, typename Kernel::S
         UnaryConstraintBase() {
             Equation::m_residualCount = 1;
         };
+        
+        virtual ~UnaryConstraintBase(){};
 };
 
 /**
@@ -327,6 +329,8 @@ struct BinaryConstraintBase : public BinaryEquation<Kernel, PG1, PG2, typename K
         BinaryConstraintBase() {
             Equation::m_residualCount = 1;
         };
+        
+        virtual ~BinaryConstraintBase(){};
 };
     
 /**
@@ -751,7 +755,7 @@ struct BinaryConstraintEquationGenerator {
     buildEquationNode(Equation g1, 
                       Equation g2, 
                       symbolic::Constraint* c,
-                      shedule::FlowGraph& flowgraph) const = 0;
+                      std::shared_ptr<shedule::FlowGraph> flowgraph) const = 0;
                                               
 };
 
@@ -769,7 +773,7 @@ struct UnaryConstraintEquationGenerator {
      virtual std::pair<Equation, FlowNode>
      buildEquationNode(Equation g,
                       symbolic::Constraint* c,
-                      shedule::FlowGraph& flowgraph) const = 0;
+                      std::shared_ptr<shedule::FlowGraph> flowgraph) const = 0;
                                               
 };
 
@@ -819,7 +823,7 @@ struct TypedBinaryConstraintEquationGenerator : public BinaryConstraintEquationG
     
     virtual std::pair<Equation, FlowNode>
     buildEquationNode(Equation g1, Equation g2, symbolic::Constraint* c,
-                      shedule::FlowGraph& flowgraph) const override {
+                      std::shared_ptr<shedule::FlowGraph> flowgraph) const override {
        
         auto  tg1 = std::static_pointer_cast<numeric::Equation<Kernel, PG1>>(g1);
         auto  tg2 = std::static_pointer_cast<numeric::Equation<Kernel, PG2>>(g2);
@@ -829,7 +833,7 @@ struct TypedBinaryConstraintEquationGenerator : public BinaryConstraintEquationG
             auto equation = std::make_shared<BinaryConstraintSimplifiedEquation<Kernel, PC, PG1, PG2>>(); 
             equation->setInputEquations(tg1, tg2);            
             equation->assign(pc);
-            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
                 equation->calculate();
             }));
         }
@@ -837,7 +841,7 @@ struct TypedBinaryConstraintEquationGenerator : public BinaryConstraintEquationG
             auto equation = std::make_shared<BinaryConstraintSimplifiedComplexEquation<Kernel, PC, PG1, PG2>>();
             equation->setInputEquations(tg1, tg2);     
             equation->assign(pc);
-            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
                 equation->calculate();
             }));
         }
@@ -845,7 +849,7 @@ struct TypedBinaryConstraintEquationGenerator : public BinaryConstraintEquationG
             auto equation = std::make_shared<BinaryConstraintComplexSimplifiedEquation<Kernel, PC, PG1, PG2>>();
             equation->setInputEquations(tg1, tg2);  
             equation->assign(pc);
-            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
                 equation->calculate();
             }));
         }
@@ -853,7 +857,7 @@ struct TypedBinaryConstraintEquationGenerator : public BinaryConstraintEquationG
             auto equation = std::make_shared<BinaryConstraintComplexEquation<Kernel, PC, PG1, PG2>>();
             equation->setInputEquations(tg1, tg2);  
             equation->assign(pc);
-            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
                 equation->calculate();
             }));
         }
@@ -898,7 +902,7 @@ struct TypedUnaryConstraintEquationGenerator : public UnaryConstraintEquationGen
     
     virtual std::pair<Equation, FlowNode>
     buildEquationNode(Equation g, symbolic::Constraint* c,
-                      shedule::FlowGraph& flowgraph) const override {
+                      std::shared_ptr<shedule::FlowGraph> flowgraph) const override {
        
         auto  tg = std::static_pointer_cast<numeric::Equation<Kernel, PG>>(g);
         auto& pc = static_cast<symbolic::TypeConstraint<PC>*>(c)->getPrimitive();
@@ -907,7 +911,7 @@ struct TypedUnaryConstraintEquationGenerator : public UnaryConstraintEquationGen
             auto equation = std::make_shared<UnaryConstraintSimplifiedEquation<Kernel, PC, PG>>(); 
             equation->setInputEquation(tg);            
             equation->assign(pc);
-            return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+            return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
                 equation->calculate();
             }));
         }
@@ -915,7 +919,7 @@ struct TypedUnaryConstraintEquationGenerator : public UnaryConstraintEquationGen
         auto equation = std::make_shared<UnaryConstraintComplexEquation<Kernel, PC, PG>>();
         equation->setInputEquation(tg);     
         equation->assign(pc);
-        return std::make_pair(equation, flowgraph.newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
+        return std::make_pair(equation, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             equation->calculate();
         }));
     };

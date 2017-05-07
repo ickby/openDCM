@@ -32,6 +32,7 @@
 #include <tbb/flow_graph.h>
 #include <tbb/tbb.h>
 
+#include <boost/core/noncopyable.hpp>
 
 namespace dcm {
 namespace shedule {
@@ -198,18 +199,23 @@ struct HugeParallelVector : public _HugeParallelVector<std::vector<std::shared_p
 struct HugeParallelConcurrentVector : public _HugeParallelVector<tbb::concurrent_vector<std::shared_ptr<Executable>>> {};
 
 //encapsulates a tbb flow graph and is responsible for managing the nodes lifetime
-struct FlowGraph : public Executable {
+struct FlowGraph : public Executable, private boost::noncopyable {
        
-    typedef tbb::flow::continue_msg                             ContinueMessage;
-    typedef tbb::flow::continue_node< tbb::flow::continue_msg > Node;
-    typedef tbb::flow::broadcast_node<tbb::flow::continue_msg>  StartNode;
-       
-    FlowGraph() : m_graph(new tbb::flow::graph()) {};
-    virtual ~FlowGraph() {};
+    typedef tbb::flow::continue_msg ContinueMessage;
+    typedef size_t Node;
+           
+    FlowGraph() {};
+    virtual ~FlowGraph() {
+        for(ContinueNode* node : m_nodes)
+            delete node;
+        if(m_start)
+            delete m_start;
+    }
     
     void operator()() {
-        m_start.try_put(tbb::flow::continue_msg());
-        m_graph->wait_for_all();
+        
+        m_start->try_put(tbb::flow::continue_msg());
+        m_graph.wait_for_all();
     }
     
     virtual void execute() {
@@ -217,33 +223,33 @@ struct FlowGraph : public Executable {
     }
         
     template<typename Action>
-    Node& newActionNode(Action a) {
+    Node newActionNode(Action a) {
         
-        m_nodes.emplace_back(Node(*m_graph, a));
-        return m_nodes.back();
+        m_nodes.push_back(new ContinueNode(m_graph, a));
+        return m_nodes.size();
     };
     
-    template<typename Action>
-    Node& newInitialActionNode(Action a) {
+    Node getBroadcastNode() {  
+        if(!m_start)
+            m_start = new StartNode(m_graph);
         
-        m_nodes.emplace_back(Node(*m_graph, a));
-        connect(m_start, m_nodes.back());
-        return m_nodes.back();
+        return 0;
     };
     
-    StartNode& getBroadcastNode() {        
-        return m_start;
-    };
-    
-    template<typename N1, typename N2>
-    void connect(N1& n1, N2& n2) {
-        tbb::flow::make_edge(n1, n2);
+    void connect(Node n1, Node n2) {
+        if(n1==getBroadcastNode())
+            tbb::flow::make_edge(*m_start, *m_nodes[n2-1]);
+        else 
+            tbb::flow::make_edge(*m_nodes[n1-1], *m_nodes[n2-1]);
     };
 
 private:
-    std::vector<Node>                 m_nodes;
-    std::unique_ptr<tbb::flow::graph> m_graph;
-    StartNode                         m_start = StartNode(*m_graph);
+    typedef tbb::flow::continue_node<tbb::flow::continue_msg>   ContinueNode;
+    typedef tbb::flow::broadcast_node<tbb::flow::continue_msg>  StartNode;
+    
+    std::vector<ContinueNode*> m_nodes;
+    StartNode*                 m_start = nullptr;
+    tbb::flow::graph           m_graph;
 };
     
 //functions for parallel execution

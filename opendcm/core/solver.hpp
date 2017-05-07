@@ -20,6 +20,7 @@
 #ifndef DCM_SOLVER_CORE_H
 #define DCM_SOLVER_CORE_H
 
+#include "accessgraph.hpp"
 #include "clustergraph.hpp"
 #include "filtergraph.hpp"
 #include "geometry.hpp"
@@ -29,6 +30,8 @@
 
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/undirected_dfs.hpp>
+#include <boost/graph/kruskal_min_spanning_tree.hpp>
+#include <boost/graph/graphviz.hpp>
 #include <boost/fusion/include/vector.hpp>
 #include <boost/fusion/include/at.hpp>
 #include <boost/multi_array.hpp>
@@ -113,9 +116,7 @@ void reduceGraph(std::shared_ptr<Graph> g, Converter& c) {
         basis.findCycles();
         //TODO: analyse cycles for rigidy.
         done = true; //TODO: If we have reduced clusters we need to reiterate on the edges, so done ==false
-    }
-
-    
+    }    
 };
 
 } //symbolic
@@ -137,53 +138,114 @@ namespace solver {
 
 struct Builder {
         
-    template<typename Graph, typename Kernel>
+    template<typename AccessGraph, typename Kernel>
     struct FlowGraphExtractor : public boost::default_dfs_visitor {
-
-        typedef typename Graph::LocalVertex         LocalVertex;
-        typedef typename Graph::LocalEdge           LocalEdge;
-        typedef typename shedule::FlowGraph::Node   Node;
-
-        shedule::FlowGraph flow;
-    //    std::map<LocalVertex, numeric::GeomertyEquation<Kernel>*> geometryMap;
-        int parameter = 0;
-        int equations = 0;
         
-        void tree_edge(LocalEdge u, const Graph& graph) {
-    /*
-            auto result = graph.template getProperty<symbolic::ResultProperty>(u);
+        typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
+        typedef typename numeric::EquationHandlerProperty<Kernel> prop;
+
+        FlowGraphExtractor( std::shared_ptr<shedule::FlowGraph> flow, 
+                            std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> eqns,
+                            std::vector<graph::LocalEdge>& tree,
+                            std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& pMap,
+                            std::vector<graph::LocalEdge>& unhandled,
+                            std::shared_ptr<AccessGraph> graph) 
+                : m_flow(flow), m_eqns(eqns), m_tree(tree), m_graph(graph), m_processMap(pMap), m_unhandled(unhandled) {};
+
+        template<typename Graph>
+        void start_vertex(graph::LocalVertex v, const Graph& g) {
+            m_current = v;
+            auto e = *m_graph->outEdges(v).first;
+            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
+            auto res = builder->createGeometryNode(v, m_flow);
+            m_processMap[v] = res;
             
-            LocalVertex source = graph.source(u);
-            auto res = geometryMap.find(source);
-            if(res == geometryMap.end()) {
+            auto eqn = builder->createUnaryEquationsNode(v, res.first, m_flow);
+            if(!eqn.first.empty())
+                m_flow->connect(res.second, eqn.second);
             
-                res = geometryMap.find(graph.target(u));
-                
-                //if we still have nothing we need to create a start vertex geometry
-                if(res == geometryMap.end()) {
+            //connect the start node 
+            m_flow->connect(m_flow->getBroadcastNode(), res.second);
+            
+            //setup the eqns vector. must happen after unary creation, as it can change the parameter count
+            m_eqns->addExecutable(res.first);
+            m_eqns->append(eqn.first);
+        };
+        
+        template<typename Graph>
+        void discover_vertex(graph::LocalVertex v, const Graph& g) {
+            m_current = v;
+        };
+
+        //don't use examine_edge as this also receives already handled edges
+        template<typename Graph>
+        void tree_edge(graph::LocalEdge e, const Graph& g) { handleEdge(e);};
+        template<typename Graph>
+        void back_edge(graph::LocalEdge e, const Graph& g) { handleEdge(e);};
+        
+        void handleEdge(graph::LocalEdge e) {
                     
-                    auto geom = graph.template getProperty<symbolic::GeometryProperty>(source);
-                    //geometryMap[source] = result->(geom);
-                }
+            //we only use spanning tree edges
+            if(std::find(m_tree.begin(), m_tree.end(), e) == m_tree.end()) {
+                m_unhandled.push_back(e);
+                return;
             }
-    */       
             
+            auto target = (m_graph->source(e)==m_current) ? m_graph->target(e) : m_graph->source(e);
+            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
+            
+            auto it = m_processMap.find(m_current);
+            assert(it != m_processMap.end()); 
+            std::pair<CalcPtr, shedule::FlowGraph::Node> g1 = it->second;
+            
+            it = m_processMap.find(target);
+            assert( it == m_processMap.end() );
+            std::pair<CalcPtr, shedule::FlowGraph::Node> g2 = builder->createReducedGeometryNode(target, m_flow);
+            m_processMap[target] = g2;
+                      
+            m_flow->connect(g1.second, g2.second);
+            
+            //create unary and binary equations
+            auto ueqn = builder->createUnaryEquationsNode(target, g2.first, m_flow);
+            if(!ueqn.first.empty())
+                m_flow->connect(g2.second, ueqn.second);
+            
+            auto beqn = builder->createBinaryEquationsNode(g1.first, g2.first, m_flow);
+            if(!beqn.first.empty())
+                m_flow->connect(g2.second, beqn.second);
+            
+            //setup the eqns vector. must happen after unary creation, as it can change the parameter count
+            m_eqns->addExecutable(g2.first);
+            m_eqns->append(ueqn.first);
+            m_eqns->append(beqn.first);
         };
-
-        //back edges are special. if we are in clusters, all backedge constraints depend on all clusters
-        //in the cluster cycle
-        void back_edge(LocalEdge u, const Graph& graph) {
-
         
-        };
+    private:
+        std::shared_ptr<AccessGraph> m_graph;
+        std::shared_ptr<shedule::FlowGraph> m_flow;
+        std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> m_eqns;
+        std::vector<graph::LocalEdge>& m_tree;
+        std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& m_processMap;
+        std::vector<graph::LocalEdge>& m_unhandled;
+        graph::LocalVertex m_current;
+    };
+    
+    class adress_writer {
+    public:
+        template <class VertexOrEdge>
+        void operator()(std::ostream& out, const VertexOrEdge& v) const {
+            out << "[label=\"" << std::internal << std::hex << std::setfill('0') << v << "\"]";
+        }
     };
 
     /**
     * @brief Builds the numeric representation of the constraint system
     * 
     * This function builds up a executable which represents the geometric constraint system of a cluster 
-    * in a numeric equaltion system. Executing the returned value recalculates all equations dependend on
-    * the set parameters in the graph
+    * in a numeric equaltion system. All possible optimisation must have been done befor this function
+    * is called as no such thing happens here. This function creates the most optimal numeric system
+    * to solve the given graph in a single action.
+    * @note All Equation handler need to be setup corectly, they are used within this function.
     */
     template<typename Kernel, typename Graph>
     static void solveGraphNumericSystem(std::shared_ptr<Graph> g) {
@@ -192,101 +254,69 @@ struct Builder {
         if(g->edgeCount() == 0)
             return;
         
-        //to ensure that we do not forget anything or that we have processed things twice we create a 
-        //vector to store what waas processed so far.
-        typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
-        std::map<graph::LocalVertex, CalcPtr> vProcessed;
+        //create the vertex index
+        g->initIndexMaps();
+        graph::property_map<graph::Index, Graph, graph::LocalVertex> imap(g);
         
-        //we build up the numeric system for this graph. This also means finding parts that can be solved 
-        //indivudual or simply after the main part (one-connected components)
+        std::cout<<std::endl<<std::endl;
+        boost::write_graphviz(std::cout, g->getDirectAccess(), adress_writer(), 
+                              boost::default_writer(), boost::default_writer(), imap);
+        std::cout<<std::endl<<std::endl;
         
-        /*
-        //to find one connected components we search all verices with one edge only. From there we can 
-        //follow that edge to the adjacent vertices until we find a edge with more than two connections. That is
-        //where the leaf ends.
-        tbb::task_group leafs;
-        tbb::concurrent_queue<tbb::flow::graph_node*> parallel_solvable;
-        tbb::concurrent_queue<tbb::flow::graph_node*> end_solvable;
+        //we build up the numeric system for this graph. This means finding the reduction sequence that
+        //gives the minimal possible parameter count. For this we use a minimum spanning tree.
         
-        int leafcount = 1e3;
-        auto iter = g->vertices();
-        for(;iter.first != iter.second; ++iter.first, ++leafcount) {
-        
-            //start the leaf processing if a vertex only has a single edge
-            if(g->outDegree(*iter.first) == 1) {
-                
-                //doing this in parallel is not error free: it may happen that certain leafes are not found 
-                //for example in a Y topology: when thread one removes one arm and thread two the other, it 
-                //is possible that both detect the middle node as having 3 out edges and stop at the same 
-                //position. Then the third arm stays behind as leaf.
-                leafs.run([iter, g, leafcount, &s]() {                
-                    
-                    //group all edges and vertices that belong to the leaf
-                    graph::LocalVertex source = *iter.first;
-                    do {
-                        g->template setProperty<graph::Group>(source, leafcount);
-                        auto edges = g->outEdges(source);
-                        graph::LocalEdge e;
-                        if(g->template getProperty<graph::Group>(g->target(*edges.first)) != leafcount) 
-                            e = *edges.first;
-                        else 
-                            e = *(edges.first++);
-                        
-                        g->template setProperty<graph::Group>(e, leafcount);
-                        source = g->target(e);
-                    }
-                    while(g->outDegree(source) == 2);       
-                        
-                    //See what kind of leafe we have here. Possibilities:
-                    //1. last leaf vertex is a cluster, than we can calculate the leaf in parallel and
-                    //   only the leaf-> main trunk connection needs to be calculated at the end
-                    //2. last leaf vertex is a geometry, than the whole leaf needs to be calculated 
-                    //   at the end
-                    if(g->template getProperty<graph::Type>(source) == graph::Cluster) {
-                        
-                    }
-                });            
-            }
-        }*/
-    
-        //shedule::FlowGraph* fg = new shedule::FlowGraph();
-        auto fg = std::make_shared<numeric::CalculatableSequentialVector<Kernel>>();
-        //iterate over all edges and create the equations for them
+        //we need a weight map. Our parameter reduction comes in handy
+        typedef std::map<graph::LocalEdge, unsigned int> WeightMap;
+        WeightMap weight;
+        boost::associative_property_map<WeightMap> propmapWeight(weight);
         auto edges = g->edges();
-        for(; edges.first != edges.second; ++edges.first) {    
-            typedef typename numeric::EquationHandlerProperty<Kernel> prop;
-            numeric::EquationHandler<Kernel>* builder = g->template getProperty<prop>(*edges.first); 
-            auto source = g->source(*edges.first);
-            CalcPtr g1;
-            auto it = vProcessed.find(source);
-            if( it == vProcessed.end() ) {
-                g1 = builder->createGeometry(source);
-                fg->addExecutable(g1);
-                fg->append(builder->createUnaryEquations(source, g1));
-                vProcessed[source] = g1;
-            }
-            else 
-                g1 = it->second;
-            
-            auto target = g->target(*edges.first);
-            CalcPtr g2;
-            it = vProcessed.find(target);
-            if( it == vProcessed.end() ) {
-                g2 = builder->createGeometry(target);
-                fg->addExecutable(g2);
-                fg->append(builder->createUnaryEquations(target, g2));
-                vProcessed[target] = g2;
-            }
-            else 
-                g2 = it->second;
-            
-            auto vec = builder->createBinaryEquations(g1, g2);
-            fg->append(vec);    
- 
+        for(;edges.first != edges.second; ++edges.first) {
+            auto handler = g->template getProperty<numeric::EquationHandlerProperty<Kernel>>(*edges.first);
+            weight[*edges.first] = 100-static_cast<numeric::EdgeEquationHandler<Kernel>*>(handler)->parameterReduction();
         }
-    
+              
+        //and build the tree
+        std::vector<graph::LocalEdge> spanningTree;
+        boost::kruskal_minimum_spanning_tree(g->getDirectAccess(), 
+                                             std::back_inserter(spanningTree), 
+                                             boost::vertex_index_map(imap).weight_map(propmapWeight));
+
+        //find the starting point TODO: don't use random as now but use fixed
+
+        //build the flowgraph from the spanning tree. As the visitor gets copied we need to pass 
+        //everything we want as reference
+        auto flow = std::make_shared<shedule::FlowGraph>();
+        auto eqns = std::make_shared<numeric::CalculatableSequentialVector<Kernel>>();
+        typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
+        std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>> processMap;
+        std::vector<graph::LocalEdge> unhandled;
+
+        FlowGraphExtractor<Graph, Kernel> extractor(flow, eqns, spanningTree, processMap, unhandled, g);
+        graph::property_map<graph::Color, Graph, graph::LocalEdge>   ecmap(g);
+        graph::property_map<graph::Color, Graph, graph::LocalVertex> vcmap(g);        
+        boost::undirected_dfs(g->getDirectAccess(), boost::visitor(extractor).vertex_color_map(vcmap).edge_color_map(ecmap));
+
+        //the back non spanning tree edges have not been build. let's do that now
+        for( graph::LocalEdge edge : unhandled ) {
+            
+            typedef typename numeric::EquationHandlerProperty<Kernel> prop;
+            numeric::EquationHandler<Kernel>* builder = g->template getProperty<prop>(edge); 
+            
+            auto g1 = processMap[g->source(edge)];
+            auto g2 = processMap[g->target(edge)];
+            
+            auto res = builder->createBinaryEquationsNode(g1.first, g2.first, flow);
+            if(!res.first.empty()) {
+                flow->connect(g1.second, res.second);
+                flow->connect(g2.second, res.second);
+            }
+            
+            eqns->append(res.first);
+        }
+            
         //build the solver object and solve
-        numeric::Dogleg<Kernel> solver(fg);
+        numeric::Dogleg<Kernel> solver(eqns, flow);
         solver.calculate();
         
         //we need to make sure that after solving all results are written back

@@ -304,6 +304,7 @@ private:
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> Matrix;
     
     std::shared_ptr<CalculatableSequentialVector<Kernel>> m_equations;
+    std::shared_ptr<Executable> m_recalculatable;
     LinearSystem<Kernel> m_system;
     Scalar tolg, tolx, delta, nu, g_inf, fx_inf, err, time;
     Kernel* m_kernel;
@@ -317,9 +318,9 @@ private:
                        const double delta);
         
 public:
-    Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec) 
+    Dogleg(std::shared_ptr<CalculatableSequentialVector<Kernel>> vec, std::shared_ptr<Executable> recalc) 
         : m_system(LinearSystem<Kernel>(vec->newParameterCount(), vec->newResidualCount())), m_equations(vec),
-          tolx(1e-6), tolg(1e-6) {
+          m_recalculatable(recalc), tolx(1e-6), tolg(1e-6) {
     
         //make sure the equations are correctly initialised
         m_equations->init(m_system);
@@ -437,7 +438,7 @@ void Dogleg<Kernel>::calculate() {
     g.resize(m_system.equationCount());
     J_old.resize(m_system.equationCount(), m_system.parameterCount());
 
-    m_equations->execute();
+    m_recalculatable->execute();
     
 #ifdef DCM_USE_LOGGING
     BOOST_LOG_SEV(log, details::solving) << "initial jacobi: "<<std::endl<<m_system.jacobi()<<std::endl
@@ -446,7 +447,7 @@ void Dogleg<Kernel>::calculate() {
 #endif
     
     //sys.removeLocalGradientZeros(true);
-    m_equations->execute();
+    //m_recalculatable->execute();
     //sys.removeLocalGradientZeros(false);
     
 #ifdef DCM_USE_LOGGING
@@ -518,7 +519,7 @@ void Dogleg<Kernel>::calculate() {
 
         // get the new values
         m_system.parameter() += h_dl;
-        m_equations->execute();
+        m_recalculatable->execute();
 
 #ifdef DCM_USE_LOGGING
 
@@ -563,12 +564,12 @@ void Dogleg<Kernel>::calculate() {
                 BOOST_LOG_SEV(log, details::iteration)<< "High differential detected: "<<m_system.jacobi().template lpNorm<Eigen::Infinity>()<<" in iteration: "<<iter;
 #endif
                 rescale();
-                m_equations->execute();
+                m_recalculatable->execute();
             }
             //it can also happen that the differentials get too small, however, we cant check for that
             else if(iter>1 && (counter>50)) {
                 rescale();
-                m_equations->execute();
+                m_recalculatable->execute();
                 counter = 0;
             }
 */

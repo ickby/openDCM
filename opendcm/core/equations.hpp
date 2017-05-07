@@ -243,6 +243,7 @@ struct Equation : public mpl::if_<boost::is_pod<Output>, details::PodBase<Output
     //set values in case this is a fixed equation
     Equation() {details::Identifier::resetIdGenerator();};
     Equation(const Output& val) : Base(val) {};
+    virtual ~Equation(){};
     
     /**
      * @brief Gives the result
@@ -406,6 +407,8 @@ struct InputEquation : public Equation<Kernel, Output> {
         Equation<Kernel, Output>::m_complexity = Complexity::Complex;
     };
     
+    virtual ~InputEquation(){};
+    
     /**
      * @brief Returns if equation owns the input equations
      * 
@@ -458,6 +461,7 @@ struct UnaryEquation : public InputEquation<Kernel, Output> {
     
     UnaryEquation() {};
     UnaryEquation(std::shared_ptr<InputEqn> in) : m_input(in) {};
+    virtual ~UnaryEquation(){};
     
     /**
      * @brief Access the input value for this unary equation
@@ -570,6 +574,7 @@ struct ExpressionUnaryEquation : public UnaryEquation<Kernel, Input, Output> {
     typedef UnaryEquation<Kernel, Input, Output> Base;
     
     ExpressionUnaryEquation(const CExp& c, const DExp& d) : m_cExp(c), m_dExp(d) {}
+    virtual ~ExpressionUnaryEquation(){};
     
     virtual void init(LinearSystem<Kernel>& k) override {
         
@@ -678,6 +683,8 @@ struct BinaryEquation : public InputEquation<Kernel, Output> {
     BinaryEquation() {};
     BinaryEquation(std::shared_ptr<Input1Eqn> in1, std::shared_ptr<Input2Eqn> in2) 
         : m_input1(in1), m_input2(in2) {};
+    
+    virtual ~BinaryEquation(){};
     
     /**
      * @brief Access the first input value for this binary equation
@@ -840,6 +847,8 @@ struct ExpressionBinaryEquation : public BinaryEquation<Kernel, Input1, Input2, 
     
     ExpressionBinaryEquation(const CExp& c, const DExp1& d1, const DExp2& d2) 
         : m_cExp(c), m_dExp1(d1), m_dExp2(d2) {}
+        
+    virtual ~ExpressionBinaryEquation(){};
     
     virtual void init(LinearSystem<Kernel>& k) override {
         

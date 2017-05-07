@@ -1521,6 +1521,13 @@ typename dcm::graph::property_map<Color, G, LocalVertex>::value_type    get(cons
 };
 
 template<typename G>
+typename dcm::graph::property_map<Index, G, LocalVertex>::value_type    get(const dcm::graph::property_map<Index, G, LocalVertex>& map,
+            const typename dcm::graph::property_map<Index, G, LocalVertex>::key_type& key)
+{
+    return  map.m_graph->template getProperty<Index>(key);
+};
+
+template<typename G>
 void    put(const dcm::graph::property_map<Group, G, LocalVertex>& map,
             const typename dcm::graph::property_map<Group, G, LocalVertex>::key_type& key,
             const typename dcm::graph::property_map<Group, G, LocalVertex>::value_type& value)
