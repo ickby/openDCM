@@ -1031,7 +1031,8 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         //set the input for our unary equation
         auto eqn = std::static_pointer_cast<numeric::Equation<Kernel, Input>>(gwalker->getInputEquation());
         geom->setInputEquation(eqn);
-        geom->takeInputOwnership(true);
+        if(geom->getComplexity() == numeric::Complexity::Transform)
+            geom->takeInputOwnership(true); //transoform equations are not stored  or handled anywhere
         
         return geom;
     }
@@ -1046,7 +1047,8 @@ struct DependendGeometryNode : public GeometryNode<typename DerivedG::KernelType
         //set the input for our unary equation
         auto eqn = std::static_pointer_cast<numeric::Equation<Kernel, Input>>(gwalker->getInputEquation());
         geom->setInputEquation(eqn);
-        geom->takeInputOwnership(true);
+        if(geom->getComplexity() == numeric::Complexity::Transform)
+            geom->takeInputOwnership(true); //transoform equations are not stored  or handled anywhere
         
         return std::make_pair(geom, flowgraph->newActionNode([=](const shedule::FlowGraph::ContinueMessage& m){
             geom->calculate();

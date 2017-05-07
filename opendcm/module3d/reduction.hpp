@@ -32,7 +32,7 @@ struct FixedPoint : public numeric::DependendGeometry<Kernel, geometry::Point3, 
     using Inherited = numeric::DependendGeometry<Kernel, geometry::Point3, geometry::Point3>;
 
     CALCULATE() {
-        Inherited::calculate();
+        Inherited::calculate(); //handle input ownership etc.
         Inherited::output() = Inherited::input();
     };
 };

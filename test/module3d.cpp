@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(constraint) {
         BOOST_FAIL("Unknown exception");
     }
 };
-/*
+
 BOOST_AUTO_TEST_CASE(basic_solve) {
     
     std::cout << std::endl<<std::endl<<"Start test"<<std::endl;
@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(basic_solve) {
         BOOST_FAIL(x.what());
     }
 }
-*/
+
 BOOST_AUTO_TEST_CASE(cluster_solve) {
     
     Vector3 v1, v2, v3, v4, v5;

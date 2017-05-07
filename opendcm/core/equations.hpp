@@ -182,10 +182,11 @@ namespace numeric {
     
 namespace mpl = boost::mpl;
 
-//Fixed:   No free parameters, fixed output value
-//Simple:  Every value of the output is an free parameter, equation depends on no additional ones
-//Complex: Output is calculated from free parameters of the own or other equations
-enum class Complexity { Fixed, Simple, Complex };
+//Fixed:     No free parameters, fixed output value
+//Simple:    Every value of the output is an free parameter, equation depends on no additional ones
+//Complex:   Output is calculated from free parameters of the own or other equations
+//Transform: No free parameters, but the output depends on the input of the equation and hidden parameters
+enum class Complexity { Fixed, Simple, Complex, Transform };
 
 
 //This macro is intendet to ease the implementation of equations. They need to override execute() to allow 

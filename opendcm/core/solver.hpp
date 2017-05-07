@@ -211,7 +211,7 @@ struct Builder {
             if(!ueqn.first.empty())
                 m_flow->connect(g2.second, ueqn.second);
             
-            auto beqn = builder->createBinaryEquationsNode(g1.first, g2.first, m_flow);
+            auto beqn = builder->createReducedEquationsNode(target, g1.first, g2.first, m_flow);
             if(!beqn.first.empty())
                 m_flow->connect(g2.second, beqn.second);
             
