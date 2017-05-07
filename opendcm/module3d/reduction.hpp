@@ -33,7 +33,15 @@ struct FixedPoint : public numeric::DependendGeometry<Kernel, geometry::Point3, 
 
     CALCULATE() {
         Inherited::calculate(); //handle input ownership etc.
+        
+        //calculation
         Inherited::output() = Inherited::input();
+        
+        //handle derivatives
+        auto& iDer = Inherited::inputEquation()->derivatives();
+        auto& der  = Inherited::derivatives();
+        for(int i=0; i<3; ++i)
+            der[i].first = iDer[i].first;
     };
 };
 

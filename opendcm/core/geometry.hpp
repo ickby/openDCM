@@ -607,8 +607,7 @@ public:
                                         this, sys, m_parameterStorage, m_parameterIdStorage));
         
         //now add the derivatives we take over from the input geometry
-        Inherited::m_derivatives.clear();
-        for(const auto& param : Inherited::inputEquation()->parameters()) 
+        for(const auto& param : Inherited::inputEquation()->parameters())
             Inherited::m_derivatives.push_back(std::make_pair(typename Inherited::OutputType(), param));
         
         //make sure the parameters have the correct values
