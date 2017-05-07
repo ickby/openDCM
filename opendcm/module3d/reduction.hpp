@@ -43,7 +43,8 @@ void setupPointPointReduction(reduction::EdgeReductionGraph* graph) {
     typedef reduction::ConstraintEqualValue<Kernel, dcm::Distance, 0> ZeroDistance;
     
     auto fixPoint = graph->template getTreeNode<FixedPoint<Kernel>>();
-    graph->sourceNode()->template connectConditional<ZeroDistance>(fixPoint, [](const dcm::Distance& dist){});      
+    graph->sourceNode()->template connectConditional<ZeroDistance>(fixPoint, 
+                  [](reduction::ConstraintWalker<Kernel>* w, const dcm::Distance& dist){});      
 };
 
 }//module3d

@@ -338,9 +338,15 @@ struct TreeWalker {
      */
     void  setCurrentNode(std::shared_ptr<reduction::Node> n) {m_finalNode = n;};
     
+    void appendToTransformStack(const Connection* c, symbolic::Constraint* con) {
+        m_transformStack.push_back(std::make_pair(c, con));
+    };
+    
 private:
     std::shared_ptr<reduction::Node> m_initialNode;
     std::shared_ptr<reduction::Node> m_finalNode;
+    
+    std::vector<std::pair<const Connection*, symbolic::Constraint*>> m_transformStack;
 };
 
 /**
@@ -556,10 +562,16 @@ private:
  * @brief Connects two nodes in a conditional manner
  *
  * This class describes the connection between two Nodes in the reduction tree. Connections are conditional,
- * they are only used as connections if some criteria is meet. To check this criteria the method 
- * \ref apply is used, it returns the validity of the connection. Furthermore an edge can have a own
- * behavior, an action can be executed. For this is custom class has to be derived which overrides 
- * the provided apply function.
+ * they are only used as connections if some criteria is meet. Hence two functionalities are provided:
+ * 1. Check the connection criteria. With this the tree traversal is handled, if a constraint is found
+ *    for which the criteria is valid the connection can be traversed and the connected Node is reached.
+ *    The method symbolic::Constraint* validConstraint(TreeWalker* walker) is used for this and can be
+ *    overriden if a custom criteria implementation is wanted
+ * 2. Build the input transformations. The Nodes in the graph have defined inputs for their Geometries. 
+ *    To build up those inputs from the provided data types the connection is used, as it is the only
+ *    one having the required information (source, target and constraint). To handle this behavior the 
+ *    method bool transform(TreeWalker* walker, constraint) is used. It should be override for custom 
+ *    behaviour
  */
 struct Connection {
 
@@ -571,45 +583,66 @@ struct Connection {
     /**
      * @brief Checks edge condition and traverses the tree
      * 
-     * This class handles all 3 tasks of the edge: It checks for validity and returns true/false 
-     * dependent on the criteria, it executes any user defined action when overridden in a derived
-     * class and it further executes the tree traversal. Note that this base version has no criteria
-     * assigned, it always returns true. It executes no action and only further traverses the tree.
-     * \Note When overriding this function it must be assured that the base version is called to ensure
-     * correct tree traversing.
+     * Checks if the connection is valid and if it can be traversed further. It handles all the 
+     * validity check logic as well as the walkers transform setup.
      * 
      * @param walker The TreeWalker holding all data
      * @return bool  True if the edge is valid and the tree is traversed further
      */
-    virtual bool apply(TreeWalker* walker) const;
+    bool apply(TreeWalker* walker) const;
+    
+    
+    /**
+     * @brief Checks for constraints that is valid for this connection
+     * Checks if the walker has a constraint that is sufficient to see this connection as valid. The 
+     * relevant constraint is returned. If no constraint is found nullptr is returned and the connection 
+     * is invalid, meaning it is not traversed.
+     * @note The found constraint must be removed from the walker via cwalker->acceptConstraint(cons)
+     *       manualy by this function!
+     * @param walker The treewalker to validate
+     * @return dcm::symbolic::Constraint* The valid constraint which enable the connection, or nullptr 
+     */
+    virtual symbolic::Constraint* validConstraint(TreeWalker* walker) const = 0;
+    
+    /**
+     * @brief Transforms the walkers input equations to match the connected geometry node input
+     * 
+     * @param walker The treewalker which holds the input
+     * @param con The constraint this connection was used with (returned from validConstraint()
+     */
+    virtual void transform(TreeWalker* walker, symbolic::Constraint* con) const = 0;
 };
 
 /**
  * @brief Exposes a Functor as connditional connection
  * 
- * This class provides a interface to use a functor as connection between nodes. The functor is called
- * and must behave like a normal connection: It takes the TreeWalker pointer as argument and returns
- * a boolean dependend if the criteria is met or not. The further traversal is handled by this class.
- * A possible implementation of a functor as lambda could look like this:
+ * This class provides a interface to use functors as connection between nodes. One functor is called
+ * and must behave like a normal validConstraint method: It takes the TreeWalker pointer as argument
+ * and returns a constraint for which the criteria is met or nullptr. The further traversal is handled
+ * by this class. The second functor behaves like a standart transform method.
+ * A possible implementation of both functors as lambda could look like this:
  * @code{.cpp}
- * auto functor = [](TreeWalker* walker) -> bool {return true;}; 
+ * auto functorValid = [](TreeWalker* walker) -> symbolic::Constraint {return ...;}; 
+ * auto functorTransform = [](TreeWalker* walker, symbolic::Constraint*) {}; 
  * @endcode
  */
-template<typename Functor>
+template<typename FunctorValid, typename FunctorTransform>
 struct FunctorConnection : public Connection {
   
-    FunctorConnection(const Functor& f) : m_functor(f) {};
+    FunctorConnection(const FunctorValid& fv, const FunctorTransform& ft) 
+       : m_functorValid(fv), m_functorTransform(ft) {};
     
-    virtual bool apply(TreeWalker* walker) const {
-        
-        if(m_functor(walker))
-            return Connection::apply(walker);
-        
-        return false;
+    virtual symbolic::Constraint* validConstraint(TreeWalker* walker) const override {        
+        return m_functorValid(walker);
+    };
+    
+    virtual void transform(TreeWalker* walker, symbolic::Constraint* con) const override {
+        m_functorTransform(walker, con);
     };
     
 private:
-    const Functor& m_functor;
+    const FunctorValid& m_functorValid;
+    const FunctorTransform& m_functorTransform;
 };
 
 /**
@@ -619,8 +652,8 @@ private:
  * and the specific value of the constraint. To reduce the boilerplate needed for a connection of this 
  * common type this class provides a interface to define the allowed constrtaint type and the value it 
  * must have for the connection to be regarded as valid. This is specifed via the class template 
- * parameters. It can than be used with a functor which gets only supplied the primitive constraint to
- * do its action and which must not handle the validity check or the return type.
+ * parameters. It can than be used with a functor which gets only supplied the walker and the primitive 
+ * constraint to do the transform action and which must not handle the casting.
  * This class is intended to be used soley with Node::connectConditional. 
  * 
  * A example of the inteded usage:
@@ -629,7 +662,7 @@ private:
  * using EqualValue = ConstraintEqualValue<Kernel, Constraint, option>;
  * 
  * std::shared_ptr<reduction::Node> mynode = ...
- * mynode->connectConditional<EqualValue<dcm::Distance, 0>>([](const dcm::Distance&) { ...;});
+ * mynode->connectConditional<EqualValue<dcm::Distance, 0>>([](ConstraintWalker<Kernel>*, const dcm::Distance&) { ...;});
  * @endcode
  * 
  * @note The value cannot be a floating point number! If the option type is floating it gets convertet 
@@ -649,22 +682,26 @@ struct ConstraintEqualValue {
         
         Type(const Functor& f) : m_functor(f) {};
         
-        virtual bool apply(TreeWalker* walker) const {
+        symbolic::Constraint* validConstraint(TreeWalker* walker) const override {
             
             auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
-                                                                    Constraint::Arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(), Constraint::Arity);
             if(!cons)
-                return false;
+                return nullptr;
             
             auto o = cons->getPrimitive().template getOption<0>();
             auto o2 = option;
             if(cons->getPrimitive().template getOption<0>() != option)
-                return false;
+                return nullptr;
             
-            m_functor(cons->getPrimitive());            
             cwalker->acceptConstraint(cons);
-            return Connection::apply(walker);
+            return cons;
+        };
+        
+        void transform(TreeWalker* walker, symbolic::Constraint* cons) const override {
+            
+            auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);            
+            m_functor(cwalker, static_cast<symbolic::TypeConstraint<Constraint>*>(cons)->getPrimitive());            
         };
         
     private:
@@ -690,24 +727,30 @@ struct ConstraintUnequalValue {
         
         Type(const Functor& f) : m_functor(f) {};
         
-        virtual bool apply(TreeWalker* walker) const {
+        symbolic::Constraint* validConstraint(TreeWalker* walker) const override {
             
             auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(),
-                                                                    Constraint::Arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(), Constraint::Arity);
             if(!cons)
-                return false;
+                return nullptr;
             
-            if(cons->template getOption<0>() == option)
-                return false;
+            auto o = cons->getPrimitive().template getOption<0>();
+            auto o2 = option;
+            if(cons->getPrimitive().template getOption<0>() == option)
+                return nullptr;
             
-            m_functor(cons->getPrimitiveConstraint());                            
             cwalker->acceptConstraint(cons);
-            return Connection::apply(walker);
+            return cons;
+        };
+        
+        void transform(TreeWalker* walker, symbolic::Constraint* cons) const override {
+            
+            auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);            
+            m_functor(cwalker, static_cast<symbolic::TypeConstraint<Constraint>*>(cons)->getPrimitive());            
         };
         
     private:
-        Functor m_functor;
+        const Functor& m_functor;
     };
 };
     
@@ -732,6 +775,11 @@ struct Node : std::enable_shared_from_this<Node> {
     };
     
     /**
+     * @brief Connect via existing connection
+     */
+    void connect(std::shared_ptr<reduction::Node> node, Connection* edge);
+    
+    /**
      * @brief Connect this node to annother via a specific Connection
      *
      * This function can be used to connect a node to annother one. As the connections are always 
@@ -742,8 +790,8 @@ struct Node : std::enable_shared_from_this<Node> {
      * \param node The node we build a connection to
      * \param edge The GeometryConnection which evaluates the condition for the transition
      */   
-    template<typename Functor>
-    void connect(std::shared_ptr<reduction::Node> node, Functor func);    
+    template<typename FunctorValid, typename FunctorTransform>
+    void connect(std::shared_ptr<reduction::Node> node, FunctorValid funcV, FunctorTransform funcT);    
     
     /**
     * @brief Add predicate determined connection
@@ -798,7 +846,6 @@ struct Node : std::enable_shared_from_this<Node> {
         for (Connection* e : m_edges) {
             if (e->apply(walker)) {
                 return true;
-                break;
             }
         };
         return false;
@@ -808,15 +855,14 @@ private:
     std::vector<Connection*> m_edges;
 };
 
-template<typename Functor>
-void Node::connect(std::shared_ptr<reduction::Node> node, Functor func) {
+template<typename FunctorValid, typename FunctorTransform>
+void Node::connect(std::shared_ptr<reduction::Node> node, FunctorValid funcV, FunctorTransform funcT) {
 
-    auto edge = new FunctorConnection<Functor>(func);
+    auto edge = new FunctorConnection<FunctorValid, FunctorTransform>(funcV, funcT);
     connect(node, static_cast<Connection*>(edge));
 };
 
-template<>
-inline void Node::connect<Connection*>(std::shared_ptr<reduction::Node> node, Connection* edge) {
+inline void Node::connect(std::shared_ptr<reduction::Node> node, Connection* edge) {
 
     edge->source = shared_from_this();
     edge->target  = node;
@@ -826,7 +872,17 @@ inline void Node::connect<Connection*>(std::shared_ptr<reduction::Node> node, Co
 //we can create the apply function of Connection only now as node must be fullydefined...
 inline bool Connection::apply(TreeWalker* walker) const {
     
+    auto cons = validConstraint(walker);
+    if(!cons)
+        return false;
+    
+    //setup the walker transform stack
+    walker->appendToTransformStack(this, cons);
+    
+    //go further traversing
     target->apply(walker);
+    
+    //we are valid!
     return true;
 };
 
