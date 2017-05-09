@@ -19,12 +19,9 @@ set(test_SRC  define.cpp
 	      clustergraph.cpp
 	      reduction.cpp
 	      module3d.cpp
+	      modulepart.cpp
               #clustermath.cpp
               #constraints3d.cpp
-	      #dof.cpp
-	      #modulepart.cpp
-	      #modulepart2.cpp
-	      #modulehl3d.cpp
 	      #misc.cpp
 	      #userbugs.cpp
 	      #scheduler.cpp

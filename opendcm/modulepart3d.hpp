@@ -27,8 +27,8 @@
 	#pragma warning( disable : 4503 )
 #endif
 
-#include "modulePart/geometry.hpp"
-#include "modulePart/module.hpp"
+#include "modulePart3d/geometry.hpp"
+#include "modulePart3d/module.hpp"
 
 #endif //DCM_MODULEPART_H
 

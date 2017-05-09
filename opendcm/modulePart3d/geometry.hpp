@@ -22,13 +22,9 @@
 
 #include <opendcm/core/geometry.hpp>
 #include <opendcm/core/kernel.hpp>
+#include <opendcm/module3d/cluster.hpp>
 
 namespace dcm {
-namespace tag {
-
-struct part  {};
-
-}
 
 namespace modell {
   
@@ -87,6 +83,18 @@ namespace modell {
   };
 }
 
-}
+//the geometry primitives we handle in the part odule
+namespace geometry {
+
+//A Part is just a fancy name for a cluster
+template<typename Kernel>
+struct Part3 : public dcm::geometry::Cluster3<Kernel> {};
+
+}//geometry
+
+//the user-exposed geometry types for use in the geometry traits
+typedef dcm::geometry::Part3<DummyKernel> Part3;
+
+}//dcm
 
 #endif //GCM_GEOMETRY_PART_H

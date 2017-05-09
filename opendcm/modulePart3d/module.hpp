@@ -17,8 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef DCM_MODULE_3D_H
-#define DCM_MODULE_3D_H
+#ifndef DCM_MODULE_PART3D_H
+#define DCM_MODULE_PART3D_H
 
 #include "opendcm/core/object.hpp"
 #include "opendcm/core/module.hpp"
@@ -34,8 +34,10 @@
 
 namespace dcm {
        
+enum class Scope {Local, Part, Global};
+    
 template<typename Type>
-struct Part3D {
+struct ModulePart3D {
 
     typedef boost::mpl::int_<6> ID;
 
@@ -68,11 +70,13 @@ struct Part3D {
          */
         struct Part3D : public Stacked::Object {
 
-            typedef typename Stacked::Object   Inherited;                       
+            typedef typename Stacked::Object   Inherited;   
+            
+            typedef symbolic::GeometryProperty GeometryProperty;
             typedef graph::VertexProperty      VertexProperty;
             
             DCM_OBJECT_ADD_PROPERTIES( Final, (VertexProperty) )
-            
+                        
         public:            
             Part3D(Final* system) 
                 : Stacked::Object( Final::template objectTypeID<typename Final::Part3D>::ID::value ),
@@ -88,26 +92,21 @@ struct Part3D {
              * without any special qualifiers then a copy of the given user type is strored.
             */
             void set(const Type& part) {
-                /*
+                
                 typedef typename Final::Kernel  Kernel;
                 typedef typename Kernel::Scalar Scalar;
-                typedef geometry::extractor<typename geometry_traits<T>::type> extractor;
-                typedef typename extractor::template primitive<typename Final::Kernel> Geometry;
-                typedef symbolic::TypeGeometry<Geometry> TypeGeometry;
-
-                BOOST_MPL_ASSERT((mpl::contains<mpl::vector<types...>, T>));
+                typedef symbolic::TypeGeometry<Part3D> TypeGeometry;
                 
                 //we may need to setup the graph. We do this here to allow to clear the geometry and later reinitialize by setting a new geometry.
                 std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 if(!holdsGeometry()) {                    
-                    fusion::vector<graph::LocalVertex, graph::GlobalVertex> res = cluster->addVertex();
-                    cluster->template setProperty<details::GraphObjectProperty>(fusion::at_c<0>(res), InheritedO::shared_from_this());
-                    setVertexProperty(fusion::at_c<1>(res));
+                    std::pair<std::shared_ptr<typename Final::Graph>, graph::LocalVertex> res = cluster->createCluster();
+                    cluster->template setProperty<details::GraphObjectProperty>(res.second, Inherited::shared_from_this());
+                    m_cluster = res.first;
                 };
                 
                 //store the type
-                m_type = Geometry::index();
-                InheritedV::m_variant = geometry;*/                
+                m_type = part;
             };
             
             /**
@@ -116,19 +115,31 @@ struct Part3D {
              * all constraints with other inner part geometries are ignored. However, constraints to 
              * geometries outside the Part or within other Parts can be created. They are than resolved 
              * by moving the Part in such a way, that the geometry constraints are fullfiled.
+             * @note when adding geometrie it is important in which coordinate system it is defined. 
+             *       This can be specified with the second parameter, there are 3 options:
+             *       1. Local, meaning the geometry is defined in the Parts coordinate system
+             *       2. Part, meaning the geometry is specified in the same CS as the part itself.
+             *       3. Global, meaning the geometry is specified within the toplevel reference CS. If 
+             *          the Part is not within annother Part "Global" is equal to "Part", but if the 
+             *          the Part is a subcomponent of other Parts all of them will be taken into account.
              */
             template<typename T>
-            std::shared_ptr<Geometry3D> addGeometry3D(const T& geom) {};
-        };
-
+            std::shared_ptr<typename Stacked::Geometry3D> addGeometry3D(const T& geom, Scope s = Scope::Local) {
+                
+            };
+            
+            bool holdsGeometry() {return bool(m_cluster);}
             
         protected:
-            Final* m_system;
-         
+            Final*                                  m_system;
+            Type                                    m_type;
+            std::shared_ptr<graph::AccessGraphBase> m_cluster;
+        };
+        
         DCM_MODULE_ADD_OBJECTS(Stacked, (Part3D))
 
     public:  
-        std::shared_ptr<Geometry3D> addPart3D(const Type& part) {
+        std::shared_ptr<Part3D> addPart3D(const Type& part) {
             
             auto p = std::make_shared<Part3D>(static_cast<Final*>(this));
             p->set(part);
