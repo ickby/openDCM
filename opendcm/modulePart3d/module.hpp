@@ -80,7 +80,36 @@ struct ModulePart3D {
         public:            
             Part3D(Final* system) 
                 : Stacked::Object( Final::template objectTypeID<typename Final::Part3D>::ID::value ),
-                m_system(system) {};
+                m_system(system) {
+                    
+                typedef typename Final::Kernel  Kernel;
+                typedef typename Kernel::Scalar Scalar;
+                typedef symbolic::TypeGeometry<Part3D> TypeGeometry;
+                
+                //we may need to setup the graph. We do this here to allow to clear the geometry and later reinitialize by setting a new geometry.
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
+                std::pair<std::shared_ptr<typename Final::Graph>, graph::LocalVertex> res = cluster->createCluster();
+                cluster->template setProperty<details::GraphObjectProperty>(res.second, Inherited::shared_from_this());
+                setVertexProperty(cluster->getGlobalVertex(res.second));
+                m_cluster = res.first;
+            
+            };
+            
+            Part3D(std::shared_ptr<Part3D> parent) 
+                : Stacked::Object( Final::template objectTypeID<typename Final::Part3D>::ID::value ),
+                m_system(parent->m_system) {
+                    
+                typedef typename Final::Kernel  Kernel;
+                typedef typename Kernel::Scalar Scalar;
+                typedef symbolic::TypeGeometry<Part3D> TypeGeometry;
+                
+                //we may need to setup the graph. We do this here to allow to clear the geometry and later reinitialize by setting a new geometry.
+                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(parent->m_cluster);
+                std::pair<std::shared_ptr<typename Final::Graph>, graph::LocalVertex> res = cluster->createCluster();
+                cluster->template setProperty<details::GraphObjectProperty>(res.second, Inherited::shared_from_this());
+                setVertexProperty(cluster->getGlobalVertex(res.second));
+                m_cluster = res.first;
+            };
             
             /**
              * @brief Set the content and stores the user type
@@ -92,21 +121,9 @@ struct ModulePart3D {
              * without any special qualifiers then a copy of the given user type is strored.
             */
             void set(const Type& part) {
-                
-                typedef typename Final::Kernel  Kernel;
-                typedef typename Kernel::Scalar Scalar;
-                typedef symbolic::TypeGeometry<Part3D> TypeGeometry;
-                
-                //we may need to setup the graph. We do this here to allow to clear the geometry and later reinitialize by setting a new geometry.
-                std::shared_ptr<typename Final::Graph> cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
-                if(!holdsGeometry()) {                    
-                    std::pair<std::shared_ptr<typename Final::Graph>, graph::LocalVertex> res = cluster->createCluster();
-                    cluster->template setProperty<details::GraphObjectProperty>(res.second, Inherited::shared_from_this());
-                    m_cluster = res.first;
-                };
-                
                 //store the type
                 m_type = part;
+                m_isSet  = true;
             };
             
             /**
@@ -126,14 +143,89 @@ struct ModulePart3D {
             template<typename T>
             std::shared_ptr<typename Stacked::Geometry3D> addGeometry3D(const T& geom, Scope s = Scope::Local) {
                 
+                auto g = m_system->addGeometry3D(geom);
+                
+                //we need to transfer the geometry to our cluster
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
+                auto globalVertex = g->template getProperty<VertexProperty>();
+                //it may be a sub-sub cluster etc.
+                auto subcluster = cluster->getLocalVertexGraph(globalVertex); // fusion::vector<LocalVertex, std::shared_ptr<ClusterGraph>, bool>
+                dcm_assert(boost::fusion::at_c<2>(subcluster));
+                cluster->moveToSubcluster(res.first, std::static_pointer_cast<typename Final::Graph>(m_cluster));    
+                
+                //store the scope for later transformations
+                m_scopeMap[g] = s;
             };
             
-            bool holdsGeometry() {return bool(m_cluster);}
+            /**
+             * @brief Adds a child Part to this Part
+             * The new part is rigidly connected with all other geometries within the Part, that means
+             * all constraints with other inner part geometries are ignored. However, constraints to 
+             * geometries outside the Part or within other Parts can be created. They are than resolved 
+             * by moving the parent Part in such a way, that the child Part constraints are fullfiled.
+             * @note when adding a part it is important in which coordinate system it is defined. 
+             *       This can be specified with the second parameter, there are 3 options:
+             *       1. Local, meaning the part is defined in the Parts coordinate system
+             *       2. Part, meaning the part is specified in the same CS as the part itself.
+             *       3. Global, meaning the part is specified within the toplevel reference CS. If 
+             *          the parent Part is not within annother Part "Global" is equal to "Part", but if the 
+             *          the parent Part is a subcomponent of other Parts all of them will be taken into account.
+             */
+            std::shared_ptr<typename Stacked::Geometry3D> addPart3D(const Type& part, Scope s = Scope::Local) {
+                                
+                auto p = std::make_shared<Part3D>(std::static_pointer_cast<Part3D>(Inherited::shared_from_this()));
+                p->set(part);
+                
+                //store the scope for later transformations
+                m_scopeMap[p] = s;
+                
+                return p;
+            };
+            
+            bool holdsGeometry() {return m_isSet;}
             
         protected:
-            Final*                                  m_system;
-            Type                                    m_type;
-            std::shared_ptr<graph::AccessGraphBase> m_cluster;
+            Final*                                                      m_system;
+            Type                                                        m_type;
+            bool                                                        m_isSet = false;
+            std::shared_ptr<graph::AccessGraphBase>                     m_cluster;
+            std::map<std::shared_ptr<dcm::details::GraphObject>, Scope> m_scopeMap;
+            
+            virtual void preprocessVertex(std::shared_ptr<graph::AccessGraphBase> g, 
+                                          graph::LocalVertex lv, graph::GlobalVertex gv) override {
+                
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(g);
+                auto prop = cluster->template getProperty<GeometryProperty>(lv);
+                
+                //if the property is not available or does not hold the correct type we need to delete it, no way around
+                if(prop && prop->getType() != geometry::Part3<Kernel>::index()) {
+                    delete prop;
+                    prop = nullptr;
+                }
+                
+                //if no property in existance we need to create it
+                if(!prop) {
+                    prop = new symbolic::TypeGeometry<geometry::Part3<Kernel>>;
+                    cluster->template setProperty<GeometryProperty>(lv, prop);
+                }
+                
+                //TODO: transform the child geometries dependend on their scope
+                    
+                //we definitly need to set the value
+                (typename geometry_traits<Type>::modell()).template extract<typename Kernel::Scalar, 
+                                                                    typename geometry_traits<Type>::accessor>(
+                              m_type, static_cast<symbolic::TypeGeometry<geometry::Part3<Kernel>>*>(prop)->getPrimitve());
+            };
+            
+            virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase> g,
+                                           graph::LocalVertex lv, graph::GlobalVertex) override {
+                
+                auto cluster = std::static_pointer_cast<typename Final::Graph>(g);
+                auto prop = cluster->template getProperty<GeometryProperty>(lv);
+                (typename geometry_traits<Type>::modell()).template inject<typename Kernel::Scalar, 
+                                                                    typename geometry_traits<Type>::accessor >(
+                             m_type,  static_cast<symbolic::TypeGeometry<geometry::Part3<Kernel>>*>(prop)->getPrimitve());
+            };
         };
         
         DCM_MODULE_ADD_OBJECTS(Stacked, (Part3D))

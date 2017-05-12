@@ -35,48 +35,42 @@ namespace modell {
      * 2 = y;
      * 3 = z;
      */    
-    template<typename Kernel, typename Accessor, typename Type>
-    void extract(Type& t, typename Kernel::Transform3D& trans) {
+    template<typename Scalar, typename Accessor, typename Primitive, typename Type>
+    void extract(Type& t, Primitive& v) {
       
-      typedef typename Kernel::number_type Scalar;
-      typedef typename Kernel::Transform3D::Rotation 	Rotation;
-      typedef typename Kernel::Transform3D::Translation Translation;
-      
-      Accessor a;
-      Rotation r;
-      r.w() = a.template get<Scalar, 0>(t);
-      r.x() = a.template get<Scalar, 1>(t);
-      r.y() = a.template get<Scalar, 2>(t);
-      r.z() = a.template get<Scalar, 3>(t);
-      
-      Translation tr;;
-      tr.vector()(0) = a.template get<Scalar, 4>(t);
-      tr.vector()(1) = a.template get<Scalar, 5>(t);
-      tr.vector()(2) = a.template get<Scalar, 6>(t);
-      
-      trans =  r;
-      trans *= tr;      
+        Accessor a;
+        dcm::details::Transform<Scalar, 3> trans;
+        
+        typename dcm::details::Transform<Scalar, 3>::Rotation Q( a.template get<Scalar, 0>(t),
+                                                                 a.template get<Scalar, 1>(t),
+                                                                 a.template get<Scalar, 2>(t),
+                                                                 a.template get<Scalar, 3>(t));
+        
+        typename dcm::details::Transform<Scalar, 3>::Translation T( a.template get<Scalar, 4>(t),
+                                                                    a.template get<Scalar, 5>(t),
+                                                                    a.template get<Scalar, 6>(t));
+        
+        v.transform() =  dcm::details::Transform<Scalar, 3>(Q,T);
     }
     
-    template<typename Kernel, typename Accessor, typename Type>
-    void inject(Type& t, typename Kernel::Transform3D& trans) {
+    template<typename Scalar, typename Accessor, typename Primitive, typename Type>
+    void inject(Type& t, Primitive& v) {
       
-      typedef typename Kernel::number_type Scalar;
-      typedef typename Kernel::Transform3D::Rotation 	Rotation;
-      typedef typename Kernel::Transform3D::Translation Translation;
+      typedef typename Eigen::Quaternion<Scalar>   Rotation;
+      typedef typename Eigen::Matrix<Scalar, 3,1>  Translation;
       
       Accessor a;
       
-      const Rotation& r = trans.rotation();
+      const Rotation& r(v.rotation());
       a.template set<Scalar, 0>(r.w(), t);
       a.template set<Scalar, 1>(r.x(), t);
       a.template set<Scalar, 2>(r.y(), t);
       a.template set<Scalar, 3>(r.z(), t);
       
-      const Translation& tr = trans.translation();
-      a.template set<Scalar, 4>(tr.vector()(0), t);
-      a.template set<Scalar, 5>(tr.vector()(1), t);
-      a.template set<Scalar, 6>(tr.vector()(2), t);
+      const Translation& tr(v.translation());
+      a.template set<Scalar, 4>(tr(0), t);
+      a.template set<Scalar, 5>(tr(1), t);
+      a.template set<Scalar, 6>(tr(2), t);
       
       a.finalize(t);
     };
