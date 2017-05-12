@@ -149,12 +149,14 @@ struct ModulePart3D {
                 auto cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 auto globalVertex = g->template getProperty<VertexProperty>();
                 //it may be a sub-sub cluster etc.
-                auto subcluster = cluster->getLocalVertexGraph(globalVertex); // fusion::vector<LocalVertex, std::shared_ptr<ClusterGraph>, bool>
-                dcm_assert(boost::fusion::at_c<2>(subcluster));
-                cluster->moveToSubcluster(res.first, std::static_pointer_cast<typename Final::Graph>(m_cluster));    
+                auto localVertex = cluster->getLocalVertex(globalVertex);
+                dcm_assert(localVertex.second);
+                cluster->moveToSubcluster(localVertex.first, getVertexProperty());    
                 
                 //store the scope for later transformations
                 m_scopeMap[g] = s;
+                
+                return g;
             };
             
             /**

@@ -506,45 +506,48 @@ public:
     * *******************************************************/
 
     /**
-     * @brief Move a vertex to a subcluster
-     *
-     * Overloaded convinience function which fetches the local descriptor for the cluster reference and calls
-     * the full parameter equivalent. Both cluster and vertex must be in the local cluster.
-     *
-     * @param v the LocalVertex to be moved
-     * @param cg reference to the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
-     **/
-    LocalVertex moveToSubcluster(LocalVertex v, std::shared_ptr<ClusterGraph> cg);
-
-    /**
-     * @brief Move a vertex to a subcluster
-     *
-     * Overloaded convinience function which fetches the the cluster reference for the local descriptor and calls
-     * the full parameter equivalent. Both cluster and vertex must be in the local cluster.
-     *
-     * @param v the LocalVertex to be moved
-     * @param Cluster the local vertex descriptor representing the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
-     **/
-    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster);
-
-    /**
-     * @brief Move a vertex to a subcluster
+     * @brief Move a vertex to a direct child subcluster
      *
      * This function moves the LocalVertex to the subcluster and reconnects all other vertices and clusters. The
      * moved vertex will hold it's global descriptor but get a new local one assigned (the one returned). The same
      * stands for all edges which use the moved vertex: global descriptors stay the same, but they are moved to new
      * local edges. It's allowed to move cluster vertices with this function.
-     * The specified cluster has of course to be a valid and direct subcluster, the move vertex also has to be in the
-     * local cluster.
+     * @note: The subcluster must be a direct child of this cluster, it is not allowed to be further down in the 
+     *        hirarchy. It must also not be a parent cluster.
+     * @param v the LocalVertex to be moved
+     * @param cg reference to the subcluster to which v should be moved
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster it was moved to
+     **/
+    LocalVertex moveToSubcluster(LocalVertex v, std::shared_ptr<ClusterGraph> cg);
+
+    /**
+     * @brief Move a vertex to a direct child subcluster
      *
+     * Overloaded convinience function which fetches the the cluster reference for the local descriptor and calls
+     * the correct equivalent.
+     * @note The subcluster defined by the local vertex must be a direct child of this cluster, no deeper 
+     *       nested hirarchies are allowed
      * @param v the LocalVertex to be moved
      * @param Cluster the local vertex descriptor representing the subcluster to which v should be moved
-     * @param cg reference to the subcluster to which v should be moved
-     * @return LocalVertex the local descriptor of the moved vertex in the subcluster
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster it was moved to
      **/
-    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster, std::shared_ptr<ClusterGraph> cg);
+    LocalVertex moveToSubcluster(LocalVertex v, LocalVertex Cluster);
+
+    /**
+     * @brief Move a vertex to any child subcluster
+     *
+     * This function does move the vertex to a child exactly like the other two overloads, however, it 
+     * is allowed to specify a global vertex which is deeper down in a hirarchy, meaning it must not 
+     * be a direct child of this cluster. This allows to move local vertices over multiple subcluster 
+     * borders with a single call. The global vertex is the vertex descriptor of the cluster in its own parent. 
+     * For example, if you have cluster1 -> cluster2 ->cluster2 and want to move something from cluster1 
+     * to cluster 3, the GlobalVertex is the cluster vertex within cluster 2.
+     *
+     * @param v the LocalVertex to be moved
+     * @param Cluster the global vertex descriptor representing the subcluster to which v should be moved
+     * @return LocalVertex the local descriptor of the moved vertex in the subcluster it was moved to
+     **/
+    LocalVertex moveToSubcluster(LocalVertex v, GlobalVertex Cluster);
 
 
     /**
@@ -1078,10 +1081,18 @@ void ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::remove
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, std::shared_ptr<ClusterGraph> cg) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, GlobalVertex gv) {
 
-    LocalVertex cv = getClusterVertex(cg);
-    return moveToSubcluster(v, cv, cg);
+    auto res = getContainingVertex(gv); //std::pair<LocalVertex, bool> 
+    dcm_assert(res.second);
+    //we definitely move it to the subcluster
+    auto nv = moveToSubcluster(v, res.first);
+    
+    //now check if this is already the correct one, and if not move it further down.
+    if(Base::getGlobalVertex(res.first) != gv)        
+        return getVertexCluster(res.first)->moveToSubcluster(nv, gv);
+    
+    return nv;
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
@@ -1089,13 +1100,15 @@ LocalVertex
 ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, LocalVertex Cluster) {
 
     std::shared_ptr<ClusterGraph> cg = getVertexCluster(Cluster);
-    return moveToSubcluster(v, Cluster, cg);
+    return moveToSubcluster(v, cg);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>
 LocalVertex
-ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, LocalVertex Cluster, std::shared_ptr<ClusterGraph> cg) {
+ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::moveToSubcluster(LocalVertex v, std::shared_ptr<ClusterGraph> cg) {
 
+    LocalVertex Cluster = getClusterVertex(cg);
+    
     std::pair<local_out_edge_iterator, local_out_edge_iterator> it =  boost::out_edges(v, m_graph);
 
     /* add the later removed edges to the coressponding existing edges

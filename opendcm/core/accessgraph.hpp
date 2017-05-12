@@ -671,8 +671,8 @@ public:
     /**
      * @brief Get the LocalVertex which corresponds to the golab one
      *
-     * The GlobalVertex has to be in this cluster or any of it's subclusters. If its in a subcluster, the returned
-     * LocalVertex will represent this cluster. If the GlobalVertex is not in this clusters scope the function fails.
+     * The GlobalVertex has to be in this cluster. If the GlobalVertex is not in this clusters scope 
+     * the function fails, indicated by a false in the boolean return type.
      *
      * @param vertex GlobalVertex for which the local one shall be returned
      * @return std::pair< LocalVertex, bool > The LocalVertex containing the global one and an success indicator
