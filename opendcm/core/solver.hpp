@@ -329,17 +329,23 @@ struct Builder {
     };
         
 
-    /**
-    * @brief Creates a optimal numeric representation of the graph
-    * 
-    * This function returns a executable which can solve the dimensional constraint problem numerically.
-    * It ensures that the system is optimally processed with symbolic methods and hence that the resulting
-    * numeric equation system is minimal. Excecute will trigger the solving.
-    */
-    template<typename Final, typename Graph, typename Converter>
-    static void solveSystem(std::shared_ptr<Graph> g, Converter& c) {
-       
-        //first do all the needed preprocessing
+    template<typename Graph>
+    static void preprocessSystem(std::shared_ptr<Graph> g) {
+        
+        //as we need to access abolutely every node in the cluster structure we do this recursive
+        //first process all subcluster
+        auto iter = g->clusters();
+        std::for_each(iter.first, iter.second, 
+            [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
+                auto prop = g->template getProperty<details::GraphObjectProperty>(sub.first);
+                if(prop)
+                    prop->preprocessCluster(g, sub.first, sub.second);
+                
+                preprocessSystem(sub.second);
+            }
+        );        
+
+        //start of with vertices
         auto vit = g->vertices();
         std::for_each(vit.first, vit.second, [g](const graph::LocalVertex& v) {
             auto prop = g->template getProperty<details::GraphObjectProperty>(v);
@@ -347,6 +353,7 @@ struct Builder {
                 prop->preprocessVertex(g, v, g->template getProperty<graph::VertexProperty>(v));
         });
                 
+        //and finish with edges
         auto eit = g->edges();
         std::for_each(eit.first, eit.second, [g](const graph::LocalEdge& e) {
             auto geit = g->getGlobalEdges(e);
@@ -356,6 +363,17 @@ struct Builder {
                     prop->preprocessEdge(g, ge);
             });
         });
+    };
+    
+    /**
+    * @brief Creates a optimal numeric representation of the graph
+    * 
+    * This function returns a executable which can solve the dimensional constraint problem numerically.
+    * It ensures that the system is optimally processed with symbolic methods and hence that the resulting
+    * numeric equation system is minimal. Excecute will trigger the solving.
+    */
+    template<typename Final, typename Graph, typename Converter>
+    static void solveSystem(std::shared_ptr<Graph> g, Converter& c) {       
         
         //maybe we don't need to do anything. Preprocessing need to be done even if vertices only,
         //but from here we can omit anything when no constraints are available. (for example fix cluster)
@@ -398,11 +416,15 @@ struct Builder {
     template<typename Graph>
     static void postprocessSystem(std::shared_ptr<Graph> g) {
     
-        //as we need to access abolutely every node in the cluste rstructure we do this recursive
+        //as we need to access abolutely every node in the cluster structure we do this recursive
         //first process all subcluster
         auto iter = g->clusters();
         std::for_each(iter.first, iter.second, 
             [&](typename std::iterator_traits<typename Graph::cluster_iterator>::value_type& sub) {
+                auto prop = g->template getProperty<details::GraphObjectProperty>(sub.first);
+                if(prop)
+                    prop->preprocessCluster(g, sub.first, sub.second);
+                
                 postprocessSystem(sub.second);
             }
         );

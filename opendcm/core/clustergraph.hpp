@@ -1328,7 +1328,7 @@ ClusterGraph<edge_prop, globaledge_prop, vertex_prop, cluster_prop>::getContaini
     if(isCluster(v) && (Base::getGlobalVertex(v) != id))
         return m_clusters[v]->getContainingVertexGraph(id);
     else
-        return fusion::make_vector(v, sp_base::shared_from_this(), true);
+        return fusion::make_vector(v, std::static_pointer_cast<ClusterGraph>(sp_base::shared_from_this()), true);
 };
 
 template< typename edge_prop, typename globaledge_prop, typename vertex_prop, typename cluster_prop>

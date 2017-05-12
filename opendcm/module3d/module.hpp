@@ -279,7 +279,7 @@ struct Module3D {
             };    
             
             template<typename ...Constraints>
-            void set(Constraints&... cons) {
+            void setConstraints(Constraints&... cons) {
                 
                 auto cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
                 
@@ -398,7 +398,7 @@ struct Module3D {
         template<typename T>
         std::shared_ptr<Geometry3D> addGeometry3D(const T& geom) {
             
-            auto g = std::make_shared<Geometry3D>(static_cast<Final*>(this));
+            auto g = std::make_shared<typename Final::Geometry3D>(static_cast<Final*>(this));
             g->set(geom);
             return g;
         };
@@ -408,19 +408,19 @@ struct Module3D {
                                                       std::shared_ptr<Geometry3D> G2,
                                                       Constraints&... cons) { 
             
-            auto c = std::make_shared<Constraint3D>(static_cast<Final*>(this));
+            auto c = std::make_shared<typename Final::Constraint3D>(static_cast<Final*>(this));
             c->set(G1, G2);
-            c->set(cons...);
+            c->setConstraints(cons...);
             return c;
         };
         
         template<typename ...Constraints>
         std::shared_ptr<Constraint3D> addConstraint3D(std::shared_ptr<Geometry3D> G,
-                                                      Constraints&... cons) { 
+                                                                      Constraints&... cons) { 
             
-            auto c = std::make_shared<Constraint3D>(static_cast<Final*>(this));
+            auto c = std::make_shared<typename Final::Constraint3D>(static_cast<Final*>(this));
             c->set(G);
-            c->set(cons...);
+            c->setConstraints(cons...);
             return c;
         };
         

@@ -87,6 +87,16 @@ BOOST_AUTO_TEST_CASE(MapMatrixTransform3D) {
     dcm::details::Transform<double,3> normal;
     t = normal;
     normal = t;   
+    
+    //inverse?
+    t.inverse();
+    
+    //check if we can multiply with each other
+    auto res2 = normal*t;
+    normal*=t;
+    
+    auto res1 = t*t;
+    auto res3 = t*normal;
 }
 
 BOOST_AUTO_TEST_CASE(CombineTransforms) {

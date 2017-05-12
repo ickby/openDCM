@@ -235,14 +235,22 @@ struct ModuleCoreFinish : public Stacked {
     void solve() {       
         
         auto start = std::chrono::system_clock::now();
-        //build up the system and solve
-        auto g = std::static_pointer_cast<Graph>(this->getGraph());
+     
+        auto g = std::static_pointer_cast<Graph>(this->getGraph());  
+        
+#ifdef DCM_USE_LOGGING
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Start Preprocessing";
+#endif
+        //pre process to get the data into the system. 
+        solver::Builder::preprocessSystem(g);
+        
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Execute Solver";
 #endif
         solver::Builder::solveSystem<Final>(g, m_converter);
+        
 #ifdef DCM_USE_LOGGING
-        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done Solver, postprocess";
+        BOOST_LOG_SEV(Stacked::log, details::solving) << "Done Solving, start postprocessing";
 #endif
         //post process the finished calculation. As solving throws an exception when not successfull we 
         //are sure that we finished and that we can process the solution

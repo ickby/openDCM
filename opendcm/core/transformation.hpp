@@ -47,6 +47,7 @@ public:
     typedef typename transform_traits<Derived>::Translation         Translation;
     typedef typename transform_traits<Derived>::RotationMatrix      RotationMatrix;
     typedef typename transform_traits<Derived>::TranslationVector   TranslationVector;
+    typedef typename transform_traits<Derived>::NewTransform        NewTransform;
 
 public:
     TransformBase();
@@ -76,26 +77,26 @@ public:
     Eigen::Transform<Scalar, Dimension, Eigen::AffineCompact> transformation();
 
     Derived& invert();
-    Derived  inverse() const;
+    NewTransform  inverse() const;
 
     //operators for value manipulation
     //********************************
 
     Derived& operator=(const Translation& t);
-    Derived operator*(const Translation& s) const;
+    NewTransform operator*(const Translation& s) const;
     Derived& operator*=(const Translation& t);
 
     template<typename OtherDerived>
     Derived& operator=(const Eigen::RotationBase<OtherDerived,Dimension>& r);
     template<typename OtherDerived>
-    Derived operator*(const Eigen::RotationBase<OtherDerived,Dimension>& r) const;
+    NewTransform operator*(const Eigen::RotationBase<OtherDerived,Dimension>& r) const;
     template<typename OtherDerived>
     Derived& operator*=(const Eigen::RotationBase<OtherDerived,Dimension>& r);
 
     template<typename OtherDerived>
     Derived& operator= (const TransformBase<OtherDerived>& other);
     template<typename OtherDerived>
-    Derived operator* (const TransformBase<OtherDerived>& other) const;
+    NewTransform operator* (const TransformBase<OtherDerived>& other) const;
     template<typename OtherDerived>
     Derived& operator*= (const TransformBase<OtherDerived>& other);
 
@@ -117,7 +118,7 @@ public:
     template<typename OtherDerived>
     bool isApprox(const TransformBase<OtherDerived>& other, Scalar prec = 1e-6) const;
     void setIdentity();
-    static const Derived Identity();
+    static const NewTransform Identity();
 
     Derived& normalize();
 
@@ -167,6 +168,8 @@ public:
     Transform(const Eigen::RotationBase<Derived, Dim>& r, const Translation& t) : Base(Rotation(r.derived()),t) {};
     template<typename Derived>
     Transform(const Eigen::MatrixBase<Derived>& r, const Translation& t) : Base(Rotation(r),t) {};
+    template<typename Derived1, typename Derived2>
+    Transform(const Eigen::MatrixBase<Derived1>& r, const Eigen::MatrixBase<Derived2>& t) : Base(Rotation(r),Translation(t)) {};
     
     //create the functions needed from the base class
     void setIdentity() {
@@ -214,6 +217,7 @@ struct transform_traits<Transform<S,D>> {
     typedef Eigen::Translation<Scalar, D>         Translation;
     typedef typename Rotation::RotationMatrixType RotationMatrix;
     typedef Eigen::Matrix<Scalar, 3, 1>           TranslationVector;
+    typedef Transform<Scalar, D>                  NewTransform;
 };
 
 
@@ -291,6 +295,7 @@ struct transform_traits<MapMatrixTransform<S,D>> {
     typedef Eigen::Map<Eigen::Matrix<Scalar, D, 1>> Translation;
     typedef Eigen::Matrix<Scalar, D, D>             RotationMatrix;
     typedef Translation                             TranslationVector;
+    typedef Transform<Scalar, D>                    NewTransform;
 };
 
 /**********************************************************************************************************************************
@@ -377,8 +382,8 @@ Derived& TransformBase<Derived>::invert() {
     return derived();
 };
 template<typename Derived>
-Derived TransformBase<Derived>::inverse() const {
-    Derived res(derived());
+typename TransformBase<Derived>::NewTransform TransformBase<Derived>::inverse() const {
+    NewTransform res(derived().rotation(), derived().translation());
     res.invert();
     return res;
 };
@@ -390,8 +395,8 @@ inline Derived& TransformBase<Derived>::operator=(const Translation& t) {
     return derived();
 }
 template<typename Derived>
-inline Derived TransformBase<Derived>::operator*(const Translation& t) const {
-    Derived res = derived();
+inline typename TransformBase<Derived>::NewTransform TransformBase<Derived>::operator*(const Translation& t) const {
+    NewTransform res = derived();
     res *= t;
     return res;
 }
@@ -410,8 +415,8 @@ inline Derived& TransformBase<Derived>::operator=(const Eigen::RotationBase<Othe
 }
 template<typename Derived>
 template<typename OtherDerived>
-inline Derived TransformBase<Derived>::operator*(const Eigen::RotationBase<OtherDerived,Dimension>& r) const {
-    Derived res = derived();
+inline typename TransformBase<Derived>::NewTransform TransformBase<Derived>::operator*(const Eigen::RotationBase<OtherDerived,Dimension>& r) const {
+    NewTransform res = derived();
     res *= r;
     return res;
 }
@@ -434,8 +439,8 @@ inline Derived& TransformBase<Derived>::operator= (const TransformBase<OtherDeri
 }
 template<typename Derived>
 template<typename OtherDerived>
-inline Derived TransformBase<Derived>::operator* (const TransformBase<OtherDerived>& other) const  {
-    Derived res(derived());
+inline typename TransformBase<Derived>::NewTransform TransformBase<Derived>::operator* (const TransformBase<OtherDerived>& other) const  {
+    NewTransform res(derived().rotation(), derived().translation());
     res*= other;
     return res;
 }
@@ -493,8 +498,8 @@ void TransformBase<Derived>::setIdentity() {
 }
 
 template<typename Derived>
-const Derived TransformBase<Derived>::Identity() {
-    return Derived();
+const typename TransformBase<Derived>::NewTransform TransformBase<Derived>::Identity() {
+    return NewTransform();
 }
 
 template<typename Derived>

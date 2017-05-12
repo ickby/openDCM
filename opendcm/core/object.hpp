@@ -124,11 +124,25 @@ struct object_has_property : public mpl::contains<typename Obj::Properties, Prop
 struct GraphObject : std::enable_shared_from_this<GraphObject> {
        
 protected:
+    ///preprocessing all vertices. This call happens after all subcluster of the given graph are preprocessed
     virtual void preprocessVertex(std::shared_ptr<graph::AccessGraphBase>, graph::LocalVertex, graph::GlobalVertex) {};
+    ///preprocess all edges. This call happens after all subcluster of the given graph are preprocessed
     virtual void preprocessEdge(std::shared_ptr<graph::AccessGraphBase>, graph::GlobalEdge) {};
     
+    ///postprocessing all vertices. This call happens after all subcluster of the given graph are preprocessed
     virtual void postprocessVertex(std::shared_ptr<graph::AccessGraphBase>, graph::LocalVertex, graph::GlobalVertex) {};
+    ///postprocessing all edges. This call happens after all subcluster of the given graph are preprocessed
     virtual void postprocessEdge(std::shared_ptr<graph::AccessGraphBase>, graph::GlobalEdge) {};
+    
+    
+    //postprocess clusters. Before postprocessing all vertices and edges within a cluster this call happens
+    virtual void preprocessCluster(std::shared_ptr<graph::AccessGraphBase>,     //the cluster currently processed
+                                   graph::LocalVertex,                          //the vertex within the cluster that is a subcluster
+                                   std::shared_ptr<graph::AccessGraphBase>) {}; //the subcluster the vertex represents
+    //postprocess clusters. Before postprocessing all vertices and edges within a cluster this call happens
+    virtual void postprocessCluster(std::shared_ptr<graph::AccessGraphBase>,     //the cluster currently processed
+                                    graph::LocalVertex,                          //the vertex within the cluster that is a subcluster
+                                    std::shared_ptr<graph::AccessGraphBase>) {}; //the subcluster the vertex represents
     
     friend struct solver::Builder;
 };
