@@ -1607,9 +1607,15 @@ struct NumericConverter : NumericConverterBase {
         std::vector<std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*>> stSymbolics, tsSymbolics;
         for (; it.first != it.second; ++it.first) {
             auto c = g->template getProperty<symbolic::ConstraintProperty>(*it.first);
-            //in case we have a cluster we need to access the global edge vertices directly
-            auto sg = g->template getProperty<symbolic::GeometryProperty>((*it.first).source);
-            auto tg = g->template getProperty<symbolic::GeometryProperty>((*it.first).target);
+            
+            //in case we have a cluster we need to access the global edge vertices in the correct graph            
+            auto res = g->getLocalVertexGraph((*it.first).source); 
+            dcm_assert(fusion::at_c<2>(res));
+            auto sg = fusion::at_c<1>(res)->template getProperty<symbolic::GeometryProperty>(fusion::at_c<0>(res));
+            
+            res = g->getLocalVertexGraph((*it.first).target);
+            dcm_assert(fusion::at_c<2>(res));
+            auto tg = fusion::at_c<1>(res)->template getProperty<symbolic::GeometryProperty>(fusion::at_c<0>(res));
              
             stSymbolics.push_back(std::make_tuple(c, sg, tg));
             tsSymbolics.push_back(std::make_tuple(c, tg, sg));

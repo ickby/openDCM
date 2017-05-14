@@ -11,14 +11,14 @@ link_directories ( ${Boost_LIBRARY_DIRS} ${TBB_LIBRARY_DIR} )
 set(framework_SRC framework.cpp)
 
 set(test_SRC  define.cpp
-              transform.cpp
+              #transform.cpp
               #kernel.cpp
-              system.cpp
-              numeric.cpp
-              constraint.cpp
-	      clustergraph.cpp
-	      reduction.cpp
-	      module3d.cpp
+              #system.cpp
+              #numeric.cpp
+              #constraint.cpp
+	      #clustergraph.cpp
+	      #reduction.cpp
+	      #module3d.cpp
 	      modulepart.cpp
               #clustermath.cpp
               #constraints3d.cpp

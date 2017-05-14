@@ -665,10 +665,9 @@ protected:
 template<typename Primitive>
 struct TypeGeometry : public Geometry {
 
-    void       setPrimitive(const Primitive& g) {
-        m_geometry = g;
-        m_type = g.id();
-    }
+    TypeGeometry() { m_type = Primitive::id();};
+    
+    void       setPrimitive(const Primitive& g) {m_geometry = g;};
     Primitive& getPrimitve() {return m_geometry;};
     
 protected:   
