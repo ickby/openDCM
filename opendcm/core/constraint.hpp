@@ -88,15 +88,6 @@ enum class Fixables {pointX, pointY, pointZ, directionX, directionY, directionZ,
  */
 namespace constraint {  
 
-template<int Arity>
-class ConstraintIndex {
-protected:      
-    static int generateIndex(){
-        static int idx = -1;
-        return ++idx;
-    }
-};
-
 /**
  * @brief Herlper class to create primitive constraints
  * 
@@ -126,7 +117,7 @@ protected:
  * \tparam OptionTypes a variadic sequence of copy constructable types which describe the stored options
 */    
 template<typename Derived, int GCount, typename ...OptionTypes>
-struct Constraint : public ConstraintIndex<GCount> {
+struct Constraint : public utilities::IDGeneratorBase {
 
     const static int Arity = GCount;
     typedef typename fusion::vector<OptionTypes...> Options;
@@ -199,10 +190,10 @@ struct Constraint : public ConstraintIndex<GCount> {
     };
     
     /**
-     * @brief Returns the index of the geometry
+     * @brief Returns the id of the constraint
      */
-    static int index() {
-        static int idx = ConstraintIndex<Arity>::generateIndex();
+    static int id() {
+        static int idx = utilities::IDGeneratorBase::generateId();
         return idx;
     }
        
@@ -236,7 +227,7 @@ struct TypeConstraint : public Constraint {
 
     void       setPrimitive(const Primitive& c) {
         m_constraint = c;
-        m_type = c.index();
+        m_type = c.id();
         m_arity = Primitive::Arity;
     };    
     Primitive& getPrimitive() {return m_constraint;};    

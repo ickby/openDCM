@@ -699,7 +699,7 @@ struct ConstraintEqualValue {
         symbolic::Constraint* validConstraint(TreeWalker* walker) const override {
             
             auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(), Constraint::Arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::id(), Constraint::Arity);
             if(!cons)
                 return nullptr;
             
@@ -744,7 +744,7 @@ struct ConstraintUnequalValue {
         symbolic::Constraint* validConstraint(TreeWalker* walker) const override {
             
             auto cwalker = static_cast<ConstraintWalker<Kernel>*>(walker);
-            auto cons = cwalker->template getConstraint<Constraint>(Constraint::index(), Constraint::Arity);
+            auto cons = cwalker->template getConstraint<Constraint>(Constraint::id(), Constraint::Arity);
             if(!cons)
                 return nullptr;
             
@@ -1221,8 +1221,8 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     typedef std::shared_ptr<numeric::Calculatable<Kernel>>                            CalcPtr;
     typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*,symbolic::Geometry*> BinarySymbolicTuple;
     typedef std::tuple<symbolic::Constraint*,symbolic::Geometry*>                     UnarySymbolicTuple;
-    typedef std::vector<BinarySymbolicTuple>                                                BinarySymbolicVector;   
-    typedef std::vector<UnarySymbolicTuple>                                          UnarySymbolicVector; 
+    typedef std::vector<BinarySymbolicTuple>                                          BinarySymbolicVector;   
+    typedef std::vector<UnarySymbolicTuple>                                           UnarySymbolicVector; 
     typedef boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>  UnaryGeneratorArray;
     typedef boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3> BinaryGeneratorArray;
     
@@ -1230,10 +1230,10 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
                       reduction::ConstraintWalker<Kernel>* sw, reduction::ConstraintWalker<Kernel>* tw,
                       const BinarySymbolicVector& defaultConstraints, const UnarySymbolicVector& svConstraints, 
                       const UnarySymbolicVector& tvConstraints, const BinaryGeneratorArray& cg, 
-                      const UnaryGeneratorArray& ucg) 
+                      const UnaryGeneratorArray& ucg, const std::vector<int>& idToIndex) 
         : m_sourceVertex(source), m_targetVertex(target), m_sourceWalker(sw), m_targetWalker(tw), 
           m_constraints(defaultConstraints), m_sourceConstraints(svConstraints), m_targetConstraints(tvConstraints),
-          m_binaryGeneratorArray(cg), m_unaryGeneratorArray(ucg) {
+          m_binaryGeneratorArray(cg), m_unaryGeneratorArray(ucg), m_idToIndex(idToIndex) {
               
         //we need to setup the parameter reduction
         auto init = std::static_pointer_cast<reduction::GeometryNode<Kernel>>(sw->getInitialNode())->staticParameterCount();
@@ -1349,9 +1349,9 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         
         std::vector<CalcPtr> equations;
         for(auto tuple : m_constraints)
-            equations.push_back(m_binaryGeneratorArray[std::get<1>(tuple)->getType()]
-                                               [std::get<2>(tuple)->getType()]
-                                               [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
+            equations.push_back(m_binaryGeneratorArray[m_idToIndex[std::get<1>(tuple)->getType()]]
+                                                      [m_idToIndex[std::get<2>(tuple)->getType()]]
+                                                      [m_idToIndex[std::get<0>(tuple)->getType()]]->buildEquation(g1, g2, std::get<0>(tuple)));
         
         Base::setEdgeEquations(equations);
         return equations;
@@ -1368,8 +1368,8 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
             constraints = m_targetConstraints;
         
         for(auto tuple : constraints) {
-            auto* gen = m_unaryGeneratorArray[std::get<1>(tuple)->getType()]
-                                             [std::get<0>(tuple)->getType()];
+            auto* gen = m_unaryGeneratorArray[m_idToIndex[std::get<1>(tuple)->getType()]]
+                                             [m_idToIndex[std::get<0>(tuple)->getType()]];
             
             if(!gen->applyToEquation(Geometry, std::get<0>(tuple)))
                 equations.push_back(gen->buildEquation(Geometry, std::get<0>(tuple)));
@@ -1385,9 +1385,9 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
     createBinaryEquationsNode(CalcPtr g1, CalcPtr g2, std::shared_ptr<shedule::FlowGraph> flow) override {
     
         if(m_constraints.size() == 1) {
-            auto node = m_binaryGeneratorArray[std::get<1>(m_constraints[0])->getType()]
-                                       [std::get<2>(m_constraints[0])->getType()]
-                                       [std::get<0>(m_constraints[0])->getType()]->buildEquationNode(g1, g2, 
+            auto node = m_binaryGeneratorArray[m_idToIndex[std::get<1>(m_constraints[0])->getType()]]
+                                       [m_idToIndex[std::get<2>(m_constraints[0])->getType()]]
+                                       [m_idToIndex[std::get<0>(m_constraints[0])->getType()]]->buildEquationNode(g1, g2, 
                                                                                                 std::get<0>(m_constraints[0]),
                                                                                                 flow);
             std::vector<CalcPtr> vec = {node.first};
@@ -1414,8 +1414,8 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
             constraints = m_targetConstraints;
         
         if(constraints.size() == 1) {
-            auto gen = m_unaryGeneratorArray[std::get<1>(constraints[0])->getType()]
-                                            [std::get<0>(constraints[0])->getType()];
+            auto gen = m_unaryGeneratorArray[m_idToIndex[std::get<1>(constraints[0])->getType()]]
+                                            [m_idToIndex[std::get<0>(constraints[0])->getType()]];
                                             
             if(!gen->applyToEquation(Geometry, std::get<0>(constraints[0]))) {
                 auto node = gen->buildEquationNode(Geometry, std::get<0>(constraints[0]), flow);
@@ -1442,15 +1442,15 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         std::vector<CalcPtr> equations;
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
         for(auto tuple : walker->binaryConstraintPool())
-            equations.push_back(m_binaryGeneratorArray[std::get<1>(tuple)->getType()]
-                                               [std::get<2>(tuple)->getType()]
-                                               [std::get<0>(tuple)->getType()]->buildEquation(g1, g2, std::get<0>(tuple)));
+            equations.push_back(m_binaryGeneratorArray[m_idToIndex[std::get<1>(tuple)->getType()]]
+                                               [m_idToIndex[std::get<2>(tuple)->getType()]]
+                                               [m_idToIndex[std::get<0>(tuple)->getType()]]->buildEquation(g1, g2, std::get<0>(tuple)));
         
         //TODO: Not sure if this mapping works
         CalcPtr vertexPtr = (target==m_sourceVertex) ? g1 : g2;
         for(auto tuple : walker->unaryConstraintPool()) {
-            auto gen = m_unaryGeneratorArray[std::get<1>(tuple)->getType()]
-                                            [std::get<0>(tuple)->getType()];
+            auto gen = m_unaryGeneratorArray[m_idToIndex[std::get<1>(tuple)->getType()]]
+                                            [m_idToIndex[std::get<0>(tuple)->getType()]];
             if(!gen->applyToEquation(vertexPtr, std::get<0>(tuple)))
                 equations.push_back(gen->buildEquation(vertexPtr, std::get<0>(tuple)));
         }
@@ -1467,9 +1467,9 @@ struct ConstraintEquationHandler : public EdgeEquationHandler<Kernel> {
         reduction::ConstraintWalker<Kernel>* walker = (m_targetVertex == target) ? m_targetWalker : m_sourceWalker;
         if((walker->binaryConstraintPool().size() == 1) && walker->unaryConstraintPool().empty()) {
             auto front = walker->binaryConstraintPool().front();
-            auto node = m_binaryGeneratorArray[std::get<1>(front)->getType()]
-                                              [std::get<2>(front)->getType()]
-                                              [std::get<0>(front)->getType()]->buildEquationNode(g1, g2, 
+            auto node = m_binaryGeneratorArray[m_idToIndex[std::get<1>(front)->getType()]]
+                                              [m_idToIndex[std::get<2>(front)->getType()]]
+                                              [m_idToIndex[std::get<0>(front)->getType()]]->buildEquationNode(g1, g2, 
                                                                                           std::get<0>(front),
                                                                                           flow);
             std::vector<CalcPtr> vec = {node.first};
@@ -1510,6 +1510,7 @@ private:
     UnarySymbolicVector                  m_targetConstraints;   //all constraints at the target vertex
     const BinaryGeneratorArray&          m_binaryGeneratorArray;//array with ConstraintGenerators for this special geometry combination
     const UnaryGeneratorArray&           m_unaryGeneratorArray; //array of constraint generators for unary constraitns
+    const std::vector<int>&              m_idToIndex;           //mapping from type ids to index within the arrays
 };
 } //numeric
 
@@ -1537,23 +1538,27 @@ struct NumericConverter : NumericConverterBase {
               
     NumericConverter() {     
         
-        int size = mpl::size<GeometryList>::type::value;
-        m_treeArray.resize(boost::extents[size][size]);
+        //setup the mapping from Id to index
+        mpl::for_each<GeometryList>(IndexCreator(m_idToIndex));
+        mpl::for_each<ConstraintList>(IndexCreator(m_idToIndex));
+        mpl::for_each<UnaryConstraintList>(IndexCreator(m_idToIndex));
         
-        //nsetup all geometry combinations
-        utilities::RecursiveSequenceApplyer<GeometryList, ReductionTreeCreator> r(m_treeArray);
+        //setup the geometric reduction trees
+        int size = mpl::size<GeometryList>::type::value;
+        m_treeArray.resize(boost::extents[size][size]);       
+        utilities::RecursiveSequenceApplyer<GeometryList, ReductionTreeCreator> r(m_treeArray, m_idToIndex);
         mpl::for_each<GeometryList>(r);
         
-        //do all the same for the constraints
+        //setup the constraint generators
         int constraints = mpl::size<ConstraintList>::type::value;
         m_binaryGeneratorArray.resize(boost::extents[size][size][constraints]);        
-        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>> g(m_binaryGeneratorArray);
+        utilities::RecursiveSequenceApplyer<GeometryList, ConstraintGeneratorCreator<ConstraintList>> g(m_binaryGeneratorArray, m_idToIndex);
         mpl::for_each<GeometryList>(g);
         
-        //and single geometry constraints
+        //and single geometry constraint generators
         constraints = mpl::size<UnaryConstraintList>::type::value;
         m_unaryGeneratorArray.resize(boost::extents[size][constraints]);        
-        utilities::RecursiveSequenceApplyer<UnaryConstraintList, UnaryConstraintGeneratorCreator> gs(m_unaryGeneratorArray);
+        utilities::RecursiveSequenceApplyer<UnaryConstraintList, UnaryConstraintGeneratorCreator> gs(m_unaryGeneratorArray, m_idToIndex);
         mpl::for_each<GeometryList>(gs);
     };
     
@@ -1593,8 +1598,8 @@ struct NumericConverter : NumericConverterBase {
         dcm_assert(target);
         
         //get the two reduction trees for this geometry combination
-        reduction::EdgeReductionGraph* stTree = m_treeArray[source->getType()][target->getType()];
-        reduction::EdgeReductionGraph* tsTree = m_treeArray[target->getType()][source->getType()];
+        reduction::EdgeReductionGraph* stTree = m_treeArray[m_idToIndex[source->getType()]][m_idToIndex[target->getType()]];
+        reduction::EdgeReductionGraph* tsTree = m_treeArray[m_idToIndex[target->getType()]][m_idToIndex[source->getType()]];
      
         //get all constraints and cluster geometries, they are needed
         typedef typename Graph::global_edge_iterator iterator;
@@ -1629,31 +1634,50 @@ struct NumericConverter : NumericConverterBase {
         
         reduction = new numeric::ConstraintEquationHandler<Kernel>(g->source(edge), g->target(edge), 
                                                            tsWalker, stWalker, stSymbolics, sourceSymbolics,
-                                                           targetSymbolics, m_binaryGeneratorArray, m_unaryGeneratorArray);
+                                                           targetSymbolics, m_binaryGeneratorArray, m_unaryGeneratorArray,
+                                                           m_idToIndex);
         g->template setProperty<numeric::EquationHandlerProperty<Kernel>>(edge, reduction);
     };
     
     reduction::EdgeReductionGraph* getReductionGraph(int source, int target) {
-        return m_treeArray[source][target];
+        return m_treeArray[m_idToIndex[source]][m_idToIndex[target]];
     };
     
 private:
+    std::vector<int>                                                            m_idToIndex;
     boost::multi_array<reduction::EdgeReductionGraph*,2>                        m_treeArray;
     boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>    m_unaryGeneratorArray;
     boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>   m_binaryGeneratorArray;
        
+    struct IndexCreator {
+        std::vector<int>& idToIndex;
+        int               counter = -1;
+        
+        IndexCreator(std::vector<int>& map) : idToIndex(map) {};
+        
+        template<typename T>
+        void operator()(const T& t) {
+            int id = T::id();
+            if(idToIndex.size()<=(id+1))
+                idToIndex.resize(id+1);
+            
+            idToIndex[id] = ++counter;
+        };
+    };
+    
     struct ReductionTreeCreator {
     
+        const std::vector<int>& m_idToIndex;
         boost::multi_array<reduction::EdgeReductionGraph*,2>& m_treeArray;
         
-        ReductionTreeCreator(boost::multi_array<reduction::EdgeReductionGraph*,2>& r) 
-            : m_treeArray(r) {};
+        ReductionTreeCreator(boost::multi_array<reduction::EdgeReductionGraph*,2>& r, const std::vector<int>& idToIndex) 
+            : m_treeArray(r), m_idToIndex(idToIndex) {};
             
         template<typename T1, typename T2>
         void operator()() {
                     
-            int idx1 = T1::index();
-            int idx2 = T2::index();
+            int idx1 = m_idToIndex[T1::id()];
+            int idx2 = m_idToIndex[T2::id()];
             
             auto node1 = new reduction::GeometryEdgeReductionGraph<Kernel, 
                                 geometry::extractor<T1>::template primitive,
@@ -1676,31 +1700,35 @@ private:
     template<typename ConstraitSequence>
     struct ConstraintGeneratorCreator {
     
+        const std::vector<int>& m_idToIndex;
         boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
         
-        ConstraintGeneratorCreator(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) 
-            : generator(r) {};
+        ConstraintGeneratorCreator(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r,
+                                   const std::vector<int>& idToIndex) 
+            : generator(r), m_idToIndex(idToIndex) {};
             
         template<typename G1, typename G2>
         void operator()() {
         
-            InnerLoop<G1, G2> functor(generator);
+            InnerLoop<G1, G2> functor(generator, m_idToIndex);
             mpl::for_each<ConstraitSequence>(functor);
         };
         
         template<typename G1, typename G2>
         struct InnerLoop {
             
+            const std::vector<int>& m_idToIndex;
             boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& generator;
         
-            InnerLoop(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r) : generator(r) {};
+            InnerLoop(boost::multi_array<numeric::BinaryConstraintEquationGenerator<Kernel>*,3>& r, 
+                      const std::vector<int>& idToIndex) : generator(r), m_idToIndex(idToIndex) {};
             
             template<typename Constraint>
             void operator()(const Constraint& t) {
                 
-                size_t idx1 = G1::index();
-                size_t idx2 = G2::index();
-                size_t idxC = Constraint::index();
+                size_t idx1 = m_idToIndex[G1::id()];
+                size_t idx2 = m_idToIndex[G2::id()];
+                size_t idxC = m_idToIndex[Constraint::id()];
                 generator[idx1][idx2][idxC] = new numeric::TypedBinaryConstraintEquationGenerator<Kernel, 
                                                     Constraint, G1, G2>();
                                                                         
@@ -1711,16 +1739,18 @@ private:
     
     struct UnaryConstraintGeneratorCreator {
     
+        const std::vector<int>& m_idToIndex;
         boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& generator;
         
-        UnaryConstraintGeneratorCreator(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r) 
-                : generator(r) {};
+        UnaryConstraintGeneratorCreator(boost::multi_array<numeric::UnaryConstraintEquationGenerator<Kernel>*,2>& r,
+                                        const std::vector<int>& idToIndex) 
+                : generator(r), m_idToIndex(idToIndex) {};
                 
         template<typename G, typename Constraint>
         void operator()() {
             
-            size_t idxG = G::index();
-            size_t idxC = Constraint::index();
+            size_t idxG = m_idToIndex[G::id()];
+            size_t idxC = m_idToIndex[Constraint::id()];
             generator[idxG][idxC] = new numeric::TypedUnaryConstraintEquationGenerator<Kernel, 
                                                 Constraint, G>();
         };

@@ -84,9 +84,9 @@ struct RecursiveSequenceApplyer {
     
     Functor functor;
     
-    template<typename T>
-    RecursiveSequenceApplyer(T& param) 
-        : functor(Functor(param)) {};
+    template<typename... Args>
+    RecursiveSequenceApplyer(Args&... param) 
+        : functor(Functor(param...)) {};
     
     RecursiveSequenceApplyer(RecursiveSequenceApplyer& r) 
         : functor(r.functor) {};
@@ -111,16 +111,12 @@ struct RecursiveSequenceApplyer {
     };
 };
 
-//generates a int index value of a type in a sequence
-template<typename Sequence, typename G>
-struct index {
-    typedef typename mpl::find<Sequence, G>::type iterator;
-    typedef boost::is_same<iterator, typename mpl::end<Sequence>::type> valid;
-    BOOST_MPL_ASSERT_MSG(mpl::not_<valid>::value, TYPE_NOT_REGISTERT_IN_SEQUENCE, (G));
-    
-    typedef typename mpl::distance<typename mpl::begin<Sequence>::type,
-                        iterator>::type type; 
-    const static long value = type::value;
+class IDGeneratorBase {
+protected:      
+    static int generateId(){
+        static int idx = -1;
+        return ++idx;
+    }
 };
 
 //exposes the given type except if it is floating point, than int is exposed

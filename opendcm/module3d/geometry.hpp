@@ -34,7 +34,8 @@ template<typename Kernel>
 struct Point3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, numeric::Vector<Kernel, 3>>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>> Base;
+    using Base::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -52,13 +53,19 @@ struct Point3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>> {
         copy.transform(t);
         return copy;
     };
+    
+    static int id() {
+        static int ID = Base::generateId();
+        return ID;
+    };
 };
 
 template<typename Kernel>
 struct Line3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> Base;
+    using Base::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -81,13 +88,19 @@ struct Line3 : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vect
         copy.transform(t);
         return copy;
     };
+    
+    static int id() {
+        static int ID = Base::generateId();
+        return ID;
+    };
 };
 
 template<typename Kernel>
 struct Plane : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>> Base;
+    using Base::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -110,21 +123,26 @@ struct Plane : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vect
         copy.transform(t);
         return copy;
     };
+    
+    static int id() {
+        static int ID = Base::generateId();
+        return ID;
+    };
 };
 
 template<typename Kernel>
 struct Sphere: public Geometry<Kernel, numeric::Vector<Kernel, 3>, typename Kernel::Scalar> {
 
     typedef typename Kernel::Scalar Scalar;
-    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Inherited;
-    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Base;
+    using Base::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
     };
 
     Scalar& radius() {
-        return Inherited::rmPtr(fusion::at_c<1>(m_storage));
+        return Base::rmPtr(fusion::at_c<1>(m_storage));
     };
     
     template<typename Derived>
@@ -139,14 +157,19 @@ struct Sphere: public Geometry<Kernel, numeric::Vector<Kernel, 3>, typename Kern
         copy.transform(t);
         return copy;
     };
+    
+    static int id() {
+        static int ID = Base::generateId();
+        return ID;
+    };
 };
 
 template<typename Kernel>
 struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, typename Kernel::Scalar> {
 
     typedef typename Kernel::Scalar Scalar;
-    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Inherited;
-    using Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar>::m_storage;
+    typedef Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::Vector<Kernel, 3>, Scalar> Base;
+    using Base::m_storage;
 
     auto point()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -157,7 +180,7 @@ struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::V
     };
 
     Scalar& radius() {
-        return Inherited::rmPtr(fusion::at_c<2>(m_storage));
+        return Base::rmPtr(fusion::at_c<2>(m_storage));
     };
     
     template<typename Derived>
@@ -172,6 +195,11 @@ struct Cylinder : public Geometry<Kernel, numeric::Vector<Kernel, 3>, numeric::V
         Cylinder<Kernel> copy(*this);
         copy.transform(t);
         return copy;
+    };
+    
+    static int id() {
+        static int ID = Base::generateId();
+        return ID;
     };
 };
 

@@ -276,7 +276,7 @@ struct ModulePart3D {
                 auto prop = cluster->template getProperty<GeometryProperty>(v);
                 
                 //if the property is not available or does not hold the correct type we need to delete it, no way around
-                if(prop && prop->getType() != geometry::Part3<Kernel>::index()) {
+                if(prop && prop->getType() != geometry::Part3<Kernel>::id()) {
                     delete prop;
                     prop = nullptr;
                 }

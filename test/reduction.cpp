@@ -36,6 +36,11 @@ struct TDirection3 : public geometry::Geometry<Kernel, numeric::Vector<Kernel, 3
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
     };
+    
+    static int id() {
+        static int ID = geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>>::generateId();
+        return ID;
+    };
 };
 
 template<typename Kernel>
@@ -45,6 +50,11 @@ struct TScalar : public geometry::Geometry<Kernel, typename Kernel::Scalar> {
    
     auto value() -> decltype(fusion::at_c<0>(m_storage)){
         return fusion::at_c<0>(m_storage);
+    };
+    
+    static int id() {
+        static int ID = geometry::Geometry<Kernel, typename Kernel::Scalar>::generateId();
+        return ID;
     };
 };
 
@@ -191,7 +201,7 @@ BOOST_AUTO_TEST_CASE(tree) {
         [](dcm::reduction::TreeWalker* walker)->symbolic::Constraint* {
             
             auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-            auto dist = cwalker->getConstraint<dcm::Distance>(dcm::Distance::index(),
+            auto dist = cwalker->getConstraint<dcm::Distance>(dcm::Distance::id(),
                                                             dcm::Distance::Arity);
             auto val = dist->getPrimitive().distance();
             if(dist && std::abs((dist->getPrimitive().distance()-1))<1e-6) {
@@ -320,7 +330,7 @@ BOOST_AUTO_TEST_CASE(unary) {
         [](dcm::reduction::TreeWalker* walker)-> symbolic::Constraint* {
             
             auto cwalker = static_cast<dcm::reduction::SourceTargetWalker<K, TDirection3, TDirection3>*>(walker);
-            auto dist = cwalker->getConstraint<dcm::Fix>(dcm::Fix::index(),
+            auto dist = cwalker->getConstraint<dcm::Fix>(dcm::Fix::id(),
                                                         dcm::Fix::Arity);
             if(dist && dist->getPrimitive().fixed()==dcm::Fixables::pointY) {
                     

@@ -40,6 +40,7 @@
 #include "kernel.hpp"
 #include "equations.hpp"
 #include "transformation.hpp"
+#include "utilities.hpp"
 
 #ifdef DCM_DEBUG
 #include "defines.hpp"
@@ -67,9 +68,9 @@ namespace dcm {
  * //return transformed copy
  * this_type  transformed(const Eigen::Transform<Scalar, Dim, Eigen::AffineCompact>&) 
  *\endcode
- * Third and finale requirement is that a geometric primitive must be default-constructable, 
+ * Third requirement is that a geometric primitive must be default-constructable, 
  * copy-constructable and assignable.
- * 
+ * The last requirement is that the geometry must return a unique integer ID with the id() call. 
  * As an example let's create a point2d geometric primitive. We get the \ref Kernel as template argument. *
  * \code{.cpp}
  * template<typename Kernel>
@@ -82,25 +83,20 @@ namespace dcm {
  * 
  *      point2d<Kernel, Map>& transform  (const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
  *      point2d<Kernel, Map>  transformed(const Eigen::Transform<Scalar, 2, Eigen::AffineCompact>& t)...
+ *      
+ *      int id() {...};
  * }
  * \endcode
  *
  * The first requirement has been followed by creating a fusion vector called m_stroage which holds our two
  * data entries. The second requeirement is fullfilled by the fully provided transform interface. The third copy 
- * and assignable condition is meet by standart compiler-generated operators and constructors. 
+ * and assignable condition is meet by standart compiler-generated operators and constructors. The last one,
+ * the unique it id, is provided, but implementation is left open.
  *
  * As the example above needs quite some boilerplate for a primitve type helper classes are provided in this
  * namespace which ease the creation of geometric primitives.
  */
 namespace geometry {
-
-class GeometryIndex {
-protected:      
-    static int generateIndex(){
-        static int idx = -1;
-        return ++idx;
-    }
-};
 
 /**
  * @brief Helper base struct for creating primitive gepometry types
@@ -125,13 +121,22 @@ protected:
  *    };
  * 
  *    Line3<Kernel>& transform  (const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t)...
- *    Line3<Kernel>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t)...        
+ *    Line3<Kernel>  transformed(const Eigen::Transform<Scalar, 3, Eigen::AffineCompact>& t)...     
+ *
+ *    static id() {
+ *        static int id = Base::generateId();
+ *        return id;
+ *    };   
  * };
  * \endcode
  * 
- * \note The transform interface is not implemented by this class. Thats because it is impossible to determine
+ * @note The transform interface is not implemented by this class. Thats because it is impossible to determine
  * how each storage entry needs to be transformed. Also the space dimension is not known. Therefore it is 
  * the derived classes responibility to implement that interface. 
+ *
+ * @note The id interface is not implemented in the base, as it needs to be defined for each unique type. 
+ *       As there may be overlapp in the base, e.g. Point and Vector geometries, it must be definied in 
+ *       the derived class. But a helper is provided which ensures uniqueness.
  * 
  * @note To allow easy access to the stored elements the template function at<Idx> is given, which returnes
  *       the stored data at the given idex.
@@ -140,20 +145,13 @@ protected:
  * \tparam StorageTypes Variadic sequence of storage types
  */
 template<typename Kernel, typename... StorageTypes>
-struct Geometry : GeometryIndex {
+struct Geometry : utilities::IDGeneratorBase {
 
     typedef mpl::vector< StorageTypes... >                               StorageSequence;
     typedef typename fusion::result_of::as_vector<StorageSequence>::type Storage;
     
     Geometry& operator=(const Storage& storage) {m_storage = storage; return *this;};
     
-    /**
-     * @brief Returns the index of the geometry
-     */
-    static int index() {
-        static int idx = generateIndex();
-        return idx;
-    }
 protected:
     Storage m_storage;
     
@@ -669,7 +667,7 @@ struct TypeGeometry : public Geometry {
 
     void       setPrimitive(const Primitive& g) {
         m_geometry = g;
-        m_type = g.index();
+        m_type = g.id();
     }
     Primitive& getPrimitve() {return m_geometry;};
     

@@ -29,6 +29,7 @@
 
 #include "geometry.hpp"
 #include "reduction.hpp"
+#include "cluster.hpp"
 
 #include <type_traits>
 
@@ -56,7 +57,7 @@ struct Module3D {
             Stacked::init();
             
             //we create our default edge reduction trees
-            int pointID = geometry::Point3<Kernel>::index();
+            int pointID = geometry::Point3<Kernel>::id();
             module3d::setupPointPointReduction<Kernel>(this->getReductionGraph(pointID, pointID));
         };
         
@@ -133,7 +134,7 @@ struct Module3D {
                 };
                 
                 //store the type
-                m_type = Geometry::index();
+                m_type = Geometry::id();
                 InheritedV::m_variant = geometry;
                 
             };
@@ -176,12 +177,12 @@ struct Module3D {
             template<typename T>
             typename boost::enable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == geometry::extractor<typename geometry_traits<T>::type>::template primitive<Kernel>::index();
+                return m_type == geometry::extractor<typename geometry_traits<T>::type>::template primitive<Kernel>::id();
             };
             template<typename T>
             typename boost::disable_if<mpl::contains<mpl::vector<types...>, T>, bool>::type 
             holdsGeometryType() {
-                return m_type == geometry::extractor<T>::template primitive<Kernel>::index();
+                return m_type == geometry::extractor<T>::template primitive<Kernel>::id();
             };
            
             
@@ -428,7 +429,8 @@ struct Module3D {
         friend struct Geometry3D;
         friend struct Constraint3D;
         
-        DCM_MODULE_ADD_GEOMETRIES(Stacked, (geometry::Point3)(geometry::Line3)(geometry::Plane)(geometry::Cylinder))
+        DCM_MODULE_ADD_GEOMETRIES(Stacked, (geometry::Point3)(geometry::Line3)(geometry::Plane)(geometry::Cylinder)
+                                           (geometry::Cluster3))
     };
     
 };

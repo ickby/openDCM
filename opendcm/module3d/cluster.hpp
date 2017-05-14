@@ -37,8 +37,9 @@ template<typename Kernel>
 struct Cluster3 : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>> {
 
     typedef typename Kernel::Scalar Scalar;
-    using Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>>::m_storage;
-    using Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>>::operator=;
+    typedef Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Matrix<Kernel,3,3>> Base;
+    using Base::m_storage;
+    using Base::operator=;
 
     auto translation()->decltype(fusion::at_c<0>(m_storage)) {
         return fusion::at_c<0>(m_storage);
@@ -63,6 +64,11 @@ struct Cluster3 : public Geometry<Kernel, numeric::Vector<Kernel,3>, numeric::Ma
         Cluster3<Kernel> copy(*this);
         copy.transform(t);
         return copy;
+    };
+    
+    static int id() {
+        static int ID = geometry::Geometry<Kernel, numeric::Vector<Kernel, 3>>::generateId();
+        return ID;
     };
       
 protected:
