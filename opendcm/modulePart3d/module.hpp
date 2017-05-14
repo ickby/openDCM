@@ -137,7 +137,7 @@ struct ModulePart3D {
             typedef symbolic::GeometryProperty GeometryProperty;
             typedef graph::VertexProperty      VertexProperty;
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (VertexProperty) )
+            DCM_OBJECT_ADD_PROPERTIES( Inherited, (VertexProperty) )
                         
         public:            
             Part3D(Final* system) 
@@ -220,7 +220,7 @@ struct ModulePart3D {
                 
                 //we need to transfer the geometry to our cluster
                 auto cluster = std::static_pointer_cast<typename Final::Graph>(m_system->getGraph());
-                auto globalVertex = g->template getProperty<VertexProperty>();
+                auto globalVertex = g->getVertexProperty();
                 //it may be a sub-sub cluster etc.
                 auto localVertex = cluster->getLocalVertex(globalVertex);
                 dcm_assert(localVertex.second);

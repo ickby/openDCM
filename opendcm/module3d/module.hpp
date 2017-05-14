@@ -97,7 +97,7 @@ struct Module3D {
             typedef symbolic::GeometryProperty GeometryProperty;
             typedef graph::VertexProperty      VertexProperty;
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (VertexProperty) )
+            DCM_OBJECT_ADD_PROPERTIES( InheritedO, (VertexProperty) )
             
         public:            
             Geometry3D(Final* system) 
@@ -269,7 +269,7 @@ struct Module3D {
             //typedef symbolic::ConstraintProperty ConstraintProperty;
             typedef symbolic::ConstraintListProperty ConstraintList;
             
-            DCM_OBJECT_ADD_PROPERTIES( Final, (ConstraintList) )
+            DCM_OBJECT_ADD_PROPERTIES( InheritedO, (ConstraintList) )
             
         public:
             Constraint3D(Final* system) 

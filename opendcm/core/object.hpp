@@ -101,13 +101,28 @@ namespace details {
             m_properties.setProperty< elem >(value); \
         };
     
-#define DCM_OBJECT_ADD_PROPERTIES(final, seq) \
+#define DCM_OBJECT_ADD_PROPERTIES(Base, seq) \
     BOOST_PP_SEQ_FOR_EACH(PROPERTY_HANDLING_FUNCTIONS, _, seq ) \
     typedef mpl::vector< \
         BOOST_PP_SEQ_ENUM( seq ) \
         > Properties; \
+    template<typename Prop> \
+    const typename std::enable_if<dcm::details::has_property<Prop, Properties>::type::value, typename Prop::type>::type& getProperty() { \
+        return m_properties.getProperty<Prop>(); \
+    } \
+    template<typename Prop> \
+    const typename std::enable_if<!dcm::details::has_property<Prop, Properties>::type::value, typename Prop::type>::type& getProperty() { \
+        return Base::template getProperty<Prop>(); \
+    } \
+    template<typename Prop> \
+    typename std::enable_if<dcm::details::has_property<Prop, Properties>::type::value>::type setProperty(const typename Prop::type& value){ \
+        m_properties.setProperty<Prop>(value); \
+    }; \
+    template<typename Prop> \
+    typename std::enable_if<!dcm::details::has_property<Prop, Properties>::type::value>::type setProperty(const typename Prop::type& value){ \
+        Base::template setProperty<Prop>(value); \
+    }; \
     protected: \
-        friend struct dcm::details::Object<final>; \
         dcm::details::PropertyOwner< Properties > m_properties;
 
 template<typename Obj, typename Prop>        
@@ -202,32 +217,14 @@ template<typename Final>
 template<typename Prop>
 const typename Prop::type& Object<Final>::getProperty() {
    
-    typedef typename Final::template objectByProperty<Prop>::type Object;
-    //filteres list of all types inheriting from Object
-    typedef typename mpl::remove_if<
-    typename Final::ObjectList,
-             mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
-                     
-    if(isOneOfTypes<typename Final::ObjectList, Filtered>())
-        return static_cast<Object*>(this)->m_properties.template getProperty<Prop>();
-    else
-        throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
+    throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
 
 template<typename Final>
 template<typename Prop>
 void Object<Final>::setProperty(const typename Prop::type& value) {
     
-    typedef typename Final::template objectByProperty<Prop>::type Object;
-    //filteres list of all types inheriting from Object
-    typedef typename mpl::remove_if<
-    typename Final::ObjectList,
-             mpl::not_<boost::is_base_of<Object, mpl::_> > >::type Filtered;
-            
-    if(isOneOfTypes<typename Final::ObjectList, Filtered>())
-        static_cast<Object*>(this)->m_properties.template setProperty<Prop>(value);
-    else
-        throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
+    throw property_error() <<  boost::errinfo_errno(3) << error_message("property does not exist in this object");
 };
 
 template<typename Final>

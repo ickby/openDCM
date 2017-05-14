@@ -170,7 +170,7 @@ struct property_type {
 template<typename Prop, typename PropertyList>
 struct has_property {
     typedef typename mpl::find<PropertyList, Prop>::type iterator;
-    typedef typename boost::is_same<iterator, typename mpl::end<PropertyList>::type> type;
+    typedef typename mpl::not_<boost::is_same<iterator, typename mpl::end<PropertyList>::type>>::type type;
 };
 
 /**
