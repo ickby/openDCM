@@ -49,7 +49,7 @@ struct remove {};
 
 //we need this forward declaration to allow a friend statement later on 
 namespace solver {
-struct Builder;
+template<typename Kernel> struct Builder;
 }
 
 namespace details {
@@ -159,7 +159,7 @@ protected:
                                     graph::LocalVertex,                          //the vertex within the cluster that is a subcluster
                                     std::shared_ptr<graph::AccessGraphBase>) {}; //the subcluster the vertex represents
     
-    friend struct solver::Builder;
+    template<typename Kernel> friend struct solver::Builder;
 };
 
 struct GraphObjectProperty {

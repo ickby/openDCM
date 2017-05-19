@@ -56,6 +56,12 @@ struct Module3D {
             //that is our responsibility in the init stack
             Stacked::init();
             
+            //the default cluster reduction is a numeric::Geometry. This is not good, we want it to 
+            //be our parametric geometry
+            auto reduction = this->getReductionGraph(geometry::Cluster3<Kernel>::id(), geometry::Cluster3<Kernel>::id());
+            reduction->replaceSourceNode(std::make_shared<reduction::NumericGeometryNode<Kernel, numeric::Cluster3<Kernel>>>());
+            //TODO:  Do this for all graphs that end in a cluster! 
+            
             //we create our default edge reduction trees
             int pointID = geometry::Point3<Kernel>::id();
             module3d::setupPointPointReduction<Kernel>(this->getReductionGraph(pointID, pointID));

@@ -136,20 +136,24 @@ shedule::FlowGraph buildRecalculationFlow(std::shared_ptr<Graph> g) {
     
 namespace solver {
 
+template<typename Kernel>
 struct Builder {
         
-    template<typename AccessGraph, typename Kernel>
+    typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
+        
+    template<typename AccessGraph>
     struct FlowGraphExtractor : public boost::default_dfs_visitor {
         
-        typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
-        typedef typename numeric::EquationHandlerProperty<Kernel> prop;
+        typedef typename numeric::EquationHandlerProperty<Kernel> HdlProp;
+        typedef typename symbolic::GeometryProperty               GeoProp;
 
         FlowGraphExtractor( std::shared_ptr<shedule::FlowGraph> flow, 
                             std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> eqns,
                             std::vector<graph::LocalEdge> tree,
-                            std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& pMap,
+                            std::map<symbolic::Geometry*, CalcPtr>& cMap,
+                            std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& processMap,
                             std::shared_ptr<AccessGraph> graph) 
-                : m_flow(flow), m_eqns(eqns), m_tree(tree), m_graph(graph), m_processMap(pMap) {};
+                : m_flow(flow), m_eqns(eqns), m_tree(tree), m_graph(graph), m_calcMap(cMap), m_processMap(processMap) {};
 
         void run(graph::LocalVertex start) {
             
@@ -161,11 +165,12 @@ struct Builder {
         void startVertex(graph::LocalVertex v) {
 
             auto e = *m_graph->outEdges(v).first;
-            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
+            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<HdlProp>(e); 
             auto res = builder->createGeometryNode(v, m_flow);
-            m_processMap[v] = res;
+            m_calcMap[ m_graph->template getProperty<GeoProp>(v)] = res.first;
+            m_processMap[ v ] = res;
             
-            auto eqn = builder->createUnaryEquationsNode(v, res.first, m_flow);
+            auto eqn = builder->createUnaryEquationsNode(v, m_calcMap, m_flow);
             if(!eqn.first.empty())
                 m_flow->connect(res.second, eqn.second);
             
@@ -193,25 +198,26 @@ struct Builder {
         void handleEdge(graph::LocalEdge e, graph::LocalVertex start) {
 
             auto target = (m_graph->source(e)==start) ? m_graph->target(e) : m_graph->source(e);
-            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<prop>(e); 
+            numeric::EquationHandler<Kernel>* builder = m_graph->template getProperty<HdlProp>(e); 
             
             auto it = m_processMap.find(start);
             assert(it != m_processMap.end()); 
             std::pair<CalcPtr, shedule::FlowGraph::Node> g1 = it->second;
-            
+                       
             it = m_processMap.find(target);
             assert( it == m_processMap.end() );
             std::pair<CalcPtr, shedule::FlowGraph::Node> g2 = builder->createReducedGeometryNode(target, g1.first, m_flow);
             m_processMap[target] = g2;
+            m_calcMap[m_graph->template getProperty<symbolic::GeometryProperty>(target)] = g2.first;
                       
             m_flow->connect(g1.second, g2.second);
             
             //create unary and binary equations
-            auto ueqn = builder->createUnaryEquationsNode(target, g2.first, m_flow);
+            auto ueqn = builder->createUnaryEquationsNode(target, m_calcMap, m_flow);
             if(!ueqn.first.empty())
                 m_flow->connect(g2.second, ueqn.second);
             
-            auto beqn = builder->createReducedEquationsNode(target, g1.first, g2.first, m_flow);
+            auto beqn = builder->createReducedEquationsNode(target, m_calcMap, m_flow);
             if(!beqn.first.empty())
                 m_flow->connect(g2.second, beqn.second);
             
@@ -229,6 +235,7 @@ struct Builder {
         std::shared_ptr<shedule::FlowGraph> m_flow;
         std::shared_ptr<numeric::CalculatableSequentialVector<Kernel>> m_eqns;
         std::vector<graph::LocalEdge> m_tree;
+        std::map<symbolic::Geometry*, CalcPtr>& m_calcMap;
         std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>>& m_processMap;
     };
     
@@ -249,7 +256,7 @@ struct Builder {
     * to solve the given graph in a single action.
     * @note All Equation handler need to be setup corectly, they are used within this function.
     */
-    template<typename Kernel, typename Graph>
+    template<typename Graph>
     static void solveGraphNumericSystem(std::shared_ptr<Graph> g) {
         
         //maybe we don't need to do anything for example when the graph is a disconnected geometry or cluster
@@ -288,10 +295,10 @@ struct Builder {
         //build the flowgraph from the spanning tree. 
         auto flow = std::make_shared<shedule::FlowGraph>();
         auto eqns = std::make_shared<numeric::CalculatableSequentialVector<Kernel>>();
-        typedef std::shared_ptr<numeric::Calculatable<Kernel>> CalcPtr;
         std::map<graph::LocalVertex, std::pair<CalcPtr, shedule::FlowGraph::Node>> processMap;
+        std::map<symbolic::Geometry*, CalcPtr> calculatableMap;
 
-        FlowGraphExtractor<Graph, Kernel> extractor(flow, eqns, spanningTree, processMap, g);
+        FlowGraphExtractor<Graph> extractor(flow, eqns, spanningTree, calculatableMap, processMap, g);
         extractor.run(*g->vertices().first);  //TODO: don't use starting point random as now but use fixed
         
         //the non spanning tree edges have not been build. let's do that now
@@ -306,7 +313,7 @@ struct Builder {
                 auto g1 = processMap[g->source(edge)];
                 auto g2 = processMap[g->target(edge)];
                 
-                auto res = builder->createBinaryEquationsNode(g1.first, g2.first, flow);
+                auto res = builder->createBinaryEquationsNode(calculatableMap, flow);
                 if(!res.first.empty()) {
                     flow->connect(g1.second, res.second);
                     flow->connect(g2.second, res.second);
@@ -404,11 +411,11 @@ struct Builder {
         if(components>1) {
             shedule::for_each(0, components, 1, [&](int i) {
                     auto filter = graph::make_filter_graph(g, i);
-                    solveGraphNumericSystem<typename Final::Kernel>(filter);        
+                    solveGraphNumericSystem(filter);        
             });
         }
         else 
-            solveGraphNumericSystem<typename Final::Kernel>(g);
+            solveGraphNumericSystem(g);
         
         //we cant postprocess now, as we don't know if we are the toplevel cluster        
     }

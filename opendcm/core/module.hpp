@@ -233,19 +233,19 @@ struct ModuleCoreFinish : public Stacked {
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Start Preprocessing";
 #endif
         //pre process to get the data into the system. 
-        solver::Builder::preprocessSystem(g);
+        solver::Builder<Kernel>::preprocessSystem(g);
         
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Execute Solver";
 #endif
-        solver::Builder::solveSystem<Final>(g, m_converter);
+        solver::Builder<Kernel>::template solveSystem<Final>(g, m_converter);
         
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Done Solving, start postprocessing";
 #endif
         //post process the finished calculation. As solving throws an exception when not successfull we 
         //are sure that we finished and that we can process the solution
-        solver::Builder::postprocessSystem(g);
+        solver::Builder<Kernel>::postprocessSystem(g);
 #ifdef DCM_USE_LOGGING
         BOOST_LOG_SEV(Stacked::log, details::solving) << "Done postprocessing. Solver time: ";
 #endif 
