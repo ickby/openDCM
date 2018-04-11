@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(creation_handling) {
     //check edge creation when 1 vertex is in a cluster
     std::pair<std::shared_ptr<Graph>, LocalVertex> nc = g1->createCluster();
     fusion::vector<LocalVertex, GlobalVertex> sub3 = nc.first->addVertex();
-    fusion::vector<LocalEdge, GlobalEdge, bool> edge3 = g1->addEdge(fusion::at_c<1>(sub2), fusion::at_c<1>(sub3));
+    fusion::vector<LocalEdge, GlobalEdge, bool, bool> edge3 = g1->addEdge(fusion::at_c<1>(sub2), fusion::at_c<1>(sub3));
     BOOST_CHECK( fusion::at_c<2>(edge3) );
     BOOST_CHECK( boost::source(fusion::at_c<0>(edge3), g1->getDirectAccess()) == fusion::at_c<0>(sub2) );
     BOOST_CHECK( boost::target(fusion::at_c<0>(edge3), g1->getDirectAccess()) == nc.second );
@@ -164,8 +164,8 @@ BOOST_AUTO_TEST_CASE(removing) {
     fusion::vector<LocalVertex, GlobalVertex> res2 = g1->addVertex();
     fusion::vector<LocalVertex, GlobalVertex> res3 = g1->addVertex();
     
-    fusion::vector<LocalEdge, GlobalEdge, bool> res4 = g1->addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
-    fusion::vector<LocalEdge, GlobalEdge, bool> res5 = g1->addEdge(fusion::at_c<0>(res2), fusion::at_c<0>(res3));
+    g1->addEdge(fusion::at_c<0>(res1), fusion::at_c<0>(res2));
+    g1->addEdge(fusion::at_c<0>(res2), fusion::at_c<0>(res3));
     
     g1->removeVertex(fusion::at_c<0>(res1));    
     BOOST_CHECK( g1->edgeCount() == 1 );
@@ -182,8 +182,8 @@ BOOST_AUTO_TEST_CASE(removing) {
     
     //connect toplevel vertex with both subcluster vertices, so that there should be one local edge in top 
     //cluster with to global ones inside
-    res4 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res1));
-    res5 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
+    fusion::vector<LocalEdge, GlobalEdge, bool, bool> res4 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res1));
+    fusion::vector<LocalEdge, GlobalEdge, bool, bool> res5 = g1->addEdge(fusion::at_c<1>(res3), fusion::at_c<1>(res2));
     BOOST_CHECK( g1->edgeCount() == 1 );
     
     g1->removeVertex(fusion::at_c<1>(res1));
